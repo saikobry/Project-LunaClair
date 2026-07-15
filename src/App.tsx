@@ -1,40 +1,22 @@
 import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
+import markdown from './content.md?raw'
+import images from './images'
 import './App.css'
 
-const markdown = `
-# Hello Markdown
-
-This is a **markdown viewer** using \`react-markdown\`.
-
-## Features
-
-- **Bold**, *italic*, and \`inline code\`
-- Lists (like this one!)
-- [Links](https://example.com)
-- Code blocks:
-
-\`\`\`ts
-const greeting = "Hello, world!";
-console.log(greeting);
-\`\`\`
-
-### Table
-
-| Feature | Supported |
-|---------|-----------|
-| GFM     | Yes       |
-| Lists   | Yes       |
-| Code    | Yes       |
-
----
-
-> Blockquotes work too!
-`
+let content = markdown
+for (const [key, src] of Object.entries(images)) {
+  content = content.replace(
+    new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+    `<img src="${src}" alt="${key}" style="max-width:100%" />`
+  )
+}
 
 function App() {
   return (
     <div className="markdown-viewer">
-      <ReactMarkdown>{markdown}</ReactMarkdown>
+      <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   )
 }
