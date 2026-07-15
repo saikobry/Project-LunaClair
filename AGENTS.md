@@ -2,7 +2,7 @@
 
 ## What this is
 
-React 19 + TypeScript + Vite project. Produces a single HTML file via `vite-plugin-singlefile`.
+React 19 + TypeScript + Vite project.
 
 ## Commands
 
@@ -33,7 +33,7 @@ Strict options: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `n
 
 ## Build output
 
-`npm run build` produces a self-contained `dist/index.html` with all JS/CSS inlined. No separate asset files.
+`npm run build` produces a standard Vite build output in the `dist` directory with separate assets.
 
 ## Conventions
 
