@@ -9,34 +9,39 @@
 
 ### Classification According to Tissue Types / Two Major Categories
 
-#### Epithelial Membranes
+**Epithelial Membranes**
 - Cutaneous membranes
 - Mucous membranes
 - Serous membranes
 
-#### Connective Tissue Membranes
+**Connective Tissue Membranes**
 - Synovial membranes
 
-## Epithelial Membranes
+### Epithelial Membranes
 - Epithelial membranes are simple organs
 - Also called **covering** and **lining** membranes
 - These membranes contain both:
   - Epithelial tissue layer
   - Connective tissue layer
 
-### Cutaneous Membrane (Skin)
+{{FIGURE41A}}
+
+*Figure 4.1a Classes of epithelial membranes*
+
+#### Cutaneous Membrane (Skin)
 - Dry membrane
 - Outermost protective boundary
 - Consists of two layers:
   - **Epidermis**: Composed of keratinized stratified squamous epithelium
   - **Dermis**: Mostly dense (fibrous) connective tissue
 
-### Figure 4.1a Classes of epithelial membranes
-{{FIGURE41A}}
-
 - (a) Cutaneous membrane (skin) Cutaneous membrane (the skin) covers the body surface.
 
-### Mucous Membranes (Mucosae)
+{{FIGURE41B}}
+
+*Figure 4.1b Classes of epithelial membranes*
+
+#### Mucous Membranes (Mucosae)
 - Moist membranes
 - Some mucosae secrete protective, lubricating mucus
 - Line all body cavities that open to the exterior body surface
@@ -45,38 +50,40 @@
   - Type depends on the site
   - Loose connective tissue (lamina propria)
 
-### Figure 4.1b Classes of epithelial membranes
-{{FIGURE41B}}
+{{FIGURE41C}}
 
-### Serous Membranes (Serosae)
+*Figure 4.1c Classes of epithelial membranes*
+
+{{FIGURE41D}}
+
+*Figure 4.1d Classes of epithelial membranes*
+
+#### Serous Membranes (Serosae)
 - Line compartments in the ventral body that are closed to the exterior of the body
 - Occur in pairs, separated by serous fluid, with a visceral and parietal layer
 - Consists of two layers:
   - Simple squamous epithelium
   - Areolar connective tissue
 
-### Figure 4.1c Classes of epithelial membranes
-{{FIGURE41C}}
-
-### Figure 4.1d Classes of epithelial membranes
-{{FIGURE41D}}
-
-### Specific Serous Membranes
+##### Specific Serous Membranes
 - **Peritoneum**: Abdominal cavity
 - **Pleura**: Around the lungs
 - **Pericardium**: Around the heart
 
-## Connective Tissue Membranes
+### Connective Tissue Membranes
 
-### Synovial Membranes
+#### Synovial Membranes
 - Loose areolar connective tissue only (no epithelial tissue)
 - Line fibrous capsules surrounding joints
   - Line bursae
   - Line tendon sheaths
 - Secrete a lubricating fluid to cushion organs moving against each other during muscle activity
 
-### Figure 4.2 A typical synovial joint
 {{FIGURE42}}
+
+*Figure 4.2 A typical synovial joint*
+
+---
 
 # Integumentary System
 
@@ -88,8 +95,7 @@
     - Hair
     - Nails
 
-# Functions of the Integumentary System
-
+## Functions of the Integumentary System
 - Insulates and cushion deeper body organs
 - Protects the entire body from:
   - Mechanical damage (bumps and cuts)
@@ -114,71 +120,76 @@
 | **Protects deeper tissues from ultraviolet (UV) radiation (damaging effects of sunlight or tanning beds)** | Melanin produced by melanocytes offers protection from UV damage. |
 | **Protects deeper tissues from thermal (heat or cold) damage** | Contains heat/cold/pain receptors. |
 | **Protects deeper tissues from desiccation (drying out)** | Contains a water-resistant glycolipid and keratin. |
-| **Aids in body heat loss or heat retention (controlled by the nervous system)** | **Heat loss:** Activating sweat glands and allowing blood to flush into skin capillary beds so heat can radiate from the skin surface.<br><br>**Heat retention:** Not allowing blood to flush into skin capillary beds. |
+| **Aids in body heat loss or heat retention (controlled by the nervous system)** | **Heat loss:** Activating sweat glands and allowing blood to flush into skin capillary beds so heat can radiate from the skin surface. **Heat retention:** Not allowing blood to flush into skin capillary beds. |
 | **Aids in excretion of urea and uric acid** | Contained in perspiration produced by sweat glands. |
 | **Synthesizes vitamin D** | Modified cholesterol molecules in the skin are converted to vitamin D in the presence of sunlight. |
 
+---
+
 # Structure of the Skin
 
-## Two kinds of tissue compose the skin
+### Two kinds of tissue compose the skin
 - Epidermis
 - Dermis
+
 #### Subcutaneous tissue (hypodermis)
 - Anchors the skin to underlying organs
 - Not technically part of the integumentary system
 - Composed mostly of adipose tissue
 - Serves as a shock absorber and insulates deeper tissues
 
-### Figure 4.3 Skin Structure
 {{FIGURE43}}
 
+*Figure 4.3 Skin Structure*
+
 #### Epidermis—outer layer
-  - Composed of stratified squamous epithelium
-  - Most cells are keratinocytes which produce a fibrous protein called **keratin**
-    - Keratinization makes the epidermis tough
-    - Desmosomes connect keratinocytes together
-#### Avascular
-#### Composed of five layers (strata)
+- Composed of stratified squamous epithelium
+- Most cells are keratinocytes which produce a fibrous protein called **keratin**
+  - Keratinization makes the epidermis tough
+  - Desmosomes connect keratinocytes together
+- Avascular
+- Composed of five layers (strata)
 
-## Summary of Layers of the Epidermis (Deepest to Most Superficial)
-  - Stratum basale
-  - Stratum spinosum
-  - Stratum granulosum
-  - Stratum lucidum (thick, hairless skin only)
-  - Stratum corneum
+### Summary of Layers of the Epidermis (Deepest to Most Superficial)
+- Stratum basale
+- Stratum spinosum
+- Stratum granulosum
+- Stratum lucidum (thick, hairless skin only)
+- Stratum corneum
 
-### Stratum Basale (Stratum Germinativum)
-  - Deepest layer of epidermis
-  - Lies next to dermis
-  - Wavy borderline with the dermis anchors the two together
-  - Cells undergoing mitosis
-  - Daughter cells are pushed upward to become the more superficial layers
+#### Stratum Basale (Stratum Germinativum)
+- Deepest layer of epidermis
+- Lies next to dermis
+- Wavy borderline with the dermis anchors the two together
+- Cells undergoing mitosis
+- Daughter cells are pushed upward to become the more superficial layers
 
-### Stratum Spinosum
-  - Cells become increasingly flatter and more keratinized
+#### Stratum Spinosum
+- Cells become increasingly flatter and more keratinized
 
-### Stratum Granulosum
+#### Stratum Granulosum
 
-### Stratum Lucidum
-  - Formed from dead cells of the deeper strata
-  - Occurs only in thick, hairless skin of the palms of hands and soles of feet
+#### Stratum Lucidum
+- Formed from dead cells of the deeper strata
+- Occurs only in thick, hairless skin of the palms of hands and soles of feet
 
-### Stratum Corneum
-  - Outermost layer of epidermis
-  - Shingle-like dead cells are filled with keratin (protective protein prevents water loss from skin)
+#### Stratum Corneum
+- Outermost layer of epidermis
+- Shingle-like dead cells are filled with keratin (protective protein prevents water loss from skin)
 
-### Figure 4.4 The Main Structural Features of the Epidermis
 {{FIGURE44}}
 
-#### Melanin
+*Figure 4.4 The Main Structural Features of the Epidermis*
+
+##### Melanin
 - Melanin is a pigment produced by melanocytes
 - Melanocytes are mostly in the stratum basale of the epidermis
 - Color is yellow to brown to black
 
-#### Epidermal Dendritic Cells
+##### Epidermal Dendritic Cells
 - Alert and activate immune cells to a threat (bacterial or viral invasion)
 
-#### Merkel Cells
+##### Merkel Cells
 - Associated with sensory nerve endings
 - Serve as touch receptors called Merkel discs
 
@@ -204,8 +215,9 @@
 - Sweat and oil glands
 - Deep pressure receptors (lamellar corpuscles)
 
-### Figure 4.5 Light micrograph of the two layers of the dermis (100X).
-{{FIGURE45}} 
+{{FIGURE45}}
+
+*Figure 4.5 Light micrograph of the two layers of the dermis (100X).*
 
 #### Other Dermal Features
 - Cutaneous sensory receptors
@@ -214,33 +226,39 @@
 - Blood vessels
 - Nerve supply
 
+---
+
 # Skin Color
 
 ### Three pigments contribute to skin color
-  1. **Melanin**
-     - Yellow, reddish brown, or black pigments
-  2. **Carotene**
-     - Orange-yellow pigment (also found in some vegetables)
-  3. **Hemoglobin**
-     - Red coloring from blood cells in dermal capillaries
-     - Oxygen content determines the extent of red coloring
+1. **Melanin**
+   - Yellow, reddish brown, or black pigments
+2. **Carotene**
+   - Orange-yellow pigment (also found in some vegetables)
+3. **Hemoglobin**
+   - Red coloring from blood cells in dermal capillaries
+   - Oxygen content determines the extent of red coloring
 
-#### Redness (erythema)—due to embarrassment, inflammation, hypertension, fever, or allergy
-#### Pallor (blanching)—due to emotional stress (such as fear), anemia, low blood pressure, impaired blood flow to an area
-#### Jaundice (yellow cast)—indicates a liver disorder
-#### Bruises (black and blue marks)—hematomas
+- **Redness (erythema)**—due to embarrassment, inflammation, hypertension, fever, or allergy
+- **Pallor (blanching)**—due to emotional stress (such as fear), anemia, low blood pressure, impaired blood flow to an area
+- **Jaundice (yellow cast)**—indicates a liver disorder
+- **Bruises (black and blue marks)**—hematomas
+
+---
 
 # Appendages of the Skin
 
 #### Cutaneous glands are all exocrine glands
-  - Sebaceous glands
-  - Sweat glands
+- Sebaceous glands
+- Sweat glands
+
 #### Hair
 #### Hair follicles
 #### Nails
 
-### Figure 4.3 Skin Structure
 {{FIGURE43}}
+
+*Figure 4.3 Skin Structure*
 
 ### Sebaceous (Oil) Glands
 - Located all over the skin except for palms and soles
@@ -251,8 +269,9 @@
 - Most have ducts that empty into hair follicles; others open directly onto skin surface
 - Glands are activated at puberty with increased androgens
 
-### Figure 4.6a Cutaneous glands
 {{FIGURE46A}}
+
+*Figure 4.6a Cutaneous glands*
 
 ### Sweat (Sudoriferous) Glands
 - Produce sweat
@@ -263,13 +282,14 @@
 
 #### Eccrine Glands
 - More numerous, located all over the body
-- Open via duct to sweat pores on the skin’s surface
+- Open via duct to sweat pores on the skin's surface
 - Produce acidic sweat
   - Water, salts, vitamin C, traces of metabolic waste
 - Function in body temperature regulation
 
-### Figure 4.6b Cutaneous glands
 {{FIGURE46B}}
+
+*Figure 4.6b Cutaneous glands*
 
 #### Apocrine Glands
 - Ducts empty into hair follicles in the armpit and genitals
@@ -286,8 +306,9 @@
 - Melanocytes provide pigment for hair color
 - Hair grows in the matrix of the hair bulb in stratum basale
 
-### Figure 4.7a Structure of a hair root and follicle
 {{FIGURE47A}}
+
+*Figure 4.7a Structure of a hair root and follicle*
 
 #### Hair Anatomy
 - Central medulla
@@ -296,11 +317,13 @@
   - Most heavily keratinized region of the hair
 - Melanin provides color
 
-### Figure 4.7b Structure of a hair root and follicle
 {{FIGURE47B}}
 
-### Figure 4.7c Structure of a hair root and follicle
+*Figure 4.7b Structure of a hair root and follicle*
+
 {{FIGURE47C}}
+
+*Figure 4.7c Structure of a hair root and follicle*
 
 #### Associated Hair Structures
 - **Hair follicle**
@@ -308,8 +331,9 @@
   - Dermal region provides a blood supply to the hair bulb (deepest part of the follicle)
   - Arrector pili muscle connects to the hair follicle to pull hairs upright when we are cold or frightened
 
-### Figure 4.7d Structure of a hair root and follicle
 {{FIGURE47D}}
+
+*Figure 4.7d Structure of a hair root and follicle*
 
 ### Nails
 - Heavily keratinized, scalelike modifications of the epidermis
@@ -323,15 +347,18 @@
 - Root of nail is embedded in skin
 - Growth of the nail occurs from nail matrix
 
-### Figure 4.8 Structure of a nail
 {{FIGURE48}}
+
+*Figure 4.8 Structure of a nail*
+
+---
 
 ## Homeostatic Imbalances of Skin
 
 ### Infections and Allergies
 
 #### Athlete's Foot
-- Caused by fungal infection (__Tinea pedis__)
+- Caused by fungal infection (*Tinea pedis*)
 - Itchy, red peeling skin between the toes
 
 #### Boils (Furuncles) and Carbuncles
@@ -339,7 +366,7 @@
 - Carbuncles are clusters of boils caused by bacteria
 
 #### Cold Sores (Fever Blisters)
-- Caused by __human herpesvirus 1__
+- Caused by **human herpesvirus 1**
 - Blisters itch and sting
 
 #### Contact Dermatitis
@@ -354,8 +381,9 @@
 - Triggered by trauma, infection, hormonal changes, or stress
 - Red, epidermal lesions covered with dry, silvery scales that itch, burn, crack, or sometimes bleed
 
-### Figure 4.9 Cutaneous lesions
 {{FIGURE49}}
+
+*Figure 4.9 Cutaneous lesions*
 
 ### Burns
 - Tissue damage and cell death caused by heat, electricity, UV radiation, or chemicals
@@ -371,8 +399,9 @@
 - Each area represents about 9 percent of total body surface area
   - The area surrounding the genitals (the perineum) represents 1 percent of body surface area
 
-### Figure 4.10a Burns
 {{FIGURE410A}}
+
+*Figure 4.10a Burns*
 
 #### First-Degree Burn (Superficial Burn)
 - Only epidermis is damaged
@@ -394,8 +423,9 @@
 - Requires surgery and grafting
 - May require amputation
 
-### Figure 4.10b Burns
 {{FIGURE410B}}
+
+*Figure 4.10b Burns*
 
 #### Criteria for Deeming Burns Critical (If Any One Is Met)
 - Over 30 percent of body has second-degree burns
@@ -408,8 +438,8 @@
 - Most common form of cancer in humans
 - Most important risk factor is overexposure to ultraviolet (UV) radiation in sunlight and tanning beds
 - Cancer can be classified two ways
-  1. __Benign__ means the neoplasm (tumor) has not spread
-  2. __Malignant__ means the neoplasm has invaded other body areas
+  1. **Benign** means the neoplasm (tumor) has not spread
+  2. **Malignant** means the neoplasm has invaded other body areas
 
 #### Most Common Types of Skin Cancer
 - Basal cell carcinoma
@@ -421,8 +451,9 @@
 - Arises from cells in stratum basale that are altered so that they can no longer make keratin
 - Lesions appear as shiny, dome-shaped nodules that develop a central ulcer
 
-### Figure 4.11a Photographs of skin cancers
 {{FIGURE411A}}
+
+*Figure 4.11a Photographs of skin cancers*
 
 ##### Squamous Cell Carcinoma
 - Believed to be induced by UV exposure
@@ -431,8 +462,9 @@
 - Early removal allows a good chance of cure
 - Metastasizes to lymph nodes if not removed
 
-### Figure 4.11b Photographs of skin cancers
 {{FIGURE411B}}
+
+*Figure 4.11b Photographs of skin cancers*
 
 ##### Malignant Melanoma
 - Most deadly of skin cancers, but accounts for only 5 percent of skin cancers
@@ -450,11 +482,13 @@
 - **E = Evolution**
   - One or more of the ABCD characteristics is evolving
 
-### Figure 4.11c Photographs of skin cancers
 {{FIGURE411C}}
 
-## Developmental Aspects of Skin and Body Membranes
+*Figure 4.11c Photographs of skin cancers*
 
+---
+
+## Developmental Aspects of Skin and Body Membranes
 - Lanugo, a downy hair, covers the body by the fifth or sixth month of fetal development but disappears by birth
 - Vernix caseosa, an oily covering, is apparent at birth
 - Milia, small white spots, are common at birth and disappear by the third week
