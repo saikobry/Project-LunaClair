@@ -1,8 +1,10 @@
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 import markdown from './content.md?raw'
 import images from './images'
+import Toc from './Toc'
 import './App.css'
 
 let content = markdown
@@ -15,8 +17,11 @@ for (const [key, src] of Object.entries(images)) {
 
 function App() {
   return (
-    <div className="markdown-viewer">
-      <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className="layout">
+      <Toc />
+      <div className="markdown-viewer">
+        <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSlug]} remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
     </div>
   )
 }
