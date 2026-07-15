@@ -129,3 +129,328 @@
   font-size: 0.85em;
   color: #666;
 }
+
+/* Custom Highlight Styles */
+::highlight(hl-yellow) {
+  background-color: rgba(254, 240, 138, 0.55);
+}
+::highlight(hl-green) {
+  background-color: rgba(187, 247, 208, 0.55);
+}
+::highlight(hl-pink) {
+  background-color: rgba(251, 207, 232, 0.55);
+}
+::highlight(hl-blue) {
+  background-color: rgba(191, 219, 254, 0.55);
+}
+
+/* Layout adjustments */
+.viewer-container {
+  position: relative;
+  flex: 1;
+  max-width: 800px;
+}
+
+/* Glassmorphism Toolbar - Collapsible Sticky Dock */
+.main-content-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  width: 100%;
+}
+
+.annotation-toolbar {
+  position: sticky;
+  top: 100px;
+  align-self: flex-start;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.annotation-toolbar.collapsed {
+  /* Slide off-screen to the left, keeping only the toggle button visible */
+  transform: translateX(calc(-100% + 44px));
+  padding: 10px;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* On smaller viewports, make it float fixed on the side */
+@media (max-width: 1000px) {
+  .main-content-wrapper {
+    gap: 0;
+  }
+  
+  .annotation-toolbar {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translate(0, -50%);
+    border-radius: 0 16px 16px 0;
+    border-left: none;
+    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .annotation-toolbar.collapsed {
+    /* Almost completely hidden — just a thin 10px edge to tap */
+    transform: translate(calc(-100% + 28px), -50%);
+  }
+}
+
+.toolbar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: #4b5563;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toolbar-toggle-btn:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.toolbar-collapsible {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: toolbarFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toolbar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-divider {
+  width: 20px;
+  height: 1px;
+  background-color: rgba(229, 231, 235, 1);
+}
+
+.toolbar-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 13px;
+  color: #4b5563;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.toolbar-btn.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn.icon-only {
+  padding: 0;
+}
+
+.toolbar-btn.danger-btn {
+  color: #dc2626;
+  border-color: transparent;
+}
+
+.toolbar-btn.danger-btn:hover {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+/* Brush color palette - 2 column grid for vertical spacing */
+.brush-colors {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.brush-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.brush-color-dot:hover {
+  transform: scale(1.15);
+}
+
+.brush-color-dot.active {
+  border-color: #1f2937;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+/* Brush size selections - stacked vertically */
+.brush-sizes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+@keyframes toolbarFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.brush-size-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.brush-size-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.brush-size-btn.active {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+
+/* Selection Popover */
+.selection-popover {
+  background: #1f2937;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.selection-popover-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-selectors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+
+.color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.2);
+}
+
+.popover-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.popover-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}
+
+.popover-action.delete-btn:hover {
+  color: #f87171;
+}
+
+.popover-action.close-btn {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.selection-popover-arrow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #1f2937;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -90%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
