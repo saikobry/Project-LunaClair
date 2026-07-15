@@ -98,6 +98,24 @@ function App() {
     });
   }, [highlights]);
 
+  // Prevent scrolling when in draw mode (especially on mobile)
+  useEffect(() => {
+    if (mode === 'draw') {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      document.body.style.overscrollBehavior = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.body.style.overscrollBehavior = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.body.style.overscrollBehavior = '';
+    };
+  }, [mode]);
+
   // Handle Selection Change Event
   const handleTextSelection = useCallback(() => {
     if (mode !== 'select') return;
