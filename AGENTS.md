@@ -139,6 +139,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 - No CI, no tests, no formatting config (beyond oxlint).
 - Commit messages: use `commit-message` skill (`.agents/skills/commit-message/SKILL.md`) — generates conventional commits from staged changes.
+- React code quality: use `react-doctor` skill (`.agents/skills/react-doctor/SKILL.md`) — scans for React anti-patterns, performance, security, architecture, accessibility. Run after any React code changes.
 - No `prettier`, `eslint`, or `biome`. Do not add them without asking.
 
 ## User Preferences
