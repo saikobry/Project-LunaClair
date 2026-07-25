@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, type HTMLAttributes } from 'react';
 import { Button as AstryxButton } from '@astryxdesign/core/Button';
 import type { ButtonVariant as AstryxButtonVariant } from '@astryxdesign/core/Button';
 
@@ -24,7 +24,7 @@ function mapVariant(variant?: ButtonVariant): AstryxButtonVariant {
 }
 
 export interface ButtonProps {
-  /** Accessible label (always required for Astryx Button). */
+  /** Accessible label (always required). */
   label: string;
   /** Visual variant. @default 'primary' */
   variant?: ButtonVariant;
@@ -46,6 +46,15 @@ export interface ButtonProps {
   tooltip?: string;
   /** Full-width button. */
   width?: string | number;
+  /** Additional class name. */
+  className?: string;
+  /** Inline styles. */
+  style?: React.CSSProperties;
+  /** Additional ARIA attributes. */
+  'aria-label'?: string;
+  'aria-describedby'?: string;
+  'aria-expanded'?: boolean;
+  'aria-haspopup'?: HTMLAttributes<HTMLElement>['aria-haspopup'];
 }
 
 /**
@@ -67,7 +76,10 @@ export function Button({
   children,
   tooltip,
   width,
+  className,
+  style,
   onClick,
+  ...ariaProps
 }: ButtonProps) {
   return (
     <AstryxButton
@@ -80,7 +92,10 @@ export function Button({
       isIconOnly={isIconOnly}
       tooltip={tooltip}
       width={width}
+      className={className}
+      style={style}
       onClick={onClick}
+      {...ariaProps}
     >
       {children}
     </AstryxButton>

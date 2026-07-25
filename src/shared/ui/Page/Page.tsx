@@ -28,13 +28,13 @@ const styles = stylex.create({
   title: {
     fontSize: 28,
     fontWeight: 600,
-    color: 'var(--color-text-primary, #08060d)',
+    color: 'var(--color-text-primary)',
     margin: 0,
     letterSpacing: '-0.5px',
   },
   description: {
     fontSize: 14,
-    color: 'var(--color-text-secondary, #6b6375)',
+    color: 'var(--color-text-secondary)',
     margin: 0,
   },
   actions: {

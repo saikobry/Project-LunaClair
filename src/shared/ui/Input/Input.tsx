@@ -22,6 +22,10 @@ export interface InputProps {
   statusMessage?: string;
   /** Whether to auto-focus on mount. @default false */
   hasAutoFocus?: boolean;
+  /** Additional class name. */
+  className?: string;
+  /** Inline styles. */
+  style?: React.CSSProperties;
 }
 
 /**
@@ -42,6 +46,8 @@ export function Input({
   description,
   statusMessage,
   hasAutoFocus = false,
+  className,
+  style,
 }: InputProps) {
   return (
     <TextInput
@@ -54,6 +60,8 @@ export function Input({
       type={type}
       description={description}
       hasAutoFocus={hasAutoFocus}
+      className={className}
+      style={style}
       {...(statusMessage
         ? { status: { type: 'error' as const, message: statusMessage } }
         : undefined)}

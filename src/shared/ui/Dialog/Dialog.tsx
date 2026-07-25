@@ -18,6 +18,12 @@ export interface DialogProps {
   purpose?: 'required' | 'form' | 'info';
   /** Ref forwarded to the dialog element. */
   ref?: Ref<HTMLDialogElement>;
+  /** Additional class name. */
+  className?: string;
+  /** Inline styles. */
+  style?: React.CSSProperties;
+  /** ARIA label for the dialog. */
+  'aria-label'?: string;
 }
 
 /**
@@ -36,6 +42,9 @@ export function Dialog({
   maxHeight = '75vh',
   purpose = 'info',
   ref,
+  className,
+  style,
+  ...ariaProps
 }: DialogProps) {
   return (
     <AstryxDialog
@@ -47,6 +56,9 @@ export function Dialog({
       width={width}
       maxHeight={maxHeight}
       purpose={purpose}
+      className={className}
+      style={style}
+      {...ariaProps}
     >
       {title && (
         <h2
