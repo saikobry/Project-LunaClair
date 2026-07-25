@@ -9,7 +9,7 @@ Application-level orchestration: the root shell layout, configuration constants,
 - `layouts/AppShell.tsx` — Root layout shell that manages top-level navigation (`library` | `reader` screens), document resolution, and screen switching
 - `bootstrap.ts` — Application initialization: registers content sources, seeds demo data into `libraryRepository`
 - `config/constants.ts` — App-wide constants (app name, studio name)
-- `providers/` — React context providers (currently empty, reserved for future cross-feature state)
+- `providers/AppProviders.tsx` — Astryx `<Theme>` provider (wraps app with neutral theme); future providers (TanStack Query, toast, auth) added here
 - `index.ts` — Barrel export of public API
 
 ## Local Contracts

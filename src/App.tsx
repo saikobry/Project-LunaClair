@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AppShell from './app/layouts/AppShell';
+import { AppProviders } from './app/providers';
 import { bootstrapApplication } from './app/bootstrap';
 
 export default function App() {
@@ -14,5 +15,9 @@ export default function App() {
     return null;
   }
 
-  return <AppShell />;
+  return (
+    <AppProviders>
+      <AppShell />
+    </AppProviders>
+  );
 }

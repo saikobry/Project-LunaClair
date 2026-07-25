@@ -1,58 +1,15 @@
 import { useState, useCallback } from 'react';
-import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft } from 'lucide-react';
 import type { Document } from '../../domain/reader';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
+import { Page } from '../../shared/ui/Page';
+import { Button } from '../../shared/ui/Button';
 import { useHighlights, useDrawings, useTextSelection } from './hooks';
 import { preprocessMarkdown } from './utils';
 import ReaderView from './ReaderView';
 import rawMarkdown from './assets/content.md?raw';
 
 const processedContent = preprocessMarkdown(rawMarkdown);
-
-const readerStyles = stylex.create({
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 24px',
-    borderBottomWidth: 1,
-    borderBottomStyle: 'solid',
-    borderBottomColor: '#e5e4e7',
-    backgroundColor: '#fff',
-  },
-  backButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '6px 12px',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#6b6375',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: '#e5e4e7',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: '#f9fafb',
-      color: '#08060d',
-      borderColor: '#d1d5db',
-    },
-  },
-  docTitle: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: '#08060d',
-    margin: 0,
-    flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-});
 
 interface ReaderScreenProps {
   document: Document | null;
@@ -114,22 +71,19 @@ export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreen
   const content = document?.content ?? processedContent;
 
   return (
-    <>
-      {/* Top toolbar with back navigation */}
-      <div {...stylex.props(readerStyles.toolbar)}>
-        <button
-          type="button"
-          {...stylex.props(readerStyles.backButton)}
+    <Page
+      title={document?.title ?? 'Reader'}
+      actions={
+        <Button
+          label="Back to Library"
+          variant="secondary"
+          icon={<ArrowLeft size={16} />}
           onClick={onBackToLibrary}
         >
-          <ArrowLeft size={16} />
           Back to Library
-        </button>
-        <h2 {...stylex.props(readerStyles.docTitle)}>
-          {document?.title ?? 'Reader'}
-        </h2>
-      </div>
-
+        </Button>
+      }
+    >
       <ReaderView
         content={content}
         containerRef={containerRef}
@@ -153,6 +107,6 @@ export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreen
         onDeleteHighlight={handleDeleteHighlight}
         onClosePopover={() => setPopover({ x: 0, y: 0, visible: false })}
       />
-    </>
+    </Page>
   );
 }

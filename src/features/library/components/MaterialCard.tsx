@@ -2,6 +2,8 @@ import { type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
+import { Card } from '../../../shared/ui/Card';
+import { Button } from '../../../shared/ui/Button';
 import { styles } from '../styles/library.stylex';
 
 interface MaterialCardProps {
@@ -25,7 +27,12 @@ function formatDate(iso: string | undefined): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function MaterialCard({ material, onOpen, onRename, onDelete }: MaterialCardProps) {
+export default function MaterialCard({
+  material,
+  onOpen,
+  onRename,
+  onDelete,
+}: MaterialCardProps) {
   const handleOpen = (e: MouseEvent) => {
     e.stopPropagation();
     onOpen(material);
@@ -40,7 +47,7 @@ export default function MaterialCard({ material, onOpen, onRename, onDelete }: M
   };
 
   return (
-    <div {...stylex.props(styles.card)}>
+    <Card>
       <div {...stylex.props(styles.cardHeader)}>
         <h3 {...stylex.props(styles.cardTitle)}>{material.title}</h3>
         <span {...stylex.props(styles.sourceBadge)}>{material.sourceType}</span>
@@ -56,34 +63,28 @@ export default function MaterialCard({ material, onOpen, onRename, onDelete }: M
       </div>
 
       <div {...stylex.props(styles.cardActions)}>
-        <button
-          type="button"
-          {...stylex.props(styles.cardActionBtn)}
+        <Button
+          label={`Open ${material.title}`}
+          variant="secondary"
+          icon={<Eye size={14} />}
+          isIconOnly
           onClick={handleOpen}
-          title="Open"
-          aria-label={`Open ${material.title}`}
-        >
-          <Eye size={14} />
-        </button>
-        <button
-          type="button"
-          {...stylex.props(styles.cardActionBtn)}
+        />
+        <Button
+          label={`Rename ${material.title}`}
+          variant="secondary"
+          icon={<Pencil size={14} />}
+          isIconOnly
           onClick={handleRename}
-          title="Rename"
-          aria-label={`Rename ${material.title}`}
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          type="button"
-          {...stylex.props(styles.cardActionBtn, styles.cardActionBtnDanger)}
+        />
+        <Button
+          label={`Delete ${material.title}`}
+          variant="danger"
+          icon={<Trash2 size={14} />}
+          isIconOnly
           onClick={handleDelete}
-          title="Delete"
-          aria-label={`Delete ${material.title}`}
-        >
-          <Trash2 size={14} />
-        </button>
+        />
       </div>
-    </div>
+    </Card>
   );
 }

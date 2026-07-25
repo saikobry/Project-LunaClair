@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { Dialog } from '../../../shared/ui/Dialog';
+import { Input } from '../../../shared/ui/Input';
+import { Button } from '../../../shared/ui/Button';
 import { styles } from '../styles/library.stylex';
 
 interface RenameMaterialModalProps {
@@ -18,13 +20,6 @@ export default function RenameMaterialModal({
 }: RenameMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
@@ -32,57 +27,51 @@ export default function RenameMaterialModal({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  };
+  return (
+    <Dialog isOpen onClose={onClose} title="Edit Material" width={420}>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          marginTop: 16,
+        }}
+      >
+        <div {...stylex.props(styles.fieldGroup)}>
+          <Input
+            label="Title"
+            value={title}
+            onChange={(value) => setTitle(value)}
+            placeholder="Enter material title"
+            hasAutoFocus
+          />
+        </div>
 
-  return createPortal(
-    <div {...stylex.props(styles.overlay)} onKeyDown={handleKeyDown}>
-      <div {...stylex.props(styles.modal)} onClick={(e) => e.stopPropagation()}>
-        <h2 {...stylex.props(styles.modalTitle)}>Edit Material</h2>
+        <div {...stylex.props(styles.fieldGroup)}>
+          <label {...stylex.props(styles.label)} htmlFor="rename-desc">
+            Description
+          </label>
+          <textarea
+            id="rename-desc"
+            {...stylex.props(styles.textarea)}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description (optional)"
+            rows={3}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div {...stylex.props(styles.fieldGroup)}>
-            <label {...stylex.props(styles.label)} htmlFor="rename-title">
-              Title
-            </label>
-            <input
-              ref={inputRef}
-              id="rename-title"
-              {...stylex.props(styles.input)}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter material title"
-              required
-            />
-          </div>
-
-          <div {...stylex.props(styles.fieldGroup)}>
-            <label {...stylex.props(styles.label)} htmlFor="rename-desc">
-              Description
-            </label>
-            <textarea
-              id="rename-desc"
-              {...stylex.props(styles.textarea)}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description (optional)"
-              rows={3}
-            />
-          </div>
-
-          <div {...stylex.props(styles.modalActions)}>
-            <button type="button" {...stylex.props(styles.btnSecondary)} onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" {...stylex.props(styles.btnPrimary)} disabled={!title.trim()}>
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        <div {...stylex.props(styles.modalActions)}>
+          <Button label="Cancel" variant="secondary" onClick={onClose} />
+          <Button
+            label="Save"
+            variant="primary"
+            type="submit"
+            isDisabled={!title.trim()}
+          />
+        </div>
+      </form>
+    </Dialog>
   );
 }

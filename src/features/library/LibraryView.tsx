@@ -1,6 +1,8 @@
 import * as stylex from '@stylexjs/stylex';
 import { Plus, BookHeart } from 'lucide-react';
 import type { StudyMaterial } from '../../domain/library';
+import { Page } from '../../shared/ui/Page';
+import { Button } from '../../shared/ui/Button';
 import { styles } from './styles/library.stylex';
 import MaterialGrid from './components/MaterialGrid';
 import RenameMaterialModal from './components/RenameMaterialModal';
@@ -33,27 +35,23 @@ export default function LibraryView({
   onDeleteConfirm,
   onDeleteClose,
 }: LibraryViewProps) {
+  const description = `${materials.length} ${materials.length === 1 ? 'material' : 'materials'}`;
+
   return (
-    <div {...stylex.props(styles.screen)}>
-      {/* Header */}
-      <div {...stylex.props(styles.header)}>
-        <div {...stylex.props(styles.headerLeft)}>
-          <h1 {...stylex.props(styles.title)}>Study Library</h1>
-          <p {...stylex.props(styles.subtitle)}>
-            {materials.length} {materials.length === 1 ? 'material' : 'materials'}
-          </p>
-        </div>
-        <button
-          type="button"
-          {...stylex.props(styles.newButton)}
+    <Page
+      title="Study Library"
+      description={description}
+      actions={
+        <Button
+          label="New Material"
+          variant="primary"
+          icon={<Plus size={18} />}
           onClick={onNewMaterial}
         >
-          <Plus size={18} />
           New Material
-        </button>
-      </div>
-
-      {/* Content */}
+        </Button>
+      }
+    >
       {materials.length > 0 ? (
         <MaterialGrid
           materials={materials}
@@ -68,17 +66,17 @@ export default function LibraryView({
           </div>
           <h2 {...stylex.props(styles.emptyTitle)}>Your library is empty</h2>
           <p {...stylex.props(styles.emptyText)}>
-            Create your first study material to get started. You can add content from markdown
-            files, PDFs, or generate quizzes and flashcards.
+            Create your first study material to get started. You can add content
+            from markdown files, PDFs, or generate quizzes and flashcards.
           </p>
-          <button
-            type="button"
-            {...stylex.props(styles.newButton)}
+          <Button
+            label="Create Material"
+            variant="primary"
+            icon={<Plus size={18} />}
             onClick={onNewMaterial}
           >
-            <Plus size={18} />
             Create Material
-          </button>
+          </Button>
         </div>
       )}
 
@@ -99,6 +97,6 @@ export default function LibraryView({
           onClose={onDeleteClose}
         />
       )}
-    </div>
+    </Page>
   );
 }
