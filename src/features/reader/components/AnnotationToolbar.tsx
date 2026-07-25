@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MousePointer, Pencil, Eraser, Palette, ChevronLeft, Undo2, Trash2 } from 'lucide-react';
-import type { AnnotationMode, DrawingTool } from '../types';
+import type { AnnotationMode, DrawingTool } from '../../../shared/types';
+import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../../../shared/constants';
 
 interface AnnotationToolbarProps {
   mode: AnnotationMode;
@@ -17,17 +18,6 @@ interface AnnotationToolbarProps {
   hasDrawings: boolean;
   hasHighlights: boolean;
 }
-
-const BRUSH_COLORS = [
-  { name: 'Red', hex: '#ef4444' },
-  { name: 'Blue', hex: '#3b82f6' },
-  { name: 'Green', hex: '#10b981' },
-  { name: 'Orange', hex: '#f97316' },
-  { name: 'Purple', hex: '#8b5cf6' },
-  { name: 'Black', hex: '#1f2937' },
-];
-
-const THICKNESS_OPTIONS = [2, 4, 8, 12];
 
 export default function AnnotationToolbar({
   mode,
@@ -60,7 +50,7 @@ export default function AnnotationToolbar({
       {isOpen && (
         <div className="toolbar-collapsible">
           <div className="toolbar-divider" />
-          
+
           {/* Mode selectors */}
           <div className="toolbar-section">
             <button

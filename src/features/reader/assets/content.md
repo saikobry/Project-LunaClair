@@ -116,7 +116,7 @@
 |-----------|------------------|
 | **Protects deeper tissues from mechanical damage (bumps)** | Physical barrier contains keratin, which toughens cells; fat cells cushion blows; pressure and pain receptors alert the nervous system to possible damage. |
 | **Protects deeper tissues from chemical damage (acids and bases)** | Has relatively impermeable keratinized cells; contains pain receptors, which alert the nervous system to possible damage. |
-| **Protects deeper tissues from microbe damage** | Has an unbroken surface and an "acid mantle" (skin secretions are acidic and thus inhibit microbes, such as bacteria). Phagocytes ingest foreign substances and pathogens, preventing them from penetrating into deeper body tissues. |
+| **Protects deeper tissues from microbe damage** | Has an unbroken surface and an \"acid mantle\" (skin secretions are acidic and thus inhibit microbes, such as bacteria). Phagocytes ingest foreign substances and pathogens, preventing them from penetrating into deeper body tissues. |
 | **Protects deeper tissues from ultraviolet (UV) radiation (damaging effects of sunlight or tanning beds)** | Melanin produced by melanocytes offers protection from UV damage. |
 | **Protects deeper tissues from thermal (heat or cold) damage** | Contains heat/cold/pain receptors. |
 | **Protects deeper tissues from desiccation (drying out)** | Contains a water-resistant glycolipid and keratin. |

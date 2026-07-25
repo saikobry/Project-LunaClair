@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useCallback } from 'react';
-import type { DrawingPath, Point } from '../types';
+import { useRef, useEffect, useCallback } from 'react';
+import type { DrawingPath, Point } from '../../../shared/types';
 
 interface DrawingCanvasProps {
   paths: DrawingPath[];
