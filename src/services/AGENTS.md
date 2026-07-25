@@ -7,21 +7,22 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 ## Ownership
 
 - `storage/localStorage.ts` — Generic `getFromStorage<T>()`, `saveToStorage<T>()`, `removeFromStorage()` with silent error handling
-- `storage/libraryRepository.ts` — CRUD repository for `StudyMaterial` records using localStorage
-- `storage/index.ts` — Barrel re-export of localStorage helpers + `libraryRepository`
+- `storage/libraryRepository.ts` — Legacy CRUD repository object for `StudyMaterial` records (synchronous, being phased out)
+- `storage/LocalStorageLibraryRepository.ts` — Class implementing `LibraryRepository` async contract with `AbortSignal` support. Module-level singleton `localStorageLibraryRepository`.
+- `storage/index.ts` — Barrel re-export of localStorage helpers + library repository variants
 - `content/contentService.ts` — Content resolution service: maps `sourceId` to preprocessed `Document` via registered content store
 - `content/index.ts` — Barrel re-export of `contentService`, `registerContent`
 - `indexeddb/` — Reserved for future IndexedDB implementation
-- `index.ts` — Barrel export: `getFromStorage`, `saveToStorage`, `removeFromStorage`, `libraryRepository`, `contentService`, `registerContent`
+- `index.ts` — Barrel export of all service-layer modules
 
 ## Local Contracts
 
 - Services import from `shared/` (types) but never from features.
 - All storage operations are silent on failure — errors are swallowed, not logged.
 - `getFromStorage` accepts a fallback value returned when key is missing or parsing fails.
-- Features call storage helpers, never `localStorage` directly.
+- Features call storage helpers via the `LibraryRepository` contract interface, never `localStorage` directly.
 - `contentService.resolveDocument()` resolves content from an in-memory store populated at bootstrap via `registerContent()`.
-- `libraryRepository` is a pure data access layer — it does not seed or migrate data.
+- `LocalStorageLibraryRepository` is a pure data access layer — it does not seed or migrate data.
 
 ## Work Guidance
 

@@ -1,10 +1,23 @@
 import { type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@astryxdesign/core/theme';
 import { lunaclairTheme } from '../../shared/theme/lunaclairTheme';
+import { RepositoryProvider } from './RepositoryProvider';
 
 interface AppProvidersProps {
   children: ReactNode;
 }
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 1000 * 60,       // 1 minute
+      gcTime: 1000 * 60 * 10,     // 10 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 /**
  * Application-level providers.
@@ -13,14 +26,18 @@ interface AppProvidersProps {
  * and feature code never imports third-party providers directly.
  *
  * Current providers:
+ * - TanStack Query `<QueryClientProvider>` with centralized query defaults
+ * - `<RepositoryProvider>` supplying dependency-injected storage repositories
  * - Astryx `<Theme>` with the LunaClair custom theme (light mode)
- *
- * Future (Phase 2+): TanStack Query, toast, auth, etc.
  */
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <Theme theme={lunaclairTheme} mode="light">
-      {children}
-    </Theme>
+    <QueryClientProvider client={queryClient}>
+      <RepositoryProvider>
+        <Theme theme={lunaclairTheme} mode="light">
+          {children}
+        </Theme>
+      </RepositoryProvider>
+    </QueryClientProvider>
   );
 }

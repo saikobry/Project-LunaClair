@@ -4,7 +4,7 @@ import type { StudyMaterial } from '../../domain/library';
 import type { Document } from '../../domain/reader';
 import LibraryScreen from '../../features/library/LibraryScreen';
 import { ReaderScreen } from '../../features/reader';
-import { libraryRepository } from '../../services/storage/libraryRepository';
+import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 import { contentService } from '../../services/content/contentService';
 
 const styles = stylex.create({
@@ -35,14 +35,14 @@ export default function AppShell() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const touchMutation = useTouchMaterial();
+
   const handleOpenMaterial = useCallback(
     async (material: StudyMaterial) => {
       setIsLoading(true);
       try {
         // Record that the material was opened
-        libraryRepository.updateMaterial(material.id, {
-          lastOpenedAt: new Date().toISOString(),
-        });
+        touchMutation.mutate(material.id);
 
         // Resolve the document content
         const document = await contentService.resolveDocument(material);
@@ -54,7 +54,7 @@ export default function AppShell() {
         setIsLoading(false);
       }
     },
-    [],
+    [touchMutation],
   );
 
   const handleBackToLibrary = useCallback(() => {

@@ -9,7 +9,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | Feature | Status | Scope |
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC |
-| `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, content resolution |
+| `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
 | `quiz/` | 🔒 Reserved | Quiz engine |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
@@ -22,6 +22,8 @@ Feature-based modules, each containing everything needed for that feature: compo
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Barrel export: `index.ts` re-exports the public API (usually just the Screen component)
+- Query hooks are separated from mutation hooks. Mutations live in `hooks/mutations/` directory.
+- UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes.
 
 ## Work Guidance
 

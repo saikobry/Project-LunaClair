@@ -1,2 +1,2 @@
 export { default as LibraryScreen } from './LibraryScreen';
-export { useLibrary } from './hooks';
+export { useLibrary, useCreateMaterial, useDeleteMaterial, useRenameMaterial, useTouchMaterial } from './hooks';

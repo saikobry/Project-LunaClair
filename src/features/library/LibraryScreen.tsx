@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../domain/library';
-import { useLibrary } from './hooks';
+import { useLibrary } from './hooks/useLibrary';
+import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
+import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
+import { useRenameMaterial } from './hooks/mutations/useRenameMaterial';
 import LibraryView from './LibraryView';
 
 interface LibraryScreenProps {
@@ -8,15 +11,18 @@ interface LibraryScreenProps {
 }
 
 export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
-  const { materials, createMaterial, updateMaterial, deleteMaterial } = useLibrary();
+  const { materials } = useLibrary();
+  const createMutation = useCreateMaterial();
+  const deleteMutation = useDeleteMaterial();
+  const renameMutation = useRenameMaterial();
 
   const [renameTarget, setRenameTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
 
   const handleNewMaterial = useCallback(() => {
     const title = `Study Material ${materials.length + 1}`;
-    createMaterial(title);
-  }, [materials.length, createMaterial]);
+    createMutation.mutate({ title });
+  }, [materials.length, createMutation]);
 
   const handleOpen = useCallback(
     (material: StudyMaterial) => {
@@ -32,10 +38,10 @@ export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
   const handleRenameSave = useCallback(
     (title: string, description: string) => {
       if (!renameTarget) return;
-      updateMaterial(renameTarget.id, { title, description });
+      renameMutation.mutate({ id: renameTarget.id, input: { title, description } });
       setRenameTarget(null);
     },
-    [renameTarget, updateMaterial],
+    [renameTarget, renameMutation],
   );
 
   const handleRenameClose = useCallback(() => {
@@ -48,9 +54,9 @@ export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
 
   const handleDeleteConfirm = useCallback(() => {
     if (!deleteTarget) return;
-    deleteMaterial(deleteTarget.id);
+    deleteMutation.mutate(deleteTarget.id);
     setDeleteTarget(null);
-  }, [deleteTarget, deleteMaterial]);
+  }, [deleteTarget, deleteMutation]);
 
   const handleDeleteClose = useCallback(() => {
     setDeleteTarget(null);
