@@ -1,2 +1,2 @@
-// Library domain models — to be expanded in future phases.
-export {};
+export type { StudyMaterial, MaterialSourceType } from './StudyMaterial';
+

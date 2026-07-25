@@ -1,2 +1,2 @@
-// Reader domain models — to be expanded in future phases.
-export {};
+export type { Document } from './Document';
+

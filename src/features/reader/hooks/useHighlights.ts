@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { HighlightItem, HighlightColor } from '../../../shared/types';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
-import { getFromStorage, saveToStorage, removeFromStorage } from '../../../services/storage';
+import { getFromStorage, saveToStorage, removeFromStorage } from '../../../services/storage/localStorage';
 import { restoreRange } from '../../../shared/utils';
 
 /**

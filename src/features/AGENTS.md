@@ -9,7 +9,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | Feature | Status | Scope |
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC |
-| `library/` | 🔒 Reserved | Document/library catalog |
+| `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, content resolution |
 | `quiz/` | 🔒 Reserved | Quiz engine |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |

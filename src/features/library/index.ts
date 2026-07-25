@@ -1,3 +1,2 @@
-// Library feature — reserved for future implementation.
-// Will manage document/library catalog browsing and selection.
-export {};
+export { default as LibraryScreen } from './LibraryScreen';
+export { useLibrary } from './hooks';

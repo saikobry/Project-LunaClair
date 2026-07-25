@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DrawingPath } from '../../../shared/types';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
-import { getFromStorage, saveToStorage } from '../../../services/storage';
+import { getFromStorage, saveToStorage } from '../../../services/storage/localStorage';
 
 /**
  * Manages freehand drawing paths including localStorage persistence

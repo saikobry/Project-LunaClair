@@ -7,9 +7,12 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 ## Ownership
 
 - `storage/localStorage.ts` — Generic `getFromStorage<T>()`, `saveToStorage<T>()`, `removeFromStorage()` with silent error handling
-- `storage/index.ts` — Barrel re-export of localStorage helpers
+- `storage/libraryRepository.ts` — CRUD repository for `StudyMaterial` records using localStorage
+- `storage/index.ts` — Barrel re-export of localStorage helpers + `libraryRepository`
+- `content/contentService.ts` — Content resolution service: maps `sourceId` to preprocessed `Document` via registered content store
+- `content/index.ts` — Barrel re-export of `contentService`, `registerContent`
 - `indexeddb/` — Reserved for future IndexedDB implementation
-- `index.ts` — Barrel export: `getFromStorage`, `saveToStorage`, `removeFromStorage`
+- `index.ts` — Barrel export: `getFromStorage`, `saveToStorage`, `removeFromStorage`, `libraryRepository`, `contentService`, `registerContent`
 
 ## Local Contracts
 
@@ -17,6 +20,8 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 - All storage operations are silent on failure — errors are swallowed, not logged.
 - `getFromStorage` accepts a fallback value returned when key is missing or parsing fails.
 - Features call storage helpers, never `localStorage` directly.
+- `contentService.resolveDocument()` resolves content from an in-memory store populated at bootstrap via `registerContent()`.
+- `libraryRepository` is a pure data access layer — it does not seed or migrate data.
 
 ## Work Guidance
 

@@ -6,16 +6,18 @@ Application-level orchestration: the root shell layout, configuration constants,
 
 ## Ownership
 
-- `layouts/AppShell.tsx` — root layout shell with header, sidebar, and content areas
-- `config/constants.ts` — app-wide constants (app name, studio name)
+- `layouts/AppShell.tsx` — Root layout shell that manages top-level navigation (`library` | `reader` screens), document resolution, and screen switching
+- `bootstrap.ts` — Application initialization: registers content sources, seeds demo data into `libraryRepository`
+- `config/constants.ts` — App-wide constants (app name, studio name)
 - `providers/` — React context providers (currently empty, reserved for future cross-feature state)
-- `index.ts` — barrel export of public API
+- `index.ts` — Barrel export of public API
 
 ## Local Contracts
 
-- No business logic lives here. Business rules belong in `src/domain/` or feature modules.
+- High-level orchestration only. Business rules belong in `src/domain/` or feature modules.
 - Providers are added only when cross-feature state sharing is needed.
-- Layout components are styling-only — they arrange children, they don't fetch data.
+- `bootstrap.ts` runs once at app startup (from `App.tsx` `useEffect`) — it seeds demo data and registers content before any screen renders.
+- `AppShell.tsx` owns screen state (`'library'` / `'reader'`) and resolves `StudyMaterial` → `Document` via `contentService`.
 
 ## Work Guidance
 
