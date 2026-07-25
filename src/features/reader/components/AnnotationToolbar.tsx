@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MousePointer, Pencil, Eraser, Palette, ChevronLeft, Undo2, Trash2 } from 'lucide-react';
 import type { AnnotationMode, DrawingTool } from '../../../shared/types';
-import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../../../shared/constants';
+import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../../../shared/constants/annotationDefaults';
 
 interface AnnotationToolbarProps {
   mode: AnnotationMode;
@@ -39,6 +39,7 @@ export default function AnnotationToolbar({
   return (
     <div className={`annotation-toolbar ${!isOpen ? 'collapsed' : ''}`}>
       <button
+        type="button"
         className="toolbar-toggle-btn"
         onClick={() => setIsOpen(!isOpen)}
         title={isOpen ? 'Collapse Toolbar' : 'Open Annotations'}
@@ -54,6 +55,7 @@ export default function AnnotationToolbar({
           {/* Mode selectors */}
           <div className="toolbar-section">
             <button
+              type="button"
               className={`toolbar-btn icon-only ${mode === 'select' ? 'active' : ''}`}
               onClick={() => onModeChange('select')}
               title="Select & Highlight Text"
@@ -61,6 +63,7 @@ export default function AnnotationToolbar({
               <MousePointer size={18} />
             </button>
             <button
+              type="button"
               className={`toolbar-btn icon-only ${mode === 'draw' ? 'active' : ''}`}
               onClick={() => onModeChange('draw')}
               title="Draw on Page"
@@ -75,6 +78,7 @@ export default function AnnotationToolbar({
               <div className="toolbar-divider" />
               <div className="toolbar-section">
                 <button
+                  type="button"
                   className={`toolbar-btn icon-only ${tool === 'pen' ? 'active' : ''}`}
                   onClick={() => onToolChange('pen')}
                   title="Draw with Pen"
@@ -82,6 +86,7 @@ export default function AnnotationToolbar({
                   <Pencil size={16} />
                 </button>
                 <button
+                  type="button"
                   className={`toolbar-btn icon-only ${tool === 'eraser' ? 'active' : ''}`}
                   onClick={() => onToolChange('eraser')}
                   title="Erase strokes"
@@ -98,6 +103,7 @@ export default function AnnotationToolbar({
                       {BRUSH_COLORS.map((color) => (
                         <button
                           key={color.hex}
+                          type="button"
                           className={`brush-color-dot ${currentColor === color.hex ? 'active' : ''}`}
                           style={{ backgroundColor: color.hex }}
                           onClick={() => onColorChange(color.hex)}
@@ -116,6 +122,7 @@ export default function AnnotationToolbar({
                   {THICKNESS_OPTIONS.map((size) => (
                     <button
                       key={size}
+                      type="button"
                       className={`brush-size-btn ${brushThickness === size ? 'active' : ''}`}
                       onClick={() => onThicknessChange(size)}
                       title={`${size}px brush`}
@@ -136,6 +143,7 @@ export default function AnnotationToolbar({
               <div className="toolbar-divider" />
               <div className="toolbar-section action-section">
                 <button
+                  type="button"
                   className="toolbar-btn icon-only"
                   onClick={onUndo}
                   disabled={!hasDrawings}
@@ -155,6 +163,7 @@ export default function AnnotationToolbar({
               <div className="toolbar-section action-section">
                 {hasDrawings && (
                   <button
+                    type="button"
                     className="toolbar-btn icon-only danger-btn"
                     onClick={onClearDrawings}
                     title="Clear all drawings"
@@ -164,6 +173,7 @@ export default function AnnotationToolbar({
                 )}
                 {hasHighlights && (
                   <button
+                    type="button"
                     className="toolbar-btn icon-only danger-btn"
                     onClick={onClearHighlights}
                     title="Clear all highlights"

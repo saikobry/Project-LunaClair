@@ -66,6 +66,11 @@ const styles = stylex.create({
     opacity: 0,
     pointerEvents: 'none',
     transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+    // Button reset — remove default button appearance
+    borderStyle: 'none',
+    padding: 0,
+    cursor: 'pointer',
+    display: 'block',
   },
   overlayEnter: {
     opacity: 1,
@@ -162,6 +167,7 @@ export default function Toc() {
     <>
       {/* Floating action button */}
       <button
+        type="button"
         {...stylex.props(
           styles.fab,
           !open && styles.fabPulse,
@@ -173,10 +179,13 @@ export default function Toc() {
         {open ? <X size={22} color="#000" /> : <List size={22} color="#000" />}
       </button>
 
-      {/* Backdrop overlay */}
-      <div
+      {/* Backdrop overlay — semantic button so screen readers can reach it */}
+      <button
+        type="button"
         {...stylex.props(styles.overlay, open && styles.overlayEnter)}
         onClick={() => setOpen(false)}
+        aria-label="Close table of contents"
+        tabIndex={-1}
       />
 
       {/* Sliding panel */}
@@ -188,6 +197,7 @@ export default function Toc() {
             <span {...stylex.props(styles.titleAccent)}>●</span> Contents
           </h3>
           <button
+            type="button"
             {...stylex.props(styles.closeButton)}
             onClick={() => setOpen(false)}
             aria-label="Close table of contents"

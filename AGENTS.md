@@ -1,8 +1,14 @@
 # AGENTS.md
 
-## What this is
+## Project
 
-React 19 + TypeScript + Vite project.
+**Project LunaClair** — by **Saiko Interactive**
+
+AI-powered learning platform.
+
+## Stack
+
+React 19 + TypeScript + Vite.
 
 ## Commands
 
@@ -22,6 +28,22 @@ Uses **oxlint** (not ESLint). Config at `.oxlintrc.json`.
 
 Plugins enabled: `react`, `typescript`, `oxc`.
 Key enforced rules: `react/rules-of-hooks` (error), `react/only-export-components` (warn).
+
+## Architecture
+
+Feature-based architecture:
+
+```
+src/
+  app/        — Application shell, config, providers
+  domain/     — Business domain models
+  features/   — Feature modules (reader, quiz, library, …)
+  shared/     — Shared types, constants, utilities
+  services/   — Infrastructure services (storage, IndexedDB, …)
+  styles/     — Global styles and master stylesheet
+```
+
+See `docs/architecture.md` for full details.
 
 ## TypeScript
 

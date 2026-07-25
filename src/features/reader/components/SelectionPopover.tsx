@@ -1,6 +1,6 @@
 import { Trash2 } from 'lucide-react';
 import type { HighlightColor } from '../../../shared/types';
-import { HIGHLIGHT_COLORS } from '../../../shared/constants';
+import { HIGHLIGHT_COLORS } from '../../../shared/constants/annotationDefaults';
 
 interface SelectionPopoverProps {
   x: number;
@@ -41,6 +41,7 @@ export default function SelectionPopover({
           {HIGHLIGHT_COLORS.map((color) => (
             <button
               key={color.name}
+              type="button"
               className={`color-dot ${color.name}`}
               onClick={() => onSelectColor(color.name)}
               title={`Highlight ${color.label}`}
@@ -53,6 +54,7 @@ export default function SelectionPopover({
         {/* Delete option if it's an existing highlight */}
         {onDelete && (
           <button
+            type="button"
             className="popover-action delete-btn"
             onClick={onDelete}
             title="Remove Highlight"
@@ -64,6 +66,7 @@ export default function SelectionPopover({
 
         {/* Close popover */}
         <button
+          type="button"
           className="popover-action close-btn"
           onClick={onClose}
           title="Cancel"
