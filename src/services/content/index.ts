@@ -1,1 +1,1 @@
-export { contentService, registerContent } from './contentService';
+export { LocalDocumentRepository, localDocumentRepository, registerContent } from './LocalDocumentRepository';

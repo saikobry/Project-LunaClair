@@ -7,7 +7,7 @@ Pure business domain models and logic — interfaces, types, and pure functions 
 ## Ownership
 
 Reserved domains:
-- `reader/` — Document reading, annotations, highlighting models
+- `reader/` — Document reading models, `DocumentRepository` and `AnnotationRepository` async contract interfaces
 - `quiz/` — Quiz engine models (questions, answers, sessions)
 - `library/` — Document/library catalog models, `LibraryRepository` async contract interface with DTOs (`CreateMaterialInput`, `UpdateMaterialInput`)
 - `generator/` — AI content generation models
@@ -18,6 +18,8 @@ Reserved domains:
 - Importable by any feature or service layer.
 - Domain logic must be testable without a browser environment.
 - `LibraryRepository` is the async contract (interface) that infrastructure implementations (e.g., `LocalStorageLibraryRepository`) must satisfy.
+- `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `LocalDocumentRepository`).
+- `AnnotationRepository` is the async contract for highlight/drawing persistence keyed by `documentId` (implemented by `LocalStorageAnnotationRepository`).
 
 ## Work Guidance
 

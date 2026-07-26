@@ -1,21 +1,31 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { HighlightItem, HighlightColor } from '../../../shared/types';
-import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
-import { getFromStorage, saveToStorage, removeFromStorage } from '../../../services/storage/localStorage';
 import { restoreRange } from '../../../shared/utils';
+import { readerQueryKeys } from '../queries/readerQueryKeys';
+import { useAnnotationRepository } from './useAnnotationRepository';
+import { useSaveHighlights } from './mutations/useSaveHighlights';
+import { useDeleteHighlight } from './mutations/useDeleteHighlight';
+import { useClearHighlights } from './mutations/useClearHighlights';
 
 /**
- * Manages text highlights including localStorage persistence
- * and CSS Custom Highlight API registration.
+ * Manages text highlights via TanStack Query + AnnotationRepository.
+ * Retains CSS Custom Highlight API registration for rendering.
  */
-export function useHighlights() {
-  const [highlights, setHighlights] = useState<HighlightItem[]>(() =>
-    getFromStorage<HighlightItem[]>(STORAGE_KEYS.HIGHLIGHTS, []),
-  );
-
+export function useHighlights(documentId: string) {
+  const annotationRepository = useAnnotationRepository();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Register CSS Custom Highlights when state changes
+  const { data: highlights = [] } = useQuery({
+    queryKey: readerQueryKeys.highlights(documentId),
+    queryFn: ({ signal }) => annotationRepository.getHighlights(documentId, signal),
+  });
+
+  const saveMutation = useSaveHighlights();
+  const deleteMutation = useDeleteHighlight();
+  const clearMutation = useClearHighlights();
+
+  // Register CSS Custom Highlights when data changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -48,11 +58,6 @@ export function useHighlights() {
     });
   }, [highlights]);
 
-  // Persist to localStorage whenever highlights change
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.HIGHLIGHTS, highlights);
-  }, [highlights]);
-
   const addHighlight = useCallback((start: number, end: number, color: HighlightColor, text: string) => {
     const newHighlight: HighlightItem = {
       id: Math.random().toString(36).substring(2, 9),
@@ -61,17 +66,16 @@ export function useHighlights() {
       color,
       text,
     };
-    setHighlights((prev) => [...prev, newHighlight]);
-  }, []);
+    saveMutation.mutate({ documentId, highlights: [...highlights, newHighlight] });
+  }, [documentId, highlights, saveMutation]);
 
   const deleteHighlight = useCallback((id: string) => {
-    setHighlights((prev) => prev.filter((hl) => hl.id !== id));
-  }, []);
+    deleteMutation.mutate({ documentId, highlightId: id });
+  }, [documentId, deleteMutation]);
 
   const clearHighlights = useCallback(() => {
-    setHighlights([]);
-    removeFromStorage(STORAGE_KEYS.HIGHLIGHTS);
-  }, []);
+    clearMutation.mutate(documentId);
+  }, [documentId, clearMutation]);
 
   return {
     highlights,

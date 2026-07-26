@@ -4,12 +4,10 @@ import type { Document } from '../../domain/reader';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
-import { useHighlights, useDrawings, useTextSelection } from './hooks';
-import { preprocessMarkdown } from './utils';
+import { useHighlights } from './hooks/useHighlights';
+import { useDrawings } from './hooks/useDrawings';
+import { useTextSelection } from './hooks/useTextSelection';
 import ReaderView from './ReaderView';
-import rawMarkdown from './assets/content.md?raw';
-
-const processedContent = preprocessMarkdown(rawMarkdown);
 
 interface ReaderScreenProps {
   document: Document | null;
@@ -17,20 +15,22 @@ interface ReaderScreenProps {
 }
 
 export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreenProps) {
+  const documentId = document?.id ?? 'unknown';
+
   const {
     highlights,
     containerRef,
     addHighlight,
     deleteHighlight,
     clearHighlights,
-  } = useHighlights();
+  } = useHighlights(documentId);
 
   const [mode, setMode] = useState<AnnotationMode>('select');
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('pen');
   const [brushColor, setBrushColor] = useState<string>('#ef4444');
   const [brushThickness, setBrushThickness] = useState<number>(4);
 
-  const { paths, handlePathsChange, handleUndo, clearDrawings } = useDrawings(mode === 'draw');
+  const { paths, handlePathsChange, handleUndo, clearDrawings } = useDrawings(documentId, mode === 'draw');
 
   const { popover, setPopover } = useTextSelection(mode, highlights, containerRef);
 
@@ -68,7 +68,7 @@ export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreen
     }
   }, [clearHighlights]);
 
-  const content = document?.content ?? processedContent;
+  const content = document?.content ?? '';
 
   return (
     <Page

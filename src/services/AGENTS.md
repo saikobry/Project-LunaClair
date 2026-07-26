@@ -7,22 +7,23 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 ## Ownership
 
 - `storage/localStorage.ts` — Generic `getFromStorage<T>()`, `saveToStorage<T>()`, `removeFromStorage()` with silent error handling
-- `storage/libraryRepository.ts` — Legacy CRUD repository object for `StudyMaterial` records (synchronous, being phased out)
-- `storage/LocalStorageLibraryRepository.ts` — Class implementing `LibraryRepository` async contract with `AbortSignal` support. Module-level singleton `localStorageLibraryRepository`.
-- `storage/index.ts` — Barrel re-export of localStorage helpers + library repository variants
-- `content/contentService.ts` — Content resolution service: maps `sourceId` to preprocessed `Document` via registered content store
-- `content/index.ts` — Barrel re-export of `contentService`, `registerContent`
+- `storage/LocalStorageLibraryRepository.ts` — Class implementing `LibraryRepository` async contract with `AbortSignal` support and legacy key migration. Module-level singleton `localStorageLibraryRepository`.
+- `storage/LocalStorageAnnotationRepository.ts` — Class implementing `AnnotationRepository` async contract with `AbortSignal` support and legacy key migration. Module-level singleton `localStorageAnnotationRepository`.
+- `storage/index.ts` — Barrel re-export of localStorage helpers + repository implementations
+- `content/LocalDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: resolves `StudyMaterial` → `Document` via in-memory content store with markdown figure preprocessing. Exports `registerContent()` for bootstrap and singleton `localDocumentRepository`.
+- `content/index.ts` — Barrel re-export of `LocalDocumentRepository`, `localDocumentRepository`, `registerContent`
 - `indexeddb/` — Reserved for future IndexedDB implementation
 - `index.ts` — Barrel export of all service-layer modules
 
 ## Local Contracts
 
-- Services import from `shared/` (types) but never from features.
+- Services import from `shared/` (types, constants) and `domain/` (interfaces) but never from features.
 - All storage operations are silent on failure — errors are swallowed, not logged.
 - `getFromStorage` accepts a fallback value returned when key is missing or parsing fails.
-- Features call storage helpers via the `LibraryRepository` contract interface, never `localStorage` directly.
-- `contentService.resolveDocument()` resolves content from an in-memory store populated at bootstrap via `registerContent()`.
-- `LocalStorageLibraryRepository` is a pure data access layer — it does not seed or migrate data.
+- Features call storage via repository contract interfaces, never `localStorage` directly.
+- `LocalDocumentRepository` resolves content from an in-memory store populated at bootstrap via `registerContent()`.
+- Repositories include automatic legacy key migration (tagged `TODO(v1.0)`) from pre-Phase 3 storage keys to namespaced `lunaclair.*` keys.
+- Storage keys are namespaced under `lunaclair.{domain}.{entity}` (see `shared/constants/storageKeys.ts`).
 
 ## Work Guidance
 

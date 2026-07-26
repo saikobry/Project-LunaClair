@@ -8,7 +8,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 
 | Feature | Status | Scope |
 |---|---|---|
-| `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC |
+| `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
 | `quiz/` | 🔒 Reserved | Quiz engine |
 | `importer/` | 🔒 Reserved | Content import |

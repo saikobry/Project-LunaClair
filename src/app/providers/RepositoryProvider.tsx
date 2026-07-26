@@ -1,18 +1,22 @@
 import { useRef, type ReactNode } from 'react';
 import { RepositoryContext, type RepositoryContextValue } from './RepositoryContext';
 import { localStorageLibraryRepository } from '../../services/storage/LocalStorageLibraryRepository';
+import { localStorageAnnotationRepository } from '../../services/storage/LocalStorageAnnotationRepository';
+import { localDocumentRepository } from '../../services/content/LocalDocumentRepository';
 
 interface RepositoryProviderProps {
   children: ReactNode;
 }
 
 /**
- * Provides the LibraryRepository to all feature hooks via React context.
- * The repository instance is a stable singleton that never recreates across re-renders.
+ * Provides all domain repositories to feature hooks via React context.
+ * Repository instances are stable singletons that never recreate across re-renders.
  */
 export function RepositoryProvider({ children }: RepositoryProviderProps) {
   const ref = useRef<RepositoryContextValue>({
     libraryRepository: localStorageLibraryRepository,
+    documentRepository: localDocumentRepository,
+    annotationRepository: localStorageAnnotationRepository,
   });
 
   return (

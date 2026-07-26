@@ -15,12 +15,20 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `components/SelectionPopover.tsx` | Floating popover on text selection — highlight color picker or delete existing highlight |
 | `components/AnnotationToolbar.tsx` | Tool mode switcher (select/draw) + actions (undo drawing, clear all, open TOC) |
 | `components/Toc.tsx` | Floating table of contents panel extracted from markdown headings |
-| `hooks/useHighlights.ts` | Manages highlight state + localStorage persistence + CSS Custom Highlight API registration |
-| `hooks/useDrawings.ts` | Manages drawing paths + localStorage persistence + body scroll-lock when drawing |
+| `queries/readerQueryKeys.ts` | Query key factory: `root`, `document(id)`, `highlights(docId)`, `drawings(docId)` |
+| `hooks/useDocumentRepository.ts` | DI consumer hook returning `DocumentRepository` from context |
+| `hooks/useAnnotationRepository.ts` | DI consumer hook returning `AnnotationRepository` from context |
+| `hooks/useDocument.ts` | TanStack Query hook resolving `Document` from `StudyMaterial` |
+| `hooks/useHighlights.ts` | TanStack Query–backed highlight state + CSS Custom Highlight API registration |
+| `hooks/useDrawings.ts` | TanStack Query–backed drawing paths + body scroll-lock when drawing |
 | `hooks/useTextSelection.ts` | Listens to `selectionchange`, computes popover position, detects highlight clicks |
+| `hooks/mutations/useSaveHighlights.ts` | Mutation: persist full highlights array (optimistic) |
+| `hooks/mutations/useDeleteHighlight.ts` | Mutation: remove single highlight by ID (optimistic) |
+| `hooks/mutations/useClearHighlights.ts` | Mutation: clear all highlights (optimistic) |
+| `hooks/mutations/useSaveDrawings.ts` | Mutation: persist full drawing paths array (optimistic) |
+| `hooks/mutations/useClearDrawings.ts` | Mutation: clear all drawings (optimistic) |
 | `utils/markdownPreprocessor.ts` | Replaces `{{FIGUREXXX}}` placeholders with markdown image syntax |
 | `types/reader.types.ts` | Reader-specific types (`PopoverState`) |
-| `services/` | Reserved for reader-specific service abstractions |
 | `styles/reader.css` | Reader-specific CSS with `::highlight()` pseudo-elements for multi-color highlights |
 | `assets/content.md` | Sample markdown content with embedded `{{FIGURE}}` placeholders |
 | `assets/images.ts` | Maps figure keys to imported image assets |
@@ -28,12 +36,15 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 ## Local Contracts
 
 - Markdown is preprocessed before rendering: `{{FIGUREXXX}}` → `![alt](url)` (see `markdownPreprocessor.ts`)
-- Highlights persist via localStorage under `STORAGE_KEYS.HIGHLIGHTS` (`reviewer-highlights`)
-- Drawings persist via localStorage under `STORAGE_KEYS.PATHS` (`reviewer-paths`)
+- Highlights persist via `AnnotationRepository` under `STORAGE_KEYS.reader.highlights` (`lunaclair.reader.highlights`)
+- Drawings persist via `AnnotationRepository` under `STORAGE_KEYS.reader.drawings` (`lunaclair.reader.drawings`)
+- All annotation methods require an explicit `documentId` parameter
 - Drawing mode locks body scroll (`overflow: hidden`, `touchAction: none`, `overscrollBehavior: none`)
 - Highlights use the CSS Custom Highlight API (`CSS.highlights.set`) — no DOM wrapper nodes
 - Text selection offsets are computed via shared utility `getOffsetsOfRange` / `restoreRange` from `shared/utils/selection.ts`
 - Annotation types (`HighlightItem`, `DrawingPath`, `Point`, etc.) live in `shared/types/annotation.types.ts`
+- Query hooks and mutation hooks are separated; mutations live in `hooks/mutations/`
+- DI hooks (`useDocumentRepository`, `useAnnotationRepository`) provide repository access via context
 
 ## Work Guidance
 

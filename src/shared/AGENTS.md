@@ -9,7 +9,7 @@ Truly shared code: reusable types, constants, utility functions, and base UI com
 | Module | Contents |
 |---|---|
 | `types/annotation.types.ts` | `HighlightItem`, `DrawingPath`, `Point`, `HighlightColor`, `AnnotationMode`, `DrawingTool` |
-| `constants/storageKeys.ts` | `STORAGE_KEYS` map for localStorage keys |
+| `constants/storageKeys.ts` | `STORAGE_KEYS` nested domain-scoped map (`lunaclair.*` namespace) + `LEGACY_STORAGE_KEYS` for migration |
 | `constants/annotationDefaults.ts` | `BRUSH_COLORS`, `THICKNESS_OPTIONS`, `HIGHLIGHT_COLORS` |
 | `utils/selection.ts` | `getOffsetsOfRange()`, `restoreRange()` — DOM Range ↔ character offset utilities |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |

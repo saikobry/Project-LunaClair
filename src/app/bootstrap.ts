@@ -1,6 +1,6 @@
 import type { LibraryRepository } from '../domain/library/LibraryRepository';
 import rawMarkdown from '../features/reader/assets/content.md?raw';
-import { registerContent } from '../services/content/contentService';
+import { registerContent } from '../services/content/LocalDocumentRepository';
 
 const DEMO_SOURCE_ID = 'anatomy-physiology-body-membranes';
 
