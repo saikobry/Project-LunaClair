@@ -1,49 +1,14 @@
 import type { StudyMaterial } from '../../domain/library';
 import type { CreateMaterialInput, LibraryRepository, UpdateMaterialInput } from '../../domain/library/LibraryRepository';
-import { STORAGE_KEYS, LEGACY_STORAGE_KEYS } from '../../shared/constants/storageKeys';
-import { getFromStorage, saveToStorage, removeFromStorage } from './localStorage';
+import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
+import { getFromStorage, saveToStorage } from './localStorage';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
-/**
- * Migrates data from the legacy storage key to the new namespaced key.
- * Runs once — if the new key already has data, migration is skipped.
- */
-// TODO(v1.0): Remove legacy migration after stable release.
-function migrateLibraryKey(): void {
-  const existing = getFromStorage<StudyMaterial[] | null>(STORAGE_KEYS.library.materials, null);
-  if (existing !== null) return;
-
-  const legacy = getFromStorage<StudyMaterial[] | null>(LEGACY_STORAGE_KEYS.libraryMaterials, null);
-  if (legacy !== null) {
-    saveToStorage(STORAGE_KEYS.library.materials, legacy);
-    removeFromStorage(LEGACY_STORAGE_KEYS.libraryMaterials);
-  }
-}
-
 function getAll(): StudyMaterial[] {
-  // TODO(v1.0): Remove legacy migration after stable release.
-  migrateLibraryKey();
-  const materials = getFromStorage<StudyMaterial[]>(STORAGE_KEYS.library.materials, []);
-
-  // TODO(v1.0): Remove legacy migration after stable release.
-  // Migrate demo material seeded with a random sourceId to the stable bundled sourceId.
-  let dirty = false;
-  for (const m of materials) {
-    if (
-      m.title.startsWith('Anatomy & Physiology') &&
-      m.sourceId !== 'anatomy-physiology'
-    ) {
-      m.sourceId = 'anatomy-physiology';
-      m.sourceType = 'bundled';
-      dirty = true;
-    }
-  }
-  if (dirty) saveToStorage(STORAGE_KEYS.library.materials, materials);
-
-  return materials;
+  return getFromStorage<StudyMaterial[]>(STORAGE_KEYS.library.materials, []);
 }
 
 function saveAll(materials: StudyMaterial[]): void {

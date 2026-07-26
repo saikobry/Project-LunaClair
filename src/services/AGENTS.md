@@ -7,11 +7,11 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 ## Ownership
 
 - `storage/localStorage.ts` — Generic `getFromStorage<T>()`, `saveToStorage<T>()`, `removeFromStorage()` with silent error handling
-- `storage/LocalStorageLibraryRepository.ts` — Class implementing `LibraryRepository` async contract with `AbortSignal` support, legacy key migration, and demo material `sourceId` migration. Respects `input.sourceType`/`input.sourceId` on create. Module-level singleton `localStorageLibraryRepository`.
-- `storage/LocalStorageAnnotationRepository.ts` — Class implementing `AnnotationRepository` async contract with `AbortSignal` support and legacy key migration. Module-level singleton `localStorageAnnotationRepository`.
+- `storage/LocalStorageLibraryRepository.ts` — Class implementing `LibraryRepository` async contract with `AbortSignal` support. Respects `input.sourceType`/`input.sourceId` on create. Module-level singleton `localStorageLibraryRepository`.
+- `storage/LocalStorageAnnotationRepository.ts` — Class implementing `AnnotationRepository` async contract with `AbortSignal` support. Module-level singleton `localStorageAnnotationRepository`.
 - `storage/index.ts` — Barrel re-export of localStorage helpers + repository implementations
 - `content/LocalDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: resolves `StudyMaterial` → `Document` via HTTP `fetch('/materials/{sourceId}/index.md')`. Throws `DocumentNotFoundError` on 404 or network failure. Delegates transformation to `markdownPreprocessor`. Singleton `localDocumentRepository`.
-- `content/markdownPreprocessor.ts` — Pure utility: resolves relative image URLs (`images/…` → `/materials/{sourceId}/images/…`) and replaces legacy `{{FIGUREXXX}}` placeholders with markdown image syntax.
+- `content/markdownPreprocessor.ts` — Pure utility: resolves relative image URLs (`images/…` → `/materials/{sourceId}/images/…`).
 - `content/index.ts` — Barrel re-export of `LocalDocumentRepository`, `localDocumentRepository`, `preprocessMarkdown`
 - `indexeddb/` — Reserved for future IndexedDB implementation
 - `index.ts` — Barrel export of all service-layer modules
@@ -24,8 +24,6 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 - Features call storage via repository contract interfaces, never `localStorage` directly.
 - `LocalDocumentRepository` resolves content via HTTP fetch from `public/materials/{sourceId}/index.md` (static assets, not bundled JS).
 - `markdownPreprocessor` is a pure function — no side effects, no I/O. Receives raw markdown + `sourceId`, returns transformed markdown.
-- Repositories include automatic legacy key migration (tagged `TODO(v1.0)`) from pre-Phase 3 storage keys to namespaced `lunaclair.*` keys.
-- `LocalStorageLibraryRepository.getAll()` includes a demo material migration: normalizes `sourceId` to `'anatomy-physiology'` for the seeded material (tagged `TODO(v1.0)`).
 - Storage keys are namespaced under `lunaclair.{domain}.{entity}` (see `shared/constants/storageKeys.ts`).
 
 ## Work Guidance

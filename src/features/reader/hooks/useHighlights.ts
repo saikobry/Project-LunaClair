@@ -11,8 +11,12 @@ import { useClearHighlights } from './mutations/useClearHighlights';
 /**
  * Manages text highlights via TanStack Query + AnnotationRepository.
  * Retains CSS Custom Highlight API registration for rendering.
+ *
+ * @param documentId - The material/document ID for annotation scoping.
+ * @param content - The rendered markdown content string. Used as an effect
+ *   dependency so highlights re-register once the DOM has text nodes.
  */
-export function useHighlights(documentId: string) {
+export function useHighlights(documentId: string, content: string) {
   const annotationRepository = useAnnotationRepository();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -25,10 +29,10 @@ export function useHighlights(documentId: string) {
   const deleteMutation = useDeleteHighlight();
   const clearMutation = useClearHighlights();
 
-  // Register CSS Custom Highlights when data changes
+  // Register CSS Custom Highlights when data or rendered content changes
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !content) return;
 
     const css = (window as any).CSS;
     if (!css || !css.highlights) return;
@@ -56,7 +60,7 @@ export function useHighlights(documentId: string) {
         css.highlights.delete(groupName);
       }
     });
-  }, [highlights]);
+  }, [highlights, content]);
 
   const addHighlight = useCallback((start: number, end: number, color: HighlightColor, text: string) => {
     const newHighlight: HighlightItem = {

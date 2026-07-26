@@ -55,6 +55,7 @@ interface ReaderScreenProps {
 export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreenProps) {
   const { data: document, isLoading, error } = useDocument(material);
   const documentId = material.id;
+  const content = document?.content ?? '';
 
   const {
     highlights,
@@ -62,7 +63,7 @@ export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreen
     addHighlight,
     deleteHighlight,
     clearHighlights,
-  } = useHighlights(documentId);
+  } = useHighlights(documentId, content);
 
   const [mode, setMode] = useState<AnnotationMode>('select');
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('pen');
@@ -106,8 +107,6 @@ export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreen
       clearHighlights();
     }
   }, [clearHighlights]);
-
-  const content = document?.content ?? '';
 
   const backAction = (
     <Button
