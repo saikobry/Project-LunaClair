@@ -1,1 +1,2 @@
-export { LocalDocumentRepository, localDocumentRepository, registerContent } from './LocalDocumentRepository';
+export { LocalDocumentRepository, localDocumentRepository } from './LocalDocumentRepository';
+export { preprocessMarkdown } from './markdownPreprocessor';

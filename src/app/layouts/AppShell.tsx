@@ -1,11 +1,9 @@
-import { useState, useCallback, useContext } from 'react';
+import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { StudyMaterial } from '../../domain/library';
-import type { Document } from '../../domain/reader';
 import LibraryScreen from '../../features/library/LibraryScreen';
 import { ReaderScreen } from '../../features/reader';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
-import { RepositoryContext } from '../providers/RepositoryContext';
 
 const styles = stylex.create({
   shell: {
@@ -18,61 +16,37 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
   },
-  loading: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#6b6375',
-    fontSize: 14,
-  },
 });
 
 type Screen = 'library' | 'reader';
 
 export default function AppShell() {
   const [activeScreen, setActiveScreen] = useState<Screen>('library');
-  const [activeDocument, setActiveDocument] = useState<Document | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeMaterial, setActiveMaterial] = useState<StudyMaterial | null>(null);
 
-  const repositories = useContext(RepositoryContext);
   const touchMutation = useTouchMaterial();
 
   const handleOpenMaterial = useCallback(
-    async (material: StudyMaterial) => {
-      if (!repositories) return;
-      setIsLoading(true);
-      try {
-        // Record that the material was opened
-        touchMutation.mutate(material.id);
-
-        // Resolve the document content via injected repository
-        const document = await repositories.documentRepository.getDocumentByMaterial(material);
-        setActiveDocument(document);
-        setActiveScreen('reader');
-      } catch (err) {
-        console.error('Failed to open material:', err);
-      } finally {
-        setIsLoading(false);
-      }
+    (material: StudyMaterial) => {
+      touchMutation.mutate(material.id);
+      setActiveMaterial(material);
+      setActiveScreen('reader');
     },
-    [touchMutation, repositories],
+    [touchMutation],
   );
 
   const handleBackToLibrary = useCallback(() => {
-    setActiveDocument(null);
+    setActiveMaterial(null);
     setActiveScreen('library');
   }, []);
 
   return (
     <div {...stylex.props(styles.shell)}>
       <main {...stylex.props(styles.main)}>
-        {isLoading ? (
-          <div {...stylex.props(styles.loading)}>Loading document...</div>
-        ) : activeScreen === 'library' ? (
+        {activeScreen === 'library' || !activeMaterial ? (
           <LibraryScreen onOpenMaterial={handleOpenMaterial} />
         ) : (
-          <ReaderScreen document={activeDocument} onBackToLibrary={handleBackToLibrary} />
+          <ReaderScreen material={activeMaterial} onBackToLibrary={handleBackToLibrary} />
         )}
       </main>
     </div>

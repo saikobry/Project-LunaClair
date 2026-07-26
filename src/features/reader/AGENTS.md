@@ -8,7 +8,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 
 | File / Module | Responsibility |
 |---|---|
-| `ReaderScreen.tsx` | Feature orchestrator — wires hooks, manages tool mode (`select` \| `draw`), coordinates highlights + drawings |
+| `ReaderScreen.tsx` | Feature orchestrator — accepts `material: StudyMaterial`, resolves document via `useDocument` hook, renders loading/error/success states, wires annotation hooks |
 | `ReaderView.tsx` | Presentation — renders MarkdownViewer + DrawingCanvas + AnnotationToolbar + SelectionPopover |
 | `components/MarkdownViewer.tsx` | Renders processed markdown via `react-markdown` + `rehype-highlight` |
 | `components/DrawingCanvas.tsx` | Freehand SVG drawing canvas with pen/eraser tools |
@@ -18,7 +18,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `queries/readerQueryKeys.ts` | Query key factory: `root`, `document(id)`, `highlights(docId)`, `drawings(docId)` |
 | `hooks/useDocumentRepository.ts` | DI consumer hook returning `DocumentRepository` from context |
 | `hooks/useAnnotationRepository.ts` | DI consumer hook returning `AnnotationRepository` from context |
-| `hooks/useDocument.ts` | TanStack Query hook resolving `Document` from `StudyMaterial` |
+| `hooks/useDocument.ts` | TanStack Query hook resolving `Document` from `StudyMaterial` via `DocumentRepository` |
 | `hooks/useHighlights.ts` | TanStack Query–backed highlight state + CSS Custom Highlight API registration |
 | `hooks/useDrawings.ts` | TanStack Query–backed drawing paths + body scroll-lock when drawing |
 | `hooks/useTextSelection.ts` | Listens to `selectionchange`, computes popover position, detects highlight clicks |
@@ -27,15 +27,13 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `hooks/mutations/useClearHighlights.ts` | Mutation: clear all highlights (optimistic) |
 | `hooks/mutations/useSaveDrawings.ts` | Mutation: persist full drawing paths array (optimistic) |
 | `hooks/mutations/useClearDrawings.ts` | Mutation: clear all drawings (optimistic) |
-| `utils/markdownPreprocessor.ts` | Replaces `{{FIGUREXXX}}` placeholders with markdown image syntax |
 | `types/reader.types.ts` | Reader-specific types (`PopoverState`) |
 | `styles/reader.css` | Reader-specific CSS with `::highlight()` pseudo-elements for multi-color highlights |
-| `assets/content.md` | Sample markdown content with embedded `{{FIGURE}}` placeholders |
-| `assets/images.ts` | Maps figure keys to imported image assets |
 
 ## Local Contracts
 
-- Markdown is preprocessed before rendering: `{{FIGUREXXX}}` → `![alt](url)` (see `markdownPreprocessor.ts`)
+- Markdown content is fetched from `public/materials/{sourceId}/index.md` and preprocessed by `services/content/markdownPreprocessor` (not in this feature)
+- `ReaderScreen` handles `DocumentNotFoundError` with a friendly UI notice and unexpected errors separately
 - Highlights persist via `AnnotationRepository` under `STORAGE_KEYS.reader.highlights` (`lunaclair.reader.highlights`)
 - Drawings persist via `AnnotationRepository` under `STORAGE_KEYS.reader.drawings` (`lunaclair.reader.drawings`)
 - All annotation methods require an explicit `documentId` parameter

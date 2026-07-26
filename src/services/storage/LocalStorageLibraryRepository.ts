@@ -26,7 +26,24 @@ function migrateLibraryKey(): void {
 function getAll(): StudyMaterial[] {
   // TODO(v1.0): Remove legacy migration after stable release.
   migrateLibraryKey();
-  return getFromStorage<StudyMaterial[]>(STORAGE_KEYS.library.materials, []);
+  const materials = getFromStorage<StudyMaterial[]>(STORAGE_KEYS.library.materials, []);
+
+  // TODO(v1.0): Remove legacy migration after stable release.
+  // Migrate demo material seeded with a random sourceId to the stable bundled sourceId.
+  let dirty = false;
+  for (const m of materials) {
+    if (
+      m.title.startsWith('Anatomy & Physiology') &&
+      m.sourceId !== 'anatomy-physiology'
+    ) {
+      m.sourceId = 'anatomy-physiology';
+      m.sourceType = 'bundled';
+      dirty = true;
+    }
+  }
+  if (dirty) saveToStorage(STORAGE_KEYS.library.materials, materials);
+
+  return materials;
 }
 
 function saveAll(materials: StudyMaterial[]): void {
@@ -56,8 +73,8 @@ export class LocalStorageLibraryRepository implements LibraryRepository {
       id: generateId(),
       title: input.title,
       description: input.description,
-      sourceType: 'markdown',
-      sourceId: generateId(),
+      sourceType: input.sourceType ?? 'bundled',
+      sourceId: input.sourceId ?? generateId(),
       createdAt: now,
       updatedAt: now,
     };

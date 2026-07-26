@@ -1,21 +1,60 @@
 import { useState, useCallback } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import type { Document } from '../../domain/reader';
+import * as stylex from '@stylexjs/stylex';
+import { ArrowLeft, FileQuestion } from 'lucide-react';
+import type { StudyMaterial } from '../../domain/library';
+import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
+import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';
 import { useDrawings } from './hooks/useDrawings';
 import { useTextSelection } from './hooks/useTextSelection';
 import ReaderView from './ReaderView';
 
+const styles = stylex.create({
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: '64px 24px',
+    textAlign: 'center',
+    color: '#6b6375',
+  },
+  errorIcon: {
+    color: '#9f95a9',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: '#3d3548',
+    margin: 0,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#6b6375',
+    margin: 0,
+  },
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '64px 24px',
+    color: '#6b6375',
+    fontSize: 14,
+  },
+});
+
 interface ReaderScreenProps {
-  document: Document | null;
+  material: StudyMaterial;
   onBackToLibrary: () => void;
 }
 
-export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreenProps) {
-  const documentId = document?.id ?? 'unknown';
+export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreenProps) {
+  const { data: document, isLoading, error } = useDocument(material);
+  const documentId = material.id;
 
   const {
     highlights,
@@ -70,19 +109,58 @@ export default function ReaderScreen({ document, onBackToLibrary }: ReaderScreen
 
   const content = document?.content ?? '';
 
+  const backAction = (
+    <Button
+      label="Back to Library"
+      variant="secondary"
+      icon={<ArrowLeft size={16} />}
+      onClick={onBackToLibrary}
+    >
+      Back to Library
+    </Button>
+  );
+
+  if (isLoading) {
+    return (
+      <Page title={material.title} actions={backAction}>
+        <div {...stylex.props(styles.loading)}>Loading document...</div>
+      </Page>
+    );
+  }
+
+  if (error instanceof DocumentNotFoundError) {
+    return (
+      <Page title={material.title} actions={backAction}>
+        <div {...stylex.props(styles.errorContainer)}>
+          <div {...stylex.props(styles.errorIcon)}>
+            <FileQuestion size={48} />
+          </div>
+          <h2 {...stylex.props(styles.errorTitle)}>Document could not be found.</h2>
+          <p {...stylex.props(styles.errorSubtext)}>
+            This material may have been moved or deleted.
+          </p>
+        </div>
+      </Page>
+    );
+  }
+
+  if (error) {
+    return (
+      <Page title={material.title} actions={backAction}>
+        <div {...stylex.props(styles.errorContainer)}>
+          <h2 {...stylex.props(styles.errorTitle)}>Something went wrong.</h2>
+          <p {...stylex.props(styles.errorSubtext)}>
+            An unexpected error occurred while loading this document.
+          </p>
+        </div>
+      </Page>
+    );
+  }
+
   return (
     <Page
-      title={document?.title ?? 'Reader'}
-      actions={
-        <Button
-          label="Back to Library"
-          variant="secondary"
-          icon={<ArrowLeft size={16} />}
-          onClick={onBackToLibrary}
-        >
-          Back to Library
-        </Button>
-      }
+      title={material.title}
+      actions={backAction}
     >
       <ReaderView
         content={content}

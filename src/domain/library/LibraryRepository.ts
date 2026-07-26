@@ -1,8 +1,10 @@
-import type { StudyMaterial } from './StudyMaterial';
+import type { StudyMaterial, MaterialSourceType } from './StudyMaterial';
 
 export interface CreateMaterialInput {
   title: string;
   description?: string;
+  sourceType?: MaterialSourceType;
+  sourceId?: string;
 }
 
 export interface UpdateMaterialInput {

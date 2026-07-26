@@ -18,7 +18,8 @@ Feature-based modules, each containing everything needed for that feature: compo
 ## Local Contracts
 
 - **No cross-feature imports.** A feature must not import from another feature.
-- Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/, assets/
+- Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
+- Study content assets (markdown, figures) live in `public/materials/{sourceId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Barrel export: `index.ts` re-exports the public API (usually just the Screen component)

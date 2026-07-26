@@ -7,9 +7,9 @@ Pure business domain models and logic — interfaces, types, and pure functions 
 ## Ownership
 
 Reserved domains:
-- `reader/` — Document reading models, `DocumentRepository` and `AnnotationRepository` async contract interfaces
+- `reader/` — Document reading models, `DocumentRepository` and `AnnotationRepository` async contract interfaces, `DocumentNotFoundError` typed domain error
 - `quiz/` — Quiz engine models (questions, answers, sessions)
-- `library/` — Document/library catalog models, `LibraryRepository` async contract interface with DTOs (`CreateMaterialInput`, `UpdateMaterialInput`)
+- `library/` — Document/library catalog models, storage-oriented `MaterialSourceType` (`'bundled' | 'local' | 'firebase' | 'url' | 'generated'`), `LibraryRepository` async contract interface with DTOs (`CreateMaterialInput`, `UpdateMaterialInput`)
 - `generator/` — AI content generation models
 
 ## Local Contracts

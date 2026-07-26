@@ -1,4 +1,4 @@
-export type MaterialSourceType = 'markdown' | 'json' | 'pdf' | 'generator' | 'importer';
+export type MaterialSourceType = 'bundled' | 'local' | 'firebase' | 'url' | 'generated';
 
 export interface StudyMaterial {
   id: string;

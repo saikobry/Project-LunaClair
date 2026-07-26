@@ -24,7 +24,7 @@
   - Epithelial tissue layer
   - Connective tissue layer
 
-{{FIGURE41A}}
+![](images/figure41a.png)
 
 *Figure 4.1a Classes of epithelial membranes*
 
@@ -37,7 +37,7 @@
 
 - (a) Cutaneous membrane (skin) Cutaneous membrane (the skin) covers the body surface.
 
-{{FIGURE41B}}
+![](images/figure41b.png)
 
 *Figure 4.1b Classes of epithelial membranes*
 
@@ -50,11 +50,11 @@
   - Type depends on the site
   - Loose connective tissue (lamina propria)
 
-{{FIGURE41C}}
+![](images/figure41c.png)
 
 *Figure 4.1c Classes of epithelial membranes*
 
-{{FIGURE41D}}
+![](images/figure41d.png)
 
 *Figure 4.1d Classes of epithelial membranes*
 
@@ -79,7 +79,7 @@
   - Line tendon sheaths
 - Secrete a lubricating fluid to cushion organs moving against each other during muscle activity
 
-{{FIGURE42}}
+![](images/figure42.png)
 
 *Figure 4.2 A typical synovial joint*
 
@@ -138,7 +138,7 @@
 - Composed mostly of adipose tissue
 - Serves as a shock absorber and insulates deeper tissues
 
-{{FIGURE43}}
+![](images/figure43.png)
 
 *Figure 4.3 Skin Structure*
 
@@ -177,7 +177,7 @@
 - Outermost layer of epidermis
 - Shingle-like dead cells are filled with keratin (protective protein prevents water loss from skin)
 
-{{FIGURE44}}
+![](images/figure44.png)
 
 *Figure 4.4 The Main Structural Features of the Epidermis*
 
@@ -215,7 +215,7 @@
 - Sweat and oil glands
 - Deep pressure receptors (lamellar corpuscles)
 
-{{FIGURE45}}
+![](images/figure45.png)
 
 *Figure 4.5 Light micrograph of the two layers of the dermis (100X).*
 
@@ -256,7 +256,7 @@
 #### Hair follicles
 #### Nails
 
-{{FIGURE43}}
+![](images/figure43.png)
 
 *Figure 4.3 Skin Structure*
 
@@ -269,7 +269,7 @@
 - Most have ducts that empty into hair follicles; others open directly onto skin surface
 - Glands are activated at puberty with increased androgens
 
-{{FIGURE46A}}
+![](images/figure46a.png)
 
 *Figure 4.6a Cutaneous glands*
 
@@ -287,7 +287,7 @@
   - Water, salts, vitamin C, traces of metabolic waste
 - Function in body temperature regulation
 
-{{FIGURE46B}}
+![](images/figure46b.png)
 
 *Figure 4.6b Cutaneous glands*
 
@@ -306,7 +306,7 @@
 - Melanocytes provide pigment for hair color
 - Hair grows in the matrix of the hair bulb in stratum basale
 
-{{FIGURE47A}}
+![](images/figure47a.png)
 
 *Figure 4.7a Structure of a hair root and follicle*
 
@@ -317,11 +317,11 @@
   - Most heavily keratinized region of the hair
 - Melanin provides color
 
-{{FIGURE47B}}
+![](images/figure47b.png)
 
 *Figure 4.7b Structure of a hair root and follicle*
 
-{{FIGURE47C}}
+![](images/figure47c.png)
 
 *Figure 4.7c Structure of a hair root and follicle*
 
@@ -331,7 +331,7 @@
   - Dermal region provides a blood supply to the hair bulb (deepest part of the follicle)
   - Arrector pili muscle connects to the hair follicle to pull hairs upright when we are cold or frightened
 
-{{FIGURE47D}}
+![](images/figure47d.png)
 
 *Figure 4.7d Structure of a hair root and follicle*
 
@@ -347,7 +347,7 @@
 - Root of nail is embedded in skin
 - Growth of the nail occurs from nail matrix
 
-{{FIGURE48}}
+![](images/figure48.png)
 
 *Figure 4.8 Structure of a nail*
 
@@ -381,7 +381,7 @@
 - Triggered by trauma, infection, hormonal changes, or stress
 - Red, epidermal lesions covered with dry, silvery scales that itch, burn, crack, or sometimes bleed
 
-{{FIGURE49}}
+![](images/figure49.png)
 
 *Figure 4.9 Cutaneous lesions*
 
@@ -399,7 +399,7 @@
 - Each area represents about 9 percent of total body surface area
   - The area surrounding the genitals (the perineum) represents 1 percent of body surface area
 
-{{FIGURE410A}}
+![](images/figure410a.png)
 
 *Figure 4.10a Burns*
 
@@ -423,7 +423,7 @@
 - Requires surgery and grafting
 - May require amputation
 
-{{FIGURE410B}}
+![](images/figure410b.png)
 
 *Figure 4.10b Burns*
 
@@ -451,7 +451,7 @@
 - Arises from cells in stratum basale that are altered so that they can no longer make keratin
 - Lesions appear as shiny, dome-shaped nodules that develop a central ulcer
 
-{{FIGURE411A}}
+![](images/figure411a.png)
 
 *Figure 4.11a Photographs of skin cancers*
 
@@ -462,7 +462,7 @@
 - Early removal allows a good chance of cure
 - Metastasizes to lymph nodes if not removed
 
-{{FIGURE411B}}
+![](images/figure411b.png)
 
 *Figure 4.11b Photographs of skin cancers*
 
@@ -482,7 +482,7 @@
 - **E = Evolution**
   - One or more of the ABCD characteristics is evolving
 
-{{FIGURE411C}}
+![](images/figure411c.png)
 
 *Figure 4.11c Photographs of skin cancers*
 
