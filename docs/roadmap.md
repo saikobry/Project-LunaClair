@@ -19,6 +19,8 @@
   - Removal of legacy in-memory content registries and standardization of storage namespaces.
 - ✅ **Phase 5 — Assessment Engine Foundation**
   - Dexie IndexedDB database (`lunaclair-db`), strategy-based answer grading (`QuestionStrategyResolver`), pure `AssessmentService`, immutable `questionSnapshots` in `QuizSession`, multi-question type support (`multiple_choice`, `multiple_select`, `true_false`, `identification`, `fill_in_blank`), and centralized `QuestionRenderer`.
+- ✅ **Phase 5.1 — Assessment Experience Integration**
+  - Lightweight `AppRoute` navigation, "Start Quiz" entry points in Library and Reader screens, `QuizScreen` state machine, interactive `QuizView` player, post-session `QuizResultView`, modular session sub-hooks, and atomic session persistence.
 
 ---
 

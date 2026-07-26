@@ -1,6 +1,6 @@
 import { type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, Eye, Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, Eye, Pencil, Trash2, BrainCircuit } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
 import { Card } from '../../../shared/ui/Card';
 import { Button } from '../../../shared/ui/Button';
@@ -11,6 +11,7 @@ interface MaterialCardProps {
   onOpen: (material: StudyMaterial) => void;
   onRename: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
+  onStartQuiz: (material: StudyMaterial) => void;
 }
 
 function formatDate(iso: string | undefined): string {
@@ -32,6 +33,7 @@ export default function MaterialCard({
   onOpen,
   onRename,
   onDelete,
+  onStartQuiz,
 }: MaterialCardProps) {
   const handleOpen = (e: MouseEvent) => {
     e.stopPropagation();
@@ -44,6 +46,10 @@ export default function MaterialCard({
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
     onDelete(material);
+  };
+  const handleStartQuiz = (e: MouseEvent) => {
+    e.stopPropagation();
+    onStartQuiz(material);
   };
 
   return (
@@ -69,6 +75,13 @@ export default function MaterialCard({
           icon={<Eye size={14} />}
           isIconOnly
           onClick={handleOpen}
+        />
+        <Button
+          label={`Start quiz for ${material.title}`}
+          variant="secondary"
+          icon={<BrainCircuit size={14} />}
+          isIconOnly
+          onClick={handleStartQuiz}
         />
         <Button
           label={`Rename ${material.title}`}

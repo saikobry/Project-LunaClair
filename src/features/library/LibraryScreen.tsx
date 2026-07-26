@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../domain/library';
+import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useLibrary } from './hooks/useLibrary';
 import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
@@ -8,9 +9,10 @@ import LibraryView from './LibraryView';
 
 interface LibraryScreenProps {
   onOpenMaterial: (material: StudyMaterial) => void;
+  onStartQuiz: (request: QuizLaunchRequest) => void;
 }
 
-export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
+export default function LibraryScreen({ onOpenMaterial, onStartQuiz }: LibraryScreenProps) {
   const { materials } = useLibrary();
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
@@ -62,6 +64,13 @@ export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
     setDeleteTarget(null);
   }, []);
 
+  const handleStartQuiz = useCallback(
+    (material: StudyMaterial) => {
+      onStartQuiz({ materialId: material.id, source: 'library' });
+    },
+    [onStartQuiz],
+  );
+
   return (
     <LibraryView
       materials={materials}
@@ -69,6 +78,7 @@ export default function LibraryScreen({ onOpenMaterial }: LibraryScreenProps) {
       onOpen={handleOpen}
       onRename={handleRenameTrigger}
       onDelete={handleDeleteTrigger}
+      onStartQuiz={handleStartQuiz}
       renameTarget={renameTarget}
       deleteTarget={deleteTarget}
       onRenameSave={handleRenameSave}

@@ -10,7 +10,7 @@ export interface QuizScore {
     percentage: number;
 }
 
-export type QuizSessionStatus = 'in_progress' | 'completed' | 'abandoned';
+export type QuizSessionStatus = 'draft' | 'in_progress' | 'completed' | 'abandoned';
 
 export interface QuizSession {
     id: string;

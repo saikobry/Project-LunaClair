@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { ArrowLeft, FileQuestion } from 'lucide-react';
+import { ArrowLeft, FileQuestion, BrainCircuit } from 'lucide-react';
 import type { StudyMaterial } from '../../domain/library';
+import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { Page } from '../../shared/ui/Page';
@@ -50,9 +51,10 @@ const styles = stylex.create({
 interface ReaderScreenProps {
   material: StudyMaterial;
   onBackToLibrary: () => void;
+  onStartQuiz: (request: QuizLaunchRequest) => void;
 }
 
-export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreenProps) {
+export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz }: ReaderScreenProps) {
   const { data: document, isLoading, error } = useDocument(material);
   const documentId = material.id;
   const content = document?.content ?? '';
@@ -109,14 +111,24 @@ export default function ReaderScreen({ material, onBackToLibrary }: ReaderScreen
   }, [clearHighlights]);
 
   const backAction = (
-    <Button
-      label="Back to Library"
-      variant="secondary"
-      icon={<ArrowLeft size={16} />}
-      onClick={onBackToLibrary}
-    >
-      Back to Library
-    </Button>
+    <>
+      <Button
+        label="Back to Library"
+        variant="secondary"
+        icon={<ArrowLeft size={16} />}
+        onClick={onBackToLibrary}
+      >
+        Back to Library
+      </Button>
+      <Button
+        label="Take Quiz"
+        variant="primary"
+        icon={<BrainCircuit size={16} />}
+        onClick={() => onStartQuiz({ materialId: material.id, source: 'reader' })}
+      >
+        Take Quiz
+      </Button>
+    </>
   );
 
   if (isLoading) {

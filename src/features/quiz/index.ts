@@ -1,3 +1,9 @@
+// Screen
+export { default as QuizScreen } from './QuizScreen';
+
+// Types
+export type { QuizLaunchRequest, QuizFlowState } from './types/quizFeature.types';
+
 // Hooks
 export {
     useQuestionRepository,

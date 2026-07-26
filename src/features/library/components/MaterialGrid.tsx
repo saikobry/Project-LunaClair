@@ -8,9 +8,10 @@ interface MaterialGridProps {
   onOpen: (material: StudyMaterial) => void;
   onRename: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
+  onStartQuiz: (material: StudyMaterial) => void;
 }
 
-export default function MaterialGrid({ materials, onOpen, onRename, onDelete }: MaterialGridProps) {
+export default function MaterialGrid({ materials, onOpen, onRename, onDelete, onStartQuiz }: MaterialGridProps) {
   return (
     <div {...stylex.props(styles.grid)}>
       {materials.map((material) => (
@@ -20,6 +21,7 @@ export default function MaterialGrid({ materials, onOpen, onRename, onDelete }: 
           onOpen={onOpen}
           onRename={onRename}
           onDelete={onDelete}
+          onStartQuiz={onStartQuiz}
         />
       ))}
     </div>
