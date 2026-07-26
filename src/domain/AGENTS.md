@@ -8,7 +8,7 @@ Pure business domain models and logic — interfaces, types, and pure functions 
 
 Reserved domains:
 - `reader/` — Document reading models, `DocumentRepository` and `AnnotationRepository` async contract interfaces, `DocumentNotFoundError` typed domain error
-- `quiz/` — Quiz engine models (questions, answers, sessions)
+- `quiz/` — Assessment engine: question models (5 types: `multiple_choice`, `multiple_select`, `true_false`, `identification`, `fill_in_blank`), quiz/session models, `QuestionRepository`/`QuizRepository`/`QuizSessionRepository` contracts, strategy-pattern grading (`QuestionStrategy` + 5 implementations + `QuestionStrategyResolver`), pure `AssessmentService`
 - `library/` — Document/library catalog models, storage-oriented `MaterialSourceType` (`'bundled' | 'local' | 'firebase' | 'url' | 'generated'`), `LibraryRepository` async contract interface with DTOs (`CreateMaterialInput`, `UpdateMaterialInput`)
 - `generator/` — AI content generation models
 
@@ -17,9 +17,11 @@ Reserved domains:
 - Zero React or UI dependencies. Domain modules import only from other domains or pure TypeScript libraries.
 - Importable by any feature or service layer.
 - Domain logic must be testable without a browser environment.
-- `LibraryRepository` is the async contract (interface) that infrastructure implementations (e.g., `LocalStorageLibraryRepository`) must satisfy.
+- `LibraryRepository` is the async contract (interface) that infrastructure implementations (e.g., `DexieLibraryRepository`) must satisfy.
 - `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `LocalDocumentRepository`).
-- `AnnotationRepository` is the async contract for highlight/drawing persistence keyed by `documentId` (implemented by `LocalStorageAnnotationRepository`).
+- `AnnotationRepository` is the async contract for highlight/drawing persistence keyed by `documentId` (implemented by `DexieAnnotationRepository`).
+- `QuestionRepository`, `QuizRepository`, `QuizSessionRepository` are async contracts for assessment persistence (implemented by Dexie repositories in `src/infrastructure/database/repositories/`).
+- `AssessmentService` is a pure domain service with zero persistence dependencies — validates, grades, and computes `QuizResult`/`QuizScore` via strategy dispatch.
 
 ## Work Guidance
 
@@ -31,4 +33,4 @@ No verification framework exists yet.
 
 ## Child DOX Index
 
-No child AGENTS.md files — each subdomain is a single `index.ts` barrel file.
+No child AGENTS.md files — quiz subdomain uses `strategies/` subdirectory for strategy pattern implementations.

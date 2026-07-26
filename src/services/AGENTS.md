@@ -1,8 +1,8 @@
-# src/services/ — Infrastructure Services
+# src/services/ — Legacy Infrastructure Services
 
 ## Purpose
 
-Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Firebase/Auth/API clients. Services abstract side effects so features remain testable and decoupled.
+Legacy infrastructure adapters: localStorage wrappers and content fetch helpers. Primary persistence has moved to `src/infrastructure/database/` (Dexie/IndexedDB). Services abstract side effects so features remain testable and decoupled.
 
 ## Ownership
 
@@ -13,7 +13,7 @@ Infrastructure adapters: localStorage wrappers, IndexedDB helpers, and future Fi
 - `content/LocalDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: resolves `StudyMaterial` → `Document` via HTTP `fetch('/materials/{sourceId}/index.md')`. Throws `DocumentNotFoundError` on 404 or network failure. Delegates transformation to `markdownPreprocessor`. Singleton `localDocumentRepository`.
 - `content/markdownPreprocessor.ts` — Pure utility: resolves relative image URLs (`images/…` → `/materials/{sourceId}/images/…`).
 - `content/index.ts` — Barrel re-export of `LocalDocumentRepository`, `localDocumentRepository`, `preprocessMarkdown`
-- `indexeddb/` — Reserved for future IndexedDB implementation
+- `indexeddb/` — Deprecated placeholder (superseded by `src/infrastructure/database/`)
 - `index.ts` — Barrel export of all service-layer modules
 
 ## Local Contracts

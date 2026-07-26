@@ -1,8 +1,11 @@
 import { useRef, type ReactNode } from 'react';
 import { RepositoryContext, type RepositoryContextValue } from './RepositoryContext';
-import { localStorageLibraryRepository } from '../../services/storage/LocalStorageLibraryRepository';
-import { localStorageAnnotationRepository } from '../../services/storage/LocalStorageAnnotationRepository';
 import { localDocumentRepository } from '../../services/content/LocalDocumentRepository';
+import { dexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';
+import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
+import { dexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
+import { dexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
+import { dexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
 
 interface RepositoryProviderProps {
   children: ReactNode;
@@ -14,9 +17,12 @@ interface RepositoryProviderProps {
  */
 export function RepositoryProvider({ children }: RepositoryProviderProps) {
   const ref = useRef<RepositoryContextValue>({
-    libraryRepository: localStorageLibraryRepository,
+    libraryRepository: dexieLibraryRepository,
     documentRepository: localDocumentRepository,
-    annotationRepository: localStorageAnnotationRepository,
+    annotationRepository: dexieAnnotationRepository,
+    questionRepository: dexieQuestionRepository,
+    quizRepository: dexieQuizRepository,
+    quizSessionRepository: dexieQuizSessionRepository,
   });
 
   return (

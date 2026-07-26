@@ -79,11 +79,11 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 0 (Foundation)
+**Phase:** 5 (Assessment Engine Foundation)
 
 ## Stack
 
-React 19 + TypeScript + Vite.
+React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 
 ## Commands
 
@@ -109,12 +109,13 @@ Feature-based architecture:
 
 ```
 src/
-  app/        — Application shell, config, providers
-  domain/     — Business domain models (pure data, no UI)
-  features/   — Feature modules (reader, quiz, library, …)
-  shared/     — Shared types, constants, utilities, base components
-  services/   — Infrastructure services (storage, IndexedDB, …)
-  styles/     — Global styles and master stylesheet
+  app/            — Application shell, config, providers
+  domain/         — Business domain models (pure data, no UI)
+  features/       — Feature modules (reader, quiz, library, …)
+  infrastructure/ — Persistence layer (Dexie/IndexedDB database, repositories)
+  shared/         — Shared types, constants, utilities, base components
+  services/       — Legacy infrastructure services (localStorage, content fetch)
+  styles/         — Global styles and master stylesheet
 ```
 
 See `docs/architecture.md` for full details.
@@ -133,7 +134,8 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 2. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
 3. **Shared code** — if two features need the same type/constant/utility, extract to `shared/`.
 4. **Services** import from `shared/` (types) but not from features.
-5. **Barrel exports** (`index.ts`) re-export selectively — avoid deep import chains.
+5. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types) but not from features.
+6. **Barrel exports** (`index.ts`) re-export selectively — avoid deep import chains.
 
 ## Conventions
 
@@ -156,5 +158,6 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
-| `src/services/AGENTS.md` | `src/services/` | Infrastructure services (storage, IndexedDB) |
+| `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, seeding |
+| `src/services/AGENTS.md` | `src/services/` | Legacy infrastructure services (localStorage, content fetch) |
 | `src/shared/AGENTS.md` | `src/shared/` | Shared types, constants, utilities, hooks, components |

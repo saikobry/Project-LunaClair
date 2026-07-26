@@ -10,7 +10,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
-| `quiz/` | 🔒 Reserved | Quiz engine |
+| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), query/mutation hooks, DI repositories |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 | `settings/` | 🔒 Reserved | App settings |
