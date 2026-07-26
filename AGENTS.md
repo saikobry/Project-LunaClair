@@ -118,7 +118,7 @@ src/
   styles/         — Global styles and master stylesheet
 ```
 
-See `docs/architecture.md` for full details.
+See `docs/architecture/architecture.md` and `docs/architecture/adr/` for full details.
 
 ## TypeScript
 

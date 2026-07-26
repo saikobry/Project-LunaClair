@@ -2,7 +2,7 @@
 
 ## Layering Architecture
 
-```
+```text
 Features
    ↓
 shared/components (optional composite)
@@ -31,8 +31,8 @@ StyleX (@stylexjs/stylex)
 
 ### Persistence & Service Boundaries
 
-5. **Browser storage APIs only in `src/services/storage/`** ❌
-   - `localStorage`, `sessionStorage`, IndexedDB calls belong in service abstractions, never in features.
+5. **Browser storage APIs only in `src/infrastructure/database/` or `src/services/`** ❌
+   - `localStorage`, `sessionStorage`, IndexedDB calls belong in infrastructure adapters, never in features.
 
 6. **Domain layer is pure** ❌
    - No DOM, `window`, `document`, `navigator`, `localStorage`, or browser APIs in `src/domain/`.
@@ -80,7 +80,7 @@ Features own their specific page content (search, filtering, breadcrumbs) — do
 ## Design Tokens
 
 - **Astryx theme tokens** provide color, spacing, radius, shadow, and typography via CSS custom properties.
-- **`shared/styles/tokens.stylex.ts`** contains minimal LunaClair supplement tokens not covered by Astryx (reserved for future use — currently 9 tokens unused by active components).
+- **`shared/styles/tokens.stylex.ts`** contains minimal LunaClair supplement tokens not covered by Astryx.
 - Feature styles should use Astryx CSS variables and StyleX. Avoid hardcoded values.
 
 ## Third-Party Package Boundaries
