@@ -11,6 +11,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
 | `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), DI repositories |
+| `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), QuizManagementService, publish/archive workflows |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 | `settings/` | 🔒 Reserved | App settings |
@@ -39,3 +40,4 @@ No verification framework exists yet.
 | Child | Scope | Purpose |
 |---|---|---|
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
+| `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |

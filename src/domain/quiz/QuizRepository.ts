@@ -1,10 +1,12 @@
-import type { Quiz } from './Quiz';
+import type { Quiz, QuizStatus, QuizQuestion } from './Quiz';
 
 export interface CreateQuizInput {
     materialId: string;
     title: string;
     description?: string;
     questionIds: string[];
+    items?: QuizQuestion[];
+    status?: QuizStatus;
     timeLimitSeconds?: number;
     passingPercentage?: number;
 }
@@ -13,6 +15,8 @@ export interface UpdateQuizInput {
     title?: string;
     description?: string;
     questionIds?: string[];
+    items?: QuizQuestion[];
+    status?: QuizStatus;
     timeLimitSeconds?: number;
     passingPercentage?: number;
 }

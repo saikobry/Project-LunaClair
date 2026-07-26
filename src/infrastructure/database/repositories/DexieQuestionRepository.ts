@@ -33,6 +33,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             points: input.points ?? 1,
             explanation: input.explanation,
             tags: input.tags,
+            status: input.status ?? 'draft',
             version: 1,
             createdAt: now,
             updatedAt: now,

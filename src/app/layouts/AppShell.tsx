@@ -5,6 +5,7 @@ import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.ty
 import LibraryScreen from '../../features/library/LibraryScreen';
 import { ReaderScreen } from '../../features/reader';
 import QuizScreen from '../../features/quiz/QuizScreen';
+import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 
 const styles = stylex.create({
@@ -23,7 +24,8 @@ const styles = stylex.create({
 type AppRoute =
   | { name: 'library' }
   | { name: 'reader'; material: StudyMaterial }
-  | { name: 'quiz'; launchRequest: QuizLaunchRequest };
+  | { name: 'quiz'; launchRequest: QuizLaunchRequest }
+  | { name: 'manage-quiz'; material: StudyMaterial };
 
 export default function AppShell() {
   const [activeRoute, setActiveRoute] = useState<AppRoute>({ name: 'library' });
@@ -50,21 +52,29 @@ export default function AppShell() {
     setActiveRoute({ name: 'library' });
   }, []);
 
+  const handleManageQuiz = useCallback((material: StudyMaterial) => {
+    setActiveRoute({ name: 'manage-quiz', material });
+  }, []);
+
   return (
     <div {...stylex.props(styles.shell)}>
       <main {...stylex.props(styles.main)}>
         {activeRoute.name === 'library' && (
-          <LibraryScreen onOpenMaterial={handleOpenMaterial} onStartQuiz={handleStartQuiz} />
+          <LibraryScreen onOpenMaterial={handleOpenMaterial} onStartQuiz={handleStartQuiz} onManageQuiz={handleManageQuiz} />
         )}
         {activeRoute.name === 'reader' && (
           <ReaderScreen
             material={activeRoute.material}
             onBackToLibrary={handleBackToLibrary}
             onStartQuiz={handleStartQuiz}
+            onManageQuiz={handleManageQuiz}
           />
         )}
         {activeRoute.name === 'quiz' && (
           <QuizScreen launchRequest={activeRoute.launchRequest} onExit={handleExitQuiz} />
+        )}
+        {activeRoute.name === 'manage-quiz' && (
+          <QuizManagementScreen material={activeRoute.material} onBack={handleBackToLibrary} />
         )}
       </main>
     </div>

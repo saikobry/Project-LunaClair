@@ -10,8 +10,8 @@ export type {
     FillBlankPayload,
     PayloadForType,
 } from './AnswerPayload';
-export type { Question, QuestionDifficulty } from './Question';
-export type { Quiz } from './Quiz';
+export type { Question, QuestionDifficulty, QuestionStatus } from './Question';
+export type { Quiz, QuizStatus, QuizQuestion } from './Quiz';
 export type { SubmittedAnswer } from './Answer';
 export type { QuizSession, QuizScore, QuizSessionStatus } from './QuizSession';
 

@@ -1,4 +1,4 @@
-import type { Question } from './Question';
+import type { Question, QuestionStatus } from './Question';
 
 export interface CreateQuestionInput {
     materialId: string;
@@ -9,6 +9,7 @@ export interface CreateQuestionInput {
     points?: number;
     explanation?: string;
     tags?: string[];
+    status?: QuestionStatus;
 }
 
 export interface UpdateQuestionInput {
@@ -18,6 +19,7 @@ export interface UpdateQuestionInput {
     points?: number;
     explanation?: string;
     tags?: string[];
+    status?: QuestionStatus;
 }
 
 export interface QuestionRepository {

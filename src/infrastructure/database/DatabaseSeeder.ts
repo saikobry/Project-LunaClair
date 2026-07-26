@@ -1,7 +1,7 @@
 import type { LunaClairDatabase } from './LunaClairDatabase';
 import type { StudyMaterial } from '../../domain/library/StudyMaterial';
 import type { Question } from '../../domain/quiz/Question';
-import type { Quiz } from '../../domain/quiz/Quiz';
+import type { Quiz, QuizQuestion } from '../../domain/quiz/Quiz';
 
 /**
  * Seeds the database with demo content if empty.
@@ -63,6 +63,7 @@ export class DatabaseSeeder {
                 points: 1,
                 explanation: 'The dermis is the vascular layer containing blood vessels, nerves, and hair follicles.',
                 tags: ['skin', 'layers'],
+                status: 'published',
                 version: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -86,6 +87,7 @@ export class DatabaseSeeder {
                 points: 2,
                 explanation: 'The integumentary system protects, synthesizes vitamin D, and regulates temperature. Oxygen transport is a cardiovascular function.',
                 tags: ['integumentary', 'functions'],
+                status: 'published',
                 version: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -103,6 +105,7 @@ export class DatabaseSeeder {
                 points: 1,
                 explanation: 'The hypodermis (subcutaneous layer) is the deepest. The epidermis is the outermost layer.',
                 tags: ['skin', 'layers'],
+                status: 'published',
                 version: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -121,6 +124,7 @@ export class DatabaseSeeder {
                 points: 2,
                 explanation: 'Keratin is the fibrous protein that waterproofs and strengthens skin cells.',
                 tags: ['proteins', 'skin'],
+                status: 'published',
                 version: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -139,6 +143,7 @@ export class DatabaseSeeder {
                 points: 3,
                 explanation: 'From superficial to deep: epidermis, dermis, and hypodermis (subcutaneous tissue).',
                 tags: ['skin', 'layers'],
+                status: 'published',
                 version: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -147,12 +152,22 @@ export class DatabaseSeeder {
     }
 
     private buildStarterQuiz(materialId: string, questions: Question[], now: string): Quiz {
+        const quizId = 'quiz-anatomy-001';
+        const items: QuizQuestion[] = questions.map((q, i) => ({
+            quizId,
+            questionId: q.id,
+            questionVersion: q.version,
+            order: i + 1,
+            points: q.points,
+        }));
         return {
-            id: 'quiz-anatomy-001',
+            id: quizId,
             materialId,
             title: 'Body Membranes — Practice Quiz',
             description: 'A mixed-format practice quiz covering skin structure and integumentary functions.',
             questionIds: questions.map((q) => q.id),
+            items,
+            status: 'published',
             passingPercentage: 70,
             createdAt: now,
             updatedAt: now,

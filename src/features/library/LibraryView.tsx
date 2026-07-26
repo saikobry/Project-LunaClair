@@ -15,6 +15,7 @@ interface LibraryViewProps {
   onRename: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
+  onManageQuiz: (material: StudyMaterial) => void;
   renameTarget: StudyMaterial | null;
   deleteTarget: StudyMaterial | null;
   onRenameSave: (title: string, description: string) => void;
@@ -30,6 +31,7 @@ export default function LibraryView({
   onRename,
   onDelete,
   onStartQuiz,
+  onManageQuiz,
   renameTarget,
   deleteTarget,
   onRenameSave,
@@ -61,6 +63,7 @@ export default function LibraryView({
           onRename={onRename}
           onDelete={onDelete}
           onStartQuiz={onStartQuiz}
+          onManageQuiz={onManageQuiz}
         />
       ) : (
         <div {...stylex.props(styles.emptyState)}>

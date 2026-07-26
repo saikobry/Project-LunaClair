@@ -10,9 +10,10 @@ import LibraryView from './LibraryView';
 interface LibraryScreenProps {
   onOpenMaterial: (material: StudyMaterial) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
+  onManageQuiz: (material: StudyMaterial) => void;
 }
 
-export default function LibraryScreen({ onOpenMaterial, onStartQuiz }: LibraryScreenProps) {
+export default function LibraryScreen({ onOpenMaterial, onStartQuiz, onManageQuiz }: LibraryScreenProps) {
   const { materials } = useLibrary();
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
@@ -79,6 +80,7 @@ export default function LibraryScreen({ onOpenMaterial, onStartQuiz }: LibrarySc
       onRename={handleRenameTrigger}
       onDelete={handleDeleteTrigger}
       onStartQuiz={handleStartQuiz}
+      onManageQuiz={onManageQuiz}
       renameTarget={renameTarget}
       deleteTarget={deleteTarget}
       onRenameSave={handleRenameSave}

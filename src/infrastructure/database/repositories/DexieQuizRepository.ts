@@ -29,6 +29,8 @@ export class DexieQuizRepository implements QuizRepository {
             title: input.title,
             description: input.description,
             questionIds: input.questionIds,
+            items: input.items ?? [],
+            status: input.status ?? 'draft',
             timeLimitSeconds: input.timeLimitSeconds,
             passingPercentage: input.passingPercentage,
             createdAt: now,

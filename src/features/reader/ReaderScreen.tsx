@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { ArrowLeft, FileQuestion, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, FileQuestion, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { StudyMaterial } from '../../domain/library';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
@@ -52,9 +52,10 @@ interface ReaderScreenProps {
   material: StudyMaterial;
   onBackToLibrary: () => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
+  onManageQuiz: (material: StudyMaterial) => void;
 }
 
-export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz }: ReaderScreenProps) {
+export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz, onManageQuiz }: ReaderScreenProps) {
   const { data: document, isLoading, error } = useDocument(material);
   const documentId = material.id;
   const content = document?.content ?? '';
@@ -119,6 +120,14 @@ export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz }:
         onClick={onBackToLibrary}
       >
         Back to Library
+      </Button>
+      <Button
+        label="Question Bank"
+        variant="secondary"
+        icon={<ClipboardList size={16} />}
+        onClick={() => onManageQuiz(material)}
+      >
+        Question Bank
       </Button>
       <Button
         label="Take Quiz"
