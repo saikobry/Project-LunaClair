@@ -9,7 +9,7 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     padding: 32,
-    maxWidth: 960,
+    maxWidth: 1200,
     width: '100%',
     margin: '0 auto',
     boxSizing: 'border-box',

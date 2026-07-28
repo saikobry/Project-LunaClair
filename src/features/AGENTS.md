@@ -10,7 +10,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
-| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), DI repositories |
+| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), DI repositories |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), QuizManagementService, publish/archive workflows |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
@@ -22,7 +22,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
 - Study content assets (markdown, figures) live in `public/materials/{sourceId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
-- Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by WorkspaceRail + tabs, not by per-screen buttons.
+- Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by AppSidebar + tabs, not by per-screen buttons.
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Barrel export: `index.ts` re-exports the public API (usually just the Screen component)
 - Query hooks are separated from mutation hooks. Mutations live in `hooks/mutations/` directory.

@@ -1,225 +1,244 @@
-import * as stylex from '@stylexjs/stylex'
-import { useState } from 'react'
-import { List, X } from 'lucide-react'
+import { useState, useMemo } from 'react';
+import * as stylex from '@stylexjs/stylex';
+import { ChevronDown, ChevronUp, List } from 'lucide-react';
+import { Outline, parseOutlineFromMarkdown, type OutlineItem } from '@astryxdesign/core/Outline';
 
-const toc = [
-  { label: 'Body Membranes', id: 'body-membranes' },
-  { label: 'Epithelial Membranes', id: 'epithelial-membranes' },
-  { label: 'Connective Tissue Membranes', id: 'connective-tissue-membranes' },
-  { label: 'Integumentary System', id: 'integumentary-system-1' },
-  { label: 'Functions of the Integumentary System', id: 'functions-of-the-integumentary-system' },
-  { label: 'Structure of the Skin', id: 'structure-of-the-skin' },
-  { label: 'Skin Color', id: 'skin-color' },
-  { label: 'Appendages of the Skin', id: 'appendages-of-the-skin' },
-  { label: 'Homeostatic Imbalances of Skin', id: 'homeostatic-imbalances-of-skin' },
-  { label: 'Developmental Aspects', id: 'developmental-aspects-of-skin-and-body-membranes' },
-]
+const defaultTocItems: OutlineItem[] = [
+  { label: 'Body Membranes', id: 'body-membranes', level: 1 },
+  { label: 'Epithelial Membranes', id: 'epithelial-membranes', level: 2 },
+  { label: 'Connective Tissue Membranes', id: 'connective-tissue-membranes', level: 2 },
+  { label: 'Integumentary System', id: 'integumentary-system-1', level: 1 },
+  { label: 'Functions of the Integumentary System', id: 'functions-of-the-integumentary-system', level: 2 },
+  { label: 'Structure of the Skin', id: 'structure-of-the-skin', level: 2 },
+  { label: 'Skin Color', id: 'skin-color', level: 2 },
+  { label: 'Appendages of the Skin', id: 'appendages-of-the-skin', level: 2 },
+  { label: 'Homeostatic Imbalances of Skin', id: 'homeostatic-imbalances-of-skin', level: 2 },
+  { label: 'Developmental Aspects', id: 'developmental-aspects-of-skin-and-body-membranes', level: 2 },
+];
 
-const pulse = stylex.keyframes({
-  '0%': { boxShadow: '0 4px 14px rgba(99,102,241,0.25)' },
-  '50%': { boxShadow: '0 4px 28px rgba(99,102,241,0.45)' },
-  '100%': { boxShadow: '0 4px 14px rgba(99,102,241,0.25)' },
-})
+const mobileQuery = '@media (max-width: 768px)';
+const desktopQuery = '@media (min-width: 769px)';
 
 const styles = stylex.create({
-  fab: {
-    position: 'fixed',
-    bottom: 24,
-    right: 24,
-    width: 48,
-    height: 48,
-    borderRadius: '50%',
-    backgroundImage: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-    borderStyle: 'none',
-    cursor: 'pointer',
-    fontSize: 22,
-    color: '#fff',
-    boxShadow: '0 4px 14px rgba(99,102,241,0.25)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1001,
-    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    ':hover': {
-      transform: 'scale(1.1)',
-      boxShadow: '0 8px 28px rgba(99,102,241,0.35)',
-    },
-    ':active': {
-      transform: 'scale(0.95)',
+  // Mobile Sticky Header
+  mobileStickyHeader: {
+    display: 'none',
+    [mobileQuery]: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'sticky',
+      top: 0,
+      zIndex: 90,
+      backgroundColor: 'var(--color-background-surface, #ffffff)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderBottomWidth: 1,
+      borderBottomStyle: 'solid',
+      borderBottomColor: 'var(--color-border)',
+      paddingTop: 10,
+      paddingBottom: 10,
+      paddingLeft: 16,
+      paddingRight: 16,
+      width: '100%',
+      boxSizing: 'border-box',
     },
   },
-  fabPulse: {
-    animationName: pulse,
-    animationDuration: '2.5s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'ease-in-out',
-  },
-  fabOpen: {
-    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-  },
-
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    zIndex: 998,
-    opacity: 0,
-    pointerEvents: 'none',
-    transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-    // Button reset — remove default button appearance
-    borderStyle: 'none',
-    padding: 0,
-    cursor: 'pointer',
-    display: 'block',
-  },
-  overlayEnter: {
-    opacity: 1,
-    pointerEvents: 'auto',
-  },
-  panel: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: 280,
-    backgroundColor: '#fff',
-    zIndex: 999,
-    padding: '28px 20px',
-    overflowY: 'auto',
-    boxShadow: '-8px 0 32px rgba(0,0,0,0.1)',
-    transform: 'translateX(100%)',
-    opacity: 1,
-    transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  panelEnter: {
-    transform: 'translateX(0)',
-  },
-  header: {
+  mobileTrigger: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 2,
-    borderBottomStyle: 'solid',
-    borderBottomColor: '#f0f0f0',
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#333',
-    margin: 0,
-    letterSpacing: '0.8px',
-    textTransform: 'uppercase',
-  },
-  titleAccent: {
-    color: '#6366f1',
-  },
-  closeButton: {
+    gap: 8,
     backgroundColor: 'transparent',
     borderStyle: 'none',
+    borderWidth: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
     cursor: 'pointer',
-    color: '#999',
-    padding: '6px',
-    borderRadius: 6,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  mobileTriggerLabel: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#f3f4f6',
-      color: '#333',
-    },
+    gap: 8,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
-
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
+  activeTitleText: {
+    color: 'var(--color-accent)',
+    fontWeight: 600,
   },
-  listItem: {
-    marginBottom: 2,
+  mobileDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'var(--color-background-surface, #ffffff)',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'var(--color-border)',
+    boxShadow: 'var(--shadow-med)',
+    maxHeight: '50vh',
+    overflowY: 'auto',
+    zIndex: 95,
+    display: 'flex',
+    flexDirection: 'column',
+    paddingTop: 8,
+    paddingBottom: 8,
   },
-  link: {
+  mobileItem: {
     display: 'block',
-    padding: '10px 14px',
-    color: '#555',
-    textDecoration: 'none',
+    width: '100%',
+    textAlign: 'left',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 16,
+    paddingRight: 16,
     fontSize: 13.5,
-    lineHeight: 1.4,
-    borderRadius: 8,
-    transition: 'all 0.2s ease',
+    color: 'var(--color-text-secondary)',
+    textDecoration: 'none',
     borderLeftWidth: 3,
     borderLeftStyle: 'solid',
     borderLeftColor: 'transparent',
+    transition: 'all 0.15s ease',
     ':hover': {
-      backgroundColor: '#eef2ff',
-      color: '#4f46e5',
-      borderLeftColor: '#4f46e5',
+      backgroundColor: 'var(--color-accent-muted)',
+      color: 'var(--color-accent)',
+      borderLeftColor: 'var(--color-accent)',
     },
   },
-})
+  mobileItemActive: {
+    backgroundColor: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
+    borderLeftColor: 'var(--color-accent)',
+    fontWeight: 600,
+  },
 
-export default function Toc() {
-  const [open, setOpen] = useState(false)
+  // Desktop View
+  desktopWrapper: {
+    display: 'none',
+    [desktopQuery]: {
+      display: 'block',
+      width: 220,
+      flexShrink: 0,
+      position: 'sticky',
+      top: 80,
+      alignSelf: 'flex-start',
+      maxHeight: 'calc(100vh - 120px)',
+      overflowY: 'auto',
+    },
+  },
+});
+
+interface TocProps {
+  content?: string;
+}
+
+export function TocMobile({ content }: TocProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string>('');
+
+  const items = useMemo(() => {
+    if (!content) return defaultTocItems;
+    const parsed = parseOutlineFromMarkdown(content);
+    return parsed.length > 0 ? parsed : defaultTocItems;
+  }, [content]);
+
+  const resolvedActiveId = activeId || items[0]?.id || '';
+  const activeItem = useMemo(() => {
+    return items.find((item) => item.id === resolvedActiveId) ?? items[0];
+  }, [items, resolvedActiveId]);
+
+  const handleSelectSection = (id: string) => {
+    setActiveId(id);
+    setDropdownOpen(false);
+
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
-    <>
-      {/* Floating action button */}
+    <div {...stylex.props(styles.mobileStickyHeader)}>
       <button
         type="button"
-        {...stylex.props(
-          styles.fab,
-          !open && styles.fabPulse,
-          open && styles.fabOpen,
-        )}
-        onClick={() => setOpen(!open)}
-        aria-label={open ? 'Close table of contents' : 'Open table of contents'}
+        {...stylex.props(styles.mobileTrigger)}
+        onClick={() => setDropdownOpen(!dropdownOpen)}
+        aria-expanded={dropdownOpen}
+        aria-label="Table of contents menu"
       >
-        {open ? <X size={22} color="#000" /> : <List size={22} color="#000" />}
+        <span {...stylex.props(styles.mobileTriggerLabel)}>
+          <List size={16} />
+          <span>On this page:</span>
+          <span {...stylex.props(styles.activeTitleText)}>
+            {activeItem?.label ?? 'Contents'}
+          </span>
+        </span>
+        {dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
 
-      {/* Backdrop overlay — semantic button so screen readers can reach it */}
-      <button
-        type="button"
-        {...stylex.props(styles.overlay, open && styles.overlayEnter)}
-        onClick={() => setOpen(false)}
-        aria-label="Close table of contents"
-        tabIndex={-1}
-      />
-
-      {/* Sliding panel */}
-      <nav
-        {...stylex.props(styles.panel, open && styles.panelEnter)}
-      >
-        <div {...stylex.props(styles.header)}>
-          <h3 {...stylex.props(styles.title)}>
-            <span {...stylex.props(styles.titleAccent)}>●</span> Contents
-          </h3>
-          <button
-            type="button"
-            {...stylex.props(styles.closeButton)}
-            onClick={() => setOpen(false)}
-            aria-label="Close table of contents"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <ul {...stylex.props(styles.list)}>
-          {toc.map((item) => (
-            <li key={item.id} {...stylex.props(styles.listItem)}>
-              <a
-                href={`#${item.id}`}
-                {...stylex.props(styles.link)}
-                onClick={() => setOpen(false)}
+      {dropdownOpen && (
+        <div {...stylex.props(styles.mobileDropdown)}>
+          {items.map((item) => {
+            const isActive = item.id === activeItem?.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                {...stylex.props(styles.mobileItem, isActive && styles.mobileItemActive)}
+                onClick={() => handleSelectSection(item.id)}
               >
                 {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TocDesktop({ content }: TocProps) {
+  const [activeId, setActiveId] = useState<string>('');
+
+  const items = useMemo(() => {
+    if (!content) return defaultTocItems;
+    const parsed = parseOutlineFromMarkdown(content);
+    return parsed.length > 0 ? parsed : defaultTocItems;
+  }, [content]);
+
+  const resolvedActiveId = activeId || items[0]?.id || '';
+
+  return (
+    <div {...stylex.props(styles.desktopWrapper)}>
+      <Outline
+        items={items}
+        activeId={resolvedActiveId}
+        onActiveIdChange={setActiveId}
+        label="On this page"
+        density="compact"
+      />
+    </div>
+  );
+}
+
+export default function Toc({ content }: TocProps) {
+  return (
+    <>
+      <TocMobile content={content} />
+      <TocDesktop content={content} />
     </>
-  )
+  );
 }

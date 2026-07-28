@@ -5,7 +5,7 @@ import LibraryScreen from '../../features/library/LibraryScreen';
 import SubjectWorkspace from '../../features/subject/SubjectWorkspace';
 import MaterialWorkspace from '../../features/workspace/MaterialWorkspace';
 import QuizScreen from '../../features/quiz/QuizScreen';
-import { WorkspaceRail } from '../../features/workspace/components/WorkspaceRail';
+import { AppSidebar } from '../../features/workspace/components/AppSidebar';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 
 const styles = stylex.create({
@@ -14,8 +14,11 @@ const styles = stylex.create({
     minHeight: '100svh',
   },
   rail: {
-    width: 64,
+    width: 240,
     flexShrink: 0,
+    '@media (min-width: 769px) and (max-width: 1023px)': {
+      width: 64,
+    },
     '@media (max-width: 768px)': {
       width: 0,
     },
@@ -176,7 +179,7 @@ export default function AppShell() {
   return (
     <div {...stylex.props(styles.shell)}>
       <div {...stylex.props(styles.rail)}>
-        <WorkspaceRail
+        <AppSidebar
           subjectId={routeSubjectId}
           materialId={routeMaterialId}
           isLibrary={currentRoute.kind === 'library'}

@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { RotateCcw, CheckCircle2, XCircle } from 'lucide-react';
+import { RotateCcw, CheckCircle2, XCircle, LayoutGrid, Home } from 'lucide-react';
 import type { Question } from '../../../domain/quiz/Question';
 import type { QuizResult } from '../../../domain/quiz/AssessmentService';
 import { Button } from '../../../shared/ui/Button';
@@ -13,6 +13,7 @@ const styles = stylex.create({
         width: '100%',
         margin: '0 auto',
         padding: '24px 16px',
+        boxSizing: 'border-box',
     },
     scoreCard: {
         display: 'flex',
@@ -89,6 +90,7 @@ const styles = stylex.create({
     actions: {
         display: 'flex',
         justifyContent: 'center',
+        flexWrap: 'wrap',
         gap: 12,
     },
 });
@@ -97,6 +99,7 @@ interface QuizResultViewProps {
     result: QuizResult;
     questions: Question[];
     onRetake: () => void;
+    onReturnToOverview?: () => void;
     onExit: () => void;
 }
 
@@ -104,7 +107,7 @@ interface QuizResultViewProps {
  * Pure presentation component for post-session summary.
  * Displays QuizScore metrics, question review list, and retake actions.
  */
-export function QuizResultView({ result, questions, onRetake, onExit }: QuizResultViewProps) {
+export function QuizResultView({ result, questions, onRetake, onReturnToOverview, onExit }: QuizResultViewProps) {
     const { score, answers } = result;
     const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
@@ -154,12 +157,23 @@ export function QuizResultView({ result, questions, onRetake, onExit }: QuizResu
                 >
                     Retake Quiz
                 </Button>
+                {onReturnToOverview && (
+                    <Button
+                        label="Quiz overview"
+                        variant="secondary"
+                        icon={<LayoutGrid size={16} />}
+                        onClick={onReturnToOverview}
+                    >
+                        Quiz Overview
+                    </Button>
+                )}
                 <Button
-                    label="Exit quiz"
+                    label="Return to library"
                     variant="primary"
+                    icon={<Home size={16} />}
                     onClick={onExit}
                 >
-                    Done
+                    Return to Library
                 </Button>
             </div>
         </div>

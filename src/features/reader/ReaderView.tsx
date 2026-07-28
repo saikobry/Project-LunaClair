@@ -1,7 +1,11 @@
 import { type RefObject } from 'react';
 import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import type { PopoverState } from './types';
-import { MarkdownViewer, AnnotationToolbar, DrawingCanvas, SelectionPopover, Toc } from './components';
+import MarkdownViewer from './components/MarkdownViewer';
+import AnnotationToolbar from './components/AnnotationToolbar';
+import DrawingCanvas from './components/DrawingCanvas';
+import SelectionPopover from './components/SelectionPopover';
+import { TocMobile, TocDesktop } from './components/Toc';
 import './styles/reader.css';
 
 interface ReaderViewProps {
@@ -55,7 +59,7 @@ export default function ReaderView({
   onClosePopover,
 }: ReaderViewProps) {
   return (
-    <>
+    <div className="reader-layout">
       <div className="main-content-wrapper">
         <AnnotationToolbar
           mode={mode}
@@ -73,6 +77,7 @@ export default function ReaderView({
           hasHighlights={hasHighlights}
         />
         <div className="viewer-container">
+          <TocMobile content={content} />
           <div style={{ position: 'relative' }} ref={containerRef}>
             <MarkdownViewer text={content} />
             <DrawingCanvas
@@ -94,7 +99,7 @@ export default function ReaderView({
           </div>
         </div>
       </div>
-      <Toc />
-    </>
+      <TocDesktop content={content} />
+    </div>
   );
 }

@@ -32,8 +32,8 @@ const localStyles = stylex.create({
   },
   subjectsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-    gap: 12,
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: 16,
   },
   subjectCard: {
     display: 'flex',

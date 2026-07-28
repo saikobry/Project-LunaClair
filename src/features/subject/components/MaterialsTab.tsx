@@ -27,6 +27,7 @@ const styles = stylex.create({
     fontWeight: 600,
     color: 'var(--color-text-primary)',
     margin: 0,
+    lineHeight: 1.3,
   },
   cardDescription: {
     fontSize: 13,
@@ -34,9 +35,11 @@ const styles = stylex.create({
     margin: 0,
     lineHeight: 1.4,
   },
-  cardMeta: {
-    fontSize: 12,
-    color: 'var(--color-text-disabled)',
+  cardBadges: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   cardActions: {
     display: 'flex',
@@ -44,14 +47,10 @@ const styles = stylex.create({
     marginTop: 4,
   },
   empty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '48px 24px',
-    color: 'var(--color-text-disabled)',
-    fontSize: 14,
     textAlign: 'center',
-    gap: 8,
+    padding: 32,
+    color: 'var(--color-text-secondary)',
+    fontSize: 14,
   },
 });
 
@@ -72,10 +71,17 @@ export default function MaterialsTab({
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
+  const termMap = useMemo(
+    () => new Map(terms.map((t) => [t.id, t.title])),
+    [terms],
+  );
+
   const availableTerms = useMemo(() => {
-    const usedTermIds = new Set(materials.map((m) => m.termId));
+    const presentTermIds = new Set(
+      materials.flatMap((m) => (m.termId ? [m.termId] : [])),
+    );
     return terms
-      .filter((term) => usedTermIds.has(term.id))
+      .filter((t) => presentTermIds.has(t.id))
       .toSorted((a, b) => a.order - b.order);
   }, [terms, materials]);
 
@@ -86,17 +92,20 @@ export default function MaterialsTab({
 
   return (
     <div {...stylex.props(styles.container)}>
-      <SegmentedControl
-        value={activeFilter ?? 'all'}
-        onChange={(v) => setActiveFilter(v === 'all' ? null : v)}
-        label="Term filter"
-        size="sm"
-      >
-        <SegmentedControlItem value="all" label="All" />
-        {availableTerms.map((term) => (
-          <SegmentedControlItem key={term.id} value={term.id} label={term.title} />
-        ))}
-      </SegmentedControl>
+      {availableTerms.length > 1 && (
+        <SegmentedControl
+          value={activeFilter ?? 'all'}
+          onChange={(v: string) => setActiveFilter(v === 'all' ? null : v)}
+          label="Term filter"
+          size="sm"
+          layout="fill"
+        >
+          <SegmentedControlItem value="all" label="All" />
+          {availableTerms.map((term) => (
+            <SegmentedControlItem key={term.id} value={term.id} label={term.title} />
+          ))}
+        </SegmentedControl>
+      )}
 
       {filteredMaterials.length === 0 ? (
         <div {...stylex.props(styles.empty)}>
@@ -104,17 +113,20 @@ export default function MaterialsTab({
         </div>
       ) : (
         <div {...stylex.props(styles.grid)}>
-          {filteredMaterials.map((material) => (
-            <Card key={material.id}>
-              <div {...stylex.props(styles.cardContent)}>
-                <h3 {...stylex.props(styles.cardTitle)}>{material.title}</h3>
-                {material.description && (
-                  <p {...stylex.props(styles.cardDescription)}>{material.description}</p>
-                )}
-                <div>
-                  <Chip>{material.sourceType}</Chip>
-                </div>
-                <div {...stylex.props(styles.cardActions)}>
+          {filteredMaterials.map((material) => {
+            const termTitle = material.termId ? termMap.get(material.termId) : null;
+            return (
+              <Card key={material.id}>
+                <div {...stylex.props(styles.cardContent)}>
+                  <h3 {...stylex.props(styles.cardTitle)}>{material.title}</h3>
+                  {material.description && (
+                    <p {...stylex.props(styles.cardDescription)}>{material.description}</p>
+                  )}
+                  <div {...stylex.props(styles.cardBadges)}>
+                    {termTitle && <Chip variant="accent">{termTitle}</Chip>}
+                    <Chip variant="neutral">{material.sourceType}</Chip>
+                  </div>
+                  <div {...stylex.props(styles.cardActions)}>
                   <Button
                     label={`Open ${material.title}`}
                     variant="secondary"
@@ -139,7 +151,8 @@ export default function MaterialsTab({
                 </div>
               </div>
             </Card>
-          ))}
+          );
+        })}
         </div>
       )}
     </div>

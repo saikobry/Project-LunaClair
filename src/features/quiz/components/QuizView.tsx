@@ -15,6 +15,7 @@ const styles = stylex.create({
         width: '100%',
         margin: '0 auto',
         padding: '24px 16px',
+        boxSizing: 'border-box',
     },
     header: {
         display: 'flex',
