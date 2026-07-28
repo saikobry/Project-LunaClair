@@ -1,6 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { ArrowLeft, AlertTriangle, Inbox } from 'lucide-react';
-import type { QuizLaunchRequest } from './types/quizFeature.types';
+import { ArrowLeft, AlertTriangle, Inbox, Layers } from 'lucide-react';
 import type { AnswerValue } from './components/QuestionRenderer';
 import { useQuizSessionFlow } from './hooks/useQuizSessionFlow';
 import { QuizView } from './components/QuizView';
@@ -33,19 +32,43 @@ const styles = stylex.create({
         color: '#6b6375',
         margin: 0,
     },
+    banner: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 16px',
+        background: '#ecedf9',
+        borderRadius: 8,
+        marginBottom: 16,
+        fontSize: 13,
+        color: '#6366f1',
+        fontWeight: 500,
+    },
 });
 
 interface QuizScreenProps {
-    launchRequest: QuizLaunchRequest;
+    quizId: string;
+    materialIds: string[];
+    _subjectId?: string;
+    _returnTo?: { view: string };
     onExit: () => void;
 }
 
 /**
  * Feature orchestrator screen for the quiz player.
- * Dispatches rendering based on QuizFlowState.
+ * Accepts workspace-oriented route params (quizId, materialIds).
  */
-export default function QuizScreen({ launchRequest, onExit }: QuizScreenProps) {
+export default function QuizScreen({ quizId, materialIds, onExit }: QuizScreenProps) {
+    // Build a launch request from the workspace-oriented params
+    const launchRequest = {
+        materialId: materialIds[0] ?? '',
+        quizId: quizId || undefined,
+        source: 'reader' as const,
+    };
+
     const flow = useQuizSessionFlow(launchRequest);
+
+    const isUnified = materialIds.length > 1;
 
     const backAction = (
         <Button
@@ -61,6 +84,12 @@ export default function QuizScreen({ launchRequest, onExit }: QuizScreenProps) {
     if (flow.flowState === 'loading') {
         return (
             <Page title="Quiz" actions={backAction}>
+                {isUnified && (
+                    <div {...stylex.props(styles.banner)}>
+                        <Layers size={16} />
+                        Unified Quiz · {materialIds.length} chapters
+                    </div>
+                )}
                 <div {...stylex.props(styles.center)}>Loading quiz…</div>
             </Page>
         );
@@ -85,6 +114,12 @@ export default function QuizScreen({ launchRequest, onExit }: QuizScreenProps) {
     if (flow.flowState === 'empty') {
         return (
             <Page title="Quiz" actions={backAction}>
+                {isUnified && (
+                    <div {...stylex.props(styles.banner)}>
+                        <Layers size={16} />
+                        Unified Quiz · {materialIds.length} chapters
+                    </div>
+                )}
                 <div {...stylex.props(styles.center)}>
                     <div {...stylex.props(styles.icon)}>
                         <Inbox size={48} />
@@ -118,6 +153,12 @@ export default function QuizScreen({ launchRequest, onExit }: QuizScreenProps) {
 
     return (
         <Page title="Quiz" actions={backAction}>
+            {isUnified && (
+                <div {...stylex.props(styles.banner)}>
+                    <Layers size={16} />
+                    Unified Quiz · {materialIds.length} chapters
+                </div>
+            )}
             <QuizView
                 question={flow.currentQuestion}
                 currentIndex={flow.currentIndex}

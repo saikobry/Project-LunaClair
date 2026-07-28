@@ -6,6 +6,8 @@ import { dexieAnnotationRepository } from '../../infrastructure/database/reposit
 import { dexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
 import { dexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
 import { dexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
+import { dexieSubjectRepository } from '../../infrastructure/database/repositories/DexieSubjectRepository';
+import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
 
 interface RepositoryProviderProps {
   children: ReactNode;
@@ -23,6 +25,8 @@ export function RepositoryProvider({ children }: RepositoryProviderProps) {
     questionRepository: dexieQuestionRepository,
     quizRepository: dexieQuizRepository,
     quizSessionRepository: dexieQuizSessionRepository,
+    subjectRepository: dexieSubjectRepository,
+    termRepository: dexieTermRepository,
   });
 
   return (

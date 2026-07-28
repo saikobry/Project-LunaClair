@@ -1,80 +1,144 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import type { StudyMaterial } from '../../domain/library';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/library/LibraryScreen';
-import { ReaderScreen } from '../../features/reader';
+import SubjectWorkspace from '../../features/subject/SubjectWorkspace';
+import MaterialWorkspace from '../../features/workspace/MaterialWorkspace';
 import QuizScreen from '../../features/quiz/QuizScreen';
-import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
+import { WorkspaceRail } from '../../features/workspace/components/WorkspaceRail';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 
 const styles = stylex.create({
   shell: {
     display: 'flex',
-    flexDirection: 'column',
     minHeight: '100svh',
+  },
+  rail: {
+    width: 64,
+    flexShrink: 0,
   },
   main: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
+    minWidth: 0,
   },
 });
 
-type AppRoute =
-  | { name: 'library' }
-  | { name: 'reader'; material: StudyMaterial }
-  | { name: 'quiz'; launchRequest: QuizLaunchRequest }
-  | { name: 'manage-quiz'; material: StudyMaterial };
+export type AppRoute =
+  | { kind: 'library' }
+  | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' }
+  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'manage'; subjectId?: string }
+  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; subjectId?: string; returnTo: AppRoute };
 
 export default function AppShell() {
-  const [activeRoute, setActiveRoute] = useState<AppRoute>({ name: 'library' });
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>({ kind: 'library' });
 
   const touchMutation = useTouchMaterial();
 
+  const navigate = useCallback((route: AppRoute) => {
+    setCurrentRoute(route);
+  }, []);
+
   const handleOpenMaterial = useCallback(
-    (material: StudyMaterial) => {
-      touchMutation.mutate(material.id);
-      setActiveRoute({ name: 'reader', material });
+    (materialId: string, subjectId?: string) => {
+      touchMutation.mutate(materialId);
+      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'read' });
     },
-    [touchMutation],
+    [navigate, touchMutation],
   );
 
-  const handleBackToLibrary = useCallback(() => {
-    setActiveRoute({ name: 'library' });
-  }, []);
+  const handleOpenSubject = useCallback(
+    (subjectId: string) => {
+      navigate({ kind: 'subject', subjectId, activeTab: 'materials' });
+    },
+    [navigate],
+  );
 
-  const handleStartQuiz = useCallback((request: QuizLaunchRequest) => {
-    setActiveRoute({ name: 'quiz', launchRequest: request });
-  }, []);
+  const handleStartQuiz = useCallback(
+    (request: QuizLaunchRequest) => {
+      navigate({
+        kind: 'quiz-session',
+        quizId: request.quizId ?? '',
+        materialIds: [request.materialId],
+        returnTo: { kind: 'workspace', workspace: 'material', materialId: request.materialId, activeTab: 'quiz' },
+      });
+    },
+    [navigate],
+  );
+
+  const handleManageQuiz = useCallback(
+    (materialId: string) => {
+      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'manage' });
+    },
+    [navigate],
+  );
 
   const handleExitQuiz = useCallback(() => {
-    setActiveRoute({ name: 'library' });
-  }, []);
+    if (currentRoute.kind === 'quiz-session') {
+      navigate(currentRoute.returnTo);
+    } else {
+      navigate({ kind: 'library' });
+    }
+  }, [currentRoute, navigate]);
 
-  const handleManageQuiz = useCallback((material: StudyMaterial) => {
-    setActiveRoute({ name: 'manage-quiz', material });
-  }, []);
+  // Extract route context for the WorkspaceRail
+  const routeSubjectId =
+    currentRoute.kind === 'subject'
+      ? currentRoute.subjectId
+      : currentRoute.kind === 'workspace' && currentRoute.workspace === 'material'
+        ? currentRoute.subjectId
+        : currentRoute.kind === 'quiz-session'
+          ? currentRoute.subjectId
+          : undefined;
+
+  const routeMaterialId =
+    currentRoute.kind === 'workspace' && currentRoute.workspace === 'material'
+      ? currentRoute.materialId
+      : undefined;
 
   return (
     <div {...stylex.props(styles.shell)}>
+      <div {...stylex.props(styles.rail)}>
+        <WorkspaceRail
+          subjectId={routeSubjectId}
+          materialId={routeMaterialId}
+          isLibrary={currentRoute.kind === 'library'}
+          onNavigate={navigate}
+        />
+      </div>
       <main {...stylex.props(styles.main)}>
-        {activeRoute.name === 'library' && (
-          <LibraryScreen onOpenMaterial={handleOpenMaterial} onStartQuiz={handleStartQuiz} onManageQuiz={handleManageQuiz} />
-        )}
-        {activeRoute.name === 'reader' && (
-          <ReaderScreen
-            material={activeRoute.material}
-            onBackToLibrary={handleBackToLibrary}
+        {currentRoute.kind === 'library' && (
+          <LibraryScreen
+            onOpenMaterial={handleOpenMaterial}
+            onOpenSubject={handleOpenSubject}
             onStartQuiz={handleStartQuiz}
             onManageQuiz={handleManageQuiz}
           />
         )}
-        {activeRoute.name === 'quiz' && (
-          <QuizScreen launchRequest={activeRoute.launchRequest} onExit={handleExitQuiz} />
+        {currentRoute.kind === 'subject' && (
+          <SubjectWorkspace
+            subjectId={currentRoute.subjectId}
+            activeTab={currentRoute.activeTab}
+            onNavigate={navigate}
+            onStartQuiz={handleStartQuiz}
+          />
         )}
-        {activeRoute.name === 'manage-quiz' && (
-          <QuizManagementScreen material={activeRoute.material} onBack={handleBackToLibrary} />
+        {currentRoute.kind === 'workspace' && currentRoute.workspace === 'material' && (
+          <MaterialWorkspace
+            materialId={currentRoute.materialId}
+            activeTab={currentRoute.activeTab}
+            subjectId={currentRoute.subjectId}
+            onNavigate={navigate}
+            onStartQuiz={handleStartQuiz}
+          />
+        )}
+        {currentRoute.kind === 'quiz-session' && (
+          <QuizScreen
+            quizId={currentRoute.quizId}
+            materialIds={currentRoute.materialIds}
+            onExit={handleExitQuiz}
+          />
         )}
       </main>
     </div>

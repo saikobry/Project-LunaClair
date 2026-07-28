@@ -2,10 +2,10 @@ import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Library, ListChecks } from 'lucide-react';
-import type { StudyMaterial } from '../../domain/library';
 import { RepositoryContext } from '../../app/providers/RepositoryContext';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
+import { useMaterial } from '../../shared/hooks/useMaterial';
 import { QuestionBankTab } from './components/QuestionBankTab';
 import { QuizCatalogTab } from './components/QuizCatalogTab';
 import { useQuestionManagement } from './hooks/useQuestionManagement';
@@ -50,18 +50,19 @@ const styles = stylex.create({
 type Tab = 'questions' | 'quizzes';
 
 interface QuizManagementScreenProps {
-    material: StudyMaterial;
+    materialId: string;
     onBack: () => void;
 }
 
-export default function QuizManagementScreen({ material, onBack }: QuizManagementScreenProps) {
+export default function QuizManagementScreen({ materialId, onBack }: QuizManagementScreenProps) {
     const context = useContext(RepositoryContext);
     if (!context) {
         throw new Error('QuizManagementScreen must be used within a <RepositoryProvider>');
     }
 
+    const { material, isLoading: materialLoading } = useMaterial(materialId);
+
     const [activeTab, setActiveTab] = useState<Tab>('questions');
-    const materialId = material.id;
 
     const { data: questions = [], isLoading: questionsLoading } = useQuery({
         queryKey: ['assessment', 'questions', materialId],
@@ -78,25 +79,31 @@ export default function QuizManagementScreen({ material, onBack }: QuizManagemen
 
     const backAction = (
         <Button
-            label="Back to Library"
+            label="Back"
             variant="secondary"
             icon={<ArrowLeft size={16} />}
             onClick={onBack}
         >
-            Back to Library
+            Back
         </Button>
     );
 
-    if (questionsLoading || quizzesLoading) {
+    const pageTitle = material?.title
+        ? `Manage: ${material.title}`
+        : materialLoading
+            ? 'Loading…'
+            : 'Manage Material';
+
+    if (materialLoading || questionsLoading || quizzesLoading) {
         return (
-            <Page title={`Manage: ${material.title}`} actions={backAction}>
+            <Page title={pageTitle} actions={backAction}>
                 <div {...stylex.props(styles.loading)}>Loading…</div>
             </Page>
         );
     }
 
     return (
-        <Page title={`Manage: ${material.title}`} actions={backAction}>
+        <Page title={pageTitle} actions={backAction}>
             <div {...stylex.props(styles.tabBar)}>
                 <button
                     type="button"

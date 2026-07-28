@@ -5,6 +5,9 @@ export interface CreateMaterialInput {
   description?: string;
   sourceType?: MaterialSourceType;
   sourceId?: string;
+  subjectId?: string;
+  termId?: string;
+  order?: number;
 }
 
 export interface UpdateMaterialInput {

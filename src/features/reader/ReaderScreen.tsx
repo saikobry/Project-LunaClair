@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft, FileQuestion, BrainCircuit, ClipboardList } from 'lucide-react';
-import type { StudyMaterial } from '../../domain/library';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
+import { useMaterial } from '../../shared/hooks/useMaterial';
 import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';
 import { useDrawings } from './hooks/useDrawings';
@@ -49,16 +49,17 @@ const styles = stylex.create({
 });
 
 interface ReaderScreenProps {
-  material: StudyMaterial;
+  materialId: string;
   onBackToLibrary: () => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
-  onManageQuiz: (material: StudyMaterial) => void;
+  onManageQuiz: (materialId: string) => void;
 }
 
-export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz, onManageQuiz }: ReaderScreenProps) {
-  const { data: document, isLoading, error } = useDocument(material);
-  const documentId = material.id;
+export default function ReaderScreen({ materialId, onBackToLibrary, onStartQuiz, onManageQuiz }: ReaderScreenProps) {
+  const { material, isLoading: materialLoading } = useMaterial(materialId);
+  const { data: document, isLoading: docLoading, error } = useDocument(material ?? null);
   const content = document?.content ?? '';
+  const documentId = materialId;
 
   const {
     highlights,
@@ -111,6 +112,8 @@ export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz, o
     }
   }, [clearHighlights]);
 
+  const isLoading = materialLoading || docLoading;
+
   const backAction = (
     <>
       <Button
@@ -121,29 +124,48 @@ export default function ReaderScreen({ material, onBackToLibrary, onStartQuiz, o
       >
         Back to Library
       </Button>
-      <Button
-        label="Question Bank"
-        variant="secondary"
-        icon={<ClipboardList size={16} />}
-        onClick={() => onManageQuiz(material)}
-      >
-        Question Bank
-      </Button>
-      <Button
-        label="Take Quiz"
-        variant="primary"
-        icon={<BrainCircuit size={16} />}
-        onClick={() => onStartQuiz({ materialId: material.id, source: 'reader' })}
-      >
-        Take Quiz
-      </Button>
+      {material && (
+        <>
+          <Button
+            label="Question Bank"
+            variant="secondary"
+            icon={<ClipboardList size={16} />}
+            onClick={() => onManageQuiz(material.id)}
+          >
+            Question Bank
+          </Button>
+          <Button
+            label="Take Quiz"
+            variant="primary"
+            icon={<BrainCircuit size={16} />}
+            onClick={() => onStartQuiz({ materialId: material.id, source: 'reader' })}
+          >
+            Take Quiz
+          </Button>
+        </>
+      )}
     </>
   );
 
+  const pageTitle = material?.title ?? 'Loading…';
+
   if (isLoading) {
     return (
-      <Page title={material.title} actions={backAction}>
+      <Page title={pageTitle} actions={backAction}>
         <div {...stylex.props(styles.loading)}>Loading document...</div>
+      </Page>
+    );
+  }
+
+  if (!material) {
+    return (
+      <Page title="Material not found" actions={backAction}>
+        <div {...stylex.props(styles.errorContainer)}>
+          <div {...stylex.props(styles.errorIcon)}>
+            <FileQuestion size={48} />
+          </div>
+          <h2 {...stylex.props(styles.errorTitle)}>Material could not be found.</h2>
+        </div>
       </Page>
     );
   }

@@ -2,25 +2,30 @@ import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../domain/library';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useLibrary } from './hooks/useLibrary';
+import { useSubjects } from '../../shared/hooks/useSubjects';
 import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
 import { useRenameMaterial } from './hooks/mutations/useRenameMaterial';
 import LibraryView from './LibraryView';
 
 interface LibraryScreenProps {
-  onOpenMaterial: (material: StudyMaterial) => void;
+  onOpenMaterial: (materialId: string) => void;
+  onOpenSubject: (subjectId: string) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
-  onManageQuiz: (material: StudyMaterial) => void;
+  onManageQuiz: (materialId: string) => void;
 }
 
-export default function LibraryScreen({ onOpenMaterial, onStartQuiz, onManageQuiz }: LibraryScreenProps) {
+export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManageQuiz }: LibraryScreenProps) {
   const { materials } = useLibrary();
+  const { subjects } = useSubjects();
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
   const renameMutation = useRenameMaterial();
 
   const [renameTarget, setRenameTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
+
+  const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
 
   const handleNewMaterial = useCallback(() => {
     const title = `Study Material ${materials.length + 1}`;
@@ -29,7 +34,7 @@ export default function LibraryScreen({ onOpenMaterial, onStartQuiz, onManageQui
 
   const handleOpen = useCallback(
     (material: StudyMaterial) => {
-      onOpenMaterial(material);
+      onOpenMaterial(material.id);
     },
     [onOpenMaterial],
   );
@@ -74,13 +79,16 @@ export default function LibraryScreen({ onOpenMaterial, onStartQuiz, onManageQui
 
   return (
     <LibraryView
-      materials={materials}
+      subjects={subjects}
+      materials={uncategorizedMaterials}
+      allMaterials={materials}
       onNewMaterial={handleNewMaterial}
       onOpen={handleOpen}
+      onOpenSubject={onOpenSubject}
       onRename={handleRenameTrigger}
       onDelete={handleDeleteTrigger}
       onStartQuiz={handleStartQuiz}
-      onManageQuiz={onManageQuiz}
+      onManageQuiz={(m) => onManageQuiz(m.id)}
       renameTarget={renameTarget}
       deleteTarget={deleteTarget}
       onRenameSave={handleRenameSave}

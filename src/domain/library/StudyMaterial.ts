@@ -6,6 +6,9 @@ export interface StudyMaterial {
   description?: string;
   sourceType: MaterialSourceType;
   sourceId: string;
+  subjectId?: string;
+  termId?: string;
+  order?: number;
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;

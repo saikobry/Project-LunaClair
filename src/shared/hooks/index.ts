@@ -1,2 +1,5 @@
-// Shared custom hooks will be added here in future phases.
-export {};
+export { useSubjects } from './useSubjects';
+export { useSubject } from './useSubject';
+export { useTerm } from './useTerm';
+export { useTerms } from './useTerms';
+export { useMaterial } from './useMaterial';

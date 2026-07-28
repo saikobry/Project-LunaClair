@@ -5,6 +5,8 @@ import type { AnnotationRepository } from '../../domain/reader/AnnotationReposit
 import type { QuestionRepository } from '../../domain/quiz/QuestionRepository';
 import type { QuizRepository } from '../../domain/quiz/QuizRepository';
 import type { QuizSessionRepository } from '../../domain/quiz/QuizSessionRepository';
+import type { SubjectRepository } from '../../domain/library/SubjectRepository';
+import type { TermRepository } from '../../domain/library/TermRepository';
 
 export interface RepositoryContextValue {
     libraryRepository: LibraryRepository;
@@ -13,6 +15,8 @@ export interface RepositoryContextValue {
     questionRepository: QuestionRepository;
     quizRepository: QuizRepository;
     quizSessionRepository: QuizSessionRepository;
+    subjectRepository: SubjectRepository;
+    termRepository: TermRepository;
 }
 
 export const RepositoryContext = createContext<RepositoryContextValue | null>(null);

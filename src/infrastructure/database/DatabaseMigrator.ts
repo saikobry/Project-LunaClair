@@ -4,11 +4,12 @@ import type { HighlightItem, DrawingPath } from '../../shared/types/annotation.t
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 
 const MIGRATION_KEY = 'lunaclair.migration.v1.complete';
+const V2_MIGRATION_KEY = 'lunaclair.migration.v2.complete';
 
 /**
  * Handles one-time migration of legacy localStorage data into IndexedDB.
- * Migrates: materials, highlights, drawings.
- * Writes database metadata on completion.
+ * v1: Migrates materials, highlights, drawings from localStorage.
+ * v2: Sets default subjectId/termId on legacy materials.
  */
 export class DatabaseMigrator {
     private readonly database: LunaClairDatabase;
@@ -18,6 +19,13 @@ export class DatabaseMigrator {
     }
 
     async migrateIfNeeded(): Promise<void> {
+        await this.migrateV1IfNeeded();
+        await this.migrateV2IfNeeded();
+    }
+
+    // ── Version 1 ──────────────────────────────────────────────
+
+    private async migrateV1IfNeeded(): Promise<void> {
         if (localStorage.getItem(MIGRATION_KEY)) return;
 
         await this.database.transaction(
@@ -27,7 +35,7 @@ export class DatabaseMigrator {
                 await this.migrateMaterials();
                 await this.migrateHighlights();
                 await this.migrateDrawings();
-                await this.writeMetadata();
+                await this.writeV1Metadata();
             },
         );
 
@@ -95,12 +103,30 @@ export class DatabaseMigrator {
         }
     }
 
-    private async writeMetadata(): Promise<void> {
+    private async writeV1Metadata(): Promise<void> {
         const now = new Date().toISOString();
         await this.database.metadata.bulkPut([
             { key: 'databaseVersion', value: 1 },
             { key: 'lastMigration', value: now },
             { key: 'createdAt', value: now },
         ]);
+    }
+
+    // ── Version 2 — Subject/Term support ───────────────────────
+
+    private async migrateV2IfNeeded(): Promise<void> {
+        const flag = localStorage.getItem(V2_MIGRATION_KEY);
+        if (flag) return;
+
+        await this.database.transaction(
+            'rw',
+            [this.database.materials, this.database.metadata],
+            async () => {
+                await this.database.metadata.put({ key: 'databaseVersion', value: 2 });
+                await this.database.metadata.put({ key: 'v2Migration', value: new Date().toISOString() });
+            },
+        );
+
+        localStorage.setItem(V2_MIGRATION_KEY, new Date().toISOString());
     }
 }

@@ -1,7 +1,7 @@
 // Database core
 export { LunaClairDatabase, db } from './LunaClairDatabase';
 export type { HighlightRecord, DrawingRecord, PreferenceRecord, MetadataRecord } from './LunaClairDatabase';
-export { DB_NAME, DB_VERSION, SCHEMA_V1 } from './schema';
+export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2 } from './schema';
 
 // Startup services
 export { DatabaseInitializer } from './DatabaseInitializer';
@@ -14,3 +14,5 @@ export { DexieQuizRepository, dexieQuizRepository } from './repositories/DexieQu
 export { DexieQuizSessionRepository, dexieQuizSessionRepository } from './repositories/DexieQuizSessionRepository';
 export { DexieLibraryRepository, dexieLibraryRepository } from './repositories/DexieLibraryRepository';
 export { DexieAnnotationRepository, dexieAnnotationRepository } from './repositories/DexieAnnotationRepository';
+export { DexieSubjectRepository, dexieSubjectRepository } from './repositories/DexieSubjectRepository';
+export { DexieTermRepository, dexieTermRepository } from './repositories/DexieTermRepository';
