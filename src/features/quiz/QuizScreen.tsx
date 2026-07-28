@@ -6,6 +6,7 @@ import { QuizView } from './components/QuizView';
 import { QuizResultView } from './components/QuizResultView';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
+import { QuestionSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 
 const styles = stylex.create({
     center: {
@@ -49,8 +50,6 @@ const styles = stylex.create({
 interface QuizScreenProps {
     quizId: string;
     materialIds: string[];
-    _subjectId?: string;
-    _returnTo?: { view: string };
     onExit: () => void;
 }
 
@@ -90,7 +89,7 @@ export default function QuizScreen({ quizId, materialIds, onExit }: QuizScreenPr
                         Unified Quiz · {materialIds.length} chapters
                     </div>
                 )}
-                <div {...stylex.props(styles.center)}>Loading quiz…</div>
+                <QuestionSkeleton />
             </Page>
         );
     }

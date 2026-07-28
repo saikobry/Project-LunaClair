@@ -6,6 +6,7 @@ import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
+import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
 import { useMaterial } from '../../shared/hooks/useMaterial';
 import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';
@@ -100,17 +101,24 @@ export default function ReaderScreen({ materialId, onBackToLibrary, onStartQuiz,
     setPopover({ x: 0, y: 0, visible: false });
   }, [popover.targetHighlightId, deleteHighlight, setPopover]);
 
+  const [confirmTarget, setConfirmTarget] = useState<'drawings' | 'highlights' | null>(null);
+
   const handleClearDrawings = useCallback(() => {
-    if (window.confirm('Are you sure you want to clear all drawings?')) {
-      clearDrawings();
-    }
-  }, [clearDrawings]);
+    setConfirmTarget('drawings');
+  }, []);
 
   const handleClearHighlights = useCallback(() => {
-    if (window.confirm('Are you sure you want to clear all highlights?')) {
+    setConfirmTarget('highlights');
+  }, []);
+
+  const handleConfirmClear = useCallback(() => {
+    if (confirmTarget === 'drawings') {
+      clearDrawings();
+    } else if (confirmTarget === 'highlights') {
       clearHighlights();
     }
-  }, [clearHighlights]);
+    setConfirmTarget(null);
+  }, [confirmTarget, clearDrawings, clearHighlights]);
 
   const isLoading = materialLoading || docLoading;
 
@@ -226,6 +234,26 @@ export default function ReaderScreen({ materialId, onBackToLibrary, onStartQuiz,
         onCreateHighlight={handleCreateHighlight}
         onDeleteHighlight={handleDeleteHighlight}
         onClosePopover={() => setPopover({ x: 0, y: 0, visible: false })}
+      />
+
+      {/* Confirmation dialogs replacing window.confirm */}
+      <ConfirmationDialog
+        isOpen={confirmTarget === 'drawings'}
+        title="Clear Drawings"
+        message="Are you sure you want to clear all drawings? This cannot be undone."
+        confirmLabel="Clear"
+        intent="danger"
+        onConfirm={handleConfirmClear}
+        onCancel={() => setConfirmTarget(null)}
+      />
+      <ConfirmationDialog
+        isOpen={confirmTarget === 'highlights'}
+        title="Clear Highlights"
+        message="Are you sure you want to clear all highlights? This cannot be undone."
+        confirmLabel="Clear"
+        intent="danger"
+        onConfirm={handleConfirmClear}
+        onCancel={() => setConfirmTarget(null)}
       />
     </Page>
   );

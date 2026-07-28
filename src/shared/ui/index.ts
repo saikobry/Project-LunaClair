@@ -6,9 +6,13 @@ export type { CardProps } from './Card';
 
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
+export { ConfirmationDialog } from './Dialog/ConfirmationDialog';
+export type { ConfirmIntent } from './Dialog/ConfirmationDialog';
 
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
 export { Page } from './Page';
 export type { PageProps } from './Page';
+
+export { CardSkeleton, CardGridSkeleton, WorkspaceSkeleton, QuestionSkeleton, ResultSkeleton } from './Skeleton/Skeleton';

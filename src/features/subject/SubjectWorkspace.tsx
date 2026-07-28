@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useTerms } from '../../shared/hooks/useTerms';
+import { useTabKeyboardNavigation } from '../../shared/hooks/useTabKeyboardNavigation';
 import { useLibrary } from '../library/hooks/useLibrary';
 import { Page } from '../../shared/ui/Page';
+import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import MaterialsTab from './components/MaterialsTab';
 import SubjectQuizTab from './components/SubjectQuizTab';
 
@@ -57,6 +59,12 @@ const styles = stylex.create({
 
 export type SubjectTab = 'materials' | 'quiz';
 
+// Hoisted to module scope for a stable reference across renders
+const SUBJECT_TABS: { key: SubjectTab; label: string; icon: typeof BookOpen }[] = [
+    { key: 'materials', label: 'Materials', icon: BookOpen },
+    { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
+];
+
 interface SubjectWorkspaceProps {
   subjectId: string;
   activeTab: SubjectTab;
@@ -75,15 +83,24 @@ export default function SubjectWorkspace({
   const { terms, isLoading: termsLoading } = useTerms(subjectId);
   const { materials } = useLibrary();
 
+  // Define callbacks before hooks that consume them (avoids temporal dead zone)
+  const handleTabChange = useCallback((tab: SubjectTab) => {
+    setActiveTab(tab);
+    onNavigate({ kind: 'subject', subjectId, activeTab: tab });
+  }, [setActiveTab, onNavigate, subjectId]);
+
+  // Hooks must be called before any early returns (rules-of-hooks)
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabKeyboard = useTabKeyboardNavigation({
+    tabs: ['materials', 'quiz'] as const,
+    activeTab,
+    onTabChange: handleTabChange,
+  });
+
   const subjectMaterials = useMemo(
     () => materials.filter((m) => m.subjectId === subjectId),
     [materials, subjectId],
   );
-
-  const handleTabChange = (tab: SubjectTab) => {
-    setActiveTab(tab);
-    onNavigate({ kind: 'subject', subjectId, activeTab: tab });
-  };
 
   const handleOpenMaterial = (materialId: string) => {
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'read' });
@@ -105,9 +122,9 @@ export default function SubjectWorkspace({
 
   if (subjectLoading || termsLoading) {
     return (
-      <Page title="Loading…">
+      <Page title="Subject">
         <div {...stylex.props(styles.loadingContainer)}>
-          <div {...stylex.props(styles.loading)}>Loading subject…</div>
+          <WorkspaceSkeleton />
         </div>
       </Page>
     );
@@ -126,42 +143,53 @@ export default function SubjectWorkspace({
       title={subject.title}
       description={subject.description ?? undefined}
     >
-      <div {...stylex.props(styles.tabBar)}>
-        <button
-          type="button"
-          onClick={() => handleTabChange('materials')}
-          {...stylex.props(styles.tab, activeTab === 'materials' && styles.tabActive)}
-        >
-          <BookOpen size={15} />
-          Materials
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange('quiz')}
-          {...stylex.props(styles.tab, activeTab === 'quiz' && styles.tabActive)}
-        >
-          <BrainCircuit size={15} />
-          Quiz
-        </button>
+      <div
+        ref={tabListRef}
+        role="tablist"
+        aria-label="Subject tabs"
+        onKeyDown={tabKeyboard.handleKeyDown}
+        {...stylex.props(styles.tabBar)}
+      >
+        {SUBJECT_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            aria-controls={`subject-panel-${key}`}
+            tabIndex={activeTab === key ? 0 : -1}
+            onClick={() => handleTabChange(key)}
+            {...stylex.props(styles.tab, activeTab === key && styles.tabActive)}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'materials' && (
-        <MaterialsTab
-          materials={subjectMaterials}
-          terms={terms}
-          onOpen={handleOpenMaterial}
-          onStartQuiz={(r) => onStartQuiz({ materialId: r.materialId, source: r.source as 'library' | 'reader' })}
-          onManage={handleManageMaterial}
-        />
-      )}
+      <div
+        role="tabpanel"
+        id={`subject-panel-${activeTab}`}
+        aria-labelledby={activeTab}
+      >
+        {activeTab === 'materials' && (
+          <MaterialsTab
+            materials={subjectMaterials}
+            terms={terms}
+            onOpen={handleOpenMaterial}
+            onStartQuiz={(r) => onStartQuiz({ materialId: r.materialId, source: r.source as 'library' | 'reader' })}
+            onManage={handleManageMaterial}
+          />
+        )}
 
-      {activeTab === 'quiz' && (
-        <SubjectQuizTab
-          materials={subjectMaterials}
-          terms={terms}
-          onStartUnifiedQuiz={handleStartUnifiedQuiz}
-        />
-      )}
+        {activeTab === 'quiz' && (
+          <SubjectQuizTab
+            materials={subjectMaterials}
+            terms={terms}
+            onStartUnifiedQuiz={handleStartUnifiedQuiz}
+          />
+        )}
+      </div>
     </Page>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
@@ -6,7 +6,9 @@ import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useMaterial } from '../../shared/hooks/useMaterial';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useTerm } from '../../shared/hooks/useTerm';
+import { useTabKeyboardNavigation } from '../../shared/hooks/useTabKeyboardNavigation';
 import { Page } from '../../shared/ui/Page';
+import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import ReaderScreen from '../reader/ReaderScreen';
 import QuizScreen from '../quiz/QuizScreen';
 import QuizManagementScreen from '../quiz-management/QuizManagementScreen';
@@ -53,6 +55,13 @@ const styles = stylex.create({
 
 export type MaterialTab = 'read' | 'quiz' | 'manage';
 
+// Hoisted to module scope for a stable reference across renders
+const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[] = [
+    { key: 'read', label: 'Read', icon: BookOpen },
+    { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
+    { key: 'manage', label: 'Manage', icon: ClipboardList },
+];
+
 interface MaterialWorkspaceProps {
   materialId: string;
   activeTab: MaterialTab;
@@ -73,15 +82,26 @@ export default function MaterialWorkspace({
   const { subject } = useSubject(subjectId || material?.subjectId);
   const { term } = useTerm(material?.termId);
 
-  const handleTabChange = (tab: MaterialTab) => {
+  // Define callbacks before hooks that consume them (avoids temporal dead zone)
+  const handleTabChange = useCallback((tab: MaterialTab) => {
     setActiveTab(tab);
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: tab, subjectId });
-  };
+  }, [setActiveTab, onNavigate, materialId, subjectId]);
+
+  // Hooks must be called before any early returns (rules-of-hooks)
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabKeyboard = useTabKeyboardNavigation({
+    tabs: ['read', 'quiz', 'manage'] as const,
+    activeTab,
+    onTabChange: handleTabChange,
+  });
 
   if (isLoading) {
     return (
-      <Page title="Loading…">
-        <div {...stylex.props(styles.loading)}>Loading material…</div>
+      <Page title="Material">
+        <div {...stylex.props(styles.loading)}>
+          <WorkspaceSkeleton />
+        </div>
       </Page>
     );
   }
@@ -106,54 +126,57 @@ export default function MaterialWorkspace({
       title={material.title}
       description={subtitle || undefined}
     >
-      <div {...stylex.props(styles.tabBar)}>
-        <button
-          type="button"
-          onClick={() => handleTabChange('read')}
-          {...stylex.props(styles.tab, activeTab === 'read' && styles.tabActive)}
-        >
-          <BookOpen size={15} />
-          Read
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange('quiz')}
-          {...stylex.props(styles.tab, activeTab === 'quiz' && styles.tabActive)}
-        >
-          <BrainCircuit size={15} />
-          Quiz
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTabChange('manage')}
-          {...stylex.props(styles.tab, activeTab === 'manage' && styles.tabActive)}
-        >
-          <ClipboardList size={15} />
-          Manage
-        </button>
+      <div
+        ref={tabListRef}
+        role="tablist"
+        aria-label="Material tabs"
+        onKeyDown={tabKeyboard.handleKeyDown}
+        {...stylex.props(styles.tabBar)}
+      >
+        {MATERIAL_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            aria-controls={`material-panel-${key}`}
+            tabIndex={activeTab === key ? 0 : -1}
+            onClick={() => handleTabChange(key)}
+            {...stylex.props(styles.tab, activeTab === key && styles.tabActive)}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'read' && (
-        <ReaderScreen
-          materialId={materialId}
-          onBackToLibrary={() => onNavigate({ kind: 'library' })}
-          onStartQuiz={onStartQuiz}
-          onManageQuiz={() => handleTabChange('manage')}
-        />
-      )}
-      {activeTab === 'quiz' && (
-        <QuizScreen
-          quizId=""
-          materialIds={[materialId]}
-          onExit={() => onNavigate({ kind: 'library' })}
-        />
-      )}
-      {activeTab === 'manage' && (
-        <QuizManagementScreen
-          materialId={materialId}
-          onBack={() => handleTabChange('read')}
-        />
-      )}
+      <div
+        role="tabpanel"
+        id={`material-panel-${activeTab}`}
+        aria-labelledby={activeTab}
+      >
+        {activeTab === 'read' && (
+          <ReaderScreen
+            materialId={materialId}
+            onBackToLibrary={() => onNavigate({ kind: 'library' })}
+            onStartQuiz={onStartQuiz}
+            onManageQuiz={() => handleTabChange('manage')}
+          />
+        )}
+        {activeTab === 'quiz' && (
+          <QuizScreen
+            quizId=""
+            materialIds={[materialId]}
+            onExit={() => onNavigate({ kind: 'library' })}
+          />
+        )}
+        {activeTab === 'manage' && (
+          <QuizManagementScreen
+            materialId={materialId}
+            onBack={() => handleTabChange('read')}
+          />
+        )}
+      </div>
     </Page>
   );
 }
