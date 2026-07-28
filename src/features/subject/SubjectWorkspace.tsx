@@ -1,53 +1,25 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useTerms } from '../../shared/hooks/useTerms';
-import { useTabKeyboardNavigation } from '../../shared/hooks/useTabKeyboardNavigation';
 import { useLibrary } from '../library/hooks/useLibrary';
 import { Page } from '../../shared/ui/Page';
+import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
+import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import MaterialsTab from './components/MaterialsTab';
 import SubjectQuizTab from './components/SubjectQuizTab';
 
 const styles = stylex.create({
-  tabBar: {
-    display: 'flex',
-    gap: 4,
-    marginBottom: 20,
-    borderBottom: '1px solid #e5e4e7',
-    paddingBottom: 0,
-  },
-  tab: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 16px',
-    fontSize: 14,
-    fontWeight: 500,
-    color: '#6b6375',
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    borderBottom: '2px solid transparent',
-    marginBottom: -1,
-    transition: 'color 0.15s ease, border-color 0.15s ease',
-    ':hover': {
-      color: '#3d3548',
-    },
-  },
-  tabActive: {
-    color: '#6366f1',
-    borderBottomColor: '#6366f1',
-  },
   loading: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '64px 24px',
-    color: '#6b6375',
+    color: 'var(--color-text-secondary)',
     fontSize: 14,
   },
   loadingContainer: {
@@ -61,8 +33,8 @@ export type SubjectTab = 'materials' | 'quiz';
 
 // Hoisted to module scope for a stable reference across renders
 const SUBJECT_TABS: { key: SubjectTab; label: string; icon: typeof BookOpen }[] = [
-    { key: 'materials', label: 'Materials', icon: BookOpen },
-    { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
+  { key: 'materials', label: 'Materials', icon: BookOpen },
+  { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
 ];
 
 interface SubjectWorkspaceProps {
@@ -84,18 +56,11 @@ export default function SubjectWorkspace({
   const { materials } = useLibrary();
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
-  const handleTabChange = useCallback((tab: SubjectTab) => {
-    setActiveTab(tab);
-    onNavigate({ kind: 'subject', subjectId, activeTab: tab });
+  const handleTabChange = useCallback((tab: string) => {
+    const subjectTab = tab as SubjectTab;
+    setActiveTab(subjectTab);
+    onNavigate({ kind: 'subject', subjectId, activeTab: subjectTab });
   }, [setActiveTab, onNavigate, subjectId]);
-
-  // Hooks must be called before any early returns (rules-of-hooks)
-  const tabListRef = useRef<HTMLDivElement>(null);
-  const tabKeyboard = useTabKeyboardNavigation({
-    tabs: ['materials', 'quiz'] as const,
-    activeTab,
-    onTabChange: handleTabChange,
-  });
 
   const subjectMaterials = useMemo(
     () => materials.filter((m) => m.subjectId === subjectId),
@@ -142,30 +107,20 @@ export default function SubjectWorkspace({
     <Page
       title={subject.title}
       description={subject.description ?? undefined}
+      breadcrumb={
+        <Breadcrumbs
+          items={[
+            { label: 'Library', onClick: () => onNavigate({ kind: 'library' }) },
+            { label: subject.title },
+          ]}
+        />
+      }
     >
-      <div
-        ref={tabListRef}
-        role="tablist"
-        aria-label="Subject tabs"
-        onKeyDown={tabKeyboard.handleKeyDown}
-        {...stylex.props(styles.tabBar)}
-      >
+      <TabList value={activeTab} onChange={handleTabChange} layout="fill" hasDivider aria-label="Subject tabs">
         {SUBJECT_TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === key}
-            aria-controls={`subject-panel-${key}`}
-            tabIndex={activeTab === key ? 0 : -1}
-            onClick={() => handleTabChange(key)}
-            {...stylex.props(styles.tab, activeTab === key && styles.tabActive)}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
+          <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
         ))}
-      </div>
+      </TabList>
 
       <div
         role="tabpanel"

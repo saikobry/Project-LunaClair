@@ -1,16 +1,21 @@
 import { type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 
+const mobileScreen = '@media (max-width: 768px)';
+
 const styles = stylex.create({
   screen: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    padding: '32px',
+    padding: 32,
     maxWidth: 960,
     width: '100%',
     margin: '0 auto',
     boxSizing: 'border-box',
+    [mobileScreen]: {
+      padding: '16px',
+    },
   },
   header: {
     display: 'flex',
@@ -52,6 +57,8 @@ export interface PageProps {
   title: string;
   /** Optional description below the title. */
   description?: string;
+  /** Optional breadcrumb trail rendered above the title. */
+  breadcrumb?: ReactNode;
   /** Action elements rendered in the header (buttons, etc.). */
   actions?: ReactNode;
   /** Page content. */
@@ -65,9 +72,10 @@ export interface PageProps {
  * and content area. Features own their page content within children.
  * No search/filter/breadcrumb state — those belong in feature code.
  */
-export function Page({ title, description, actions, children }: PageProps) {
+export function Page({ title, description, breadcrumb, actions, children }: PageProps) {
   return (
     <div {...stylex.props(styles.screen)}>
+      {breadcrumb}
       <div {...stylex.props(styles.header)}>
         <div {...stylex.props(styles.headerLeft)}>
           <h1 {...stylex.props(styles.title)}>{title}</h1>

@@ -7,6 +7,7 @@ import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/Quiz
 import { Dialog } from '../../../shared/ui/Dialog';
 import { Button } from '../../../shared/ui/Button';
 import { Input } from '../../../shared/ui/Input';
+import { useToast } from '../../../app/providers/ToastContext';
 
 const styles = stylex.create({
     form: {
@@ -48,8 +49,10 @@ const styles = stylex.create({
         color: '#08060d',
     },
     questionRowSelected: {
-        borderColor: '#6366f1',
-        backgroundColor: '#eef2ff',
+        borderColor: 'var(--color-accent)',
+        backgroundColor: 'var(--color-accent-muted)',
+        fontWeight: 600,
+        boxShadow: 'var(--shadow-med)',
     },
     questionPrompt: {
         flex: 1,
@@ -117,6 +120,7 @@ export function QuizBuilderDialog({
     onSave,
     onUpdate,
 }: QuizBuilderDialogProps) {
+    const { showToast } = useToast();
     const isEditing = !!quiz;
     const [title, setTitle] = useState(quiz?.title ?? '');
     const [description, setDescription] = useState(quiz?.description ?? '');
@@ -160,6 +164,7 @@ export function QuizBuilderDialog({
                 passingPercentage: parsedPassing,
             };
             onUpdate(quiz.id, input);
+            showToast('Quiz updated', { intent: 'success' });
         } else {
             const input: CreateQuizInput = {
                 materialId,
@@ -169,9 +174,12 @@ export function QuizBuilderDialog({
                 passingPercentage: parsedPassing,
             };
             onSave(input, availableQuestions);
+            showToast('Quiz saved to catalog', { intent: 'success' });
         }
         onClose();
     };
+
+    const selectedSet = new Set(selectedIds);
 
     return (
         <Dialog
@@ -214,7 +222,7 @@ export function QuizBuilderDialog({
                     </p>
                     <div {...stylex.props(styles.questionList)}>
                         {availableQuestions.map((q) => {
-                            const isSelected = selectedIds.includes(q.id);
+                            const isSelected = selectedSet.has(q.id);
                             const selectedIndex = selectedIds.indexOf(q.id);
                             return (
                                 <div

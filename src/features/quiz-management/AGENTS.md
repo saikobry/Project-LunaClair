@@ -8,7 +8,7 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 
 | File / Module | Responsibility |
 |---|---|
-| `QuizManagementScreen.tsx` | Feature orchestrator — tab navigation (Question Bank / Quiz Catalog), data fetching, wires management hooks |
+| `QuizManagementScreen.tsx` | Feature orchestrator — tab navigation (Question Bank / Quiz Catalog), data fetching, wires management hooks. Rendered embedded inside MaterialWorkspace (no self-owned Page shell or back button) |
 | `components/QuestionBankTab.tsx` | Question list with search, type/difficulty/status filters, publish/archive actions |
 | `components/QuestionEditorDialog.tsx` | Modal form for creating/editing questions — metadata inputs + type-specific editor |
 | `components/QuizCatalogTab.tsx` | Quiz list with status badges, publish/archive controls, quiz builder trigger |

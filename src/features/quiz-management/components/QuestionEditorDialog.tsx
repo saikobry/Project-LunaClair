@@ -7,6 +7,8 @@ import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/q
 import { Dialog } from '../../../shared/ui/Dialog';
 import { Button } from '../../../shared/ui/Button';
 import { Input } from '../../../shared/ui/Input';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
+import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
 
 const styles = stylex.create({
@@ -31,22 +33,22 @@ const styles = stylex.create({
         width: '100%',
         padding: '8px 12px',
         fontSize: 14,
-        border: '1px solid #e5e4e7',
+        border: '1px solid var(--color-border)',
         borderRadius: 8,
-        backgroundColor: '#ffffff',
-        color: '#08060d',
+        backgroundColor: 'var(--color-background-surface)',
+        color: 'var(--color-text-primary)',
         boxSizing: 'border-box',
     },
     selectLabel: {
         display: 'block',
         fontSize: 13,
         fontWeight: 500,
-        color: '#3d3548',
+        color: 'var(--color-text-primary)',
         marginBottom: 4,
     },
     editorSection: {
         paddingTop: 8,
-        borderTop: '1px solid #e5e4e7',
+        borderTop: '1px solid var(--color-border)',
     },
     actions: {
         display: 'flex',
@@ -79,6 +81,24 @@ interface QuestionEditorDialogProps {
     onSave: (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => void;
 }
 
+/**
+ * Check if a payload has meaningful user-entered data beyond defaults.
+ */
+function hasUserData(payload: QuestionAnswerPayload): boolean {
+    if (!payload) return false;
+    // Check if the payload has non-empty choices/options
+    if ('options' in payload && Array.isArray(payload.options)) {
+        return payload.options.some((o: { text?: string }) => o.text?.trim());
+    }
+    if ('correctAnswer' in payload && typeof payload.correctAnswer === 'string') {
+        return payload.correctAnswer.trim().length > 0;
+    }
+    if ('blanks' in payload && Array.isArray(payload.blanks)) {
+        return payload.blanks.some((b: string) => b.trim().length > 0);
+    }
+    return false;
+}
+
 export function QuestionEditorDialog({
     isOpen,
     onClose,
@@ -86,6 +106,7 @@ export function QuestionEditorDialog({
     question,
     onSave,
 }: QuestionEditorDialogProps) {
+    const { showToast } = useToast();
     const isEditing = !!question;
     const [type, setType] = useState<QuestionType>(question?.type ?? 'multiple_choice');
     const [prompt, setPrompt] = useState(question?.prompt ?? '');
@@ -95,11 +116,31 @@ export function QuestionEditorDialog({
     const [difficulty, setDifficulty] = useState<QuestionDifficulty>(question?.difficulty ?? 'medium');
     const [points, setPoints] = useState(String(question?.points ?? 1));
     const [explanation, setExplanation] = useState(question?.explanation ?? '');
-    const [tags, setTags] = useState((question?.tags ?? []).join(', '));
+    const [tags, setTags] = useState(() => (question?.tags ?? []).join(', '));
 
-    const handleTypeChange = useCallback((newType: QuestionType) => {
-        setType(newType);
-        setPayload(createDefaultPayload(newType));
+    // Data safety state
+    const [pendingTypeChange, setPendingTypeChange] = useState<QuestionType | null>(null);
+
+    const handleTypeChangeRequest = useCallback((newType: QuestionType) => {
+        if (hasUserData(payload)) {
+            // Show confirmation before clearing payload
+            setPendingTypeChange(newType);
+        } else {
+            setType(newType);
+            setPayload(createDefaultPayload(newType));
+        }
+    }, [payload]);
+
+    const handleConfirmTypeChange = useCallback(() => {
+        if (pendingTypeChange) {
+            setType(pendingTypeChange);
+            setPayload(createDefaultPayload(pendingTypeChange));
+            setPendingTypeChange(null);
+        }
+    }, [pendingTypeChange]);
+
+    const handleCancelTypeChange = useCallback(() => {
+        setPendingTypeChange(null);
     }, []);
 
     const handleSave = () => {
@@ -116,6 +157,7 @@ export function QuestionEditorDialog({
                 tags: parsedTags.length > 0 ? parsedTags : undefined,
             };
             onSave(input, question.id);
+            showToast('Question updated', { intent: 'success' });
         } else {
             const input: CreateQuestionInput = {
                 materialId,
@@ -129,6 +171,7 @@ export function QuestionEditorDialog({
                 status: 'draft' as QuestionStatus,
             };
             onSave(input);
+            showToast('Question created successfully', { intent: 'success' });
         }
         onClose();
     };
@@ -136,96 +179,109 @@ export function QuestionEditorDialog({
     const EditorComponent = getQuestionEditor(type);
 
     return (
-        <Dialog
-            isOpen={isOpen}
-            onClose={onClose}
-            title={isEditing ? 'Edit Question' : 'New Question'}
-            width={600}
-            maxHeight="85vh"
-            purpose="form"
-        >
-            <div {...stylex.props(styles.form)}>
-                {!isEditing && (
-                    <div>
-                        <label {...stylex.props(styles.selectLabel)}>Question type</label>
-                        <select
-                            value={type}
-                            onChange={(e) => handleTypeChange(e.target.value as QuestionType)}
-                            {...stylex.props(styles.select)}
-                        >
-                            {QUESTION_TYPES.map((t) => (
-                                <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
+        <>
+            <Dialog
+                isOpen={isOpen}
+                onClose={onClose}
+                title={isEditing ? 'Edit Question' : 'New Question'}
+                width={600}
+                maxHeight="85vh"
+                purpose="form"
+            >
+                <div {...stylex.props(styles.form)}>
+                    {!isEditing && (
+                        <div>
+                            <label {...stylex.props(styles.selectLabel)}>Question type</label>
+                            <select
+                                value={type}
+                                onChange={(e) => handleTypeChangeRequest(e.target.value as QuestionType)}
+                                {...stylex.props(styles.select)}
+                            >
+                                {QUESTION_TYPES.map((t) => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
-                <Input
-                    label="Prompt"
-                    value={prompt}
-                    onChange={setPrompt}
-                    placeholder="Enter the question prompt"
-                    isRequired
-                />
-
-                <div {...stylex.props(styles.editorSection)}>
-                    <EditorComponent
-                        value={payload as never}
-                        onChange={setPayload as never}
+                    <Input
+                        label="Prompt"
+                        value={prompt}
+                        onChange={setPrompt}
+                        placeholder="Enter the question prompt"
+                        isRequired
                     />
-                </div>
 
-                <div {...stylex.props(styles.row)}>
-                    <div {...stylex.props(styles.field)}>
-                        <label {...stylex.props(styles.selectLabel)}>Difficulty</label>
-                        <select
-                            value={difficulty}
-                            onChange={(e) => setDifficulty(e.target.value as QuestionDifficulty)}
-                            {...stylex.props(styles.select)}
-                        >
-                            {DIFFICULTIES.map((d) => (
-                                <option key={d.value} value={d.value}>{d.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div {...stylex.props(styles.field)}>
-                        <Input
-                            label="Points"
-                            value={points}
-                            onChange={setPoints}
-                            type="text"
+                    <div {...stylex.props(styles.editorSection)}>
+                        <EditorComponent
+                            value={payload as never}
+                            onChange={setPayload as never}
                         />
                     </div>
+
+                    <div {...stylex.props(styles.row)}>
+                        <div {...stylex.props(styles.field)}>
+                            <label {...stylex.props(styles.selectLabel)}>Difficulty</label>
+                            <select
+                                value={difficulty}
+                                onChange={(e) => setDifficulty(e.target.value as QuestionDifficulty)}
+                                {...stylex.props(styles.select)}
+                            >
+                                {DIFFICULTIES.map((d) => (
+                                    <option key={d.value} value={d.value}>{d.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div {...stylex.props(styles.field)}>
+                            <Input
+                                label="Points"
+                                value={points}
+                                onChange={setPoints}
+                                type="text"
+                            />
+                        </div>
+                    </div>
+
+                    <Input
+                        label="Explanation (optional)"
+                        value={explanation}
+                        onChange={setExplanation}
+                        placeholder="Shown to learners after answering"
+                    />
+
+                    <Input
+                        label="Tags (comma-separated)"
+                        value={tags}
+                        onChange={setTags}
+                        placeholder="e.g. skin, layers, anatomy"
+                    />
+
+                    <div {...stylex.props(styles.actions)}>
+                        <Button label="Cancel" variant="secondary" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            label={isEditing ? 'Save changes' : 'Create question'}
+                            variant="primary"
+                            isDisabled={!prompt.trim()}
+                            onClick={handleSave}
+                        >
+                            {isEditing ? 'Save Changes' : 'Create Question'}
+                        </Button>
+                    </div>
                 </div>
+            </Dialog>
 
-                <Input
-                    label="Explanation (optional)"
-                    value={explanation}
-                    onChange={setExplanation}
-                    placeholder="Shown to learners after answering"
-                />
-
-                <Input
-                    label="Tags (comma-separated)"
-                    value={tags}
-                    onChange={setTags}
-                    placeholder="e.g. skin, layers, anatomy"
-                />
-
-                <div {...stylex.props(styles.actions)}>
-                    <Button label="Cancel" variant="secondary" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        label={isEditing ? 'Save changes' : 'Create question'}
-                        variant="primary"
-                        isDisabled={!prompt.trim()}
-                        onClick={handleSave}
-                    >
-                        {isEditing ? 'Save Changes' : 'Create Question'}
-                    </Button>
-                </div>
-            </div>
-        </Dialog>
+            {/* Data safety confirmation dialog */}
+            <ConfirmationDialog
+                isOpen={pendingTypeChange !== null}
+                title="Change Question Type?"
+                message="Changing the question type will reset the current answer options. Any choices or answers you have entered will be lost. Continue?"
+                confirmLabel="Change Type"
+                intent="warning"
+                onConfirm={handleConfirmTypeChange}
+                onCancel={handleCancelTypeChange}
+            />
+        </>
     );
 }

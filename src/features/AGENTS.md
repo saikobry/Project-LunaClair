@@ -22,6 +22,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
 - Study content assets (markdown, figures) live in `public/materials/{sourceId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
+- Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by WorkspaceRail + tabs, not by per-screen buttons.
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Barrel export: `index.ts` re-exports the public API (usually just the Screen component)
 - Query hooks are separated from mutation hooks. Mutations live in `hooks/mutations/` directory.

@@ -1,16 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
 
-/**
- * Design tokens aligned with the existing app palette.
- */
-const colors = {
-  accent: '#6366f1',
-  accentLight: '#eef2ff',
-  textPrimary: '#08060d',
-  textSecondary: '#6b6375',
-  textMuted: '#9ca3af',
-};
-
 export const styles = stylex.create({
   // === Grid ===
   grid: {
@@ -30,7 +19,7 @@ export const styles = stylex.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 600,
-    color: colors.textPrimary,
+    color: 'var(--color-text-primary)',
     margin: 0,
     lineHeight: 1.3,
     flex: 1,
@@ -38,7 +27,7 @@ export const styles = stylex.create({
 
   cardDescription: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.5,
     display: '-webkit-box',
@@ -52,7 +41,7 @@ export const styles = stylex.create({
     alignItems: 'center',
     gap: 8,
     fontSize: 12,
-    color: colors.textMuted,
+    color: 'var(--color-text-disabled)',
   },
 
   cardActions: {
@@ -67,8 +56,8 @@ export const styles = stylex.create({
     padding: '2px 8px',
     fontSize: 11,
     fontWeight: 600,
-    color: colors.accent,
-    backgroundColor: colors.accentLight,
+    color: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent-muted)',
     borderRadius: 6,
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
@@ -94,13 +83,13 @@ export const styles = stylex.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 600,
-    color: colors.textPrimary,
+    color: 'var(--color-text-primary)',
     margin: 0,
   },
 
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'var(--color-text-secondary)',
     margin: 0,
     maxWidth: 360,
     lineHeight: 1.5,
@@ -109,7 +98,7 @@ export const styles = stylex.create({
   // === Shared Modal Layout ===
   modalDescription: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.5,
   },
@@ -130,7 +119,7 @@ export const styles = stylex.create({
   label: {
     fontSize: 13,
     fontWeight: 600,
-    color: colors.textSecondary,
+    color: 'var(--color-text-secondary)',
   },
 
   textarea: {
@@ -138,18 +127,18 @@ export const styles = stylex.create({
     fontSize: 14,
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: '#e5e4e7',
+    borderColor: 'var(--color-border)',
     borderRadius: 8,
-    color: '#08060d',
-    backgroundColor: '#ffffff',
+    color: 'var(--color-text-primary)',
+    backgroundColor: 'var(--color-background-surface)',
     outlineStyle: 'none',
     resize: 'vertical',
     minHeight: 60,
     fontFamily: 'inherit',
     transition: 'border-color 0.15s ease',
     ':focus': {
-      borderColor: '#6366f1',
-      boxShadow: '0 0 0 3px rgba(99,102,241,0.1)',
+      borderColor: 'var(--color-accent)',
+      boxShadow: '0 0 0 3px var(--color-overlay-hover)',
     },
   },
 });

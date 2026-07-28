@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Search, Pencil, Archive, CheckCircle, Inbox } from 'lucide-react';
 import type { Question, QuestionStatus } from '../../../domain/quiz/Question';
@@ -6,7 +6,20 @@ import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
 import { Button } from '../../../shared/ui/Button';
+import { useToast } from '../../../app/providers/ToastContext';
 import { QuestionEditorDialog } from './QuestionEditorDialog';
+
+/**
+ * Simple debounce hook to prevent redundant filtering on rapid keystrokes.
+ */
+function useDebounce<T>(value: T, delay: number): T {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const id = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(id);
+    }, [value, delay]);
+    return debounced;
+}
 
 const styles = stylex.create({
     container: {
@@ -25,18 +38,18 @@ const styles = stylex.create({
         minWidth: 180,
         padding: '8px 12px',
         fontSize: 14,
-        border: '1px solid #e5e4e7',
+        border: '1px solid var(--color-border)',
         borderRadius: 8,
-        color: '#08060d',
-        backgroundColor: '#ffffff',
+        color: 'var(--color-text-primary)',
+        backgroundColor: 'var(--color-background-surface)',
     },
     select: {
         padding: '8px 12px',
         fontSize: 13,
-        border: '1px solid #e5e4e7',
+        border: '1px solid var(--color-border)',
         borderRadius: 8,
-        backgroundColor: '#ffffff',
-        color: '#08060d',
+        backgroundColor: 'var(--color-background-surface)',
+        color: 'var(--color-text-primary)',
     },
     list: {
         display: 'flex',
@@ -49,8 +62,8 @@ const styles = stylex.create({
         justifyContent: 'space-between',
         gap: 12,
         padding: 16,
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e4e7',
+        backgroundColor: 'var(--color-background-surface)',
+        border: '1px solid var(--color-border)',
         borderRadius: 10,
     },
     cardContent: {
@@ -62,7 +75,7 @@ const styles = stylex.create({
     prompt: {
         fontSize: 14,
         fontWeight: 500,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     badges: {
@@ -77,20 +90,20 @@ const styles = stylex.create({
         fontSize: 11,
         fontWeight: 600,
         borderRadius: 5,
-        backgroundColor: '#f3f2f5',
-        color: '#6b6375',
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-secondary)',
     },
     badgePublished: {
-        backgroundColor: '#dcfce7',
+        backgroundColor: 'var(--color-success-muted)',
         color: '#166534',
     },
     badgeDraft: {
-        backgroundColor: '#fef9c3',
+        backgroundColor: 'var(--color-warning-muted)',
         color: '#854d0e',
     },
     badgeArchived: {
-        backgroundColor: '#f3f2f5',
-        color: '#9f95a9',
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-disabled)',
     },
     cardActions: {
         display: 'flex',
@@ -103,12 +116,12 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 8,
         padding: '48px 24px',
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         textAlign: 'center',
     },
     version: {
         fontSize: 11,
-        color: '#9f95a9',
+        color: 'var(--color-text-disabled)',
     },
 });
 
@@ -129,6 +142,14 @@ interface QuestionBankTabProps {
     onArchive: (id: string) => void;
 }
 
+const statusBadgeStyle = (status: QuestionStatus) => {
+    switch (status) {
+        case 'published': return styles.badgePublished;
+        case 'draft': return styles.badgeDraft;
+        case 'archived': return styles.badgeArchived;
+    }
+};
+
 export function QuestionBankTab({
     questions,
     materialId,
@@ -137,7 +158,9 @@ export function QuestionBankTab({
     onPublish,
     onArchive,
 }: QuestionBankTabProps) {
+    const { showToast } = useToast();
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search, 300);
     const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
     const [difficultyFilter, setDifficultyFilter] = useState<QuestionDifficulty | ''>('');
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | ''>('');
@@ -146,13 +169,13 @@ export function QuestionBankTab({
 
     const filtered = useMemo(() => {
         return questions.filter((q) => {
-            if (search && !q.prompt.toLowerCase().includes(search.toLowerCase())) return false;
+            if (debouncedSearch && !q.prompt.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
             if (typeFilter && q.type !== typeFilter) return false;
             if (difficultyFilter && q.difficulty !== difficultyFilter) return false;
             if (statusFilter && q.status !== statusFilter) return false;
             return true;
         });
-    }, [questions, search, typeFilter, difficultyFilter, statusFilter]);
+    }, [questions, debouncedSearch, typeFilter, difficultyFilter, statusFilter]);
 
     const handleSave = (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => {
         if (id) {
@@ -170,14 +193,6 @@ export function QuestionBankTab({
     const openEdit = (question: Question) => {
         setEditTarget(question);
         setEditorOpen(true);
-    };
-
-    const statusBadgeStyle = (status: QuestionStatus) => {
-        switch (status) {
-            case 'published': return styles.badgePublished;
-            case 'draft': return styles.badgeDraft;
-            case 'archived': return styles.badgeArchived;
-        }
     };
 
     return (
@@ -262,7 +277,7 @@ export function QuestionBankTab({
                                         variant="secondary"
                                         icon={<CheckCircle size={14} />}
                                         isIconOnly
-                                        onClick={() => onPublish(q.id)}
+                                        onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
                                     />
                                 )}
                                 <Button
@@ -278,7 +293,7 @@ export function QuestionBankTab({
                                         variant="danger"
                                         icon={<Archive size={14} />}
                                         isIconOnly
-                                        onClick={() => onArchive(q.id)}
+                                        onClick={() => { onArchive(q.id); showToast('Question moved to archive', { intent: 'info' }); }}
                                     />
                                 )}
                             </div>

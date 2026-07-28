@@ -1,30 +1,21 @@
 import * as stylex from '@stylexjs/stylex';
+import { Skeleton as AstryxSkeleton } from '@astryxdesign/core/Skeleton';
+import type { SkeletonRadius } from '@astryxdesign/core/Skeleton';
 
-const motionQuery = '@media (prefers-reduced-motion: no-preference)';
-
-const keyframes = stylex.keyframes({
-  '0%': { backgroundPosition: '-200% 0' },
-  '100%': { backgroundPosition: '200% 0' },
-});
-
-const styles = stylex.create({
-  base: {
-    background: 'linear-gradient(90deg, #e5e4e7 25%, #f0eff2 50%, #e5e4e7 75%)',
-    backgroundSize: '200% 100%',
-    borderRadius: 8,
-  },
-  animated: {
-    [motionQuery]: {
-      animationName: keyframes,
-      animationDuration: '1.5s',
-      animationTimingFunction: 'ease-in-out',
-      animationIterationCount: 'infinite',
-    },
-  },
-});
+/** Map a pixel borderRadius to the closest Astryx SkeletonRadius token. */
+function mapRadius(borderRadius: string | number): SkeletonRadius {
+  if (borderRadius === 'rounded' || borderRadius === '50%') return 'rounded';
+  const px = typeof borderRadius === 'number' ? borderRadius : parseInt(String(borderRadius), 10);
+  if (Number.isNaN(px) || px <= 0) return 'none';
+  if (px <= 4) return 1;
+  if (px <= 8) return 2;
+  if (px <= 12) return 3;
+  return 'rounded';
+}
 
 /**
- * Base skeleton block. Pass `width`, `height`, and `borderRadius` via inline styles.
+ * Base skeleton block — thin adapter over @astryxdesign/core Skeleton.
+ * Maps pixel-based borderRadius to Astryx design-token radius scale.
  */
 function SkeletonBlock({
   width,
@@ -38,10 +29,11 @@ function SkeletonBlock({
   style?: React.CSSProperties;
 }) {
   return (
-    <div
-      {...stylex.props(styles.base, styles.animated)}
-      style={{ width, height, borderRadius, ...style }}
-      aria-hidden="true"
+    <AstryxSkeleton
+      width={width}
+      height={height}
+      radius={mapRadius(borderRadius)}
+      style={style}
     />
   );
 }
@@ -54,9 +46,9 @@ const cardStyles = stylex.create({
     flexDirection: 'column',
     gap: 12,
     padding: 20,
-    border: '1px solid #e5e4e7',
+    border: '1px solid var(--color-border)',
     borderRadius: 12,
-    background: '#fff',
+    background: 'var(--color-background-surface)',
   },
   row: {
     display: 'flex',
@@ -134,7 +126,7 @@ const workspaceStyles = stylex.create({
   tabBar: {
     display: 'flex',
     gap: 4,
-    borderBottom: '1px solid #e5e4e7',
+    borderBottom: '1px solid var(--color-border)',
     paddingBottom: 0,
   },
   tab: {
@@ -168,9 +160,9 @@ const questionStyles = stylex.create({
     flexDirection: 'column',
     gap: 16,
     padding: 24,
-    border: '1px solid #e5e4e7',
+    border: '1px solid var(--color-border)',
     borderRadius: 12,
-    background: '#fff',
+    background: 'var(--color-background-surface)',
   },
   progress: {
     display: 'flex',

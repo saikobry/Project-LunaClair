@@ -1,9 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BrainCircuit, CheckSquare } from 'lucide-react';
-import type { StudyMaterial } from '../../../domain/library';
-import type { Term } from '../../../domain/library';
-import { Button } from '../../../shared/ui/Button';
+import { BrainCircuit } from 'lucide-react';
+import type { StudyMaterial, Term } from '../../../domain/library';
+import { Button, TermGroupedSelector } from '../../../shared/ui';
+import { useTermGroupedSelection } from '../../../shared/hooks';
 
 const styles = stylex.create({
   container: {
@@ -11,100 +10,23 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: 24,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#3d3548',
-    margin: 0,
-    marginBottom: 12,
-  },
-  termGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  termHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    background: '#f8f7fa',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'background 0.15s ease',
-    ':hover': {
-      background: '#ecedf9',
-    },
-  },
-  termTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#3d3548',
-    flex: 1,
-  },
-  selectAll: {
-    fontSize: 12,
-    color: '#6366f1',
-    fontWeight: 500,
-    cursor: 'pointer',
-    border: 'none',
-    background: 'none',
-    padding: '4px 8px',
-    borderRadius: 4,
-    ':hover': {
-      background: '#ecedf9',
-    },
-  },
-  materialRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '8px 12px 8px 24px',
-    borderRadius: 6,
-    cursor: 'pointer',
-    transition: 'background 0.15s ease',
-    ':hover': {
-      background: '#f8f7fa',
-    },
-  },
-  checkbox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    border: '2px solid #d1d0d4',
-    flexShrink: 0,
-    color: 'transparent',
-    transition: 'all 0.15s ease',
-  },
-  checkboxChecked: {
-    borderColor: '#6366f1',
-    background: '#6366f1',
-    color: '#fff',
-  },
-  materialTitle: {
-    fontSize: 14,
-    color: '#3d3548',
-    flex: 1,
-  },
-  materialMeta: {
-    fontSize: 12,
-    color: '#9f95a9',
-  },
   actionBar: {
     display: 'flex',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 16,
-    borderTop: '1px solid #e5e4e7',
+    borderTop: '1px solid var(--color-border)',
+  },
+  selectionCount: {
+    fontSize: 14,
+    color: 'var(--color-text-secondary)',
   },
   empty: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     padding: '48px 24px',
-    color: '#9f95a9',
+    color: 'var(--color-text-disabled)',
     fontSize: 14,
     textAlign: 'center',
     gap: 8,
@@ -122,71 +44,7 @@ export default function SubjectQuizTab({
   terms,
   onStartUnifiedQuiz,
 }: SubjectQuizTabProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  const sortedTerms = useMemo(
-    () => terms.toSorted((a, b) => a.order - b.order),
-    [terms],
-  );
-
-  const materialsByTerm = useMemo(() => {
-    const map = new Map<string, StudyMaterial[]>();
-    for (const term of sortedTerms) {
-      const termMaterials = materials.filter((m) => m.termId === term.id);
-      if (termMaterials.length > 0) {
-        map.set(term.id, termMaterials);
-      }
-    }
-    return map;
-  }, [materials, sortedTerms]);
-
-  const toggleMaterial = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleTerm = useCallback(
-    (termId: string) => {
-      const termMaterials = materialsByTerm.get(termId) ?? [];
-      const termIds = termMaterials.map((m) => m.id);
-      const allSelected = termIds.every((id) => selectedIds.has(id));
-
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        for (const id of termIds) {
-          if (allSelected) {
-            next.delete(id);
-          } else {
-            next.add(id);
-          }
-        }
-        return next;
-      });
-    },
-    [materialsByTerm, selectedIds],
-  );
-
-  const allIds = useMemo(() => materials.map((m) => m.id), [materials]);
-
-  const toggleAll = useCallback(() => {
-    const allSelected = allIds.every((id) => selectedIds.has(id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) {
-        for (const id of allIds) next.delete(id);
-      } else {
-        for (const id of allIds) next.add(id);
-      }
-      return next;
-    });
-  }, [allIds, selectedIds]);
+  const selection = useTermGroupedSelection(materials, terms);
 
   if (materials.length === 0) {
     return (
@@ -199,64 +57,24 @@ export default function SubjectQuizTab({
 
   return (
     <div {...stylex.props(styles.container)}>
-      <div {...stylex.props(styles.termHeader)} onClick={toggleAll} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleAll(); }}>
-        <div {...stylex.props(styles.checkbox, allIds.every((id) => selectedIds.has(id)) && styles.checkboxChecked)}>
-          <CheckSquare size={14} />
-        </div>
-        <span {...stylex.props(styles.termTitle)}>Select / Deselect All</span>
-        <span {...stylex.props(styles.materialMeta)}>{selectedIds.size} of {allIds.length} selected</span>
-      </div>
-
-      {sortedTerms.map((term) => {
-        const termMaterials = materialsByTerm.get(term.id) ?? [];
-        if (termMaterials.length === 0) return null;
-
-        const allTermSelected = termMaterials.every((m) => selectedIds.has(m.id));
-
-        return (
-          <div key={term.id} {...stylex.props(styles.termGroup)}>
-            <div
-              {...stylex.props(styles.termHeader)}
-              onClick={() => toggleTerm(term.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleTerm(term.id); }}
-            >
-              <div {...stylex.props(styles.checkbox, allTermSelected && styles.checkboxChecked)}>
-                <CheckSquare size={14} />
-              </div>
-              <span {...stylex.props(styles.termTitle)}>{term.title}</span>
-              <span {...stylex.props(styles.materialMeta)}>{termMaterials.length} chapters</span>
-            </div>
-
-            {termMaterials.map((material) => (
-              <div
-                key={material.id}
-                {...stylex.props(styles.materialRow)}
-                onClick={() => toggleMaterial(material.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleMaterial(material.id); }}
-              >
-                <div {...stylex.props(styles.checkbox, selectedIds.has(material.id) && styles.checkboxChecked)}>
-                  <CheckSquare size={14} />
-                </div>
-                <span {...stylex.props(styles.materialTitle)}>{material.title}</span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
+      <TermGroupedSelector
+        materials={materials}
+        terms={terms}
+        selection={selection}
+      />
 
       <div {...stylex.props(styles.actionBar)}>
+        <span {...stylex.props(styles.selectionCount)}>
+          {selection.selectedIds.size} of {selection.allIds.length} chapters selected
+        </span>
         <Button
           label="Start Unified Quiz"
           variant="primary"
           icon={<BrainCircuit size={16} />}
-          isDisabled={selectedIds.size === 0}
-          onClick={() => onStartUnifiedQuiz(Array.from(selectedIds))}
+          isDisabled={selection.selectedIds.size === 0}
+          onClick={() => onStartUnifiedQuiz(Array.from(selection.selectedIds))}
         >
-          Start Unified Quiz ({selectedIds.size} {selectedIds.size === 1 ? 'chapter' : 'chapters'})
+          Start Unified Quiz
         </Button>
       </div>
     </div>

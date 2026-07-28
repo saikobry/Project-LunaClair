@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@astryxdesign/core/theme';
 import { lunaclairTheme } from '../../shared/theme/lunaclairTheme';
 import { RepositoryProvider } from './RepositoryProvider';
+import { ToastProvider } from './ToastContext';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -29,13 +30,16 @@ const queryClient = new QueryClient({
  * - TanStack Query `<QueryClientProvider>` with centralized query defaults
  * - `<RepositoryProvider>` supplying dependency-injected storage repositories
  * - Astryx `<Theme>` with the LunaClair custom theme (light mode)
+ * - `<ToastProvider>` for user action feedback notifications
  */
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <RepositoryProvider>
         <Theme theme={lunaclairTheme} mode="light">
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </Theme>
       </RepositoryProvider>
     </QueryClientProvider>

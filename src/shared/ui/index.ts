@@ -15,4 +15,24 @@ export type { InputProps } from './Input';
 export { Page } from './Page';
 export type { PageProps } from './Page';
 
+export { Breadcrumbs } from './Breadcrumbs/Breadcrumbs';
+export type { BreadcrumbItem } from './Breadcrumbs/Breadcrumbs';
+
 export { CardSkeleton, CardGridSkeleton, WorkspaceSkeleton, QuestionSkeleton, ResultSkeleton } from './Skeleton/Skeleton';
+
+export { TabList, Tab } from './TabList/TabList';
+export type { TabListProps, TabProps } from './TabList/TabList';
+
+export { SegmentedControl, SegmentedControlItem } from './SegmentedControl/SegmentedControl';
+export type { SegmentedControlProps, SegmentedControlItemProps } from './SegmentedControl/SegmentedControl';
+
+export { SelectableRow } from './SelectableRow/SelectableRow';
+export type { SelectableRowProps } from './SelectableRow/SelectableRow';
+
+export { Chip } from './Chip/Chip';
+export type { ChipProps } from './Chip/Chip';
+
+export { TermGroupedSelector } from './TermGroupedSelector/TermGroupedSelector';
+export type { TermGroupedSelectorProps } from './TermGroupedSelector/TermGroupedSelector';
+
+

@@ -20,34 +20,34 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 12,
         padding: 32,
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e4e7',
+        backgroundColor: 'var(--color-background-surface)',
+        border: '1px solid var(--color-border)',
         borderRadius: 12,
         textAlign: 'center',
     },
     scorePercent: {
         fontSize: 48,
         fontWeight: 700,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     scoreLabel: {
         fontSize: 14,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
     },
     scoreStats: {
         display: 'flex',
         gap: 24,
         fontSize: 13,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
     },
     statCorrect: {
-        color: '#16a34a',
+        color: 'var(--color-success)',
         fontWeight: 600,
     },
     statIncorrect: {
-        color: '#dc2626',
+        color: 'var(--color-error)',
         fontWeight: 600,
     },
     reviewList: {
@@ -59,8 +59,8 @@ const styles = stylex.create({
         display: 'flex',
         gap: 12,
         padding: 16,
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e4e7',
+        backgroundColor: 'var(--color-background-surface)',
+        border: '1px solid var(--color-border)',
         borderRadius: 10,
         alignItems: 'flex-start',
     },
@@ -77,12 +77,12 @@ const styles = stylex.create({
     reviewPrompt: {
         fontSize: 14,
         fontWeight: 500,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     reviewExplanation: {
         fontSize: 13,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
         lineHeight: 1.4,
     },
@@ -129,9 +129,9 @@ export function QuizResultView({ result, questions, onRetake, onExit }: QuizResu
                         <div key={q.id} {...stylex.props(styles.reviewItem)}>
                             <div {...stylex.props(styles.reviewIcon)}>
                                 {isCorrect ? (
-                                    <CheckCircle2 size={18} color="#16a34a" />
+                                    <CheckCircle2 size={18} color="var(--color-success)" />
                                 ) : (
-                                    <XCircle size={18} color="#dc2626" />
+                                    <XCircle size={18} color="var(--color-error)" />
                                 )}
                             </div>
                             <div {...stylex.props(styles.reviewContent)}>

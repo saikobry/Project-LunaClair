@@ -5,6 +5,7 @@ import type { Question } from '../../../domain/quiz/Question';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
 import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
 import { Button } from '../../../shared/ui/Button';
+import { useToast } from '../../../app/providers/ToastContext';
 import { QuizBuilderDialog } from './QuizBuilderDialog';
 
 const styles = stylex.create({
@@ -29,8 +30,8 @@ const styles = stylex.create({
         justifyContent: 'space-between',
         gap: 12,
         padding: 16,
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e4e7',
+        backgroundColor: 'var(--color-background-surface)',
+        border: '1px solid var(--color-border)',
         borderRadius: 10,
     },
     cardContent: {
@@ -42,19 +43,19 @@ const styles = stylex.create({
     title: {
         fontSize: 14,
         fontWeight: 600,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     description: {
         fontSize: 13,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
     },
     meta: {
         display: 'flex',
         gap: 12,
         fontSize: 12,
-        color: '#9f95a9',
+        color: 'var(--color-text-disabled)',
     },
     badges: {
         display: 'flex',
@@ -69,16 +70,16 @@ const styles = stylex.create({
         borderRadius: 5,
     },
     badgePublished: {
-        backgroundColor: '#dcfce7',
+        backgroundColor: 'var(--color-success-muted)',
         color: '#166534',
     },
     badgeDraft: {
-        backgroundColor: '#fef9c3',
+        backgroundColor: 'var(--color-warning-muted)',
         color: '#854d0e',
     },
     badgeArchived: {
-        backgroundColor: '#f3f2f5',
-        color: '#9f95a9',
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-disabled)',
     },
     cardActions: {
         display: 'flex',
@@ -91,7 +92,7 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 8,
         padding: '48px 24px',
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         textAlign: 'center',
     },
 });
@@ -106,6 +107,14 @@ interface QuizCatalogTabProps {
     onArchive: (id: string) => void;
 }
 
+const statusBadgeStyle = (status: QuizStatus) => {
+    switch (status) {
+        case 'published': return styles.badgePublished;
+        case 'draft': return styles.badgeDraft;
+        case 'archived': return styles.badgeArchived;
+    }
+};
+
 export function QuizCatalogTab({
     quizzes,
     questions,
@@ -115,16 +124,9 @@ export function QuizCatalogTab({
     onPublish,
     onArchive,
 }: QuizCatalogTabProps) {
+    const { showToast } = useToast();
     const [builderOpen, setBuilderOpen] = useState(false);
     const [editTargetQuiz, setEditTargetQuiz] = useState<Quiz | null>(null);
-
-    const statusBadgeStyle = (status: QuizStatus) => {
-        switch (status) {
-            case 'published': return styles.badgePublished;
-            case 'draft': return styles.badgeDraft;
-            case 'archived': return styles.badgeArchived;
-        }
-    };
 
     return (
         <div {...stylex.props(styles.container)}>
@@ -173,7 +175,7 @@ export function QuizCatalogTab({
                                         variant="secondary"
                                         icon={<CheckCircle size={14} />}
                                         isIconOnly
-                                        onClick={() => onPublish(quiz.id)}
+                                        onClick={() => { onPublish(quiz.id); showToast('Quiz published to catalog', { intent: 'success' }); }}
                                     />
                                 )}
                                 <Button
@@ -189,7 +191,7 @@ export function QuizCatalogTab({
                                         variant="danger"
                                         icon={<Archive size={14} />}
                                         isIconOnly
-                                        onClick={() => onArchive(quiz.id)}
+                                        onClick={() => { onArchive(quiz.id); showToast('Quiz archived', { intent: 'info' }); }}
                                     />
                                 )}
                             </div>

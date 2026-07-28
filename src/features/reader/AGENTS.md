@@ -8,7 +8,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 
 | File / Module | Responsibility |
 |---|---|
-| `ReaderScreen.tsx` | Feature orchestrator — accepts `material: StudyMaterial`, `onStartQuiz`, and `onManageQuiz` callbacks; resolves document via `useDocument` hook, renders loading/error/success states, wires annotation hooks, provides "Take Quiz" and "Question Bank" entry points |
+| `ReaderScreen.tsx` | Feature orchestrator — accepts `materialId`; resolves document via `useDocument` hook, renders loading/error/success states, wires annotation hooks. Rendered embedded inside MaterialWorkspace (no self-owned Page shell) |
 | `ReaderView.tsx` | Presentation — renders MarkdownViewer + DrawingCanvas + AnnotationToolbar + SelectionPopover |
 | `components/MarkdownViewer.tsx` | Renders processed markdown via `react-markdown` + `rehype-highlight` |
 | `components/DrawingCanvas.tsx` | Freehand SVG drawing canvas with pen/eraser tools |

@@ -27,17 +27,17 @@ const styles = stylex.create({
     marginTop: 2,
   },
   iconBoxWarning: {
-    background: '#fef3c7',
-    color: '#d97706',
+    background: 'var(--color-warning-muted)',
+    color: 'var(--color-warning)',
   },
   iconBoxDanger: {
-    background: '#fef2f2',
-    color: '#dc2626',
+    background: 'var(--color-error-muted)',
+    color: 'var(--color-error)',
   },
   message: {
     fontSize: 14,
     lineHeight: 1.5,
-    color: '#6b6375',
+    color: 'var(--color-text-secondary)',
     margin: 0,
     flex: 1,
   },

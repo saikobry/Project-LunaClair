@@ -23,12 +23,12 @@ const localStyles = stylex.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 600,
-    color: '#3d3548',
+    color: 'var(--color-text-primary)',
     margin: 0,
   },
   sectionCount: {
     fontSize: 13,
-    color: '#9f95a9',
+    color: 'var(--color-text-disabled)',
   },
   subjectsGrid: {
     display: 'grid',
@@ -53,18 +53,18 @@ const localStyles = stylex.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    background: '#ecedf9',
-    color: '#6366f1',
+    background: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
   },
   subjectTitle: {
     fontSize: 16,
     fontWeight: 600,
-    color: '#3d3548',
+    color: 'var(--color-text-primary)',
     margin: 0,
   },
   subjectDescription: {
     fontSize: 13,
-    color: '#6b6375',
+    color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.4,
     display: '-webkit-box',
@@ -77,12 +77,12 @@ const localStyles = stylex.create({
     alignItems: 'center',
     gap: 4,
     fontSize: 12,
-    color: '#9f95a9',
+    color: 'var(--color-text-disabled)',
     marginTop: 4,
   },
   divider: {
     height: 1,
-    background: '#e5e4e7',
+    background: 'var(--color-border)',
     margin: '24px 0',
   },
 });

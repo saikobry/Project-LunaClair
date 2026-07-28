@@ -3,43 +3,13 @@ import * as stylex from '@stylexjs/stylex';
 import { Eye, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
 import type { Term } from '../../../domain/library';
-import { Card } from '../../../shared/ui/Card';
-import { Button } from '../../../shared/ui/Button';
+import { Card, Button, SegmentedControl, SegmentedControlItem, Chip } from '../../../shared/ui';
 
 const styles = stylex.create({
   container: {
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
-  },
-  filters: {
-    display: 'flex',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  filterChip: {
-    padding: '6px 14px',
-    borderRadius: 20,
-    border: '1px solid #e5e4e7',
-    background: '#fff',
-    color: '#6b6375',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      borderColor: '#6366f1',
-      color: '#6366f1',
-    },
-  },
-  filterChipActive: {
-    background: '#6366f1',
-    borderColor: '#6366f1',
-    color: '#fff',
-    ':hover': {
-      background: '#5558e6',
-      color: '#fff',
-    },
   },
   grid: {
     display: 'grid',
@@ -55,18 +25,18 @@ const styles = stylex.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 600,
-    color: '#3d3548',
+    color: 'var(--color-text-primary)',
     margin: 0,
   },
   cardDescription: {
     fontSize: 13,
-    color: '#6b6375',
+    color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.4,
   },
   cardMeta: {
     fontSize: 12,
-    color: '#9f95a9',
+    color: 'var(--color-text-disabled)',
   },
   cardActions: {
     display: 'flex',
@@ -78,7 +48,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     alignItems: 'center',
     padding: '48px 24px',
-    color: '#9f95a9',
+    color: 'var(--color-text-disabled)',
     fontSize: 14,
     textAlign: 'center',
     gap: 8,
@@ -102,10 +72,12 @@ export default function MaterialsTab({
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
-  const sortedTerms = useMemo(
-    () => terms.toSorted((a, b) => a.order - b.order),
-    [terms],
-  );
+  const availableTerms = useMemo(() => {
+    const usedTermIds = new Set(materials.map((m) => m.termId));
+    return terms
+      .filter((term) => usedTermIds.has(term.id))
+      .toSorted((a, b) => a.order - b.order);
+  }, [terms, materials]);
 
   const filteredMaterials = useMemo(() => {
     if (!activeFilter) return materials;
@@ -114,25 +86,17 @@ export default function MaterialsTab({
 
   return (
     <div {...stylex.props(styles.container)}>
-      <div {...stylex.props(styles.filters)}>
-        <button
-          type="button"
-          {...stylex.props(styles.filterChip, activeFilter === null && styles.filterChipActive)}
-          onClick={() => setActiveFilter(null)}
-        >
-          All
-        </button>
-        {sortedTerms.map((term) => (
-          <button
-            key={term.id}
-            type="button"
-            {...stylex.props(styles.filterChip, activeFilter === term.id && styles.filterChipActive)}
-            onClick={() => setActiveFilter(term.id)}
-          >
-            {term.title}
-          </button>
+      <SegmentedControl
+        value={activeFilter ?? 'all'}
+        onChange={(v) => setActiveFilter(v === 'all' ? null : v)}
+        label="Term filter"
+        size="sm"
+      >
+        <SegmentedControlItem value="all" label="All" />
+        {availableTerms.map((term) => (
+          <SegmentedControlItem key={term.id} value={term.id} label={term.title} />
         ))}
-      </div>
+      </SegmentedControl>
 
       {filteredMaterials.length === 0 ? (
         <div {...stylex.props(styles.empty)}>
@@ -147,8 +111,8 @@ export default function MaterialsTab({
                 {material.description && (
                   <p {...stylex.props(styles.cardDescription)}>{material.description}</p>
                 )}
-                <div {...stylex.props(styles.cardMeta)}>
-                  {material.sourceType}
+                <div>
+                  <Chip>{material.sourceType}</Chip>
                 </div>
                 <div {...stylex.props(styles.cardActions)}>
                   <Button

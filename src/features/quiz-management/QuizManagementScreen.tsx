@@ -1,12 +1,10 @@
-import { useState, useContext, useRef } from 'react';
+import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Library, ListChecks } from 'lucide-react';
+import { Library, ListChecks } from 'lucide-react';
 import { RepositoryContext } from '../../app/providers/RepositoryContext';
-import { Page } from '../../shared/ui/Page';
-import { Button } from '../../shared/ui/Button';
 import { useMaterial } from '../../shared/hooks/useMaterial';
-import { useTabKeyboardNavigation } from '../../shared/hooks/useTabKeyboardNavigation';
+import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { QuestionBankTab } from './components/QuestionBankTab';
 import { QuizCatalogTab } from './components/QuizCatalogTab';
 import { useQuestionManagement } from './hooks/useQuestionManagement';
@@ -22,37 +20,12 @@ const MGMT_TABS: { key: MgmtTab; label: string; icon: typeof Library }[] = [
 ];
 
 const styles = stylex.create({
-    tabBar: {
-        display: 'flex',
-        gap: 4,
-        marginBottom: 20,
-        borderBottom: '1px solid #e5e4e7',
-        paddingBottom: 0,
-    },
-    tab: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '10px 16px',
-        fontSize: 14,
-        fontWeight: 500,
-        color: '#6b6375',
-        border: 'none',
-        background: 'none',
-        cursor: 'pointer',
-        borderBottom: '2px solid transparent',
-        marginBottom: -1,
-    },
-    tabActive: {
-        color: '#6366f1',
-        borderBottomColor: '#6366f1',
-    },
     loading: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '64px 24px',
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         fontSize: 14,
     },
 });
@@ -61,16 +34,15 @@ type Tab = 'questions' | 'quizzes';
 
 interface QuizManagementScreenProps {
     materialId: string;
-    onBack: () => void;
 }
 
-export default function QuizManagementScreen({ materialId, onBack }: QuizManagementScreenProps) {
+export default function QuizManagementScreen({ materialId }: QuizManagementScreenProps) {
     const context = useContext(RepositoryContext);
     if (!context) {
         throw new Error('QuizManagementScreen must be used within a <RepositoryProvider>');
     }
 
-    const { material, isLoading: materialLoading } = useMaterial(materialId);
+    const { isLoading: materialLoading } = useMaterial(materialId);
 
     const [activeTab, setActiveTab] = useState<Tab>('questions');
 
@@ -87,64 +59,19 @@ export default function QuizManagementScreen({ materialId, onBack }: QuizManagem
     const questionMgmt = useQuestionManagement(materialId);
     const quizBuilder = useQuizBuilder(materialId);
 
-    // Hooks must be called before any early returns (rules-of-hooks)
-    const tabListRef = useRef<HTMLDivElement>(null);
-    const tabKeyboard = useTabKeyboardNavigation({
-        tabs: ['questions', 'quizzes'] as const,
-        activeTab,
-        onTabChange: setActiveTab,
-    });
-
-    const backAction = (
-        <Button
-            label="Back"
-            variant="secondary"
-            icon={<ArrowLeft size={16} />}
-            onClick={onBack}
-        >
-            Back
-        </Button>
-    );
-
-    const pageTitle = material?.title
-        ? `Manage: ${material.title}`
-        : materialLoading
-            ? 'Loading…'
-            : 'Manage Material';
-
     if (materialLoading || questionsLoading || quizzesLoading) {
         return (
-            <Page title={pageTitle} actions={backAction}>
-                <div {...stylex.props(styles.loading)}>Loading…</div>
-            </Page>
+            <div {...stylex.props(styles.loading)}>Loading…</div>
         );
     }
 
     return (
-        <Page title={pageTitle} actions={backAction}>
-            <div
-                ref={tabListRef}
-                role="tablist"
-                aria-label="Quiz Management tabs"
-                onKeyDown={tabKeyboard.handleKeyDown}
-                {...stylex.props(styles.tabBar)}
-            >
+        <>
+            <TabList value={activeTab} onChange={(tab) => setActiveTab(tab as Tab)} layout="fill" hasDivider aria-label="Quiz Management tabs">
                 {MGMT_TABS.map(({ key, label, icon: Icon }) => (
-                    <button
-                        key={key}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeTab === key}
-                        aria-controls={`mgmt-panel-${key}`}
-                        tabIndex={activeTab === key ? 0 : -1}
-                        onClick={() => setActiveTab(key)}
-                        {...stylex.props(styles.tab, activeTab === key && styles.tabActive)}
-                    >
-                        <Icon size={15} />
-                        {label}
-                    </button>
+                    <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
                 ))}
-            </div>
+            </TabList>
 
             <div
                 role="tabpanel"
@@ -174,6 +101,6 @@ export default function QuizManagementScreen({ materialId, onBack }: QuizManagem
                     />
                 )}
             </div>
-        </Page>
+        </>
     );
 }

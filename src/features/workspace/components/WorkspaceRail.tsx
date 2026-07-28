@@ -1,170 +1,105 @@
-import { useState, useCallback, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Menu, X } from 'lucide-react';
+import { Home, BookText, GraduationCap } from 'lucide-react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { useSubject } from '../../../shared/hooks/useSubject';
 import { useMaterial } from '../../../shared/hooks/useMaterial';
 
-// ── Breakpoints (mirror tokens from theme) ────────────────
-const tablet = '@media (max-width: 1024px)';
 const mobile = '@media (max-width: 768px)';
 const motionSafe = '@media (prefers-reduced-motion: no-preference)';
 
 const styles = stylex.create({
-  rail: {
+  floatingPanel: {
+    position: 'fixed',
+    top: 16,
+    left: 16,
+    bottom: 16,
+    width: 60,
+    borderRadius: 24,
+    background: 'var(--color-background-surface)',
+    border: '1px solid var(--color-border)',
+    boxShadow: '0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
+    backdropFilter: 'blur(12px)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    width: 64,
-    height: '100svh',
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    background: '#f8f7fa',
-    borderRight: '1px solid #e5e4e7',
-    padding: '12px 0',
+    padding: '16px 0',
     gap: 8,
     zIndex: 100,
-    // Tablet: collapsible via translate
-    [tablet]: {
-      transform: 'translateX(-64px)',
-      opacity: 0,
-      pointerEvents: 'none' as const,
-      transitionProperty: 'transform, opacity',
-      transitionDuration: '0.2s',
-      transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    },
     [mobile]: {
-      width: '100%',
-      maxWidth: 280,
-      boxShadow: '4px 0 24px rgba(0,0,0,0.1)',
+      top: 'auto',
+      bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+      left: 16,
+      right: 16,
+      width: 'calc(100% - 32px)',
+      height: 60,
+      flexDirection: 'row',
+      justifyContent: 'space-evenly',
+      padding: '0 12px',
+      borderRadius: 20,
     },
   },
-  railVisible: {
-    [tablet]: {
-      transform: 'translateX(0)',
-      opacity: 1,
-      pointerEvents: 'auto' as const,
-    },
-  },
-
-  // Mobile overlay backdrop
-  overlay: {
-    display: 'none',
-    [mobile]: {
-      display: 'block',
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.3)',
-      zIndex: 99,
-    },
-  },
-  overlayHidden: {
-    [mobile]: {
-      display: 'none',
-    },
-  },
-  // Desktop: always visible
-  railDesktop: {
-    [tablet]: {
-      transform: 'none',
-      opacity: 1,
-      pointerEvents: 'auto' as const,
-      transition: 'none',
-    },
-  },
-
-  navItem: {
+  pillButton: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     border: 'none',
     background: 'transparent',
-    color: '#6b6375',
+    color: 'var(--color-text-secondary)',
     cursor: 'pointer',
+    outline: 'none',
     [motionSafe]: {
-      transition: 'all 0.15s ease',
+      transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease, color 0.15s ease, box-shadow 0.2s ease',
     },
     ':hover': {
-      background: '#ecedf9',
-      color: '#6366f1',
+      transform: 'translateY(-1px) scale(1.04)',
+      background: 'var(--color-accent-muted)',
+      color: 'var(--color-accent)',
+    },
+    ':active': {
+      transform: 'scale(0.96)',
+    },
+    ':focus-visible': {
+      boxShadow: '0 0 0 2px var(--color-background-surface), 0 0 0 4px var(--color-accent)',
+    },
+    [mobile]: {
+      ':hover': {
+        transform: 'none',
+      },
     },
   },
-  navItemActive: {
-    background: '#ecedf9',
-    color: '#6366f1',
+  pillActive: {
+    background: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
+    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+    ':hover': {
+      background: 'var(--color-accent-muted)',
+      color: 'var(--color-accent)',
+    },
+  },
+  pillActiveSubject: {
+    background: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
+    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+  },
+  pillActiveMaterial: {
+    background: 'rgba(217, 119, 6, 0.12)',
+    color: '#d97706',
+    boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)',
   },
   divider: {
     width: 24,
     height: 1,
-    background: '#e5e4e7',
+    background: 'var(--color-border)',
     margin: '4px 0',
-  },
-  chip: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 48,
-    padding: '6px 0',
-    borderRadius: 8,
-    fontSize: 9,
-    fontWeight: 600,
-    letterSpacing: '0.3px',
-    textTransform: 'uppercase',
-    color: '#6b6375',
-    textAlign: 'center',
-    gap: 2,
-    cursor: 'default',
-  },
-  chipSubject: {
-    background: '#ecedf9',
-    color: '#6366f1',
-  },
-  chipMaterial: {
-    background: '#fef3e6',
-    color: '#c4841d',
-  },
-  chipIcon: {
-    opacity: 0.7,
-  },
-  chipLabel: {
-    lineHeight: 1.2,
-    wordBreak: 'break-all',
-    maxWidth: 48,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  spacer: {
-    flex: 1,
-  },
-  // Mobile menu toggle button
-  menuButton: {
-    display: 'none',
+    opacity: 0.6,
     [mobile]: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'fixed',
-      top: 12,
-      left: 12,
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      border: '1px solid #e5e4e7',
-      background: '#fff',
-      color: '#6b6375',
-      cursor: 'pointer',
-      zIndex: 101,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-    },
-    ':hover': {
-      background: '#f8f7fa',
-      color: '#6366f1',
+      width: 1,
+      height: 24,
+      margin: '0 4px',
     },
   },
 });
@@ -179,97 +114,74 @@ interface WorkspaceRailProps {
 export function WorkspaceRail({ subjectId, materialId, isLibrary, onNavigate }: WorkspaceRailProps) {
   const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
-  const [isOpen, setIsOpen] = useState(false);
 
-  // Close drawer on navigation (mobile)
-  const handleNavigate = useCallback(
-    (route: AppRoute) => {
-      setIsOpen(false);
-      onNavigate(route);
-    },
-    [onNavigate],
-  );
-
-  // Close drawer on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen]);
+  // Active route checks
+  const isSubjectActive = !isLibrary && Boolean(subject) && !material;
+  const isMaterialActive = !isLibrary && Boolean(material);
 
   return (
-    <>
-      {/* Mobile menu button */}
+    <nav {...stylex.props(styles.floatingPanel)} aria-label="Workspace Navigation">
       <button
         type="button"
-        {...stylex.props(styles.menuButton)}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label={isOpen ? 'Close navigation' : 'Open navigation'}
-        aria-expanded={isOpen}
+        {...stylex.props(styles.pillButton, isLibrary && styles.pillActive)}
+        onClick={() => onNavigate({ kind: 'library' })}
+        aria-label="Library Home"
+        aria-current={isLibrary ? 'page' : undefined}
+        title="Library"
       >
-        {isOpen ? <X size={20} /> : <Menu size={20} />}
+        <Home size={20} />
       </button>
 
-      {/* Mobile overlay backdrop */}
-      <div
-        {...stylex.props(styles.overlay, !isOpen && styles.overlayHidden)}
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
+      {!isLibrary && (
+        <>
+          <div {...stylex.props(styles.divider)} aria-hidden="true" />
 
-      <nav
-        {...stylex.props(
-          styles.rail,
-          isOpen && styles.railVisible,
-        )}
-        aria-label="Workspace navigation"
-      >
-        <button
-          type="button"
-          {...stylex.props(styles.navItem, isLibrary && styles.navItemActive)}
-          onClick={() => handleNavigate({ kind: 'library' })}
-          title="Home"
-          aria-label="Home"
-          aria-current={isLibrary ? 'page' : undefined}
-        >
-          <Home size={20} />
-        </button>
+          {subject && (
+            <button
+              type="button"
+              {...stylex.props(
+                styles.pillButton,
+                isSubjectActive && styles.pillActiveSubject
+              )}
+              onClick={() =>
+                onNavigate({
+                  kind: 'subject',
+                  subjectId: subject.id,
+                  activeTab: 'materials',
+                })
+              }
+              aria-label={`Subject: ${subject.title}`}
+              aria-current={isSubjectActive ? 'page' : undefined}
+              title={`Subject: ${subject.title}`}
+            >
+              <GraduationCap size={20} />
+            </button>
+          )}
 
-        {!isLibrary && (
-          <>
-            <div {...stylex.props(styles.divider)} aria-hidden="true" />
-            {subject && (
-              <div
-                {...stylex.props(styles.chip, styles.chipSubject)}
-                title={subject.title}
-                role="status"
-                aria-label={`Subject: ${subject.title}`}
-              >
-                <GraduationCap size={12} {...stylex.props(styles.chipIcon)} />
-                <span {...stylex.props(styles.chipLabel)}>
-                  {subject.title.substring(0, 3).toUpperCase()}
-                </span>
-              </div>
-            )}
-            {material && (
-              <div
-                {...stylex.props(styles.chip, styles.chipMaterial)}
-                title={material.title}
-                role="status"
-                aria-label={`Material: ${material.title}`}
-              >
-                <BookText size={12} {...stylex.props(styles.chipIcon)} />
-                <span {...stylex.props(styles.chipLabel)}>
-                  {material.title.substring(0, 3).toUpperCase()}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </nav>
-    </>
+          {material && (
+            <button
+              type="button"
+              {...stylex.props(
+                styles.pillButton,
+                isMaterialActive && styles.pillActiveMaterial
+              )}
+              onClick={() =>
+                onNavigate({
+                  kind: 'workspace',
+                  workspace: 'material',
+                  materialId: material.id,
+                  activeTab: 'read',
+                })
+              }
+              aria-label={`Material: ${material.title}`}
+              aria-current={isMaterialActive ? 'page' : undefined}
+              title={`Material: ${material.title}`}
+            >
+              <BookText size={20} />
+            </button>
+          )}
+        </>
+      )}
+    </nav>
   );
 }
