@@ -1,8 +1,9 @@
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Sparkles } from 'lucide-react';
+import { Home, BookText, GraduationCap } from 'lucide-react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { useSubject } from '../../../shared/hooks/useSubject';
 import { useMaterial } from '../../../shared/hooks/useMaterial';
+import logoSvg from '../../../assets/logo.svg';
 
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 const mobile = '@media (max-width: 768px)';
@@ -83,11 +84,14 @@ const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-accent)',
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+  },
+  brandLogo: {
+    width: 36,
+    height: 36,
+    objectFit: 'contain',
   },
   brandTitle: {
     fontSize: 18,
@@ -241,9 +245,9 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
         {/* Desktop Brand Header */}
         <div {...stylex.props(styles.brandHeader)}>
           <div {...stylex.props(styles.brandIcon)}>
-            <Sparkles size={18} />
+            <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.brandLogo)} />
           </div>
-          <span {...stylex.props(styles.brandTitle)}>LunaClair</span>
+          <span {...stylex.props(styles.brandTitle)}>Project LunaClair</span>
         </div>
 
         {/* Navigation Items */}
@@ -315,7 +319,7 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
       </div>
 
       <div {...stylex.props(styles.footer)}>
-        <span>LunaClair v1.0</span>
+        <span>Project LunaClair v1.0</span>
       </div>
     </nav>
   );

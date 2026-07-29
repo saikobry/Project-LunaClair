@@ -1,4 +1,4 @@
-import type { ReactNode, KeyboardEvent } from 'react';
+import type { ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 
 const styles = stylex.create({
@@ -9,6 +9,12 @@ const styles = stylex.create({
     cursor: 'pointer',
     outline: 'none',
     transition: 'all 0.15s ease',
+    appearance: 'none',
+    border: 'none',
+    background: 'none',
+    font: 'inherit',
+    color: 'inherit',
+    padding: 0,
   },
 });
 
@@ -20,22 +26,13 @@ export interface SelectableRowProps {
 }
 
 export function SelectableRow({ onToggle, style, children }: SelectableRowProps) {
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onToggle();
-    }
-  };
-
   return (
-    <div
+    <button
+      type="button"
       {...stylex.props(styles.row, style)}
       onClick={onToggle}
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
     >
       {children}
-    </div>
+    </button>
   );
 }
