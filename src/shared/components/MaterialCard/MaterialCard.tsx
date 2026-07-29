@@ -3,9 +3,9 @@ import * as stylex from '@stylexjs/stylex';
 import { MoreHorizontal, BookOpen, BrainCircuit, ClipboardList, Pencil, Trash2 } from 'lucide-react';
 import { ToggleButton } from '@astryxdesign/core/ToggleButton';
 import type { StudyMaterial } from '../../../domain/library';
-import { Card } from '../Card';
-import { Button } from '../Button';
-import { Chip } from '../Chip/Chip';
+import { Card } from '../../ui/Card';
+import { Button } from '../../ui/Button';
+import { Chip } from '../../ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
 
 export interface MaterialCardProps {

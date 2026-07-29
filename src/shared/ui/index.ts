@@ -26,16 +26,7 @@ export type { TabListProps, TabProps } from './TabList/TabList';
 export { SegmentedControl, SegmentedControlItem } from './SegmentedControl/SegmentedControl';
 export type { SegmentedControlProps, SegmentedControlItemProps } from './SegmentedControl/SegmentedControl';
 
-export { SelectableRow } from './SelectableRow/SelectableRow';
-export type { SelectableRowProps } from './SelectableRow/SelectableRow';
-
 export { Chip } from './Chip/Chip';
 export type { ChipProps } from './Chip/Chip';
-
-export { MaterialCard } from './MaterialCard/MaterialCard';
-export type { MaterialCardProps } from './MaterialCard/MaterialCard';
-
-export { TermGroupedSelector } from './TermGroupedSelector/TermGroupedSelector';
-export type { TermGroupedSelectorProps } from './TermGroupedSelector/TermGroupedSelector';
 
 

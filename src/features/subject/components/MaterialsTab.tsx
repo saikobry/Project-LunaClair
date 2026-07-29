@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { StudyMaterial } from '../../../domain/library';
 import type { Term } from '../../../domain/library';
-import { MaterialCard } from '../../../shared/ui/MaterialCard/MaterialCard';
+import { MaterialCard } from '../../../shared/components/MaterialCard/MaterialCard';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 const styles = stylex.create({

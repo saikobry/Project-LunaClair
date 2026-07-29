@@ -22,6 +22,7 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-005](ADR-005-strategy-pattern.md) | Strategy Pattern for Question Validation & Grading | Accepted | Phase 5 |
 | [ADR-006](ADR-006-immutable-quiz-history.md) | Immutable Quiz Session History via Embedded Question Snapshots | Accepted | Phase 5 |
 | [ADR-007](ADR-007-feature-first-architecture.md) | Feature-First Project Module Organization | Accepted | Phase 1 |
+| [ADR-008](ADR-008-shared-ui-vs-components-layering.md) | Shared UI Primitives vs. Composite Components Layering | Accepted | Phase 5 |
 
 ---
 

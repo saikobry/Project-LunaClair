@@ -13,8 +13,8 @@ Truly shared code: reusable types, constants, utility functions, and base UI com
 | `constants/annotationDefaults.ts` | `BRUSH_COLORS`, `THICKNESS_OPTIONS`, `HIGHLIGHT_COLORS` |
 | `utils/selection.ts` | `getOffsetsOfRange()`, `restoreRange()` — DOM Range ↔ character offset utilities |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
-| `ui/` | LunaClair UI primitives (Button, Card, Dialog, Input, Page, Breadcrumbs, Toast, Skeleton, TabList, SegmentedControl, SelectableRow, Chip, TermGroupedSelector) — thin Astryx adapters |
-| `components/` | Reserved for shared composite components |
+| `ui/` | Design system primitive adapters — thin, 1-to-1 wrappers around `@astryxdesign/core` (Button, Card, Dialog, Input, Page, Breadcrumbs, Toast, Skeleton, TabList, SegmentedControl, Chip) |
+| `components/` | Composite / multi-element shared components built from primitives (MaterialCard, TermGroupedSelector, SelectableRow) |
 | `hooks/` | Reusable shared custom hooks (`useSubject`, `useTerms`, `useMaterial`, `useTermGroupedSelection`, etc.) |
 
 ## Local Contracts

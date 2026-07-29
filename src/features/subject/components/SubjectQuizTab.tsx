@@ -2,7 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { BrainCircuit } from 'lucide-react';
 import type { StudyMaterial, Term } from '../../../domain/library';
 import { Button } from '../../../shared/ui/Button';
-import { TermGroupedSelector } from '../../../shared/ui/TermGroupedSelector/TermGroupedSelector';
+import { TermGroupedSelector } from '../../../shared/components/TermGroupedSelector/TermGroupedSelector';
 import { useTermGroupedSelection } from '../../../shared/hooks/useTermGroupedSelection';
 
 const styles = stylex.create({
