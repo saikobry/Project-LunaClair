@@ -4,31 +4,92 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
 import { styles } from '../styles/library.stylex';
+import type { Subject } from '../../../domain/library';
+import type { Term } from '../../../domain/library';
+
+const selectStyles = stylex.create({
+  select: {
+    padding: '10px 14px',
+    fontSize: 14,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border)',
+    borderRadius: 8,
+    color: 'var(--color-text-primary)',
+    backgroundColor: 'var(--color-background-surface)',
+    outlineStyle: 'none',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.15s ease',
+    ':focus': {
+      borderColor: 'var(--color-accent)',
+      boxShadow: '0 0 0 3px var(--color-overlay-hover)',
+    },
+  },
+});
 
 interface EditMaterialModalProps {
   initialTitle: string;
   initialDescription: string;
-  onSave: (title: string, description: string) => void;
+  initialSubjectId?: string | null;
+  initialTermId?: string | null;
+  subjects: Subject[];
+  terms: Term[];
+  onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
   onClose: () => void;
 }
 
 export default function EditMaterialModal({
   initialTitle,
   initialDescription,
+  initialSubjectId,
+  initialTermId,
+  subjects,
+  terms,
   onSave,
   onClose,
 }: EditMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
+    initialSubjectId ?? null,
+  );
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(
+    initialTermId ?? null,
+  );
+
+  // Filter terms by the selected subject
+  const availableTerms = selectedSubjectId
+    ? terms.filter((t) => t.subjectId === selectedSubjectId)
+    : [];
+
+  // Reset term when subject changes and the current term doesn't belong to the new subject
+  const handleSubjectChange = (value: string) => {
+    const newSubjectId = value === '__unassigned__' ? null : value;
+    setSelectedSubjectId(newSubjectId);
+    // If the current term doesn't belong to the new subject, clear it
+    if (
+      selectedTermId &&
+      newSubjectId &&
+      !terms.some((t) => t.id === selectedTermId && t.subjectId === newSubjectId)
+    ) {
+      setSelectedTermId(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
-      onSave(title.trim(), description.trim());
+      onSave(
+        title.trim(),
+        description.trim(),
+        selectedSubjectId,
+        selectedTermId,
+      );
     }
   };
 
   return (
-    <Dialog isOpen onClose={onClose} title="Edit Material" width={420}>
+    <Dialog isOpen onClose={onClose} title="Edit Material" width={460}>
       <form
         onSubmit={handleSubmit}
         style={{
@@ -61,6 +122,50 @@ export default function EditMaterialModal({
             rows={3}
           />
         </div>
+
+        {/* Subject selector */}
+        <div {...stylex.props(styles.fieldGroup)}>
+          <label {...stylex.props(styles.label)} htmlFor="edit-subject">
+            Subject
+          </label>
+          <select
+            id="edit-subject"
+            {...stylex.props(selectStyles.select)}
+            value={selectedSubjectId ?? '__unassigned__'}
+            onChange={(e) => handleSubjectChange(e.target.value)}
+          >
+            <option value="__unassigned__">Unassigned / General Library</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Term selector — only shown when a subject with terms is selected */}
+        {availableTerms.length > 0 && (
+          <div {...stylex.props(styles.fieldGroup)}>
+            <label {...stylex.props(styles.label)} htmlFor="edit-term">
+              Term
+            </label>
+            <select
+              id="edit-term"
+              {...stylex.props(selectStyles.select)}
+              value={selectedTermId ?? ''}
+              onChange={(e) =>
+                setSelectedTermId(e.target.value || null)
+              }
+            >
+              <option value="">No term</option>
+              {availableTerms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div {...stylex.props(styles.modalActions)}>
           <Button label="Cancel" variant="secondary" onClick={onClose} />

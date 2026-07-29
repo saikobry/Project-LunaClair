@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { BookOpen, Plus } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
 import type { Term } from '../../../domain/library';
 import { MaterialCard } from '../../../shared/components/MaterialCard/MaterialCard';
+import { Button } from '../../../shared/ui/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 const styles = stylex.create({
@@ -17,10 +19,37 @@ const styles = stylex.create({
     gap: 16,
   },
   empty: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '64px 32px',
     textAlign: 'center',
-    padding: 32,
-    color: 'var(--color-text-secondary)',
+    gap: 12,
+  },
+  emptyIcon: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
+    margin: 0,
+  },
+  emptyText: {
     fontSize: 14,
+    color: 'var(--color-text-secondary)',
+    margin: 0,
+    maxWidth: 360,
+    lineHeight: 1.5,
   },
 });
 
@@ -32,6 +61,8 @@ interface MaterialsTabProps {
   onManage: (materialId: string, subjectId?: string) => void;
   onEdit?: (material: StudyMaterial) => void;
   onDelete?: (material: StudyMaterial) => void;
+  onAddMaterial?: () => void;
+  isAddingMaterial?: boolean;
 }
 
 export default function MaterialsTab({
@@ -42,6 +73,8 @@ export default function MaterialsTab({
   onManage,
   onEdit,
   onDelete,
+  onAddMaterial,
+  isAddingMaterial = false,
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
@@ -81,9 +114,39 @@ export default function MaterialsTab({
         </SegmentedControl>
       )}
 
-      {filteredMaterials.length === 0 ? (
+      {materials.length === 0 ? (
+        /* Full empty state — no materials exist yet */
         <div {...stylex.props(styles.empty)}>
-          No materials found for this filter.
+          <div {...stylex.props(styles.emptyIcon)}>
+            <BookOpen size={28} />
+          </div>
+          <h3 {...stylex.props(styles.emptyTitle)}>No materials yet</h3>
+          <p {...stylex.props(styles.emptyText)}>
+            This subject doesn't have any study materials yet.
+            Create your first material to start studying.
+          </p>
+          {onAddMaterial && (
+            <Button
+              label="Create your first material"
+              variant="primary"
+              icon={<Plus size={18} />}
+              onClick={onAddMaterial}
+              isLoading={isAddingMaterial}
+            >
+              Create your first material
+            </Button>
+          )}
+        </div>
+      ) : filteredMaterials.length === 0 ? (
+        /* Filtered empty state — materials exist but none match the filter */
+        <div {...stylex.props(styles.empty)}>
+          <div {...stylex.props(styles.emptyIcon)}>
+            <BookOpen size={28} />
+          </div>
+          <h3 {...stylex.props(styles.emptyTitle)}>No matching materials</h3>
+          <p {...stylex.props(styles.emptyText)}>
+            No materials match the current term filter. Try selecting a different term.
+          </p>
         </div>
       ) : (
         <div {...stylex.props(styles.grid)}>

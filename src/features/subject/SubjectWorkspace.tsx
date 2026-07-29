@@ -1,15 +1,18 @@
 import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit } from 'lucide-react';
+import { BookOpen, BrainCircuit, Plus } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import type { StudyMaterial } from '../../domain/library';
 import { useSubject } from '../../shared/hooks/useSubject';
+import { useSubjects } from '../../shared/hooks/useSubjects';
 import { useTerms } from '../../shared/hooks/useTerms';
 import { useLibrary } from '../library/hooks/useLibrary';
+import { useCreateMaterial } from '../library/hooks/mutations/useCreateMaterial';
 import { useEditMaterial } from '../library/hooks/mutations/useEditMaterial';
 import { useDeleteMaterial } from '../library/hooks/mutations/useDeleteMaterial';
 import { Page } from '../../shared/ui/Page';
+import { Button } from '../../shared/ui/Button';
 import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
@@ -59,7 +62,9 @@ export default function SubjectWorkspace({
 }: SubjectWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<SubjectTab>(initialTab);
   const { subject, isLoading: subjectLoading } = useSubject(subjectId);
+  const { subjects } = useSubjects();
   const { terms, isLoading: termsLoading } = useTerms(subjectId);
+  const { terms: allTerms } = useTerms();
   const { materials } = useLibrary();
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
@@ -82,20 +87,26 @@ export default function SubjectWorkspace({
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
   };
 
+  const createMaterialMutation = useCreateMaterial();
   const editMutation = useEditMaterial();
   const deleteMutation = useDeleteMaterial();
 
   const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
 
+  const handleAddMaterial = useCallback(() => {
+    const title = `Study Material ${materials.length + 1}`;
+    createMaterialMutation.mutate({ title, subjectId });
+  }, [materials.length, createMaterialMutation, subjectId]);
+
   const handleEditTrigger = useCallback((material: StudyMaterial) => {
     setEditTarget(material);
   }, []);
 
   const handleEditSave = useCallback(
-    (title: string, description: string) => {
+    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
       if (!editTarget) return;
-      editMutation.mutate({ id: editTarget.id, input: { title, description } });
+      editMutation.mutate({ id: editTarget.id, input: { title, description, subjectId, termId } });
       setEditTarget(null);
     },
     [editTarget, editMutation],
@@ -182,6 +193,18 @@ export default function SubjectWorkspace({
           ]}
         />
       }
+      actions={
+        activeTab === 'materials' ? (
+          <Button
+            label="Add Material"
+            variant="primary"
+            icon={<Plus size={18} />}
+            onClick={handleAddMaterial}
+          >
+            Add Material
+          </Button>
+        ) : undefined
+      }
     >
       <TabList value={activeTab} onChange={handleTabChange} layout="fill" hasDivider aria-label="Subject tabs">
         {SUBJECT_TABS.map(({ key, label, icon: Icon }) => (
@@ -203,6 +226,8 @@ export default function SubjectWorkspace({
             onManage={handleManageMaterial}
             onEdit={handleEditTrigger}
             onDelete={handleDeleteTrigger}
+            onAddMaterial={handleAddMaterial}
+            isAddingMaterial={createMaterialMutation.isPending}
           />
         )}
 
@@ -219,6 +244,10 @@ export default function SubjectWorkspace({
         <EditMaterialModal
           initialTitle={editTarget.title}
           initialDescription={editTarget.description ?? ''}
+          initialSubjectId={editTarget.subjectId}
+          initialTermId={editTarget.termId}
+          subjects={subjects}
+          terms={allTerms}
           onSave={handleEditSave}
           onClose={handleEditClose}
         />

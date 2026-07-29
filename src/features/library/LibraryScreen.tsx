@@ -1,8 +1,14 @@
 import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../domain/library';
+import type { Subject } from '../../domain/library';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import { useLibrary } from './hooks/useLibrary';
 import { useSubjects } from '../../shared/hooks/useSubjects';
+import { useCreateSubject } from '../../shared/hooks/useCreateSubject';
+import { useEditSubject } from '../../shared/hooks/useEditSubject';
+import { useDeleteSubject } from '../../shared/hooks/useDeleteSubject';
+import { useReorderSubjects } from '../../shared/hooks/useReorderSubjects';
+import { useTerms } from '../../shared/hooks/useTerms';
 import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
 import { useEditMaterial } from './hooks/mutations/useEditMaterial';
@@ -18,12 +24,20 @@ interface LibraryScreenProps {
 export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage }: LibraryScreenProps) {
   const { materials } = useLibrary();
   const { subjects } = useSubjects();
+  const { terms: allTerms } = useTerms();
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
   const editMutation = useEditMaterial();
+  const createSubjectMutation = useCreateSubject();
+  const editSubjectMutation = useEditSubject();
+  const deleteSubjectMutation = useDeleteSubject();
+  const reorderSubjectsMutation = useReorderSubjects();
 
   const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
+  const [subjectEditTarget, setSubjectEditTarget] = useState<Subject | null>(null);
+  const [subjectDeleteTarget, setSubjectDeleteTarget] = useState<Subject | null>(null);
+  const [showCreateSubject, setShowCreateSubject] = useState(false);
 
   const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
 
@@ -31,6 +45,10 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
     const title = `Study Material ${materials.length + 1}`;
     createMutation.mutate({ title });
   }, [materials.length, createMutation]);
+
+  const handleNewSubject = useCallback(() => {
+    setShowCreateSubject(true);
+  }, []);
 
   const handleOpen = useCallback(
     (material: StudyMaterial) => {
@@ -44,9 +62,12 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   }, []);
 
   const handleEditSave = useCallback(
-    (title: string, description: string) => {
+    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
       if (!editTarget) return;
-      editMutation.mutate({ id: editTarget.id, input: { title, description } });
+      editMutation.mutate({
+        id: editTarget.id,
+        input: { title, description, subjectId, termId },
+      });
       setEditTarget(null);
     },
     [editTarget, editMutation],
@@ -55,6 +76,59 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   const handleEditClose = useCallback(() => {
     setEditTarget(null);
   }, []);
+
+  const handleCreateSubjectSave = useCallback(
+    (title: string, description: string) => {
+      createSubjectMutation.mutate({ title, description });
+      setShowCreateSubject(false);
+    },
+    [createSubjectMutation],
+  );
+
+  const handleCreateSubjectClose = useCallback(() => {
+    setShowCreateSubject(false);
+  }, []);
+
+  const handleSubjectEdit = useCallback((subject: Subject) => {
+    setSubjectEditTarget(subject);
+  }, []);
+
+  const handleSubjectEditSave = useCallback(
+    (title: string, description: string) => {
+      if (!subjectEditTarget) return;
+      editSubjectMutation.mutate({
+        id: subjectEditTarget.id,
+        input: { title, description },
+      });
+      setSubjectEditTarget(null);
+    },
+    [subjectEditTarget, editSubjectMutation],
+  );
+
+  const handleSubjectEditClose = useCallback(() => {
+    setSubjectEditTarget(null);
+  }, []);
+
+  const handleSubjectDelete = useCallback((subject: Subject) => {
+    setSubjectDeleteTarget(subject);
+  }, []);
+
+  const handleSubjectDeleteConfirm = useCallback(() => {
+    if (!subjectDeleteTarget) return;
+    deleteSubjectMutation.mutate(subjectDeleteTarget.id);
+    setSubjectDeleteTarget(null);
+  }, [subjectDeleteTarget, deleteSubjectMutation]);
+
+  const handleSubjectDeleteClose = useCallback(() => {
+    setSubjectDeleteTarget(null);
+  }, []);
+
+  const handleSubjectReorder = useCallback(
+    (subjectId: string, targetIndex: number) => {
+      reorderSubjectsMutation.mutate({ subjectId, targetIndex });
+    },
+    [reorderSubjectsMutation],
+  );
 
   const handleDeleteTrigger = useCallback((material: StudyMaterial) => {
     setDeleteTarget(material);
@@ -80,9 +154,11 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   return (
     <LibraryView
       subjects={subjects}
+      allTerms={allTerms}
       materials={uncategorizedMaterials}
       allMaterials={materials}
       onNewMaterial={handleNewMaterial}
+      onNewSubject={handleNewSubject}
       onOpen={handleOpen}
       onOpenSubject={onOpenSubject}
       onEdit={handleEditTrigger}
@@ -91,8 +167,20 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
       onManage={(m) => onManage(m.id, m.subjectId)}
       editTarget={editTarget}
       deleteTarget={deleteTarget}
+      subjectEditTarget={subjectEditTarget}
+      subjectDeleteTarget={subjectDeleteTarget}
+      showCreateSubject={showCreateSubject}
       onEditSave={handleEditSave}
       onEditClose={handleEditClose}
+      onSubjectEdit={handleSubjectEdit}
+      onSubjectDelete={handleSubjectDelete}
+      onSubjectReorder={handleSubjectReorder}
+      onSubjectEditSave={handleSubjectEditSave}
+      onSubjectEditClose={handleSubjectEditClose}
+      onSubjectDeleteConfirm={handleSubjectDeleteConfirm}
+      onSubjectDeleteClose={handleSubjectDeleteClose}
+      onCreateSubjectSave={handleCreateSubjectSave}
+      onCreateSubjectClose={handleCreateSubjectClose}
       onDeleteConfirm={handleDeleteConfirm}
       onDeleteClose={handleDeleteClose}
     />

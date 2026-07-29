@@ -41,7 +41,7 @@ export function Card({
       maxWidth={maxWidth}
       minHeight={minHeight}
       className={className}
-      style={style}
+      style={{ overflow: 'visible', ...style }}
     >
       {children}
     </AstryxCard>

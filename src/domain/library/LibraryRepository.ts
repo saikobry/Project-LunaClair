@@ -14,6 +14,8 @@ export interface UpdateMaterialInput {
   title?: string;
   description?: string;
   lastOpenedAt?: string;
+  subjectId?: string | null;
+  termId?: string | null;
 }
 
 export interface LibraryRepository {

@@ -1,13 +1,27 @@
+import { useState, type KeyboardEvent, type DragEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Plus, BookHeart, GraduationCap, ArrowRight } from 'lucide-react';
+import {
+  Plus,
+  BookHeart,
+  GraduationCap,
+  ArrowRight,
+  SquarePen,
+  Trash2,
+  GripVertical,
+} from 'lucide-react';
+import { DropdownMenuItem } from '@astryxdesign/core/DropdownMenu';
 import type { StudyMaterial } from '../../domain/library';
 import type { Subject } from '../../domain/library';
+import type { Term } from '../../domain/library';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { styles } from './styles/library.stylex';
+import { ActionMenu, menuItemStyles } from '../../shared/components/ActionMenu';
 import MaterialGrid from './components/MaterialGrid';
 import EditMaterialModal from './components/EditMaterialModal';
+import EditSubjectModal from './components/EditSubjectModal';
+import CreateSubjectModal from './components/CreateSubjectModal';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 
 const localStyles = stylex.create({
@@ -44,6 +58,39 @@ const localStyles = stylex.create({
     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
     ':hover': {
       transform: 'translateY(-2px)',
+    },
+  },
+  subjectCardDragging: {
+    opacity: 0.4,
+    transform: 'scale(0.96)',
+  },
+  subjectCardDragOver: {
+    boxShadow: '0 0 0 2px var(--color-accent)',
+    transform: 'translateY(-2px)',
+  },
+  subjectHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  dragHandle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    color: 'var(--color-text-disabled)',
+    cursor: 'grab',
+    flexShrink: 0,
+    transition: 'color 0.12s ease, background-color 0.12s ease',
+    ':hover': {
+      color: 'var(--color-text-secondary)',
+      backgroundColor: 'var(--color-background-muted)',
+    },
+    ':active': {
+      cursor: 'grabbing',
     },
   },
   subjectIcon: {
@@ -89,9 +136,11 @@ const localStyles = stylex.create({
 
 interface LibraryViewProps {
   subjects: Subject[];
+  allTerms: Term[];
   materials: StudyMaterial[];
   allMaterials: StudyMaterial[];
   onNewMaterial: () => void;
+  onNewSubject: () => void;
   onOpen: (material: StudyMaterial) => void;
   onOpenSubject: (subjectId: string) => void;
   onEdit: (material: StudyMaterial) => void;
@@ -100,17 +149,31 @@ interface LibraryViewProps {
   onManage: (material: StudyMaterial) => void;
   editTarget: StudyMaterial | null;
   deleteTarget: StudyMaterial | null;
-  onEditSave: (title: string, description: string) => void;
+  subjectEditTarget: Subject | null;
+  subjectDeleteTarget: Subject | null;
+  showCreateSubject: boolean;
+  onEditSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
   onEditClose: () => void;
+  onSubjectEdit: (subject: Subject) => void;
+  onSubjectDelete: (subject: Subject) => void;
+  onSubjectReorder: (subjectId: string, targetIndex: number) => void;
+  onSubjectEditSave: (title: string, description: string) => void;
+  onSubjectEditClose: () => void;
+  onSubjectDeleteConfirm: () => void;
+  onSubjectDeleteClose: () => void;
+  onCreateSubjectSave: (title: string, description: string) => void;
+  onCreateSubjectClose: () => void;
   onDeleteConfirm: () => void;
   onDeleteClose: () => void;
 }
 
 export default function LibraryView({
   subjects,
+  allTerms,
   materials,
   allMaterials,
   onNewMaterial,
+  onNewSubject,
   onOpen,
   onOpenSubject,
   onEdit,
@@ -119,27 +182,86 @@ export default function LibraryView({
   onManage,
   editTarget,
   deleteTarget,
+  subjectEditTarget,
+  subjectDeleteTarget,
+  showCreateSubject,
   onEditSave,
   onEditClose,
+  onSubjectEdit,
+  onSubjectDelete,
+  onSubjectReorder,
+  onSubjectEditSave,
+  onSubjectEditClose,
+  onSubjectDeleteConfirm,
+  onSubjectDeleteClose,
+  onCreateSubjectSave,
+  onCreateSubjectClose,
   onDeleteConfirm,
   onDeleteClose,
 }: LibraryViewProps) {
   const totalCount = allMaterials.length;
   const description = `${subjects.length} ${subjects.length === 1 ? 'subject' : 'subjects'} · ${totalCount} ${totalCount === 1 ? 'material' : 'materials'}`;
 
+  // ── Drag-and-drop state ────────────────────────────────────────
+  const [dragSubjectId, setDragSubjectId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (subjectId: string) => (e: DragEvent) => {
+    setDragSubjectId(subjectId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', subjectId);
+  };
+
+  const handleDragOver = (index: number) => (e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragSubjectId && index !== dragOverIndex) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (targetIndex: number) => (e: DragEvent) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    if (id) {
+      onSubjectReorder(id, targetIndex);
+    }
+    setDragSubjectId(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragSubjectId(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <Page
       title="Study Library"
       description={description}
       actions={
-        <Button
-          label="New Material"
-          variant="primary"
-          icon={<Plus size={18} />}
-          onClick={onNewMaterial}
-        >
-          New Material
-        </Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button
+            label="New Subject"
+            variant="secondary"
+            icon={<Plus size={18} />}
+            onClick={onNewSubject}
+          >
+            New Subject
+          </Button>
+          <Button
+            label="New Material"
+            variant="primary"
+            icon={<Plus size={18} />}
+            onClick={onNewMaterial}
+          >
+            New Material
+          </Button>
+        </div>
       }
     >
       {/* Subjects Grid */}
@@ -149,23 +271,59 @@ export default function LibraryView({
             <h2 {...stylex.props(localStyles.sectionTitle)}>Subjects</h2>
           </div>
           <div {...stylex.props(localStyles.subjectsGrid)}>
-            {subjects.map((subject) => {
+            {subjects.map((subject, index) => {
               const subjectMaterialCount = allMaterials.filter(
                 (m) => m.subjectId === subject.id,
               ).length;
+              const isDragging = dragSubjectId === subject.id;
+              const isDragOver = dragOverIndex === index && dragSubjectId !== subject.id;
+
               return (
                 <Card key={subject.id}>
                   <div
-                    {...stylex.props(localStyles.subjectCard)}
+                    {...stylex.props(
+                      localStyles.subjectCard,
+                      isDragging && localStyles.subjectCardDragging,
+                      isDragOver && localStyles.subjectCardDragOver,
+                    )}
                     onClick={() => onOpenSubject(subject.id)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => {
+                    draggable="true"
+                    onDragStart={handleDragStart(subject.id)}
+                    onDragOver={handleDragOver(index)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop(index)}
+                    onDragEnd={handleDragEnd}
+                    onKeyDown={(e: KeyboardEvent) => {
                       if (e.key === 'Enter' || e.key === ' ') onOpenSubject(subject.id);
                     }}
                   >
-                    <div {...stylex.props(localStyles.subjectIcon)}>
-                      <GraduationCap size={20} />
+                    <div {...stylex.props(localStyles.subjectHeader)}>
+                      <div {...stylex.props(localStyles.subjectIcon)}>
+                        <GraduationCap size={20} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div {...stylex.props(localStyles.dragHandle)}>
+                          <GripVertical size={14} />
+                        </div>
+                        <ActionMenu>
+                          <DropdownMenuItem
+                            icon={<SquarePen size={14} />}
+                            label="Edit"
+                            description="Rename or update description"
+                            onClick={() => onSubjectEdit(subject)}
+                            xstyle={menuItemStyles.item}
+                          />
+                          <DropdownMenuItem
+                            icon={<Trash2 size={14} />}
+                            label="Delete"
+                            description="Remove subject and unassign its materials"
+                            onClick={() => onSubjectDelete(subject)}
+                            xstyle={menuItemStyles.item}
+                          />
+                        </ActionMenu>
+                      </div>
                     </div>
                     <h3 {...stylex.props(localStyles.subjectTitle)}>{subject.title}</h3>
                     {subject.description && (
@@ -232,8 +390,37 @@ export default function LibraryView({
         <EditMaterialModal
           initialTitle={editTarget.title}
           initialDescription={editTarget.description ?? ''}
+          initialSubjectId={editTarget.subjectId}
+          initialTermId={editTarget.termId}
+          subjects={subjects}
+          terms={allTerms}
           onSave={onEditSave}
           onClose={onEditClose}
+        />
+      )}
+
+      {showCreateSubject && (
+        <CreateSubjectModal
+          onSave={onCreateSubjectSave}
+          onClose={onCreateSubjectClose}
+        />
+      )}
+
+      {subjectEditTarget && (
+        <EditSubjectModal
+          initialTitle={subjectEditTarget.title}
+          initialDescription={subjectEditTarget.description ?? ''}
+          onSave={onSubjectEditSave}
+          onClose={onSubjectEditClose}
+        />
+      )}
+
+      {subjectDeleteTarget && (
+        <DeleteConfirmationModal
+          title={subjectDeleteTarget.title}
+          itemType="Subject"
+          onConfirm={onSubjectDeleteConfirm}
+          onClose={onSubjectDeleteClose}
         />
       )}
 

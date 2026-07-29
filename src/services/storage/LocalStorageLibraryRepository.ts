@@ -56,9 +56,15 @@ export class LocalStorageLibraryRepository implements LibraryRepository {
     const materials = getAll();
     const index = materials.findIndex((m) => m.id === id);
     if (index === -1) throw new Error(`Material not found: ${id}`);
+
+    // Convert explicit null to undefined so the field is cleared rather than stored as null
+    const { subjectId, termId, ...rest } = input;
+
     materials[index] = {
       ...materials[index],
-      ...input,
+      ...rest,
+      ...(subjectId !== undefined ? { subjectId: subjectId ?? undefined } : {}),
+      ...(termId !== undefined ? { termId: termId ?? undefined } : {}),
       updatedAt: new Date().toISOString(),
     };
     saveAll(materials);

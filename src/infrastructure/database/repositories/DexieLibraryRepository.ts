@@ -43,9 +43,14 @@ export class DexieLibraryRepository implements LibraryRepository {
         const existing = await db.materials.get(id);
         if (!existing) throw new Error(`Material not found: ${id}`);
 
+        // Convert explicit null to undefined so IndexedDB stores the field as absent
+        const { subjectId, termId, ...rest } = input;
+
         const updated: StudyMaterial = {
             ...existing,
-            ...input,
+            ...rest,
+            ...(subjectId !== undefined ? { subjectId: subjectId ?? undefined } : {}),
+            ...(termId !== undefined ? { termId: termId ?? undefined } : {}),
             updatedAt: new Date().toISOString(),
         };
         await db.materials.put(updated);
