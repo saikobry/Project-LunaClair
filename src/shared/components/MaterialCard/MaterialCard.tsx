@@ -1,19 +1,20 @@
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
+import { type KeyboardEvent, type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { MoreHorizontal, BookOpen, BrainCircuit, ClipboardList, Pencil, Trash2 } from 'lucide-react';
-import { ToggleButton } from '@astryxdesign/core/ToggleButton';
+import { BookOpen, BrainCircuit, ClipboardList, SquarePen, Trash2 } from 'lucide-react';
+import { DropdownMenuItem } from '@astryxdesign/core/DropdownMenu';
 import type { StudyMaterial } from '../../../domain/library';
 import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
+import { ActionMenu, menuItemStyles } from '../ActionMenu';
 
 export interface MaterialCardProps {
   material: StudyMaterial;
   /** Optional term chip label (e.g. "Week 3") */
   termTitle?: string;
   onOpen: (material: StudyMaterial) => void;
-  onRename?: (material: StudyMaterial) => void;
+  onEdit?: (material: StudyMaterial) => void;
   onDelete?: (material: StudyMaterial) => void;
   onStartQuiz?: (material: StudyMaterial) => void;
   onManage?: (material: StudyMaterial) => void;
@@ -37,41 +38,11 @@ export function MaterialCard({
   material,
   termTitle,
   onOpen,
-  onRename,
+  onEdit,
   onDelete,
   onStartQuiz,
   onManage,
 }: MaterialCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const closeMenu = useCallback(() => {
-    setMenuOpen(false);
-  }, []);
-
-  // Close menu on click outside
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e: globalThis.MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        closeMenu();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen, closeMenu]);
-
-  // Close menu on Escape
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeMenu();
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [menuOpen, closeMenu]);
-
   const handleCardClick = () => {
     onOpen(material);
   };
@@ -83,16 +54,12 @@ export function MaterialCard({
     }
   };
 
-  const handleRename = (e: MouseEvent) => {
-    e.stopPropagation();
-    onRename?.(material);
-    closeMenu();
+  const handleEdit = () => {
+    onEdit?.(material);
   };
 
-  const handleDelete = (e: MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = () => {
     onDelete?.(material);
-    closeMenu();
   };
 
   const handleStartQuiz = (e: MouseEvent) => {
@@ -105,14 +72,7 @@ export function MaterialCard({
     onManage?.(material);
   };
 
-  const handleMenuBlur = (e: React.FocusEvent) => {
-    // Close menu when focus leaves the menu container entirely
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      closeMenu();
-    }
-  };
-
-  const hasMenuActions = Boolean(onRename || onDelete);
+  const hasMenuActions = Boolean(onEdit || onDelete);
 
   return (
     <Card aria-hidden={true}>
@@ -124,7 +84,7 @@ export function MaterialCard({
         onKeyDown={handleCardKeyDown}
         aria-label={`Open ${material.title}`}
       >
-        {/* Header: Title + Badges + Ellipsis Menu */}
+        {/* Header: Title + Badges + Action Menu */}
         <div {...stylex.props(cardStyles.header)}>
           <div {...stylex.props(cardStyles.titleColumn)}>
             <h3 {...stylex.props(cardStyles.title)}>{material.title}</h3>
@@ -134,45 +94,26 @@ export function MaterialCard({
             </div>
           </div>
           {hasMenuActions && (
-            <div ref={menuRef} style={{ position: 'relative' }} onBlur={handleMenuBlur}>
-              <ToggleButton
-                label="Card actions"
-                icon={<MoreHorizontal size={16} />}
-                isIconOnly
-                isPressed={menuOpen}
-                onPressedChange={(_pressed, e) => {
-                  e.stopPropagation();
-                  setMenuOpen((prev) => !prev);
-                }}
-              />
-
-              {menuOpen && (
-                <div {...stylex.props(cardStyles.menuPopup)} role="menu">
-                  {onRename && (
-                    <Button
-                      label="Rename"
-                      variant="secondary"
-                      icon={<Pencil size={14} />}
-                      width="100%"
-                      onClick={handleRename}
-                    >
-                      Rename
-                    </Button>
-                  )}
-                  {onDelete && (
-                    <Button
-                      label="Delete"
-                      variant="secondary"
-                      icon={<Trash2 size={14} />}
-                      width="100%"
-                      onClick={handleDelete}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
+            <ActionMenu>
+              {onEdit && (
+                <DropdownMenuItem
+                  icon={<SquarePen size={14} />}
+                  label="Edit"
+                  description="Modify this material"
+                  onClick={handleEdit}
+                  xstyle={menuItemStyles.item}
+                />
               )}
-            </div>
+              {onDelete && (
+                <DropdownMenuItem
+                  icon={<Trash2 size={14} />}
+                  label="Delete"
+                  description="This action cannot be undone"
+                  onClick={handleDelete}
+                  xstyle={menuItemStyles.item}
+                />
+              )}
+            </ActionMenu>
           )}
         </div>
 

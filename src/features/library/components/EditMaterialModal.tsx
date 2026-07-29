@@ -5,19 +5,19 @@ import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
 import { styles } from '../styles/library.stylex';
 
-interface RenameMaterialModalProps {
+interface EditMaterialModalProps {
   initialTitle: string;
   initialDescription: string;
   onSave: (title: string, description: string) => void;
   onClose: () => void;
 }
 
-export default function RenameMaterialModal({
+export default function EditMaterialModal({
   initialTitle,
   initialDescription,
   onSave,
   onClose,
-}: RenameMaterialModalProps) {
+}: EditMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,11 +49,11 @@ export default function RenameMaterialModal({
         </div>
 
         <div {...stylex.props(styles.fieldGroup)}>
-          <label {...stylex.props(styles.label)} htmlFor="rename-desc">
+          <label {...stylex.props(styles.label)} htmlFor="edit-desc">
             Description
           </label>
           <textarea
-            id="rename-desc"
+            id="edit-desc"
             {...stylex.props(styles.textarea)}
             value={description}
             onChange={(e) => setDescription(e.target.value)}

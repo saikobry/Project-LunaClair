@@ -7,7 +7,7 @@ import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { styles } from './styles/library.stylex';
 import MaterialGrid from './components/MaterialGrid';
-import RenameMaterialModal from './components/RenameMaterialModal';
+import EditMaterialModal from './components/EditMaterialModal';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 
 const localStyles = stylex.create({
@@ -94,14 +94,14 @@ interface LibraryViewProps {
   onNewMaterial: () => void;
   onOpen: (material: StudyMaterial) => void;
   onOpenSubject: (subjectId: string) => void;
-  onRename: (material: StudyMaterial) => void;
+  onEdit: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
-  renameTarget: StudyMaterial | null;
+  editTarget: StudyMaterial | null;
   deleteTarget: StudyMaterial | null;
-  onRenameSave: (title: string, description: string) => void;
-  onRenameClose: () => void;
+  onEditSave: (title: string, description: string) => void;
+  onEditClose: () => void;
   onDeleteConfirm: () => void;
   onDeleteClose: () => void;
 }
@@ -113,14 +113,14 @@ export default function LibraryView({
   onNewMaterial,
   onOpen,
   onOpenSubject,
-  onRename,
+  onEdit,
   onDelete,
   onStartQuiz,
   onManage,
-  renameTarget,
+  editTarget,
   deleteTarget,
-  onRenameSave,
-  onRenameClose,
+  onEditSave,
+  onEditClose,
   onDeleteConfirm,
   onDeleteClose,
 }: LibraryViewProps) {
@@ -197,7 +197,7 @@ export default function LibraryView({
           <MaterialGrid
             materials={materials}
             onOpen={onOpen}
-            onRename={onRename}
+            onEdit={onEdit}
             onDelete={onDelete}
             onStartQuiz={onStartQuiz}
             onManage={onManage}
@@ -228,12 +228,12 @@ export default function LibraryView({
       )}
 
       {/* Modals */}
-      {renameTarget && (
-        <RenameMaterialModal
-          initialTitle={renameTarget.title}
-          initialDescription={renameTarget.description ?? ''}
-          onSave={onRenameSave}
-          onClose={onRenameClose}
+      {editTarget && (
+        <EditMaterialModal
+          initialTitle={editTarget.title}
+          initialDescription={editTarget.description ?? ''}
+          onSave={onEditSave}
+          onClose={onEditClose}
         />
       )}
 

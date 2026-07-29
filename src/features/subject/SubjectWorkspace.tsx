@@ -7,13 +7,13 @@ import type { StudyMaterial } from '../../domain/library';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useTerms } from '../../shared/hooks/useTerms';
 import { useLibrary } from '../library/hooks/useLibrary';
-import { useRenameMaterial } from '../library/hooks/mutations/useRenameMaterial';
+import { useEditMaterial } from '../library/hooks/mutations/useEditMaterial';
 import { useDeleteMaterial } from '../library/hooks/mutations/useDeleteMaterial';
 import { Page } from '../../shared/ui/Page';
 import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
-import RenameMaterialModal from '../library/components/RenameMaterialModal';
+import EditMaterialModal from '../library/components/EditMaterialModal';
 import DeleteConfirmationModal from '../library/components/DeleteConfirmationModal';
 import MaterialsTab from './components/MaterialsTab';
 import SubjectQuizTab from './components/SubjectQuizTab';
@@ -82,27 +82,27 @@ export default function SubjectWorkspace({
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
   };
 
-  const renameMutation = useRenameMaterial();
+  const editMutation = useEditMaterial();
   const deleteMutation = useDeleteMaterial();
 
-  const [renameTarget, setRenameTarget] = useState<StudyMaterial | null>(null);
+  const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
 
-  const handleRenameTrigger = useCallback((material: StudyMaterial) => {
-    setRenameTarget(material);
+  const handleEditTrigger = useCallback((material: StudyMaterial) => {
+    setEditTarget(material);
   }, []);
 
-  const handleRenameSave = useCallback(
+  const handleEditSave = useCallback(
     (title: string, description: string) => {
-      if (!renameTarget) return;
-      renameMutation.mutate({ id: renameTarget.id, input: { title, description } });
-      setRenameTarget(null);
+      if (!editTarget) return;
+      editMutation.mutate({ id: editTarget.id, input: { title, description } });
+      setEditTarget(null);
     },
-    [renameTarget, renameMutation],
+    [editTarget, editMutation],
   );
 
-  const handleRenameClose = useCallback(() => {
-    setRenameTarget(null);
+  const handleEditClose = useCallback(() => {
+    setEditTarget(null);
   }, []);
 
   const handleDeleteTrigger = useCallback((material: StudyMaterial) => {
@@ -201,7 +201,7 @@ export default function SubjectWorkspace({
             onOpen={handleOpenMaterial}
             onStartQuiz={handleMaterialsTabQuiz}
             onManage={handleManageMaterial}
-            onRename={handleRenameTrigger}
+            onEdit={handleEditTrigger}
             onDelete={handleDeleteTrigger}
           />
         )}
@@ -215,12 +215,12 @@ export default function SubjectWorkspace({
       </div>
 
       {/* Modals */}
-      {renameTarget && (
-        <RenameMaterialModal
-          initialTitle={renameTarget.title}
-          initialDescription={renameTarget.description ?? ''}
-          onSave={handleRenameSave}
-          onClose={handleRenameClose}
+      {editTarget && (
+        <EditMaterialModal
+          initialTitle={editTarget.title}
+          initialDescription={editTarget.description ?? ''}
+          onSave={handleEditSave}
+          onClose={handleEditClose}
         />
       )}
 

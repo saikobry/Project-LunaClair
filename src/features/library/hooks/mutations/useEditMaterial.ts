@@ -2,24 +2,27 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { StudyMaterial } from '../../../../domain/library';
 import type { UpdateMaterialInput } from '../../../../domain/library/LibraryRepository';
 import { libraryQueryKeys } from '../../queries/libraryQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
 import { useLibraryRepository } from '../useLibraryRepository';
 
-interface RenameVariables {
+interface EditVariables {
   id: string;
   input: UpdateMaterialInput;
 }
 
 /**
- * Renames / updates a study material with optimistic cache update.
+ * Edits / updates a study material with optimistic cache update.
  * On mutation start: snapshot → optimistically apply → rollback on error.
+ * On success: show confirmation toast.
  * On settle: invalidate to reconcile.
  */
-export function useRenameMaterial() {
+export function useEditMaterial() {
   const queryClient = useQueryClient();
   const { libraryRepository } = useLibraryRepository();
+  const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, input }: RenameVariables) => libraryRepository.updateMaterial(id, input),
+    mutationFn: ({ id, input }: EditVariables) => libraryRepository.updateMaterial(id, input),
 
     onMutate: async ({ id, input }) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.materials() });
@@ -36,6 +39,10 @@ export function useRenameMaterial() {
       );
 
       return { previous };
+    },
+
+    onSuccess: () => {
+      showToast('Material updated', { intent: 'success' });
     },
 
     onError: (_err, _vars, context) => {

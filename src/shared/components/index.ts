@@ -6,3 +6,6 @@ export type { MaterialCardProps } from './MaterialCard/MaterialCard';
 
 export { TermGroupedSelector } from './TermGroupedSelector/TermGroupedSelector';
 export type { TermGroupedSelectorProps } from './TermGroupedSelector/TermGroupedSelector';
+
+export { ActionMenu } from './ActionMenu';
+export type { ActionMenuProps } from './ActionMenu';

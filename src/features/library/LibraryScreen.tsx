@@ -5,7 +5,7 @@ import { useLibrary } from './hooks/useLibrary';
 import { useSubjects } from '../../shared/hooks/useSubjects';
 import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
-import { useRenameMaterial } from './hooks/mutations/useRenameMaterial';
+import { useEditMaterial } from './hooks/mutations/useEditMaterial';
 import LibraryView from './LibraryView';
 
 interface LibraryScreenProps {
@@ -20,9 +20,9 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   const { subjects } = useSubjects();
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
-  const renameMutation = useRenameMaterial();
+  const editMutation = useEditMaterial();
 
-  const [renameTarget, setRenameTarget] = useState<StudyMaterial | null>(null);
+  const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
 
   const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
@@ -39,21 +39,21 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
     [onOpenMaterial],
   );
 
-  const handleRenameTrigger = useCallback((material: StudyMaterial) => {
-    setRenameTarget(material);
+  const handleEditTrigger = useCallback((material: StudyMaterial) => {
+    setEditTarget(material);
   }, []);
 
-  const handleRenameSave = useCallback(
+  const handleEditSave = useCallback(
     (title: string, description: string) => {
-      if (!renameTarget) return;
-      renameMutation.mutate({ id: renameTarget.id, input: { title, description } });
-      setRenameTarget(null);
+      if (!editTarget) return;
+      editMutation.mutate({ id: editTarget.id, input: { title, description } });
+      setEditTarget(null);
     },
-    [renameTarget, renameMutation],
+    [editTarget, editMutation],
   );
 
-  const handleRenameClose = useCallback(() => {
-    setRenameTarget(null);
+  const handleEditClose = useCallback(() => {
+    setEditTarget(null);
   }, []);
 
   const handleDeleteTrigger = useCallback((material: StudyMaterial) => {
@@ -85,14 +85,14 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
       onNewMaterial={handleNewMaterial}
       onOpen={handleOpen}
       onOpenSubject={onOpenSubject}
-      onRename={handleRenameTrigger}
+      onEdit={handleEditTrigger}
       onDelete={handleDeleteTrigger}
       onStartQuiz={handleStartQuiz}
       onManage={(m) => onManage(m.id, m.subjectId)}
-      renameTarget={renameTarget}
+      editTarget={editTarget}
       deleteTarget={deleteTarget}
-      onRenameSave={handleRenameSave}
-      onRenameClose={handleRenameClose}
+      onEditSave={handleEditSave}
+      onEditClose={handleEditClose}
       onDeleteConfirm={handleDeleteConfirm}
       onDeleteClose={handleDeleteClose}
     />

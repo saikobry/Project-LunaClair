@@ -3,6 +3,6 @@ export { useLibraryRepository } from './useLibraryRepository';
 export {
   useCreateMaterial,
   useDeleteMaterial,
-  useRenameMaterial,
+  useEditMaterial,
   useTouchMaterial,
 } from './mutations';

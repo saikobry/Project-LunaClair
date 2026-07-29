@@ -30,7 +30,7 @@ interface MaterialsTabProps {
   onOpen: (materialId: string) => void;
   onStartQuiz: (request: { materialId: string; source: string; subjectId?: string }) => void;
   onManage: (materialId: string, subjectId?: string) => void;
-  onRename?: (material: StudyMaterial) => void;
+  onEdit?: (material: StudyMaterial) => void;
   onDelete?: (material: StudyMaterial) => void;
 }
 
@@ -40,7 +40,7 @@ export default function MaterialsTab({
   onOpen,
   onStartQuiz,
   onManage,
-  onRename,
+  onEdit,
   onDelete,
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export default function MaterialsTab({
                 onOpen={(m) => onOpen(m.id)}
                 onStartQuiz={(m) => onStartQuiz({ materialId: m.id, source: 'subject', subjectId: m.subjectId })}
                 onManage={(m) => onManage(m.id, m.subjectId)}
-                onRename={onRename}
+                onEdit={onEdit}
                 onDelete={onDelete}
               />
             );

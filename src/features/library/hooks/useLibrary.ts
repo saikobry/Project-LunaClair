@@ -5,7 +5,7 @@ import { useLibraryRepository } from './useLibraryRepository';
 /**
  * Pure query hook for fetching the study materials list.
  * Does **not** include mutation functions — use dedicated mutation hooks
- * (useCreateMaterial, useDeleteMaterial, useRenameMaterial, useTouchMaterial)
+ * (useCreateMaterial, useDeleteMaterial, useEditMaterial, useTouchMaterial)
  * for all data mutations.
  */
 export function useLibrary() {

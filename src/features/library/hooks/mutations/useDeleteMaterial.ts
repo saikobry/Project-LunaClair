@@ -1,16 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { StudyMaterial } from '../../../../domain/library';
 import { libraryQueryKeys } from '../../queries/libraryQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
 import { useLibraryRepository } from '../useLibraryRepository';
 
 /**
  * Deletes a study material with optimistic cache removal.
  * On mutation start: snapshot → optimistically filter out → rollback on error.
+ * On success: show confirmation toast.
  * On settle: invalidate to reconcile.
  */
 export function useDeleteMaterial() {
   const queryClient = useQueryClient();
   const { libraryRepository } = useLibraryRepository();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (id: string) => libraryRepository.deleteMaterial(id),
@@ -24,6 +27,10 @@ export function useDeleteMaterial() {
       );
 
       return { previous };
+    },
+
+    onSuccess: () => {
+      showToast('Material deleted', { intent: 'success' });
     },
 
     onError: (_err, _id, context) => {

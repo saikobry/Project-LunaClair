@@ -1,16 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
 
-const fadeSlideIn = stylex.keyframes({
-  from: {
-    opacity: 0,
-    transform: 'translateY(-4px)',
-  },
-  to: {
-    opacity: 1,
-    transform: 'translateY(0)',
-  },
-});
-
 export const cardStyles = stylex.create({
   interactive: {
     cursor: 'pointer',
@@ -82,27 +71,5 @@ export const cardStyles = stylex.create({
     gridTemplateColumns: '1fr 1fr',
     gap: 8,
     marginTop: 4,
-  },
-
-  // === Glassmorphic Dropdown Popup ===
-  menuPopup: {
-    position: 'absolute',
-    top: 36,
-    right: 0,
-    minWidth: 150,
-    background: 'rgba(255,255,255,0.88)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid rgba(229,228,231,0.7)',
-    borderRadius: 10,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.12)',
-    zIndex: 100,
-    padding: 6,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    animationName: fadeSlideIn,
-    animationDuration: '0.15s',
-    animationTimingFunction: 'ease-out',
   },
 });
