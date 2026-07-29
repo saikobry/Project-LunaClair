@@ -44,7 +44,7 @@ export default function RenameMaterialModal({
             value={title}
             onChange={(value) => setTitle(value)}
             placeholder="Enter material title"
-            hasAutoFocus
+            autoFocus
           />
         </div>
 

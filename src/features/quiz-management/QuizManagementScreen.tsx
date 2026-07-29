@@ -81,6 +81,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                 {activeTab === 'questions' && (
                     <QuestionBankTab
                         questions={questions}
+                        quizzes={quizzes}
                         materialId={materialId}
                         onCreate={(input) => questionMgmt.createQuestion.mutate(input)}
                         onUpdate={(id, input) => questionMgmt.updateQuestion.mutate({ id, input })}

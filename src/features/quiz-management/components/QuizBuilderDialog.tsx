@@ -196,7 +196,7 @@ export function QuizBuilderDialog({
                     value={title}
                     onChange={setTitle}
                     placeholder="e.g. Chapter 4 Review Quiz"
-                    isRequired
+                    required
                 />
 
                 <Input

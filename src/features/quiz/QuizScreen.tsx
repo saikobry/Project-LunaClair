@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft, AlertTriangle, Inbox, Layers } from 'lucide-react';
 import type { AnswerValue } from './components/QuestionRenderer';
+import type { QuizLaunchRequest } from './types/quizFeature.types';
 import { useQuizSessionFlow } from './hooks/useQuizSessionFlow';
-import { useQuizzes } from './hooks/useQuizzes';
 import { useQuestions } from './hooks/useQuestions';
 import { QuizView } from './components/QuizView';
 import { QuizResultView } from './components/QuizResultView';
@@ -55,7 +55,9 @@ const styles = stylex.create({
 interface QuizScreenProps {
   quizId: string;
   materialIds: string[];
+  quizIds?: string[];
   onExit: () => void;
+  onOpenManagement?: () => void;
   /** When true, renders without Page shell (embedded in workspace tab). */
   embedded?: boolean;
 }
@@ -72,23 +74,28 @@ function QuizShell({ embedded, title, actions, children }: QuizShellProps) {
   return <Page title={title} actions={actions}>{children}</Page>;
 }
 
-export default function QuizScreen({ quizId, materialIds, onExit, embedded = false }: QuizScreenProps) {
+export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpenManagement, embedded = false }: QuizScreenProps) {
   const { showToast } = useToast();
   const [activeQuizId, setActiveQuizId] = useState<string | undefined>(quizId || undefined);
   const [isStarted, setIsStarted] = useState(false);
 
   const materialId = materialIds[0] ?? '';
-  const { quizzes } = useQuizzes(materialId);
+
+  const currentQuizId = activeQuizId ?? quizId;
+  const source = embedded ? 'reader' : 'library';
+
+  // Build the appropriate launch request based on presence of quizIds
+  const launchRequest: QuizLaunchRequest = useMemo(() => {
+    if (quizIds && quizIds.length > 0) {
+      return { type: 'quizzes', quizIds, source };
+    }
+    return { type: 'quiz', quizId: currentQuizId, materialId, source };
+  }, [quizIds, currentQuizId, materialId, source]);
+
   const { questions: bankQuestions } = useQuestions(materialId);
 
-  const launchRequest = {
-    materialId,
-    quizId: activeQuizId,
-    source: 'reader' as const,
-  };
-
   const flow = useQuizSessionFlow(launchRequest);
-  const isUnified = materialIds.length > 1;
+  const isUnified = launchRequest.type === 'quizzes';
 
   const backAction = embedded ? undefined : (
     <Button
@@ -109,7 +116,7 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
         {isUnified && (
           <div {...stylex.props(styles.banner)}>
             <Layers size={16} />
-            Unified Quiz · {materialIds.length} chapters
+            Unified Quiz · {quizIds!.length} quizzes
           </div>
         )}
         <QuestionSkeleton />
@@ -139,7 +146,7 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
         {isUnified && (
           <div {...stylex.props(styles.banner)}>
             <Layers size={16} />
-            Unified Quiz · {materialIds.length} chapters
+            Unified Quiz · {quizIds!.length} quizzes
           </div>
         )}
         <div {...stylex.props(styles.center)}>
@@ -162,17 +169,19 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
         {isUnified && (
           <div {...stylex.props(styles.banner)}>
             <Layers size={16} />
-            Unified Quiz · {materialIds.length} chapters
+            Unified Quiz · {quizIds!.length} quizzes
           </div>
         )}
         <QuizStartView
-          title={flow.questions[0]?.prompt ? 'Knowledge Check' : 'Material Quiz'}
-          quizzes={quizzes}
+          title={isUnified ? 'Unified Knowledge Check' : (flow.questions[0]?.prompt ? 'Knowledge Check' : 'Material Quiz')}
+          quizzes={flow.sourceQuizzes}
           allQuestions={bankQuestions.length > 0 ? bankQuestions : flow.questions}
+          isUnified={isUnified}
           onStartQuiz={(selectedId) => {
             if (selectedId) setActiveQuizId(selectedId);
             setIsStarted(true);
           }}
+          onOpenManagement={onOpenManagement}
         />
       </QuizShell>
     );
@@ -182,6 +191,12 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
   if (flow.flowState === 'completed' && flow.result) {
     return (
       <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
+        {isUnified && (
+          <div {...stylex.props(styles.banner)}>
+            <Layers size={16} />
+            Unified Quiz · {quizIds!.length} quizzes
+          </div>
+        )}
         <QuizResultView
           result={flow.result}
           questions={flow.questions}
@@ -190,6 +205,7 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
             setIsStarted(true);
           }}
           onReturnToOverview={() => {
+            setActiveQuizId(undefined);
             flow.retake();
             setIsStarted(false);
           }}
@@ -208,7 +224,7 @@ export default function QuizScreen({ quizId, materialIds, onExit, embedded = fal
       {isUnified && (
         <div {...stylex.props(styles.banner)}>
           <Layers size={16} />
-          Unified Quiz · {materialIds.length} chapters
+          Unified Quiz · {quizIds!.length} quizzes
         </div>
       )}
       <QuizView

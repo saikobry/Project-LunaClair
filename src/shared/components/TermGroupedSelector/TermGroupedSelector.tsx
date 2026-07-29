@@ -36,6 +36,7 @@ const styles = stylex.create({
     backgroundColor: 'transparent',
     borderStyle: 'none',
     borderWidth: 0,
+    borderColor: 'transparent',
     paddingTop: 0,
     paddingBottom: 0,
     paddingLeft: 0,
@@ -45,7 +46,9 @@ const styles = stylex.create({
     fontFamily: 'inherit',
     color: 'var(--color-accent)',
     cursor: 'pointer',
-    outline: 'none',
+    outlineStyle: 'none',
+    outlineWidth: 0,
+    boxShadow: 'none',
     ':hover': {
       textDecoration: 'underline',
     },

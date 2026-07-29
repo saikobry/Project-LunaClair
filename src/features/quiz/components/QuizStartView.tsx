@@ -67,6 +67,14 @@ const styles = stylex.create({
     borderRadius: 8,
     backgroundColor: 'var(--color-background-muted)',
   },
+  metaBadgeClickable: {
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    ':hover': {
+      backgroundColor: 'var(--color-accent-muted)',
+      color: 'var(--color-accent)',
+    },
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: 600,
@@ -106,18 +114,25 @@ interface QuizStartViewProps {
   title: string;
   quizzes: Quiz[];
   allQuestions: Question[];
+  isUnified?: boolean;
   onStartQuiz: (quizId?: string) => void;
+  onOpenManagement?: () => void;
 }
 
 export function QuizStartView({
   title,
   quizzes,
   allQuestions,
+  isUnified = false,
   onStartQuiz,
+  onOpenManagement,
 }: QuizStartViewProps) {
   const isMultiple = quizzes.length > 1;
   const singleQuiz = quizzes[0];
   const totalQuestionsCount = allQuestions.length > 0 ? allQuestions.length : (singleQuiz?.questionIds.length ?? 0);
+
+  // In material mode (isUnified = false) with multiple quizzes, users pick individual quizzes to start
+  const showTopStartButton = isUnified || !isMultiple;
 
   return (
     <div {...stylex.props(styles.container)}>
@@ -127,13 +142,22 @@ export function QuizStartView({
         </div>
         <h2 {...stylex.props(styles.title)}>{title}</h2>
         <p {...stylex.props(styles.description)}>
-          Test your knowledge and reinforce key concepts from this study material.
+          {!isUnified && isMultiple
+            ? 'Select a quiz below to test your knowledge.'
+            : 'Test your knowledge and reinforce key concepts from this study material.'}
         </p>
 
         <div {...stylex.props(styles.metaGrid)}>
-          <div {...stylex.props(styles.metaBadge)}>
+          <div
+            {...stylex.props(styles.metaBadge, onOpenManagement && styles.metaBadgeClickable)}
+            onClick={onOpenManagement}
+            role={onOpenManagement ? 'button' : undefined}
+            tabIndex={onOpenManagement ? 0 : undefined}
+            onKeyDown={onOpenManagement ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenManagement(); } } : undefined}
+            title={onOpenManagement ? 'Go to Question Bank management' : undefined}
+          >
             <HelpCircle size={15} />
-            <span>{totalQuestionsCount} Questions</span>
+            <span>{totalQuestionsCount} {totalQuestionsCount === 1 ? 'Question' : 'Questions'} in Bank</span>
           </div>
           <div {...stylex.props(styles.metaBadge)}>
             <Layers size={15} />
@@ -141,15 +165,15 @@ export function QuizStartView({
           </div>
         </div>
 
-        {!isMultiple && (
+        {showTopStartButton && (
           <div style={{ marginTop: 16 }}>
             <Button
-              label="Start quiz"
+              label={isUnified ? 'Start unified quiz' : 'Start quiz'}
               variant="primary"
               icon={<Play size={16} />}
-              onClick={() => onStartQuiz(singleQuiz?.id)}
+              onClick={() => onStartQuiz()}
             >
-              Start Quiz
+              {isUnified ? 'Start Unified Quiz' : 'Start Quiz'}
             </Button>
           </div>
         )}
@@ -157,7 +181,9 @@ export function QuizStartView({
 
       {isMultiple && (
         <div {...stylex.props(styles.quizList)}>
-          <h3 {...stylex.props(styles.sectionTitle)}>Available Quizzes ({quizzes.length})</h3>
+          <h3 {...stylex.props(styles.sectionTitle)}>
+            {isUnified ? 'Included Quizzes' : 'Available Quizzes'}
+          </h3>
           {quizzes.map((quiz, index) => {
             const questionCount = quiz.questionIds.length;
             return (
@@ -171,14 +197,16 @@ export function QuizStartView({
                       {questionCount} {questionCount === 1 ? 'question' : 'questions'}
                     </span>
                   </div>
-                  <Button
-                    label={`Start ${quiz.title || `Quiz ${index + 1}`}`}
-                    variant="primary"
-                    icon={<Play size={14} />}
-                    onClick={() => onStartQuiz(quiz.id)}
-                  >
-                    Start
-                  </Button>
+                  {!isUnified && (
+                    <Button
+                      label="Start quiz"
+                      variant="primary"
+                      icon={<Play size={15} />}
+                      onClick={() => onStartQuiz(quiz.id)}
+                    >
+                      Start Quiz
+                    </Button>
+                  )}
                 </div>
               </Card>
             );

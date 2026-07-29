@@ -119,15 +119,38 @@ export default function SubjectWorkspace({
     setDeleteTarget(null);
   }, []);
 
-  const handleStartUnifiedQuiz = (materialIds: string[]) => {
-    onNavigate({
-      kind: 'quiz-session',
-      quizId: `unified-${subjectId}-${Date.now()}`,
-      materialIds,
-      subjectId,
-      returnTo: { kind: 'subject', subjectId, activeTab: 'quiz' },
-    });
-  };
+  const handleStartQuiz = useCallback(
+    (request: QuizLaunchRequest) => {
+      if (request.type === 'quiz') {
+        // Single quiz: navigate to quiz session
+        onNavigate({
+          kind: 'quiz-session',
+          quizId: request.quizId ?? '',
+          materialIds: [],
+          subjectId,
+          returnTo: { kind: 'subject', subjectId, activeTab: 'quiz' },
+        });
+      } else {
+        // Multiple quizzes (unified): navigate with all quiz IDs
+        onNavigate({
+          kind: 'quiz-session',
+          quizId: `unified-${subjectId}-${Date.now()}`,
+          materialIds: [],
+          quizIds: request.quizIds,
+          subjectId,
+          returnTo: { kind: 'subject', subjectId, activeTab: 'quiz' },
+        });
+      }
+    },
+    [onNavigate, subjectId],
+  );
+
+  const handleMaterialsTabQuiz = useCallback(
+    (r: { materialId: string; source: string; subjectId?: string }) => {
+      onStartQuiz({ type: 'quiz', quizId: r.materialId, materialId: r.materialId, source: r.source as 'library' | 'reader', subjectId: r.subjectId });
+    },
+    [onStartQuiz],
+  );
 
   if (subjectLoading || termsLoading) {
     return (
@@ -176,7 +199,7 @@ export default function SubjectWorkspace({
             materials={subjectMaterials}
             terms={terms}
             onOpen={handleOpenMaterial}
-            onStartQuiz={(r) => onStartQuiz({ materialId: r.materialId, source: r.source as 'library' | 'reader', subjectId: r.subjectId })}
+            onStartQuiz={handleMaterialsTabQuiz}
             onManage={handleManageMaterial}
             onRename={handleRenameTrigger}
             onDelete={handleDeleteTrigger}
@@ -185,9 +208,8 @@ export default function SubjectWorkspace({
 
         {activeTab === 'quiz' && (
           <SubjectQuizTab
-            materials={subjectMaterials}
-            terms={terms}
-            onStartUnifiedQuiz={handleStartUnifiedQuiz}
+            subjectId={subjectId}
+            onStartQuiz={handleStartQuiz}
           />
         )}
       </div>

@@ -1,10 +1,12 @@
 import type { QuizSession } from './QuizSession';
+import type { Quiz } from './Quiz';
+import type { QuizMode } from './QuizMode';
 import type { SubmittedAnswer } from './Answer';
 
-export interface CreateSessionInput {
-    quizId: string;
-    mode: QuizSession['mode'];
-}
+/** Discriminated session creation contract. */
+export type CreateSessionInput =
+    | { source: 'stored'; quizId: string; mode: QuizMode }
+    | { source: 'virtual'; quiz: Quiz; mode: QuizMode };
 
 export interface QuizSessionRepository {
     getSessions(quizId: string, signal?: AbortSignal): Promise<QuizSession[]>;
@@ -13,6 +15,7 @@ export interface QuizSessionRepository {
      * Creates a new quiz session with immutable question snapshots.
      * Implementations must capture the current state of all quiz questions
      * into `questionSnapshots` at creation time.
+     * Virtual quizzes ({ source: 'virtual' }) are used in-memory without persisting to db.quizzes.
      */
     createSession(input: CreateSessionInput): Promise<QuizSession>;
     /** Submits answers and finalizes the session with a computed score. */

@@ -3,6 +3,7 @@ export { default as QuizScreen } from './QuizScreen';
 
 // Types
 export type { QuizLaunchRequest, QuizFlowState } from './types/quizFeature.types';
+export type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from './types/quizTree.types';
 
 // Hooks
 export {
@@ -12,6 +13,8 @@ export {
     useQuestions,
     useQuizzes,
     useQuizSessions,
+    useSubjectQuizTree,
+    useQuizTreeSelection,
     useQuestionMutations,
     useQuizMutations,
     useSessionMutations,

@@ -40,6 +40,9 @@ export { IdentificationStrategy } from './strategies/IdentificationStrategy';
 export { FillBlankStrategy } from './strategies/FillBlankStrategy';
 export { resolveStrategy } from './strategies/QuestionStrategyResolver';
 
+// Virtual quiz
+export { buildUnifiedQuestionSetFromQuizzes, createVirtualQuizFromQuizzes } from './virtualQuiz';
+
 // Assessment service
 export { AssessmentService, assessmentService } from './AssessmentService';
 export type { QuizResult } from './AssessmentService';

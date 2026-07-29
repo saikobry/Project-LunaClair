@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, Trash2 } from 'lucide-react';
 import type { IdentificationPayload } from '../../../domain/quiz/AnswerPayload';
@@ -59,6 +60,14 @@ export function IdentificationEditor({ value, onChange }: IdentificationEditorPr
         onChange({ ...value, acceptedAlternatives: updated });
     };
 
+    const alternativeItems = useMemo(() => {
+        return (value.acceptedAlternatives ?? []).map((text, idx) => ({
+            id: `alt-${idx}-${text}`,
+            text,
+            index: idx,
+        }));
+    }, [value.acceptedAlternatives]);
+
     return (
         <div {...stylex.props(styles.container)}>
             <div {...stylex.props(styles.section)}>
@@ -67,7 +76,7 @@ export function IdentificationEditor({ value, onChange }: IdentificationEditorPr
                     value={value.correctAnswer}
                     onChange={(v) => onChange({ ...value, correctAnswer: v })}
                     placeholder="Primary correct answer"
-                    isRequired
+                    required
                 />
             </div>
 
@@ -76,22 +85,22 @@ export function IdentificationEditor({ value, onChange }: IdentificationEditorPr
                 <p {...stylex.props(styles.hint)}>
                     Alternative answers are matched case-insensitively.
                 </p>
-                {alternatives.map((alt, i) => (
-                    <div key={i} {...stylex.props(styles.altRow)}>
+                {alternativeItems.map((item) => (
+                    <div key={item.id} {...stylex.props(styles.altRow)}>
                         <div {...stylex.props(styles.altInput)}>
                             <Input
-                                label={`Alternative ${i + 1}`}
-                                value={alt}
-                                onChange={(v) => updateAlternative(i, v)}
-                                placeholder={`Alternative ${i + 1}`}
+                                label={`Alternative ${item.index + 1}`}
+                                value={item.text}
+                                onChange={(v) => updateAlternative(item.index, v)}
+                                placeholder={`Alternative ${item.index + 1}`}
                             />
                         </div>
                         <Button
-                            label={`Remove alternative ${i + 1}`}
+                            label={`Remove alternative ${item.index + 1}`}
                             variant="danger"
                             icon={<Trash2 size={14} />}
                             isIconOnly
-                            onClick={() => removeAlternative(i)}
+                            onClick={() => removeAlternative(item.index)}
                         />
                     </div>
                 ))}

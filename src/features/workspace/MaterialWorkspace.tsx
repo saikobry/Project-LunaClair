@@ -120,6 +120,7 @@ export default function MaterialWorkspace({
             quizId=""
             materialIds={[materialId]}
             onExit={() => onNavigate({ kind: 'library' })}
+            onOpenManagement={() => handleTabChange('manage')}
             embedded
           />
         )}

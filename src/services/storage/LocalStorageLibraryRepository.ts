@@ -40,6 +40,9 @@ export class LocalStorageLibraryRepository implements LibraryRepository {
       description: input.description,
       sourceType: input.sourceType ?? 'bundled',
       sourceId: input.sourceId ?? generateId(),
+      subjectId: input.subjectId,
+      termId: input.termId,
+      order: input.order,
       createdAt: now,
       updatedAt: now,
     };

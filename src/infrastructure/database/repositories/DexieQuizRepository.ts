@@ -21,6 +21,18 @@ export class DexieQuizRepository implements QuizRepository {
         return (await db.quizzes.get(id)) ?? null;
     }
 
+    async getQuizzesForMaterials(materialIds: string[], signal?: AbortSignal): Promise<Quiz[]> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (materialIds.length === 0) return [];
+        return db.quizzes.where('materialId').anyOf(materialIds).toArray();
+    }
+
+    async getQuizzesByIds(ids: string[], signal?: AbortSignal): Promise<Quiz[]> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (ids.length === 0) return [];
+        return db.quizzes.where('id').anyOf(ids).toArray();
+    }
+
     async createQuiz(input: CreateQuizInput): Promise<Quiz> {
         const now = new Date().toISOString();
         const quiz: Quiz = {

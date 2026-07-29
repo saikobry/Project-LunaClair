@@ -1,4 +1,4 @@
-import { type ChangeEvent } from 'react';
+import { type ChangeEvent, type ReactNode } from 'react';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
 export interface InputProps {
@@ -11,9 +11,9 @@ export interface InputProps {
   /** Placeholder text. */
   placeholder?: string;
   /** Disabled state. @default false */
-  isDisabled?: boolean;
+  disabled?: boolean;
   /** Whether the field is required. @default false */
-  isRequired?: boolean;
+  required?: boolean;
   /** HTML input type. @default 'text' */
   type?: 'text' | 'password' | 'email';
   /** Description text displayed between label and input. */
@@ -21,11 +21,19 @@ export interface InputProps {
   /** Error or status message. */
   statusMessage?: string;
   /** Whether to auto-focus on mount. @default false */
-  hasAutoFocus?: boolean;
+  autoFocus?: boolean;
   /** Additional class name. */
   className?: string;
   /** Inline styles. */
   style?: React.CSSProperties;
+  /** Whether to visually hide the label. @default false */
+  labelHidden?: boolean;
+  /** Icon to display at the start of the input. */
+  startIcon?: ReactNode;
+  /** Whether to show a clear button when a value is set. @default false */
+  clearable?: boolean;
+  /** Input size. @default 'md' */
+  size?: 'sm' | 'md' | 'lg';
 }
 
 /**
@@ -40,26 +48,34 @@ export function Input({
   value,
   onChange,
   placeholder,
-  isDisabled = false,
-  isRequired = false,
+  disabled = false,
+  required = false,
   type = 'text',
   description,
   statusMessage,
-  hasAutoFocus = false,
+  autoFocus = false,
   className,
   style,
+  labelHidden = false,
+  startIcon,
+  clearable = false,
+  size = 'md',
 }: InputProps) {
   return (
     <TextInput
       label={label}
+      isLabelHidden={labelHidden}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      isDisabled={isDisabled}
-      isRequired={isRequired}
+      isDisabled={disabled}
+      isRequired={required}
       type={type}
       description={description}
-      hasAutoFocus={hasAutoFocus}
+      hasAutoFocus={autoFocus}
+      startIcon={startIcon}
+      hasClear={clearable}
+      size={size}
       className={className}
       style={style}
       {...(statusMessage

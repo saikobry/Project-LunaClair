@@ -1,6 +1,7 @@
 import type { QuizSession } from '../../../domain/quiz/QuizSession';
 import type { SubmittedAnswer } from '../../../domain/quiz/Answer';
 import type { Question } from '../../../domain/quiz/Question';
+import type { Quiz } from '../../../domain/quiz/Quiz';
 import type {
     QuizSessionRepository,
     CreateSessionInput,
@@ -26,11 +27,18 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
      * Creates a session with immutable question snapshots.
      * Uses a multi-store transaction to atomically read quiz + questions
      * and write the new session.
+     * Virtual quizzes ({ source: 'virtual' }) are created in-memory without persisting to db.quizzes.
      */
     async createSession(input: CreateSessionInput): Promise<QuizSession> {
         return db.transaction('rw', [db.quizSessions, db.quizzes, db.questions], async () => {
-            const quiz = await db.quizzes.get(input.quizId);
-            if (!quiz) throw new Error(`Quiz not found: ${input.quizId}`);
+            let quiz: Quiz | undefined;
+
+            if (input.source === 'virtual') {
+                quiz = input.quiz;
+            } else {
+                quiz = await db.quizzes.get(input.quizId);
+                if (!quiz) throw new Error(`Quiz not found: ${input.quizId}`);
+            }
 
             const questions = await db.questions
                 .where('id')
@@ -44,7 +52,7 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
 
             const session: QuizSession = {
                 id: generateId(),
-                quizId: input.quizId,
+                quizId: quiz.id,
                 mode: input.mode,
                 status: 'in_progress',
                 questionSnapshots,

@@ -209,7 +209,7 @@ export function QuestionEditorDialog({
                         value={prompt}
                         onChange={setPrompt}
                         placeholder="Enter the question prompt"
-                        isRequired
+                        required
                     />
 
                     <div {...stylex.props(styles.editorSection)}>

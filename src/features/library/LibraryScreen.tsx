@@ -72,7 +72,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
 
   const handleStartQuiz = useCallback(
     (material: StudyMaterial) => {
-      onStartQuiz({ materialId: material.id, source: 'library', subjectId: material.subjectId });
+      onStartQuiz({ type: 'quiz', quizId: material.id, materialId: material.id, source: 'library', subjectId: material.subjectId });
     },
     [onStartQuiz],
   );

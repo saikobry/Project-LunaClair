@@ -38,7 +38,7 @@ export type AppRoute =
   | { kind: 'library' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'manage'; subjectId?: string }
-  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; subjectId?: string; returnTo: AppRoute };
+  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute };
 
 /**
  * Serialize an AppRoute to a URL path string.
@@ -139,14 +139,41 @@ export default function AppShell() {
 
   const handleStartQuiz = useCallback(
     (request: QuizLaunchRequest) => {
-      // Single-material quiz → open Material Workspace on the Quiz tab
-      navigate({
-        kind: 'workspace',
-        workspace: 'material',
-        materialId: request.materialId,
-        subjectId: request.subjectId,
-        activeTab: 'quiz',
-      });
+      if (request.type === 'quiz') {
+        if (request.materialId) {
+          // Navigate to Material Workspace on the Quiz tab (from Library/Materials cards)
+          navigate({
+            kind: 'workspace',
+            workspace: 'material',
+            materialId: request.materialId,
+            subjectId: request.subjectId,
+            activeTab: 'quiz',
+          });
+        } else {
+          // Launch a single-quiz session directly
+          navigate({
+            kind: 'quiz-session',
+            quizId: request.quizId ?? '',
+            materialIds: [],
+            subjectId: request.subjectId,
+            returnTo: request.subjectId
+              ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
+              : { kind: 'library' },
+          });
+        }
+      } else {
+        // Multi-quiz (unified) → navigate to quiz session
+        navigate({
+          kind: 'quiz-session',
+          quizId: `unified-${Date.now()}`,
+          materialIds: [],
+          quizIds: request.quizIds,
+          subjectId: request.subjectId,
+          returnTo: request.subjectId
+            ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
+            : { kind: 'library' },
+        });
+      }
     },
     [navigate],
   );
@@ -221,6 +248,7 @@ export default function AppShell() {
           <QuizScreen
             quizId={currentRoute.quizId}
             materialIds={currentRoute.materialIds}
+            quizIds={currentRoute.quizIds}
             onExit={handleExitQuiz}
           />
         )}

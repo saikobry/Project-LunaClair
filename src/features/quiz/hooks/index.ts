@@ -8,6 +8,10 @@ export { useQuestions } from './useQuestions';
 export { useQuizzes } from './useQuizzes';
 export { useQuizSessions } from './useQuizSessions';
 
+// Tree hooks
+export { useSubjectQuizTree } from './useSubjectQuizTree';
+export { useQuizTreeSelection } from './useQuizTreeSelection';
+
 // Mutation hooks
 export { useQuestionMutations } from './useQuestionMutations';
 export { useQuizMutations } from './useQuizMutations';

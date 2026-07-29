@@ -10,7 +10,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async query + mutation hooks via TanStack Query, dependency-injected repository |
-| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), DI repositories |
+| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), Subject Quiz Explorer tree & selection hooks, DI repositories |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), QuizManagementService, publish/archive workflows |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |

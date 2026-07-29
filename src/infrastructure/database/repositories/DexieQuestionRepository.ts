@@ -21,6 +21,12 @@ export class DexieQuestionRepository implements QuestionRepository {
         return (await db.questions.get(id)) ?? null;
     }
 
+    async getQuestionsByIds(ids: string[], signal?: AbortSignal): Promise<Question[]> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (ids.length === 0) return [];
+        return db.questions.where('id').anyOf(ids).toArray();
+    }
+
     async createQuestion(input: CreateQuestionInput): Promise<Question> {
         const now = new Date().toISOString();
         const question: Question = {

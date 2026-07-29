@@ -105,6 +105,14 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-background-muted)',
         color: 'var(--color-text-disabled)',
     },
+    badgeUsed: {
+        backgroundColor: 'var(--color-accent-muted)',
+        color: 'var(--color-accent)',
+    },
+    badgeUnused: {
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-disabled)',
+    },
     cardActions: {
         display: 'flex',
         gap: 6,
@@ -135,6 +143,7 @@ const TYPE_LABELS: Record<QuestionType, string> = {
 
 interface QuestionBankTabProps {
     questions: Question[];
+    quizzes?: import('../../../domain/quiz/Quiz').Quiz[];
     materialId: string;
     onCreate: (input: CreateQuestionInput) => void;
     onUpdate: (id: string, input: UpdateQuestionInput) => void;
@@ -152,6 +161,7 @@ const statusBadgeStyle = (status: QuestionStatus) => {
 
 export function QuestionBankTab({
     questions,
+    quizzes = [],
     materialId,
     onCreate,
     onUpdate,
@@ -251,54 +261,88 @@ export function QuestionBankTab({
                 </Button>
             </div>
 
-            {filtered.length === 0 ? (
+            {questions.length === 0 ? (
+                <div {...stylex.props(styles.empty)}>
+                    <Inbox size={40} />
+                    <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>0 Questions in Question Bank</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
+                        Add questions to build your material's question bank and create quizzes.
+                    </p>
+                    <Button
+                        label="Create first question"
+                        variant="primary"
+                        icon={<Search size={14} />}
+                        onClick={openCreate}
+                    >
+                        + Create First Question
+                    </Button>
+                </div>
+            ) : filtered.length === 0 ? (
                 <div {...stylex.props(styles.empty)}>
                     <Inbox size={40} />
                     <p>No questions match your filters.</p>
                 </div>
             ) : (
                 <div {...stylex.props(styles.list)}>
-                    {filtered.map((q) => (
-                        <div key={q.id} {...stylex.props(styles.card)}>
-                            <div {...stylex.props(styles.cardContent)}>
-                                <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
-                                <div {...stylex.props(styles.badges)}>
-                                    <span {...stylex.props(styles.badge)}>{TYPE_LABELS[q.type]}</span>
-                                    <span {...stylex.props(styles.badge)}>{q.difficulty}</span>
-                                    <span {...stylex.props(styles.badge)}>{q.points} pt</span>
-                                    <span {...stylex.props(styles.badge, statusBadgeStyle(q.status))}>{q.status}</span>
-                                    <span {...stylex.props(styles.version)}>v{q.version}</span>
+                    {filtered.map((q) => {
+                        const usageCount = quizzes.filter((quiz) => quiz.questionIds.includes(q.id)).length;
+
+                        const handleArchiveClick = () => {
+                            if (usageCount > 0) {
+                                const confirmed = window.confirm(
+                                    `This question is used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'} — archiving it will affect those quizzes. Are you sure?`
+                                );
+                                if (!confirmed) return;
+                            }
+                            onArchive(q.id);
+                            showToast('Question moved to archive', { intent: 'info' });
+                        };
+
+                        return (
+                            <div key={q.id} {...stylex.props(styles.card)}>
+                                <div {...stylex.props(styles.cardContent)}>
+                                    <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
+                                    <div {...stylex.props(styles.badges)}>
+                                        <span {...stylex.props(styles.badge)}>{TYPE_LABELS[q.type]}</span>
+                                        <span {...stylex.props(styles.badge)}>{q.difficulty}</span>
+                                        <span {...stylex.props(styles.badge)}>{q.points} pt</span>
+                                        <span {...stylex.props(styles.badge, statusBadgeStyle(q.status))}>{q.status}</span>
+                                        <span {...stylex.props(styles.badge, usageCount > 0 ? styles.badgeUsed : styles.badgeUnused)}>
+                                            {usageCount > 0 ? `Used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'}` : 'Not used in any quiz'}
+                                        </span>
+                                        <span {...stylex.props(styles.version)}>v{q.version}</span>
+                                    </div>
+                                </div>
+                                <div {...stylex.props(styles.cardActions)}>
+                                    {q.status === 'draft' && (
+                                        <Button
+                                            label={`Publish question: ${q.prompt}`}
+                                            variant="secondary"
+                                            icon={<CheckCircle size={14} />}
+                                            isIconOnly
+                                            onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
+                                        />
+                                    )}
+                                    <Button
+                                        label={`Edit question: ${q.prompt}`}
+                                        variant="secondary"
+                                        icon={<Pencil size={14} />}
+                                        isIconOnly
+                                        onClick={() => openEdit(q)}
+                                    />
+                                    {q.status !== 'archived' && (
+                                        <Button
+                                            label={`Archive question: ${q.prompt}`}
+                                            variant="danger"
+                                            icon={<Archive size={14} />}
+                                            isIconOnly
+                                            onClick={handleArchiveClick}
+                                        />
+                                    )}
                                 </div>
                             </div>
-                            <div {...stylex.props(styles.cardActions)}>
-                                {q.status === 'draft' && (
-                                    <Button
-                                        label={`Publish question: ${q.prompt}`}
-                                        variant="secondary"
-                                        icon={<CheckCircle size={14} />}
-                                        isIconOnly
-                                        onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
-                                    />
-                                )}
-                                <Button
-                                    label={`Edit question: ${q.prompt}`}
-                                    variant="secondary"
-                                    icon={<Pencil size={14} />}
-                                    isIconOnly
-                                    onClick={() => openEdit(q)}
-                                />
-                                {q.status !== 'archived' && (
-                                    <Button
-                                        label={`Archive question: ${q.prompt}`}
-                                        variant="danger"
-                                        icon={<Archive size={14} />}
-                                        isIconOnly
-                                        onClick={() => { onArchive(q.id); showToast('Question moved to archive', { intent: 'info' }); }}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
