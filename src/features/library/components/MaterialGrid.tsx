@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import type { StudyMaterial } from '../../../domain/library';
+import { MaterialCard } from '../../../shared/ui/MaterialCard/MaterialCard';
 import { styles } from '../styles/library.stylex';
-import MaterialCard from './MaterialCard';
 
 interface MaterialGridProps {
   materials: StudyMaterial[];
@@ -9,10 +9,10 @@ interface MaterialGridProps {
   onRename: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
-  onManageQuiz: (material: StudyMaterial) => void;
+  onManage: (material: StudyMaterial) => void;
 }
 
-export default function MaterialGrid({ materials, onOpen, onRename, onDelete, onStartQuiz, onManageQuiz }: MaterialGridProps) {
+export default function MaterialGrid({ materials, onOpen, onRename, onDelete, onStartQuiz, onManage }: MaterialGridProps) {
   return (
     <div {...stylex.props(styles.grid)}>
       {materials.map((material) => (
@@ -23,7 +23,7 @@ export default function MaterialGrid({ materials, onOpen, onRename, onDelete, on
           onRename={onRename}
           onDelete={onDelete}
           onStartQuiz={onStartQuiz}
-          onManageQuiz={onManageQuiz}
+          onManage={onManage}
         />
       ))}
     </div>

@@ -28,6 +28,9 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     minWidth: 0,
+    '@media (max-width: 768px)': {
+      paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+    },
   },
 });
 
@@ -136,19 +139,21 @@ export default function AppShell() {
 
   const handleStartQuiz = useCallback(
     (request: QuizLaunchRequest) => {
+      // Single-material quiz → open Material Workspace on the Quiz tab
       navigate({
-        kind: 'quiz-session',
-        quizId: request.quizId ?? '',
-        materialIds: [request.materialId],
-        returnTo: { kind: 'workspace', workspace: 'material', materialId: request.materialId, activeTab: 'read' },
+        kind: 'workspace',
+        workspace: 'material',
+        materialId: request.materialId,
+        subjectId: request.subjectId,
+        activeTab: 'quiz',
       });
     },
     [navigate],
   );
 
   const handleManageQuiz = useCallback(
-    (materialId: string) => {
-      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'manage' });
+    (materialId: string, subjectId?: string) => {
+      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
     },
     [navigate],
   );
@@ -192,7 +197,7 @@ export default function AppShell() {
             onOpenMaterial={handleOpenMaterial}
             onOpenSubject={handleOpenSubject}
             onStartQuiz={handleStartQuiz}
-            onManageQuiz={handleManageQuiz}
+            onManage={handleManageQuiz}
           />
         )}
         {currentRoute.kind === 'subject' && (
@@ -200,6 +205,7 @@ export default function AppShell() {
             subjectId={currentRoute.subjectId}
             activeTab={currentRoute.activeTab}
             onNavigate={navigate}
+            onOpenMaterial={handleOpenMaterial}
             onStartQuiz={handleStartQuiz}
           />
         )}

@@ -1,8 +1,9 @@
 import * as stylex from '@stylexjs/stylex';
 import { BrainCircuit } from 'lucide-react';
 import type { StudyMaterial, Term } from '../../../domain/library';
-import { Button, TermGroupedSelector } from '../../../shared/ui';
-import { useTermGroupedSelection } from '../../../shared/hooks';
+import { Button } from '../../../shared/ui/Button';
+import { TermGroupedSelector } from '../../../shared/ui/TermGroupedSelector/TermGroupedSelector';
+import { useTermGroupedSelection } from '../../../shared/hooks/useTermGroupedSelection';
 
 const styles = stylex.create({
   container: {

@@ -6,6 +6,7 @@ export interface QuizLaunchRequest {
   quizId?: string;
   source: 'library' | 'reader';
   mode?: QuizMode;
+  subjectId?: string;
 }
 
 /** State machine states for the quiz player flow. */

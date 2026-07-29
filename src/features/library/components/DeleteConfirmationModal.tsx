@@ -1,7 +1,4 @@
-import * as stylex from '@stylexjs/stylex';
-import { Dialog } from '../../../shared/ui/Dialog';
-import { Button } from '../../../shared/ui/Button';
-import { styles } from '../styles/library.stylex';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 interface DeleteConfirmationModalProps {
   title: string;
@@ -15,20 +12,15 @@ export default function DeleteConfirmationModal({
   onClose,
 }: DeleteConfirmationModalProps) {
   return (
-    <Dialog isOpen onClose={onClose} title="Delete Material" width={400}>
-      <p {...stylex.props(styles.modalDescription)}>
-        Are you sure you want to delete <strong>{title}</strong>? This action
-        cannot be undone.
-      </p>
-
-      <div {...stylex.props(styles.modalActions)}>
-        <Button label="Cancel" variant="secondary" onClick={onClose} />
-        <Button
-          label="Delete"
-          variant="danger"
-          onClick={onConfirm}
-        />
-      </div>
-    </Dialog>
+    <ConfirmationDialog
+      isOpen
+      title="Delete Material"
+      message={`Are you sure you want to delete ${title}? This action cannot be undone.`}
+      confirmLabel="Delete"
+      cancelLabel="Cancel"
+      intent="danger"
+      onConfirm={onConfirm}
+      onCancel={onClose}
+    />
   );
 }

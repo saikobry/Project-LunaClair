@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { HighlightItem, HighlightColor } from '../../../shared/types';
-import { restoreRange } from '../../../shared/utils';
+import { restoreRange } from '../../../shared/utils/selection';
 import { readerQueryKeys } from '../queries/readerQueryKeys';
 import { useAnnotationRepository } from './useAnnotationRepository';
 import { useSaveHighlights } from './mutations/useSaveHighlights';

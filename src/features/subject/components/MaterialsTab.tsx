@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Eye, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
 import type { Term } from '../../../domain/library';
-import { Card, Button, SegmentedControl, SegmentedControlItem, Chip } from '../../../shared/ui';
+import { MaterialCard } from '../../../shared/ui/MaterialCard/MaterialCard';
+import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 const styles = stylex.create({
   container: {
@@ -15,36 +15,6 @@ const styles = stylex.create({
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     gap: 16,
-  },
-  cardContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    padding: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-    lineHeight: 1.3,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    lineHeight: 1.4,
-  },
-  cardBadges: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  cardActions: {
-    display: 'flex',
-    gap: 6,
-    marginTop: 4,
   },
   empty: {
     textAlign: 'center',
@@ -58,8 +28,10 @@ interface MaterialsTabProps {
   materials: StudyMaterial[];
   terms: Term[];
   onOpen: (materialId: string) => void;
-  onStartQuiz: (request: { materialId: string; source: string }) => void;
-  onManage: (materialId: string) => void;
+  onStartQuiz: (request: { materialId: string; source: string; subjectId?: string }) => void;
+  onManage: (materialId: string, subjectId?: string) => void;
+  onRename?: (material: StudyMaterial) => void;
+  onDelete?: (material: StudyMaterial) => void;
 }
 
 export default function MaterialsTab({
@@ -68,6 +40,8 @@ export default function MaterialsTab({
   onOpen,
   onStartQuiz,
   onManage,
+  onRename,
+  onDelete,
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
@@ -114,45 +88,20 @@ export default function MaterialsTab({
       ) : (
         <div {...stylex.props(styles.grid)}>
           {filteredMaterials.map((material) => {
-            const termTitle = material.termId ? termMap.get(material.termId) : null;
+            const termTitle = material.termId ? termMap.get(material.termId) : undefined;
             return (
-              <Card key={material.id}>
-                <div {...stylex.props(styles.cardContent)}>
-                  <h3 {...stylex.props(styles.cardTitle)}>{material.title}</h3>
-                  {material.description && (
-                    <p {...stylex.props(styles.cardDescription)}>{material.description}</p>
-                  )}
-                  <div {...stylex.props(styles.cardBadges)}>
-                    {termTitle && <Chip variant="accent">{termTitle}</Chip>}
-                    <Chip variant="neutral">{material.sourceType}</Chip>
-                  </div>
-                  <div {...stylex.props(styles.cardActions)}>
-                  <Button
-                    label={`Open ${material.title}`}
-                    variant="secondary"
-                    icon={<Eye size={14} />}
-                    isIconOnly
-                    onClick={() => onOpen(material.id)}
-                  />
-                  <Button
-                    label={`Quiz for ${material.title}`}
-                    variant="secondary"
-                    icon={<BrainCircuit size={14} />}
-                    isIconOnly
-                    onClick={() => onStartQuiz({ materialId: material.id, source: 'subject' })}
-                  />
-                  <Button
-                    label={`Manage ${material.title}`}
-                    variant="secondary"
-                    icon={<ClipboardList size={14} />}
-                    isIconOnly
-                    onClick={() => onManage(material.id)}
-                  />
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+              <MaterialCard
+                key={material.id}
+                material={material}
+                termTitle={termTitle}
+                onOpen={(m) => onOpen(m.id)}
+                onStartQuiz={(m) => onStartQuiz({ materialId: m.id, source: 'subject', subjectId: m.subjectId })}
+                onManage={(m) => onManage(m.id, m.subjectId)}
+                onRename={onRename}
+                onDelete={onDelete}
+              />
+            );
+          })}
         </div>
       )}
     </div>

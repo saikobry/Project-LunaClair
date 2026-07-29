@@ -12,10 +12,10 @@ interface LibraryScreenProps {
   onOpenMaterial: (materialId: string) => void;
   onOpenSubject: (subjectId: string) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
-  onManageQuiz: (materialId: string) => void;
+  onManage: (materialId: string, subjectId?: string) => void;
 }
 
-export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManageQuiz }: LibraryScreenProps) {
+export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage }: LibraryScreenProps) {
   const { materials } = useLibrary();
   const { subjects } = useSubjects();
   const createMutation = useCreateMaterial();
@@ -72,7 +72,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
 
   const handleStartQuiz = useCallback(
     (material: StudyMaterial) => {
-      onStartQuiz({ materialId: material.id, source: 'library' });
+      onStartQuiz({ materialId: material.id, source: 'library', subjectId: material.subjectId });
     },
     [onStartQuiz],
   );
@@ -88,7 +88,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
       onRename={handleRenameTrigger}
       onDelete={handleDeleteTrigger}
       onStartQuiz={handleStartQuiz}
-      onManageQuiz={(m) => onManageQuiz(m.id)}
+      onManage={(m) => onManage(m.id, m.subjectId)}
       renameTarget={renameTarget}
       deleteTarget={deleteTarget}
       onRenameSave={handleRenameSave}

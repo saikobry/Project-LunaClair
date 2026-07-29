@@ -32,6 +32,9 @@ export type { SelectableRowProps } from './SelectableRow/SelectableRow';
 export { Chip } from './Chip/Chip';
 export type { ChipProps } from './Chip/Chip';
 
+export { MaterialCard } from './MaterialCard/MaterialCard';
+export type { MaterialCardProps } from './MaterialCard/MaterialCard';
+
 export { TermGroupedSelector } from './TermGroupedSelector/TermGroupedSelector';
 export type { TermGroupedSelectorProps } from './TermGroupedSelector/TermGroupedSelector';
 

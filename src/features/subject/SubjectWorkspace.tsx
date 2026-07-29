@@ -3,13 +3,18 @@ import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
+import type { StudyMaterial } from '../../domain/library';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useTerms } from '../../shared/hooks/useTerms';
 import { useLibrary } from '../library/hooks/useLibrary';
+import { useRenameMaterial } from '../library/hooks/mutations/useRenameMaterial';
+import { useDeleteMaterial } from '../library/hooks/mutations/useDeleteMaterial';
 import { Page } from '../../shared/ui/Page';
 import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
+import RenameMaterialModal from '../library/components/RenameMaterialModal';
+import DeleteConfirmationModal from '../library/components/DeleteConfirmationModal';
 import MaterialsTab from './components/MaterialsTab';
 import SubjectQuizTab from './components/SubjectQuizTab';
 
@@ -41,6 +46,7 @@ interface SubjectWorkspaceProps {
   subjectId: string;
   activeTab: SubjectTab;
   onNavigate: (route: AppRoute) => void;
+  onOpenMaterial: (materialId: string, subjectId?: string) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
 }
 
@@ -48,6 +54,7 @@ export default function SubjectWorkspace({
   subjectId,
   activeTab: initialTab,
   onNavigate,
+  onOpenMaterial,
   onStartQuiz,
 }: SubjectWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<SubjectTab>(initialTab);
@@ -68,12 +75,49 @@ export default function SubjectWorkspace({
   );
 
   const handleOpenMaterial = (materialId: string) => {
-    onNavigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'read' });
+    onOpenMaterial(materialId, subjectId);
   };
 
-  const handleManageMaterial = (materialId: string) => {
-    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'manage' });
+  const handleManageMaterial = (materialId: string, subjectId?: string) => {
+    onNavigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
   };
+
+  const renameMutation = useRenameMaterial();
+  const deleteMutation = useDeleteMaterial();
+
+  const [renameTarget, setRenameTarget] = useState<StudyMaterial | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
+
+  const handleRenameTrigger = useCallback((material: StudyMaterial) => {
+    setRenameTarget(material);
+  }, []);
+
+  const handleRenameSave = useCallback(
+    (title: string, description: string) => {
+      if (!renameTarget) return;
+      renameMutation.mutate({ id: renameTarget.id, input: { title, description } });
+      setRenameTarget(null);
+    },
+    [renameTarget, renameMutation],
+  );
+
+  const handleRenameClose = useCallback(() => {
+    setRenameTarget(null);
+  }, []);
+
+  const handleDeleteTrigger = useCallback((material: StudyMaterial) => {
+    setDeleteTarget(material);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteMutation]);
+
+  const handleDeleteClose = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
 
   const handleStartUnifiedQuiz = (materialIds: string[]) => {
     onNavigate({
@@ -132,8 +176,10 @@ export default function SubjectWorkspace({
             materials={subjectMaterials}
             terms={terms}
             onOpen={handleOpenMaterial}
-            onStartQuiz={(r) => onStartQuiz({ materialId: r.materialId, source: r.source as 'library' | 'reader' })}
+            onStartQuiz={(r) => onStartQuiz({ materialId: r.materialId, source: r.source as 'library' | 'reader', subjectId: r.subjectId })}
             onManage={handleManageMaterial}
+            onRename={handleRenameTrigger}
+            onDelete={handleDeleteTrigger}
           />
         )}
 
@@ -145,6 +191,24 @@ export default function SubjectWorkspace({
           />
         )}
       </div>
+
+      {/* Modals */}
+      {renameTarget && (
+        <RenameMaterialModal
+          initialTitle={renameTarget.title}
+          initialDescription={renameTarget.description ?? ''}
+          onSave={handleRenameSave}
+          onClose={handleRenameClose}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmationModal
+          title={deleteTarget.title}
+          onConfirm={handleDeleteConfirm}
+          onClose={handleDeleteClose}
+        />
+      )}
     </Page>
   );
 }

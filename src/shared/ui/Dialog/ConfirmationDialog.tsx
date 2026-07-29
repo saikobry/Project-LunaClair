@@ -45,7 +45,7 @@ const styles = stylex.create({
     display: 'flex',
     justifyContent: 'flex-end',
     gap: 8,
-    paddingTop: 4,
+    paddingTop: 12,
   },
 });
 
