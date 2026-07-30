@@ -25,6 +25,18 @@ export class LocalDocumentRepository implements DocumentRepository {
 
         const raw = await response.text();
 
+        // Detect Vite SPA fallback — if the dev server returned its index.html
+        // instead of the markdown file, treat it as a missing document.
+        const contentType = response.headers.get('content-type') ?? '';
+        const trimmed = raw.trimStart().toLowerCase();
+        if (
+            contentType.startsWith('text/html') ||
+            trimmed.startsWith('<!doctype html') ||
+            trimmed.startsWith('<html')
+        ) {
+            throw new DocumentNotFoundError(material.sourceId);
+        }
+
         return {
             id: material.id,
             title: material.title,

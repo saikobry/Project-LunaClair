@@ -14,11 +14,6 @@ const styles = stylex.create({
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
-        marginTop: 16,
-        maxHeight: 'calc(75vh - 100px)',
-        overflowY: 'auto',
-        paddingRight: 4,
-        boxSizing: 'border-box',
     },
     section: {
         display: 'flex',
@@ -28,7 +23,7 @@ const styles = stylex.create({
     sectionLabel: {
         fontSize: 13,
         fontWeight: 600,
-        color: '#3d3548',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     questionList: {
@@ -43,10 +38,10 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 8,
         padding: '8px 12px',
-        border: '1px solid #e5e4e7',
+        border: '1px solid var(--color-border)',
         borderRadius: 8,
         fontSize: 13,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
     },
     questionRowSelected: {
         borderColor: 'var(--color-accent)',
@@ -62,7 +57,7 @@ const styles = stylex.create({
     },
     questionVersion: {
         fontSize: 11,
-        color: '#9f95a9',
+        color: 'var(--color-text-disabled)',
         flexShrink: 0,
     },
     reorderButtons: {
@@ -76,26 +71,25 @@ const styles = stylex.create({
         background: 'none',
         cursor: 'pointer',
         padding: 2,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         display: 'flex',
         alignItems: 'center',
+        borderRadius: 4,
+        ':hover': {
+            backgroundColor: 'var(--color-background-muted)',
+            color: 'var(--color-accent)',
+        },
     },
     checkbox: {
         width: 15,
         height: 15,
-        accentColor: '#6366f1',
+        accentColor: 'var(--color-accent)',
         cursor: 'pointer',
         flexShrink: 0,
     },
-    actions: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 8,
-        paddingTop: 8,
-    },
     hint: {
         fontSize: 12,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
     },
 });
@@ -105,7 +99,6 @@ interface QuizBuilderDialogProps {
     onClose: () => void;
     materialId: string;
     questions: Question[];
-    /** If provided, dialog is in edit mode. */
     quiz?: Quiz | null;
     onSave: (input: CreateQuizInput, questions: Question[]) => void;
     onUpdate?: (id: string, input: UpdateQuizInput) => void;
@@ -189,6 +182,21 @@ export function QuizBuilderDialog({
             width={560}
             maxHeight="85vh"
             purpose="form"
+            footer={
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <Button label="Cancel" variant="secondary" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        label={isEditing ? 'Save changes' : 'Create quiz'}
+                        variant="primary"
+                        isDisabled={!title.trim() || selectedIds.length === 0}
+                        onClick={handleSave}
+                    >
+                        {isEditing ? 'Save Changes' : 'Create Quiz'}
+                    </Button>
+                </div>
+            }
         >
             <div {...stylex.props(styles.form)}>
                 <Input
@@ -218,7 +226,7 @@ export function QuizBuilderDialog({
                         Questions ({selectedIds.length} selected)
                     </p>
                     <p {...stylex.props(styles.hint)}>
-                        Select questions and reorder them. Version is pinned at creation time.
+                        Select questions and reorder them. Versions are pinned at creation time.
                     </p>
                     <div {...stylex.props(styles.questionList)}>
                         {availableQuestions.map((q) => {
@@ -262,20 +270,6 @@ export function QuizBuilderDialog({
                             );
                         })}
                     </div>
-                </div>
-
-                <div {...stylex.props(styles.actions)}>
-                    <Button label="Cancel" variant="secondary" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        label={isEditing ? 'Save changes' : 'Create quiz'}
-                        variant="primary"
-                        isDisabled={!title.trim() || selectedIds.length === 0}
-                        onClick={handleSave}
-                    >
-                        {isEditing ? 'Save Changes' : 'Create Quiz'}
-                    </Button>
                 </div>
             </div>
         </Dialog>

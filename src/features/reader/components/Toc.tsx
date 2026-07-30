@@ -1,20 +1,7 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp, List } from 'lucide-react';
-import { Outline, parseOutlineFromMarkdown, type OutlineItem } from '@astryxdesign/core/Outline';
-
-const defaultTocItems: OutlineItem[] = [
-  { label: 'Body Membranes', id: 'body-membranes', level: 1 },
-  { label: 'Epithelial Membranes', id: 'epithelial-membranes', level: 2 },
-  { label: 'Connective Tissue Membranes', id: 'connective-tissue-membranes', level: 2 },
-  { label: 'Integumentary System', id: 'integumentary-system-1', level: 1 },
-  { label: 'Functions of the Integumentary System', id: 'functions-of-the-integumentary-system', level: 2 },
-  { label: 'Structure of the Skin', id: 'structure-of-the-skin', level: 2 },
-  { label: 'Skin Color', id: 'skin-color', level: 2 },
-  { label: 'Appendages of the Skin', id: 'appendages-of-the-skin', level: 2 },
-  { label: 'Homeostatic Imbalances of Skin', id: 'homeostatic-imbalances-of-skin', level: 2 },
-  { label: 'Developmental Aspects', id: 'developmental-aspects-of-skin-and-body-membranes', level: 2 },
-];
+import { Outline, parseOutlineFromMarkdown } from '@astryxdesign/core/Outline';
 
 const mobileQuery = '@media (max-width: 768px)';
 const desktopQuery = '@media (min-width: 769px)';
@@ -150,9 +137,9 @@ export function TocMobile({ content }: TocProps) {
   const [activeId, setActiveId] = useState<string>('');
 
   const items = useMemo(() => {
-    if (!content) return defaultTocItems;
+    if (!content) return [];
     const parsed = parseOutlineFromMarkdown(content);
-    return parsed.length > 0 ? parsed : defaultTocItems;
+    return parsed.length > 0 ? parsed : [];
   }, [content]);
 
   const resolvedActiveId = activeId || items[0]?.id || '';
@@ -169,6 +156,8 @@ export function TocMobile({ content }: TocProps) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  if (items.length === 0) return null;
 
   return (
     <div {...stylex.props(styles.mobileStickyHeader)}>
@@ -214,12 +203,14 @@ export function TocDesktop({ content }: TocProps) {
   const [activeId, setActiveId] = useState<string>('');
 
   const items = useMemo(() => {
-    if (!content) return defaultTocItems;
+    if (!content) return [];
     const parsed = parseOutlineFromMarkdown(content);
-    return parsed.length > 0 ? parsed : defaultTocItems;
+    return parsed.length > 0 ? parsed : [];
   }, [content]);
 
   const resolvedActiveId = activeId || items[0]?.id || '';
+
+  if (items.length === 0) return null;
 
   return (
     <div {...stylex.props(styles.desktopWrapper)}>

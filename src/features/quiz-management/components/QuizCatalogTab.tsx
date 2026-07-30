@@ -3,8 +3,11 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, Pencil, Archive, CheckCircle, Inbox } from 'lucide-react';
 import type { Question } from '../../../domain/quiz/Question';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
+import type { CSSProperties } from 'react';
 import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
 import { Button } from '../../../shared/ui/Button';
+import { Card } from '../../../shared/ui/Card';
+
 import { useToast } from '../../../app/providers/ToastContext';
 import { QuizBuilderDialog } from './QuizBuilderDialog';
 
@@ -24,21 +27,16 @@ const styles = stylex.create({
         flexDirection: 'column',
         gap: 10,
     },
-    card: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 12,
-        padding: 16,
-        backgroundColor: 'var(--color-background-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 10,
-    },
     cardContent: {
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
+        gap: 8,
         flex: 1,
+    },
+    titleRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
     },
     title: {
         fontSize: 14,
@@ -61,26 +59,6 @@ const styles = stylex.create({
         display: 'flex',
         gap: 6,
     },
-    badge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '2px 8px',
-        fontSize: 11,
-        fontWeight: 600,
-        borderRadius: 5,
-    },
-    badgePublished: {
-        backgroundColor: 'var(--color-success-muted)',
-        color: '#166534',
-    },
-    badgeDraft: {
-        backgroundColor: 'var(--color-warning-muted)',
-        color: '#854d0e',
-    },
-    badgeArchived: {
-        backgroundColor: 'var(--color-background-muted)',
-        color: 'var(--color-text-disabled)',
-    },
     cardActions: {
         display: 'flex',
         gap: 6,
@@ -95,7 +73,50 @@ const styles = stylex.create({
         color: 'var(--color-text-secondary)',
         textAlign: 'center',
     },
+    statusBadge: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 8px',
+        fontSize: 11,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        border: 'none',
+        borderRadius: 5,
+    },
+    badgePublished: {
+        backgroundColor: 'var(--color-success-muted)',
+        color: '#166534',
+    },
+    badgeDraft: {
+        backgroundColor: 'var(--color-warning-muted)',
+        color: '#854d0e',
+    },
+    badgeArchived: {
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-disabled)',
+    },
 });
+
+function statusBadgeStyle(status: QuizStatus) {
+    switch (status) {
+        case 'published': return styles.badgePublished;
+        case 'draft': return styles.badgeDraft;
+        case 'archived': return styles.badgeArchived;
+    }
+}
+
+function statusBorderColor(status: QuizStatus): string {
+    switch (status) {
+        case 'published':
+            return 'var(--color-success-muted)';
+        case 'draft':
+            return 'var(--color-warning-muted)';
+        case 'archived':
+            return 'var(--color-background-muted)';
+    }
+}
+
+const STATUS_RANK: Record<string, number> = { published: 0, draft: 1, archived: 2 };
 
 interface QuizCatalogTabProps {
     quizzes: Quiz[];
@@ -107,13 +128,7 @@ interface QuizCatalogTabProps {
     onArchive: (id: string) => void;
 }
 
-const statusBadgeStyle = (status: QuizStatus) => {
-    switch (status) {
-        case 'published': return styles.badgePublished;
-        case 'draft': return styles.badgeDraft;
-        case 'archived': return styles.badgeArchived;
-    }
-};
+
 
 export function QuizCatalogTab({
     quizzes,
@@ -138,64 +153,87 @@ export function QuizCatalogTab({
                     icon={<Plus size={14} />}
                     onClick={() => { setEditTargetQuiz(null); setBuilderOpen(true); }}
                 >
-                    + Create Quiz
+                    Create Quiz
                 </Button>
             </div>
 
             {quizzes.length === 0 ? (
-                <div {...stylex.props(styles.empty)}>
-                    <Inbox size={40} />
-                    <p>No quizzes yet. Create one to get started.</p>
-                </div>
+                questions.length === 0 ? (
+                    <div {...stylex.props(styles.empty)}>
+                        <Inbox size={40} />
+                        <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Add questions to the question bank first</p>
+                        <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
+                            You need to create questions before you can build quizzes.
+                        </p>
+                    </div>
+                ) : (
+                    <div {...stylex.props(styles.empty)}>
+                        <Inbox size={40} />
+                        <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Start building your quiz catalog</p>
+                        <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
+                            Select questions from the question bank and organize them into a quiz.
+                        </p>
+                        <Button
+                            label="Create first quiz"
+                            variant="primary"
+                            icon={<Plus size={14} />}
+                            onClick={() => { setEditTargetQuiz(null); setBuilderOpen(true); }}
+                        >
+                            Create First Quiz
+                        </Button>
+                    </div>
+                )
             ) : (
                 <div {...stylex.props(styles.list)}>
-                    {quizzes.map((quiz) => (
-                        <div key={quiz.id} {...stylex.props(styles.card)}>
-                            <div {...stylex.props(styles.cardContent)}>
-                                <p {...stylex.props(styles.title)}>{quiz.title}</p>
-                                {quiz.description && (
-                                    <p {...stylex.props(styles.description)}>{quiz.description}</p>
-                                )}
-                                <div {...stylex.props(styles.meta)}>
-                                    <span>{quiz.questionIds.length} questions</span>
-                                    {quiz.passingPercentage != null && (
-                                        <span>Pass: {quiz.passingPercentage}%</span>
+                    {quizzes.toSorted((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0) || a.title.localeCompare(b.title)).map((quiz) => (
+                        <Card key={quiz.id} style={{ padding: 16, border: `2px solid ${statusBorderColor(quiz.status)}` } as CSSProperties}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                                <div {...stylex.props(styles.cardContent)}>
+                                    <div {...stylex.props(styles.titleRow)}>
+                                        <p {...stylex.props(styles.title)}>{quiz.title}</p>
+                                    </div>
+                                    {quiz.description && (
+                                        <p {...stylex.props(styles.description)}>{quiz.description}</p>
+                                    )}
+                                    <div {...stylex.props(styles.meta)}>
+                                        <span>{quiz.questionIds.length} question{quiz.questionIds.length !== 1 ? 's' : ''}</span>
+                                        {quiz.passingPercentage != null && (
+                                            <span>Pass: {quiz.passingPercentage}%</span>
+                                        )}
+                                    </div>
+                                    <div {...stylex.props(styles.badges)}>
+                                        <span {...stylex.props(styles.statusBadge, statusBadgeStyle(quiz.status))}>{quiz.status}</span>
+                                    </div>
+                                </div>
+                                <div {...stylex.props(styles.cardActions)}>
+                                    {quiz.status === 'draft' && (
+                                        <Button
+                                            label={`Publish quiz: ${quiz.title}`}
+                                            variant="secondary"
+                                            icon={<CheckCircle size={14} />}
+                                            isIconOnly
+                                            onClick={() => { onPublish(quiz.id); showToast('Quiz published to catalog', { intent: 'success' }); }}
+                                        />
+                                    )}
+                                    <Button
+                                        label={`Edit quiz: ${quiz.title}`}
+                                        variant="secondary"
+                                        icon={<Pencil size={14} />}
+                                        isIconOnly
+                                        onClick={() => { setEditTargetQuiz(quiz); setBuilderOpen(true); }}
+                                    />
+                                    {quiz.status !== 'archived' && (
+                                        <Button
+                                            label={`Archive quiz: ${quiz.title}`}
+                                            variant="danger"
+                                            icon={<Archive size={14} />}
+                                            isIconOnly
+                                            onClick={() => { onArchive(quiz.id); showToast('Quiz archived', { intent: 'info' }); }}
+                                        />
                                     )}
                                 </div>
-                                <div {...stylex.props(styles.badges)}>
-                                    <span {...stylex.props(styles.badge, statusBadgeStyle(quiz.status))}>
-                                        {quiz.status}
-                                    </span>
-                                </div>
                             </div>
-                            <div {...stylex.props(styles.cardActions)}>
-                                {quiz.status === 'draft' && (
-                                    <Button
-                                        label={`Publish quiz: ${quiz.title}`}
-                                        variant="secondary"
-                                        icon={<CheckCircle size={14} />}
-                                        isIconOnly
-                                        onClick={() => { onPublish(quiz.id); showToast('Quiz published to catalog', { intent: 'success' }); }}
-                                    />
-                                )}
-                                <Button
-                                    label={`Edit quiz: ${quiz.title}`}
-                                    variant="secondary"
-                                    icon={<Pencil size={14} />}
-                                    isIconOnly
-                                    onClick={() => { setEditTargetQuiz(quiz); setBuilderOpen(true); }}
-                                />
-                                {quiz.status !== 'archived' && (
-                                    <Button
-                                        label={`Archive quiz: ${quiz.title}`}
-                                        variant="danger"
-                                        icon={<Archive size={14} />}
-                                        isIconOnly
-                                        onClick={() => { onArchive(quiz.id); showToast('Quiz archived', { intent: 'info' }); }}
-                                    />
-                                )}
-                            </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             )}

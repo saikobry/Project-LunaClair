@@ -32,4 +32,7 @@ export type { AnimatedTabPanelProps } from './AnimatedTabPanel/AnimatedTabPanel'
 export { Chip } from './Chip/Chip';
 export type { ChipProps } from './Chip/Chip';
 
+export { Selector } from './Selector/Selector';
+export type { SelectorProps, SelectorOption } from './Selector/Selector';
+
 
