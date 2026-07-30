@@ -59,7 +59,8 @@ export function useSubjectQuizTree(subjectId: string) {
         const grouped = new Map<string, QuizTreeNodeMaterial[]>();
 
         for (const material of subjectMaterials) {
-            const materialQuizzes = quizzesByMaterialId.get(material.id) ?? [];
+            const materialQuizzes = (quizzesByMaterialId.get(material.id) ?? [])
+                .filter((q) => q.status !== 'archived');
             const quizNodes: QuizTreeNodeQuiz[] = materialQuizzes.map((q) => ({
                 id: q.id,
                 title: q.title,

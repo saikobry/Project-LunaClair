@@ -37,6 +37,11 @@ export class QuizManagementService {
         return this.questionRepo.updateQuestion(id, { status: 'archived' });
     }
 
+    /** Restores an archived question back to draft status. */
+    async unarchiveQuestion(id: string): Promise<Question> {
+        return this.questionRepo.updateQuestion(id, { status: 'draft' });
+    }
+
     /** Creates a quiz with version-pinned question references. */
     async createQuiz(input: CreateQuizInput, questions: Question[]): Promise<Quiz> {
         const quizId = `quiz-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -71,5 +76,10 @@ export class QuizManagementService {
     /** Archives a quiz (soft-delete). */
     async archiveQuiz(id: string): Promise<Quiz> {
         return this.quizRepo.updateQuiz(id, { status: 'archived' });
+    }
+
+    /** Restores an archived quiz back to draft status. */
+    async unarchiveQuiz(id: string): Promise<Quiz> {
+        return this.quizRepo.updateQuiz(id, { status: 'draft' });
     }
 }

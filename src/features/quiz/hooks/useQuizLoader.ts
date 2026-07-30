@@ -85,15 +85,21 @@ export function useQuizLoader(launchRequest: QuizLaunchRequest): QuizLoaderResul
         enabled: allQuestionIds.length > 0,
     });
 
+    // Filter out archived quizzes for default resolution
+    const activeQuizzes = useMemo(
+        () => quizzes.filter((q) => q.status !== 'archived'),
+        [quizzes],
+    );
+
     // Build the resolved quiz (single or virtual)
     const quiz = useMemo((): Quiz | null => {
-        if (quizzes.length === 0) return null;
+        if (activeQuizzes.length === 0) return null;
 
         if (requestType === 'quiz') {
             if (singleQuizId) {
-                return quizzes.find((q) => q.id === singleQuizId) ?? null;
+                return activeQuizzes.find((q) => q.id === singleQuizId) ?? null;
             }
-            return quizzes[0] ?? null;
+            return activeQuizzes[0] ?? null;
         }
 
         // Multi-quiz mode: synthesize a virtual quiz
@@ -103,18 +109,35 @@ export function useQuizLoader(launchRequest: QuizLaunchRequest): QuizLoaderResul
             quizzes,
             questions,
         });
-    }, [quizzes, questions, requestType, singleQuizId, launchRequest]);
+    }, [activeQuizzes, quizzes, questions, requestType, singleQuizId, launchRequest]);
 
-    // Filter questions relevant to the resolved quiz
+    // Filter questions relevant to the resolved quiz, ordered by items[].order
     const quizQuestions = useMemo(() => {
         if (!quiz) return [];
         const idSet = new Set(quiz.questionIds);
-        return questions.filter((q) => idSet.has(q.id));
+        const filtered = questions.filter((q) => idSet.has(q.id));
+
+        // Build order map from quiz.items (fall back to questionIds index)
+        const orderMap = new Map<string, number>();
+        const items = quiz.items ?? [];
+        if (items.length > 0) {
+            for (const item of items) {
+                orderMap.set(item.questionId, item.order);
+            }
+        } else {
+            quiz.questionIds.forEach((qId, idx) => {
+                orderMap.set(qId, idx + 1);
+            });
+        }
+
+        return filtered.toSorted(
+            (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+        );
     }, [questions, quiz]);
 
     return {
         quiz,
-        sourceQuizzes: quizzes,
+        sourceQuizzes: activeQuizzes,
         questions: quizQuestions,
         isLoading: quizzesLoading || questionsLoading,
         isError: quizzesError || questionsError,

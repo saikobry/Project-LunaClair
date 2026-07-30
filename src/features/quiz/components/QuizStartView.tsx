@@ -108,6 +108,20 @@ const styles = stylex.create({
     fontSize: 12,
     color: 'var(--color-text-disabled)',
   },
+  draftBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '1px 6px',
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    backgroundColor: 'var(--color-warning-muted)',
+    color: '#854d0e',
+    borderRadius: 4,
+    lineHeight: 1.4,
+    marginLeft: 6,
+  },
 });
 
 interface QuizStartViewProps {
@@ -127,9 +141,12 @@ export function QuizStartView({
   onStartQuiz,
   onOpenManagement,
 }: QuizStartViewProps) {
-  const isMultiple = quizzes.length > 1;
-  const singleQuiz = quizzes[0];
-  const totalQuestionsCount = allQuestions.length > 0 ? allQuestions.length : (singleQuiz?.questionIds.length ?? 0);
+  const activeQuizzes = quizzes.filter((q) => q.status !== 'archived');
+  const isMultiple = activeQuizzes.length > 1;
+  const singleQuiz = activeQuizzes[0];
+  const totalQuestionsCount = allQuestions.length > 0
+    ? allQuestions.filter((q) => q.status !== 'archived').length
+    : (singleQuiz?.questionIds.length ?? 0);
 
   // In material mode (isUnified = false) with multiple quizzes, users pick individual quizzes to start
   const showTopStartButton = isUnified || !isMultiple;
@@ -161,7 +178,12 @@ export function QuizStartView({
           </div>
           <div {...stylex.props(styles.metaBadge)}>
             <Layers size={15} />
-            <span>{quizzes.length} {quizzes.length === 1 ? 'Quiz' : 'Quizzes'}</span>
+            <span>
+              {activeQuizzes.length} {activeQuizzes.length === 1 ? 'Quiz' : 'Quizzes'}
+              {!isMultiple && singleQuiz?.status === 'draft' && (
+                <span {...stylex.props(styles.draftBadge)}>Draft</span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -171,7 +193,7 @@ export function QuizStartView({
               label={isUnified ? 'Start unified quiz' : 'Start quiz'}
               variant="primary"
               icon={<Play size={16} />}
-              onClick={() => onStartQuiz()}
+              onClick={() => onStartQuiz(singleQuiz?.id)}
             >
               {isUnified ? 'Start Unified Quiz' : 'Start Quiz'}
             </Button>
@@ -184,7 +206,7 @@ export function QuizStartView({
           <h3 {...stylex.props(styles.sectionTitle)}>
             {isUnified ? 'Included Quizzes' : 'Available Quizzes'}
           </h3>
-          {quizzes.map((quiz, index) => {
+          {activeQuizzes.map((quiz, index) => {
             const questionCount = quiz.questionIds.length;
             return (
               <Card key={quiz.id}>
@@ -195,6 +217,9 @@ export function QuizStartView({
                     </h4>
                     <span {...stylex.props(styles.quizMeta)}>
                       {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                      {quiz.status === 'draft' && (
+                        <span {...stylex.props(styles.draftBadge)}>Draft</span>
+                      )}
                     </span>
                   </div>
                   {!isUnified && (

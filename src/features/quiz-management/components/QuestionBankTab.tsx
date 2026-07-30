@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Pencil, Archive, CheckCircle, Inbox, Plus, Search } from 'lucide-react';
+import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search } from 'lucide-react';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
@@ -300,6 +300,7 @@ interface QuestionBankTabProps {
     onUpdate: (id: string, input: UpdateQuestionInput) => void;
     onPublish: (id: string) => void;
     onArchive: (id: string) => void;
+    onUnarchive?: (id: string) => void;
 }
 
 function statusBorderColor(status: QuestionStatus): string {
@@ -427,6 +428,7 @@ export function QuestionBankTab({
     onUpdate,
     onPublish,
     onArchive,
+    onUnarchive,
 }: QuestionBankTabProps) {
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
@@ -608,6 +610,7 @@ export function QuestionBankTab({
                                                 variant="secondary"
                                                 icon={<CheckCircle size={14} />}
                                                 isIconOnly
+                                                tooltip="Publish"
                                                 onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
                                             />
                                         )}
@@ -616,14 +619,25 @@ export function QuestionBankTab({
                                             variant="secondary"
                                             icon={<Pencil size={14} />}
                                             isIconOnly
+                                            tooltip="Edit"
                                             onClick={() => openEdit(q)}
                                         />
-                                        {q.status !== 'archived' && (
+                                        {q.status === 'archived' && onUnarchive ? (
+                                            <Button
+                                                label={`Restore question: ${q.prompt}`}
+                                                variant="secondary"
+                                                icon={<ArchiveRestore size={14} />}
+                                                isIconOnly
+                                                tooltip="Restore"
+                                                onClick={() => { onUnarchive(q.id); showToast('Question restored to draft', { intent: 'success' }); }}
+                                            />
+                                        ) : (
                                             <Button
                                                 label={`Archive question: ${q.prompt}`}
                                                 variant="danger"
                                                 icon={<Archive size={14} />}
                                                 isIconOnly
+                                                tooltip="Archive"
                                                 onClick={handleArchiveClick}
                                             />
                                         )}

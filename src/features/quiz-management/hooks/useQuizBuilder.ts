@@ -9,7 +9,7 @@ import { QuizManagementService } from '../services/QuizManagementService';
  * Hook managing quiz creation/editing, version pinning, and question associations.
  * Wraps QuizManagementService with TanStack Query mutations and cache invalidation.
  */
-export function useQuizBuilder(materialId: string) {
+export function useQuizBuilder() {
     const context = useContext(RepositoryContext);
     if (!context) {
         throw new Error('useQuizBuilder must be used within a <RepositoryProvider>');
@@ -22,7 +22,7 @@ export function useQuizBuilder(materialId: string) {
 
     const queryClient = useQueryClient();
     const invalidate = () =>
-        queryClient.invalidateQueries({ queryKey: ['assessment', 'quizzes', materialId] });
+        queryClient.invalidateQueries({ queryKey: ['assessment'] });
 
     const createQuiz = useMutation({
         mutationFn: ({ input, questions }: { input: CreateQuizInput; questions: Question[] }) =>
@@ -46,5 +46,10 @@ export function useQuizBuilder(materialId: string) {
         onSettled: invalidate,
     });
 
-    return { createQuiz, updateQuiz, publishQuiz, archiveQuiz };
+    const unarchiveQuiz = useMutation({
+        mutationFn: (id: string) => service.unarchiveQuiz(id),
+        onSettled: invalidate,
+    });
+
+    return { createQuiz, updateQuiz, publishQuiz, archiveQuiz, unarchiveQuiz };
 }

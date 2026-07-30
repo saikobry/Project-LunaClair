@@ -26,19 +26,32 @@ const styles = stylex.create({
         fontSize: 13,
         fontWeight: 600,
         color: 'var(--color-text-secondary)',
-    },
-    modeBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '3px 10px',
-        fontSize: 11,
-        fontWeight: 700,
-        color: 'var(--color-accent)',
-        backgroundColor: 'var(--color-accent-muted)',
-        borderRadius: 6,
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-    },
+    },  modeBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 10px',
+    fontSize: 11,
+    fontWeight: 700,
+    color: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent-muted)',
+    borderRadius: 6,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+  draftBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    backgroundColor: 'var(--color-warning-muted)',
+    color: '#854d0e',
+    borderRadius: 4,
+    lineHeight: 1.4,
+    marginLeft: 8,
+  },
     progressBar: {
         height: 4,
         backgroundColor: 'var(--color-border)',
@@ -117,6 +130,9 @@ export function QuizView({
             <div {...stylex.props(styles.header)}>
                 <span {...stylex.props(styles.progress)}>
                     Question {currentIndex + 1} of {totalQuestions} · {answeredCount} answered
+                    {question.status === 'draft' && (
+                        <span {...stylex.props(styles.draftBadge)}>Draft</span>
+                    )}
                 </span>
                 <span {...stylex.props(styles.modeBadge)}>{mode}</span>
             </div>

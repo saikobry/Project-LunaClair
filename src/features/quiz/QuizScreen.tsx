@@ -97,6 +97,12 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
   const flow = useQuizSessionFlow(launchRequest);
   const isUnified = launchRequest.type === 'quizzes';
 
+  // Filter out archived quizzes for display purposes
+  const activeQuizzes = useMemo(
+    () => flow.sourceQuizzes.filter((q) => q.status !== 'archived'),
+    [flow.sourceQuizzes],
+  );
+
   const backAction = embedded ? undefined : (
     <Button
       label="Exit quiz"
@@ -140,7 +146,7 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
     );
   }
 
-  if (flow.flowState === 'empty') {
+  if (flow.flowState === 'empty' || (flow.flowState === 'ready' && activeQuizzes.length === 0)) {
     return (
       <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
         {isUnified && (
@@ -155,7 +161,9 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
           </div>
           <h2 {...stylex.props(styles.title)}>No quizzes available</h2>
           <p {...stylex.props(styles.subtext)}>
-            This material doesn't have any quizzes yet.
+            {flow.sourceQuizzes.some((q) => q.status === 'archived')
+              ? 'All quizzes are archived. Restore one from Quiz Management to try again.'
+              : "This material doesn't have any quizzes yet."}
           </p>
         </div>
       </QuizShell>
@@ -174,7 +182,7 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
         )}
         <QuizStartView
           title={isUnified ? 'Unified Knowledge Check' : (flow.questions[0]?.prompt ? 'Knowledge Check' : 'Material Quiz')}
-          quizzes={flow.sourceQuizzes}
+          quizzes={activeQuizzes}
           allQuestions={bankQuestions.length > 0 ? bankQuestions : flow.questions}
           isUnified={isUnified}
           onStartQuiz={(selectedId) => {

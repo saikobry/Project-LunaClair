@@ -57,8 +57,8 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
         queryFn: ({ signal }) => context.quizRepository.getQuizzes(materialId, signal),
     });
 
-    const questionMgmt = useQuestionManagement(materialId);
-    const quizBuilder = useQuizBuilder(materialId);
+    const questionMgmt = useQuestionManagement();
+    const quizBuilder = useQuizBuilder();
 
     if (materialLoading || questionsLoading || quizzesLoading) {
         return (
@@ -84,6 +84,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                         onUpdate={(id, input) => questionMgmt.updateQuestion.mutate({ id, input })}
                         onPublish={(id) => questionMgmt.publishQuestion.mutate(id)}
                         onArchive={(id) => questionMgmt.archiveQuestion.mutate(id)}
+                        onUnarchive={(id) => questionMgmt.unarchiveQuestion.mutate(id)}
                     />
                 )}
 
@@ -96,6 +97,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                         onUpdate={(id, input) => quizBuilder.updateQuiz.mutate({ id, input })}
                         onPublish={(id) => quizBuilder.publishQuiz.mutate(id)}
                         onArchive={(id) => quizBuilder.archiveQuiz.mutate(id)}
+                        onUnarchive={(id) => quizBuilder.unarchiveQuiz.mutate(id)}
                     />
                 )}
             </AnimatedTabPanel>

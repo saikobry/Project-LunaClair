@@ -211,6 +211,19 @@ const styles = stylex.create({
     color: 'var(--color-text-disabled)',
     fontWeight: 500,
   },
+  draftBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '1px 6px',
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    backgroundColor: 'var(--color-warning-muted)',
+    color: '#854d0e',
+    borderRadius: 4,
+    lineHeight: 1.4,
+  },
   empty: {
     display: 'flex',
     flexDirection: 'column',
@@ -315,6 +328,9 @@ function QuizNode({
         <span {...stylex.props(styles.quizBadge)}>
           <BrainCircuit size={11} />
           {quiz.questionCount} Questions
+          {quiz.quiz.status === 'draft' && (
+            <span {...stylex.props(styles.draftBadge)}>Draft</span>
+          )}
         </span>
       </div>
     </div>

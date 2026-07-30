@@ -8,7 +8,7 @@ import { QuizManagementService } from '../services/QuizManagementService';
  * Hook wrapping QuizManagementService for question authoring operations.
  * Provides create, update, publish, and archive mutations with cache invalidation.
  */
-export function useQuestionManagement(materialId: string) {
+export function useQuestionManagement() {
     const context = useContext(RepositoryContext);
     if (!context) {
         throw new Error('useQuestionManagement must be used within a <RepositoryProvider>');
@@ -21,7 +21,7 @@ export function useQuestionManagement(materialId: string) {
 
     const queryClient = useQueryClient();
     const invalidate = () =>
-        queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });
+        queryClient.invalidateQueries({ queryKey: ['assessment'] });
 
     const createQuestion = useMutation({
         mutationFn: (input: CreateQuestionInput) => service.createQuestion(input),
@@ -44,5 +44,10 @@ export function useQuestionManagement(materialId: string) {
         onSettled: invalidate,
     });
 
-    return { createQuestion, updateQuestion, publishQuestion, archiveQuestion };
+    const unarchiveQuestion = useMutation({
+        mutationFn: (id: string) => service.unarchiveQuestion(id),
+        onSettled: invalidate,
+    });
+
+    return { createQuestion, updateQuestion, publishQuestion, archiveQuestion, unarchiveQuestion };
 }

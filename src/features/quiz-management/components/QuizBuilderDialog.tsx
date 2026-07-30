@@ -66,20 +66,7 @@ const styles = stylex.create({
         gap: 2,
         flexShrink: 0,
     },
-    reorderBtn: {
-        border: 'none',
-        background: 'none',
-        cursor: 'pointer',
-        padding: 2,
-        color: 'var(--color-text-secondary)',
-        display: 'flex',
-        alignItems: 'center',
-        borderRadius: 4,
-        ':hover': {
-            backgroundColor: 'var(--color-background-muted)',
-            color: 'var(--color-accent)',
-        },
-    },
+
     checkbox: {
         width: 15,
         height: 15,
@@ -133,18 +120,30 @@ export function QuizBuilderDialog({
     };
 
     const moveUp = (index: number) => {
-        if (index === 0) return;
+        if (index <= 0) return;
         const updated = [...selectedIds];
         [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
         setSelectedIds(updated);
     };
 
     const moveDown = (index: number) => {
-        if (index === selectedIds.length - 1) return;
+        if (index < 0 || index >= selectedIds.length - 1) return;
         const updated = [...selectedIds];
         [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
         setSelectedIds(updated);
     };
+
+    const buildItems = (targetQuizId: string) =>
+        selectedIds.map((questionId, index) => {
+            const question = availableQuestions.find((q) => q.id === questionId);
+            return {
+                quizId: targetQuizId,
+                questionId,
+                questionVersion: question?.version ?? 1,
+                order: index + 1,
+                points: question?.points,
+            };
+        });
 
     const handleSave = () => {
         const parsedPassing = Math.min(100, Math.max(0, parseInt(passingPercentage, 10) || 70));
@@ -154,6 +153,7 @@ export function QuizBuilderDialog({
                 title,
                 description: description || undefined,
                 questionIds: selectedIds,
+                items: buildItems(quiz.id),
                 passingPercentage: parsedPassing,
             };
             onUpdate(quiz.id, input);
@@ -173,6 +173,16 @@ export function QuizBuilderDialog({
     };
 
     const selectedSet = new Set(selectedIds);
+
+    // Order available questions so selected questions appear first in selectedIds order
+    const displayQuestions = availableQuestions.toSorted((a, b) => {
+        const aIndex = selectedIds.indexOf(a.id);
+        const bIndex = selectedIds.indexOf(b.id);
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return 0;
+    });
 
     return (
         <Dialog
@@ -229,9 +239,11 @@ export function QuizBuilderDialog({
                         Select questions and reorder them. Versions are pinned at creation time.
                     </p>
                     <div {...stylex.props(styles.questionList)}>
-                        {availableQuestions.map((q) => {
+                        {displayQuestions.map((q) => {
                             const isSelected = selectedSet.has(q.id);
                             const selectedIndex = selectedIds.indexOf(q.id);
+                            const isFirst = selectedIndex === 0;
+                            const isLast = selectedIndex === selectedIds.length - 1;
                             return (
                                 <div
                                     key={q.id}
@@ -248,22 +260,24 @@ export function QuizBuilderDialog({
                                     <span {...stylex.props(styles.questionVersion)}>v{q.version}</span>
                                     {isSelected && (
                                         <div {...stylex.props(styles.reorderButtons)}>
-                                            <button
-                                                type="button"
+                                            <Button
+                                                label="Move up"
+                                                variant="secondary"
+                                                icon={<ArrowUp size={14} />}
+                                                isIconOnly
+                                                isDisabled={isFirst}
+                                                tooltip="Move up"
                                                 onClick={() => moveUp(selectedIndex)}
-                                                {...stylex.props(styles.reorderBtn)}
-                                                aria-label="Move up"
-                                            >
-                                                <ArrowUp size={12} />
-                                            </button>
-                                            <button
-                                                type="button"
+                                            />
+                                            <Button
+                                                label="Move down"
+                                                variant="secondary"
+                                                icon={<ArrowDown size={14} />}
+                                                isIconOnly
+                                                isDisabled={isLast}
+                                                tooltip="Move down"
                                                 onClick={() => moveDown(selectedIndex)}
-                                                {...stylex.props(styles.reorderBtn)}
-                                                aria-label="Move down"
-                                            >
-                                                <ArrowDown size={12} />
-                                            </button>
+                                            />
                                         </div>
                                     )}
                                 </div>
