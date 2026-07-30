@@ -22,9 +22,11 @@ interface LibraryScreenProps {
 }
 
 export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage }: LibraryScreenProps) {
-  const { materials } = useLibrary();
-  const { subjects } = useSubjects();
-  const { terms: allTerms } = useTerms();
+  const { materials, isLoading: materialsLoading } = useLibrary();
+  const { subjects, isLoading: subjectsLoading } = useSubjects();
+  const { terms: allTerms, isLoading: termsLoading } = useTerms();
+
+  const isLibraryLoading = materialsLoading || subjectsLoading || termsLoading;
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
   const editMutation = useEditMaterial();
@@ -124,8 +126,8 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   }, []);
 
   const handleSubjectReorder = useCallback(
-    (subjectId: string, targetIndex: number) => {
-      reorderSubjectsMutation.mutate({ subjectId, targetIndex });
+    (orderedIds: string[]) => {
+      reorderSubjectsMutation.mutate({ orderedIds });
     },
     [reorderSubjectsMutation],
   );
@@ -153,6 +155,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
 
   return (
     <LibraryView
+      isLoading={isLibraryLoading}
       subjects={subjects}
       allTerms={allTerms}
       materials={uncategorizedMaterials}
@@ -170,6 +173,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
       subjectEditTarget={subjectEditTarget}
       subjectDeleteTarget={subjectDeleteTarget}
       showCreateSubject={showCreateSubject}
+      isSavingReorder={reorderSubjectsMutation.isPending}
       onEditSave={handleEditSave}
       onEditClose={handleEditClose}
       onSubjectEdit={handleSubjectEdit}

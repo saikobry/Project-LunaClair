@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, BrainCircuit, BookOpen, Search, ChevronDown } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../ui/SegmentedControl/SegmentedControl';
@@ -235,6 +237,9 @@ const styles = stylex.create({
     display: 'flex',
     gap: 8,
   },
+  contentBody: {
+    overflow: 'hidden',
+  },
   skeleton: {
     display: 'flex',
     flexDirection: 'column',
@@ -275,6 +280,19 @@ function QuizNode({
   isSelected: boolean;
   onToggle: () => void;
 }) {
+  const checkboxRef = useRef<HTMLDivElement>(null);
+
+  // ── Snappy scale bounce when checkbox is checked ────────────
+  useGSAP(() => {
+    if (checkboxRef.current && isSelected) {
+      gsap.fromTo(
+        checkboxRef.current,
+        { scale: 0.85 },
+        { scale: 1, duration: 0.2, ease: 'back.out(2)', overwrite: 'auto' },
+      );
+    }
+  }, { dependencies: [isSelected] });
+
   return (
     <div
       {...stylex.props(styles.quizRow)}
@@ -289,7 +307,7 @@ function QuizNode({
         }
       }}
     >
-      <div {...stylex.props(styles.checkbox, isSelected && styles.checkboxChecked)}>
+      <div ref={checkboxRef} {...stylex.props(styles.checkbox, isSelected && styles.checkboxChecked)}>
         <Check size={12} strokeWidth={2.5} color="currentColor" />
       </div>
       <div {...stylex.props(styles.quizInfo)}>
@@ -348,6 +366,241 @@ function MaterialNode({
   );
 }
 
+// ── Toolbar: term filter + search row + select-all ────────────────
+function QuizExplorerToolbar({
+  availableTerms,
+  activeTermFilter,
+  onTermFilterChange,
+  searchQuery,
+  onSearchChange,
+  allQuizIds,
+  selectedQuizIds,
+  onToggleAll,
+}: {
+  availableTerms: Array<{ id: string; title: string }>;
+  activeTermFilter: string | null;
+  onTermFilterChange: (termId: string | null) => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  allQuizIds: string[];
+  selectedQuizIds: Set<string>;
+  onToggleAll: (ids: string[]) => void;
+}) {
+  return (
+    <>
+      {availableTerms.length > 1 && (
+        <SegmentedControl
+          value={activeTermFilter ?? 'all'}
+          onChange={(v: string) => onTermFilterChange(v === 'all' ? null : v)}
+          label="Term filter"
+          size="sm"
+          layout="fill"
+        >
+          <SegmentedControlItem value="all" label="All" />
+          {availableTerms.map((term) => (
+            <SegmentedControlItem key={term.id} value={term.id} label={term.title} />
+          ))}
+        </SegmentedControl>
+      )}
+
+      <div {...stylex.props(styles.searchRow)}>
+        <div {...stylex.props(styles.searchField)}>
+          <Input
+            label="Search quizzes"
+            labelHidden
+            startIcon={<Search size={16} />}
+            placeholder="Search terms, materials, and quizzes..."
+            value={searchQuery}
+            onChange={onSearchChange}
+            clearable
+            autoFocus={false}
+          />
+        </div>
+        {allQuizIds.length > 0 && (
+          <button
+            type="button"
+            {...stylex.props(
+              styles.actionPill,
+              allQuizIds.every((id) => selectedQuizIds.has(id)) && styles.actionPillActive,
+            )}
+            onClick={() => onToggleAll(allQuizIds)}
+          >
+            {allQuizIds.every((id) => selectedQuizIds.has(id)) ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Term accordion group: collapsible term header + material/quiz tree ──
+function TermAccordionGroup({
+  term,
+  isCollapsed,
+  onToggleCollapsed,
+  selectedQuizIds,
+  onToggleTerm,
+  onToggleQuiz,
+  onToggleMaterial,
+}: {
+  term: QuizTreeNodeTerm;
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
+  selectedQuizIds: Set<string>;
+  onToggleTerm: (quizIds: string[]) => void;
+  onToggleQuiz: (quizId: string) => void;
+  onToggleMaterial: (materialId: string, quizIds: string[]) => void;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const termQuizIds = term.materials.flatMap((m) => m.quizzes.map((q) => q.id));
+  const allTermSelected = termQuizIds.length > 0 && termQuizIds.every((id) => selectedQuizIds.has(id));
+
+  // ── Expand / collapse animation ───────────────────────────
+  const prevCollapsed = useRef(isCollapsed);
+  useGSAP(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    const wasCollapsed = prevCollapsed.current;
+    prevCollapsed.current = isCollapsed;
+
+    if (wasCollapsed && !isCollapsed) {
+      // Expanded: measure natural height, animate from 0 to full
+      content.style.height = 'auto';
+      const targetHeight = content.offsetHeight;
+      content.style.height = '0px';
+      // Force reflow so the browser registers the 0-height state
+      content.offsetHeight;
+      gsap.to(content, {
+        height: targetHeight,
+        opacity: 1,
+        duration: 0.25,
+        ease: 'power2.out',
+        overwrite: 'auto',
+        onComplete: () => {
+          content.style.height = 'auto';
+        },
+      });
+    } else if (!wasCollapsed && isCollapsed) {
+      // Collapsed: animate from current height to 0
+      gsap.to(content, {
+        height: 0,
+        opacity: 0,
+        duration: 0.2,
+        ease: 'power2.in',
+        overwrite: 'auto',
+      });
+    }
+  }, { dependencies: [isCollapsed] });
+
+  return (
+    <div data-term-group {...stylex.props(styles.termGroup)}>
+      <div {...stylex.props(styles.termHeader)}>
+        <button
+          type="button"
+          {...stylex.props(styles.termHeaderToggle)}
+          onClick={onToggleCollapsed}
+          aria-expanded={!isCollapsed}
+        >
+          <ChevronDown
+            size={16}
+            {...stylex.props(styles.chevron, isCollapsed && styles.chevronCollapsed)}
+          />
+          <span {...stylex.props(styles.termTitle)}>{term.title}</span>
+          <span {...stylex.props(styles.termCount)}>
+            {term.materials.length} materials · {termQuizIds.length} quizzes
+          </span>
+        </button>
+
+        {termQuizIds.length > 0 && (
+          <button
+            type="button"
+            {...stylex.props(styles.actionPill, allTermSelected && styles.actionPillActive)}
+            onClick={() => onToggleTerm(termQuizIds)}
+          >
+            {allTermSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+      </div>
+
+      <div ref={contentRef} {...stylex.props(styles.contentBody)}>
+        {term.materials.map((material) => (
+          <MaterialNode
+            key={material.id}
+            material={material}
+            selectedQuizIds={selectedQuizIds}
+            onToggleQuiz={onToggleQuiz}
+            onToggleMaterial={onToggleMaterial}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Action bar: selection count + start buttons ───────────────────
+function QuizExplorerActionBar({
+  totalSelectedQuizzes,
+  totalSelectedQuestions,
+  selectedQuizIds,
+  onStartSingleQuiz,
+  onStartUnifiedQuiz,
+}: {
+  totalSelectedQuizzes: number;
+  totalSelectedQuestions: number;
+  selectedQuizIds: Set<string>;
+  onStartSingleQuiz: (quizId: string) => void;
+  onStartUnifiedQuiz: (quizIds: string[]) => void;
+}) {
+  const actionBarRef = useRef<HTMLDivElement>(null);
+
+  // ── Entrance slide-up animation ────────────────────────────
+  const prevSelectedCount = useRef(0);
+  useGSAP(() => {
+    if (!actionBarRef.current) return;
+    const justAppeared = prevSelectedCount.current === 0 && totalSelectedQuizzes > 0;
+    prevSelectedCount.current = totalSelectedQuizzes;
+    if (justAppeared) {
+      gsap.fromTo(
+        actionBarRef.current,
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.25, ease: 'back.out(1.4)', overwrite: 'auto' },
+      );
+    }
+  }, { dependencies: [totalSelectedQuizzes] });
+
+  return (
+    <div ref={actionBarRef} {...stylex.props(styles.actionBar)}>
+      <span {...stylex.props(styles.selectionCount)}>
+        {totalSelectedQuizzes > 0
+          ? `${totalSelectedQuizzes} quiz${totalSelectedQuizzes !== 1 ? 'zes' : ''} · ${totalSelectedQuestions} question${totalSelectedQuestions !== 1 ? 's' : ''} selected`
+          : 'Select quizzes to begin'}
+      </span>
+      <div {...stylex.props(styles.actionButtons)}>
+        {totalSelectedQuizzes === 1 && (
+          <Button
+            label="Start quiz"
+            icon={<BrainCircuit size={14} />}
+            onClick={() => onStartSingleQuiz(Array.from(selectedQuizIds)[0])}
+          >
+            Start Quiz
+          </Button>
+        )}
+        {totalSelectedQuizzes > 1 && (
+          <Button
+            label="Start unified quiz"
+            icon={<BrainCircuit size={14} />}
+            onClick={() => onStartUnifiedQuiz(Array.from(selectedQuizIds))}
+          >
+            Start Unified Quiz ({totalSelectedQuizzes} quizzes)
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Parent orchestrator ───────────────────────────────────────────
 export function SubjectQuizExplorer({
   tree,
   selection,
@@ -355,10 +608,28 @@ export function SubjectQuizExplorer({
   onStartSingleQuiz,
   onStartUnifiedQuiz,
 }: SubjectQuizExplorerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTermFilter, setActiveTermFilter] = useState<string | null>(null);
   const [collapsedTermIds, setCollapsedTermIds] = useState<Set<string>>(new Set());
-  const { selectedQuizIds, totalSelectedQuizzes, totalSelectedQuestions, toggleQuiz, toggleMaterial, toggleTerm, toggleAll } = selection;
+
+  // ── Debounce search so filtering + entrance animation don't fire per keystroke ──
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const {
+    selectedQuizIds,
+    totalSelectedQuizzes,
+    totalSelectedQuestions,
+    toggleQuiz,
+    toggleMaterial,
+    toggleTerm,
+    toggleAll,
+  } = selection;
 
   const toggleCollapsed = (termId: string) => {
     setCollapsedTermIds((prev) => {
@@ -384,10 +655,10 @@ export function SubjectQuizExplorer({
     return tree.filter((t) => t.id === activeTermFilter);
   }, [tree, activeTermFilter]);
 
-  // Second: filter by search query — matches term titles, material titles, and quiz titles
+  // Second: filter by search query (debounced)
   const filteredTree = useMemo(() => {
-    if (!searchQuery.trim()) return termFilteredTree;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearch.trim()) return termFilteredTree;
+    const q = debouncedSearch.toLowerCase();
 
     return termFilteredTree.flatMap((term) => {
       const termMatch = term.title.toLowerCase().includes(q);
@@ -409,12 +680,24 @@ export function SubjectQuizExplorer({
       }
       return [];
     });
-  }, [termFilteredTree, searchQuery]);
+  }, [termFilteredTree, debouncedSearch]);
 
   const allQuizIds = useMemo(
     () => filteredTree.flatMap((t) => t.materials.flatMap((m) => m.quizzes.map((q) => q.id))),
     [filteredTree],
   );
+
+  // ── Staggered term group entrance on tree load / filter change ──
+  useGSAP(() => {
+    if (!containerRef.current || isLoading || tree.length === 0) return;
+    const termGroups = containerRef.current.querySelectorAll<HTMLElement>('[data-term-group]');
+    if (termGroups.length === 0) return;
+    gsap.fromTo(
+      termGroups,
+      { opacity: 0, y: 12 },
+      { opacity: 1, y: 0, stagger: 0.05, duration: 0.28, ease: 'power2.out', overwrite: 'auto' },
+    );
+  }, { dependencies: [filteredTree, isLoading] });
 
   if (isLoading) {
     return (
@@ -440,127 +723,46 @@ export function SubjectQuizExplorer({
   }
 
   return (
-    <div {...stylex.props(styles.container)}>
-      {availableTerms.length > 1 && (
-        <SegmentedControl
-          value={activeTermFilter ?? 'all'}
-          onChange={(v: string) => setActiveTermFilter(v === 'all' ? null : v)}
-          label="Term filter"
-          size="sm"
-          layout="fill"
-        >
-          <SegmentedControlItem value="all" label="All" />
-          {availableTerms.map((term) => (
-            <SegmentedControlItem key={term.id} value={term.id} label={term.title} />
-          ))}
-        </SegmentedControl>
-      )}
+    <div ref={containerRef} {...stylex.props(styles.container)}>
+      <QuizExplorerToolbar
+        availableTerms={availableTerms}
+        activeTermFilter={activeTermFilter}
+        onTermFilterChange={setActiveTermFilter}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        allQuizIds={allQuizIds}
+        selectedQuizIds={selectedQuizIds}
+        onToggleAll={toggleAll}
+      />
 
-      <div {...stylex.props(styles.searchRow)}>
-        <div {...stylex.props(styles.searchField)}>
-          <Input
-            label="Search quizzes"
-            labelHidden
-            startIcon={<Search size={16} />}
-            placeholder="Search terms, materials, and quizzes..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            clearable
-            autoFocus={false}
-          />
-        </div>
-        {allQuizIds.length > 0 && (
-          <button
-            type="button"
-            {...stylex.props(styles.actionPill, allQuizIds.every((id) => selectedQuizIds.has(id)) && styles.actionPillActive)}
-            onClick={() => toggleAll(allQuizIds)}
-          >
-            {allQuizIds.every((id) => selectedQuizIds.has(id)) ? 'Deselect all' : 'Select all'}
-          </button>
-        )}
-      </div>
-
-      {filteredTree.map((term) => {
-        const termQuizIds = term.materials.flatMap((m) => m.quizzes.map((q) => q.id));
-        const allTermSelected = termQuizIds.length > 0 && termQuizIds.every((id) => selectedQuizIds.has(id));
-        return (
-          <div key={term.id} {...stylex.props(styles.termGroup)}>
-            <div {...stylex.props(styles.termHeader)}>
-              <button
-                type="button"
-                {...stylex.props(styles.termHeaderToggle)}
-                onClick={() => toggleCollapsed(term.id)}
-                aria-expanded={!collapsedTermIds.has(term.id)}
-              >
-                <ChevronDown
-                  size={16}
-                  {...stylex.props(styles.chevron, collapsedTermIds.has(term.id) && styles.chevronCollapsed)}
-                />
-                <span {...stylex.props(styles.termTitle)}>{term.title}</span>
-                <span {...stylex.props(styles.termCount)}>
-                  {term.materials.length} materials · {termQuizIds.length} quizzes
-                </span>
-              </button>
-
-              {termQuizIds.length > 0 && (
-                <button
-                  type="button"
-                  {...stylex.props(styles.actionPill, allTermSelected && styles.actionPillActive)}
-                  onClick={() => toggleTerm(termQuizIds)}
-                >
-                  {allTermSelected ? 'Deselect all' : 'Select all'}
-                </button>
-              )}
-            </div>
-
-            {!collapsedTermIds.has(term.id) && term.materials.map((material) => (
-              <MaterialNode
-                key={material.id}
-                material={material}
-                selectedQuizIds={selectedQuizIds}
-                onToggleQuiz={toggleQuiz}
-                onToggleMaterial={toggleMaterial}
-              />
-            ))}
-          </div>
-        );
-      })}
+      {filteredTree.map((term) => (
+        <TermAccordionGroup
+          key={term.id}
+          term={term}
+          isCollapsed={collapsedTermIds.has(term.id)}
+          onToggleCollapsed={() => toggleCollapsed(term.id)}
+          selectedQuizIds={selectedQuizIds}
+          onToggleTerm={toggleTerm}
+          onToggleQuiz={toggleQuiz}
+          onToggleMaterial={toggleMaterial}
+        />
+      ))}
 
       {filteredTree.length === 0 && searchQuery && (
         <div {...stylex.props(styles.empty)}>
           <Search size={32} />
-          <p>{`No quizzes match “${searchQuery}”`}</p>
+          <p>{`No quizzes match \u201c${searchQuery}\u201d`}</p>
         </div>
       )}
 
       {filteredTree.length > 0 && (
-        <div {...stylex.props(styles.actionBar)}>
-          <span {...stylex.props(styles.selectionCount)}>
-            {totalSelectedQuizzes > 0
-              ? `${totalSelectedQuizzes} quiz${totalSelectedQuizzes !== 1 ? 'zes' : ''} · ${totalSelectedQuestions} question${totalSelectedQuestions !== 1 ? 's' : ''} selected`
-              : 'Select quizzes to begin'}
-          </span>
-          <div {...stylex.props(styles.actionButtons)}>
-            {totalSelectedQuizzes === 1 && (
-              <Button
-                label="Start quiz"
-                icon={<BrainCircuit size={14} />}
-                onClick={() => onStartSingleQuiz(Array.from(selectedQuizIds)[0])}
-              >
-                Start Quiz
-              </Button>
-            )}
-            {totalSelectedQuizzes > 1 && (
-              <Button
-                label="Start unified quiz"
-                icon={<BrainCircuit size={14} />}
-                onClick={() => onStartUnifiedQuiz(Array.from(selectedQuizIds))}
-              >
-                Start Unified Quiz ({totalSelectedQuizzes} quizzes)
-              </Button>
-            )}
-          </div>
-        </div>
+        <QuizExplorerActionBar
+          totalSelectedQuizzes={totalSelectedQuizzes}
+          totalSelectedQuestions={totalSelectedQuestions}
+          selectedQuizIds={selectedQuizIds}
+          onStartSingleQuiz={onStartSingleQuiz}
+          onStartUnifiedQuiz={onStartUnifiedQuiz}
+        />
       )}
     </div>
   );

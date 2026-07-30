@@ -18,4 +18,11 @@ export interface SubjectRepository {
   createSubject(input: CreateSubjectInput): Promise<Subject>;
   updateSubject(id: string, input: UpdateSubjectInput): Promise<Subject>;
   deleteSubject(id: string): Promise<void>;
+
+  /**
+   * Batch-reorder subjects in a single operation.
+   * `orderedIds` lists every subject ID in its final desired order.
+   * Sequential `order` values are assigned automatically.
+   */
+  reorderSubjects(orderedIds: string[]): Promise<void>;
 }

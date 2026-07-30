@@ -1,3 +1,6 @@
+import { useRef, useState } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
 import { RotateCcw, CheckCircle2, XCircle, LayoutGrid, Home } from 'lucide-react';
 import type { Question } from '../../../domain/quiz/Question';
@@ -111,10 +114,51 @@ export function QuizResultView({ result, questions, onRetake, onReturnToOverview
     const { score, answers } = result;
     const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
+    // ── Animated score count-up ────────────────────────────────────
+    const [displayedScore, setDisplayedScore] = useState(0);
+    const reviewListRef = useRef<HTMLDivElement>(null);
+    const actionsRef = useRef<HTMLDivElement>(null);
+
+    useGSAP(() => {
+        const target = score.percentage;
+        const scoreObj = { value: 0 };
+
+        gsap.to(scoreObj, {
+            value: target,
+            duration: 1.2,
+            ease: 'power3.out',
+            overwrite: 'auto',
+            onUpdate: () => {
+                setDisplayedScore(Math.round(scoreObj.value));
+            },
+        });
+    }, { dependencies: [score.percentage] });
+
+    // ── Staggered entrance for review items and actions ────────────
+    useGSAP(() => {
+        if (reviewListRef.current) {
+            const items = reviewListRef.current.querySelectorAll('[data-animate="stagger-review"]');
+            if (items.length > 0) {
+                gsap.fromTo(
+                    items,
+                    { opacity: 0, y: 16 },
+                    { opacity: 1, y: 0, stagger: 0.06, duration: 0.35, ease: 'power2.out', delay: 0.4, overwrite: 'auto' },
+                );
+            }
+        }
+        if (actionsRef.current) {
+            gsap.fromTo(
+                actionsRef.current.children,
+                { opacity: 0, y: 12 },
+                { opacity: 1, y: 0, stagger: 0.08, duration: 0.3, ease: 'power2.out', delay: 0.6, overwrite: 'auto' },
+            );
+        }
+    }, { dependencies: [questions.length] });
+
     return (
         <div {...stylex.props(styles.container)}>
             <div {...stylex.props(styles.scoreCard)}>
-                <p {...stylex.props(styles.scorePercent)}>{score.percentage}%</p>
+                <p {...stylex.props(styles.scorePercent)}>{displayedScore}%</p>
                 <p {...stylex.props(styles.scoreLabel)}>
                     {score.earnedPoints} / {score.maxPoints} points earned
                 </p>
@@ -124,12 +168,12 @@ export function QuizResultView({ result, questions, onRetake, onReturnToOverview
                 </div>
             </div>
 
-            <div {...stylex.props(styles.reviewList)}>
+            <div ref={reviewListRef} {...stylex.props(styles.reviewList)}>
                 {questions.map((q) => {
                     const answer = answerMap.get(q.id);
                     const isCorrect = answer?.isCorrect ?? false;
                     return (
-                        <div key={q.id} {...stylex.props(styles.reviewItem)}>
+                        <div key={q.id} data-animate="stagger-review" {...stylex.props(styles.reviewItem)}>
                             <div {...stylex.props(styles.reviewIcon)}>
                                 {isCorrect ? (
                                     <CheckCircle2 size={18} color="var(--color-success)" />
@@ -148,7 +192,7 @@ export function QuizResultView({ result, questions, onRetake, onReturnToOverview
                 })}
             </div>
 
-            <div {...stylex.props(styles.actions)}>
+            <div ref={actionsRef} {...stylex.props(styles.actions)}>
                 <Button
                     label="Retake quiz"
                     variant="secondary"

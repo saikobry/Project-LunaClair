@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Plus } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
@@ -97,6 +99,19 @@ export default function MaterialsTab({
     return materials.filter((m) => m.termId === activeFilter);
   }, [materials, activeFilter]);
 
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!gridRef.current) return;
+    const cards = gridRef.current.children;
+    if (cards.length === 0) return;
+    gsap.fromTo(
+      cards,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, stagger: 0.04, duration: 0.35, ease: 'power2.out', overwrite: 'auto' },
+    );
+  }, { dependencies: [filteredMaterials] });
+
   return (
     <div {...stylex.props(styles.container)}>
       {availableTerms.length > 1 && (
@@ -149,7 +164,7 @@ export default function MaterialsTab({
           </p>
         </div>
       ) : (
-        <div {...stylex.props(styles.grid)}>
+        <div ref={gridRef} {...stylex.props(styles.grid)}>
           {filteredMaterials.map((material) => {
             const termTitle = material.termId ? termMap.get(material.termId) : undefined;
             return (

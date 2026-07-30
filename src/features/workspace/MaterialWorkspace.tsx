@@ -8,6 +8,7 @@ import { useTerm } from '../../shared/hooks/useTerm';
 import { Page } from '../../shared/ui/Page';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
+import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import ReaderScreen from '../reader/ReaderScreen';
 import QuizScreen from '../quiz/QuizScreen';
@@ -105,11 +106,7 @@ export default function MaterialWorkspace({
         ))}
       </TabList>
 
-      <div
-        role="tabpanel"
-        id={`material-panel-${activeTab}`}
-        aria-labelledby={activeTab}
-      >
+      <AnimatedTabPanel activeKey={activeTab}>
         {activeTab === 'read' && (
           <ReaderScreen
             materialId={materialId}
@@ -129,7 +126,7 @@ export default function MaterialWorkspace({
             materialId={materialId}
           />
         )}
-      </div>
+      </AnimatedTabPanel>
     </Page>
   );
 }

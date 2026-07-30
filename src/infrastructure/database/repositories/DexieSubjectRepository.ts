@@ -50,6 +50,19 @@ export class DexieSubjectRepository implements SubjectRepository {
     async deleteSubject(id: string): Promise<void> {
         await db.subjects.delete(id);
     }
+
+    async reorderSubjects(orderedIds: string[]): Promise<void> {
+        await db.transaction('rw', db.subjects, async () => {
+            const now = new Date().toISOString();
+            const existingSubjects = await Promise.all(orderedIds.map((id) => db.subjects.get(id)));
+            const puts = existingSubjects.flatMap((existing, order) =>
+                existing ? [{ ...existing, order, updatedAt: now }] : [],
+            );
+            if (puts.length > 0) {
+                await db.subjects.bulkPut(puts);
+            }
+        });
+    }
 }
 
 export const dexieSubjectRepository = new DexieSubjectRepository();

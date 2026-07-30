@@ -26,6 +26,9 @@ export type { TabListProps, TabProps } from './TabList/TabList';
 export { SegmentedControl, SegmentedControlItem } from './SegmentedControl/SegmentedControl';
 export type { SegmentedControlProps, SegmentedControlItemProps } from './SegmentedControl/SegmentedControl';
 
+export { AnimatedTabPanel } from './AnimatedTabPanel/AnimatedTabPanel';
+export type { AnimatedTabPanelProps } from './AnimatedTabPanel/AnimatedTabPanel';
+
 export { Chip } from './Chip/Chip';
 export type { ChipProps } from './Chip/Chip';
 

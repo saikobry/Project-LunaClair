@@ -1,3 +1,5 @@
+import { useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { Toast as AstryxToast } from '@astryxdesign/core/Toast';
 import type { ToastType } from '@astryxdesign/core/Toast';
@@ -38,14 +40,28 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
+  const toastRef = useRef<HTMLDivElement>(null);
+
+  // ── Spring slide-in entrance on mount ──────────────────────────
+  useEffect(() => {
+    if (!toastRef.current) return;
+    gsap.fromTo(
+      toastRef.current,
+      { y: 20, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.2)', overwrite: 'auto' },
+    );
+  }, []);
+
   return (
-    <AstryxToast
-      type={mapIntent(toast.intent)}
-      body={toast.title ? `${toast.title}: ${toast.message}` : toast.message}
-      isAutoHide={(toast.duration ?? 4000) > 0}
-      autoHideDuration={toast.duration ?? 4000}
-      onDismiss={() => onDismiss(toast.id)}
-    />
+    <div ref={toastRef}>
+      <AstryxToast
+        type={mapIntent(toast.intent)}
+        body={toast.title ? `${toast.title}: ${toast.message}` : toast.message}
+        isAutoHide={(toast.duration ?? 4000) > 0}
+        autoHideDuration={toast.duration ?? 4000}
+        onDismiss={() => onDismiss(toast.id)}
+      />
+    </div>
   );
 }
 

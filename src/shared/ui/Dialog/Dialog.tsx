@@ -1,4 +1,5 @@
-import { type ReactNode, type Ref } from 'react';
+import { type ReactNode, type Ref, useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import { Dialog as AstryxDialog } from '@astryxdesign/core/Dialog';
 
 export interface DialogProps {
@@ -46,6 +47,20 @@ export function Dialog({
   style,
   ...ariaProps
 }: DialogProps) {
+  const dialogInnerRef = useRef<HTMLDivElement>(null);
+
+  // ── Spring entrance animation on open ─────────────────────────
+  useEffect(() => {
+    if (!isOpen || !dialogInnerRef.current) return;
+    const el = dialogInnerRef.current;
+    gsap.fromTo(
+      el,
+      { scale: 0.94, opacity: 0, transformOrigin: 'center center' },
+      { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(1.4)', overwrite: 'auto' },
+    );
+    // No cleanup on purpose — the animation only plays forward on open.
+  }, [isOpen]);
+
   return (
     <AstryxDialog
       ref={ref}
@@ -60,6 +75,7 @@ export function Dialog({
       style={{ border: 'none', ...style }}
       {...ariaProps}
     >
+      <div ref={dialogInnerRef}>
       {title && (
         <h2
           style={{
@@ -73,6 +89,7 @@ export function Dialog({
         </h2>
       )}
       {children}
+      </div>
     </AstryxDialog>
   );
 }

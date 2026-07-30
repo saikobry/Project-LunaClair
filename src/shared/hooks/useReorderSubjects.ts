@@ -6,18 +6,18 @@ import { useToast } from '../../app/providers/ToastContext';
 import { useContextOrThrow } from '../utils/contextGuard';
 
 interface ReorderVariables {
-  /** The ID of the subject being dragged. */
-  subjectId: string;
-  /** The target index in the sorted list where the subject should land. */
-  targetIndex: number;
+  /** Full ordered list of subject IDs in their final desired order. */
+  orderedIds: string[];
 }
 
 /**
- * Mutation hook for drag-and-drop subject reordering.
+ * Mutation hook for batch subject reordering with optimistic updates.
  *
- * Takes a subject ID and a target index in the current sorted list,
- * recomputes sequential `order` values for all subjects, and batch-updates
- * only the subjects whose order actually changed.
+ * - `onMutate`: Immediately reorders the React Query cache so the UI
+ *   does not snap back to the original order while the write is in flight.
+ * - `onError`: Rolls back to the previous cache on failure.
+ * - `onSettled`: Invalidates the query to reconcile with the persisted state.
+ * - Single "Subject order saved" toast on success.
  */
 export function useReorderSubjects() {
   const queryClient = useQueryClient();
@@ -25,47 +25,42 @@ export function useReorderSubjects() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ subjectId, targetIndex }: ReorderVariables) => {
-      const data = queryClient.getQueryData<Subject[]>([...libraryQueryKeys.root, 'subjects']);
-      if (!data) return;
+    mutationFn: async ({ orderedIds }: ReorderVariables) => {
+      await context.subjectRepository.reorderSubjects(orderedIds);
+    },
 
-      // Sort the same way useSubjects does
-      const sorted = [...data].sort(
-        (a, b) =>
-          (a.order ?? 999) - (b.order ?? 999) ||
-          a.title.localeCompare(b.title),
-      );
+    onMutate: async ({ orderedIds }) => {
+      await queryClient.cancelQueries({ queryKey: libraryQueryKeys.subjects() });
+      const previousSubjects = queryClient.getQueryData<Subject[]>(libraryQueryKeys.subjects());
 
-      const sourceIndex = sorted.findIndex((s) => s.id === subjectId);
-      if (sourceIndex === -1 || sourceIndex === targetIndex) return;
+      if (previousSubjects) {
+        const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
+        const optimisticallyOrdered = previousSubjects
+          .toSorted((a, b) => {
+            const orderA = orderMap.get(a.id) ?? 999;
+            const orderB = orderMap.get(b.id) ?? 999;
+            return orderA - orderB;
+          })
+          .map((s) => ({ ...s, order: orderMap.get(s.id) ?? s.order }));
 
-      // Clamp targetIndex to valid range
-      const clampedTarget = Math.max(0, Math.min(targetIndex, sorted.length - 1));
-
-      // Reorder the array in memory
-      const [removed] = sorted.splice(sourceIndex, 1);
-      sorted.splice(clampedTarget, 0, removed);
-
-      // Assign sequential order values and collect updates
-      const updates: { id: string; order: number }[] = [];
-      for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i].order !== i) {
-          updates.push({ id: sorted[i].id, order: i });
-        }
+        queryClient.setQueryData(libraryQueryKeys.subjects(), optimisticallyOrdered);
       }
 
-      // Batch-update only the subjects whose order changed
-      if (updates.length > 0) {
-        await Promise.all(
-          updates.map((u) =>
-            context.subjectRepository.updateSubject(u.id, { order: u.order }),
-          ),
-        );
+      return { previousSubjects };
+    },
+
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousSubjects) {
+        queryClient.setQueryData(libraryQueryKeys.subjects(), ctx.previousSubjects);
       }
+      showToast('Failed to save subject order', { intent: 'error' });
     },
 
     onSuccess: () => {
-      showToast('Subject reordered', { intent: 'success' });
+      showToast('Subject order saved', { intent: 'success' });
+    },
+
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: libraryQueryKeys.subjects() });
     },
   });

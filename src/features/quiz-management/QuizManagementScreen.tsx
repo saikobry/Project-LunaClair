@@ -5,6 +5,7 @@ import { Library, ListChecks } from 'lucide-react';
 import { RepositoryContext } from '../../app/providers/RepositoryContext';
 import { useMaterial } from '../../shared/hooks/useMaterial';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
+import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { QuestionBankTab } from './components/QuestionBankTab';
 import { QuizCatalogTab } from './components/QuizCatalogTab';
 import { useQuestionManagement } from './hooks/useQuestionManagement';
@@ -73,11 +74,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                 ))}
             </TabList>
 
-            <div
-                role="tabpanel"
-                id={`mgmt-panel-${activeTab}`}
-                aria-labelledby={activeTab}
-            >
+            <AnimatedTabPanel activeKey={activeTab}>
                 {activeTab === 'questions' && (
                     <QuestionBankTab
                         questions={questions}
@@ -101,7 +98,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                         onArchive={(id) => quizBuilder.archiveQuiz.mutate(id)}
                     />
                 )}
-            </div>
+            </AnimatedTabPanel>
         </>
     );
 }

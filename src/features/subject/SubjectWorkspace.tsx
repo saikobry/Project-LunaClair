@@ -15,6 +15,7 @@ import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
 import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
+import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import EditMaterialModal from '../library/components/EditMaterialModal';
 import DeleteConfirmationModal from '../library/components/DeleteConfirmationModal';
@@ -212,11 +213,7 @@ export default function SubjectWorkspace({
         ))}
       </TabList>
 
-      <div
-        role="tabpanel"
-        id={`subject-panel-${activeTab}`}
-        aria-labelledby={activeTab}
-      >
+      <AnimatedTabPanel activeKey={activeTab}>
         {activeTab === 'materials' && (
           <MaterialsTab
             materials={subjectMaterials}
@@ -237,7 +234,7 @@ export default function SubjectWorkspace({
             onStartQuiz={handleStartQuiz}
           />
         )}
-      </div>
+      </AnimatedTabPanel>
 
       {/* Modals */}
       {editTarget && (

@@ -1,3 +1,5 @@
+import { useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { Home, BookText, GraduationCap } from 'lucide-react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
@@ -9,6 +11,9 @@ const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 const mobile = '@media (max-width: 768px)';
 
 const styles = stylex.create({
+  wrapper: {
+    position: 'relative',
+  },
   navContainer: {
     position: 'fixed',
     top: 0,
@@ -202,7 +207,7 @@ const styles = stylex.create({
     marginBottom: 8,
     opacity: 0.6,
     [tablet]: {
-      width: 24,
+      width: 44,
       height: 1,
       margin: '4px 0',
     },
@@ -211,6 +216,15 @@ const styles = stylex.create({
       height: 24,
       margin: '0 4px',
     },
+  },
+  activePill: {
+    position: 'absolute',
+    zIndex: 0,
+    pointerEvents: 'none',
+    opacity: 0,
+    backgroundColor: 'var(--color-accent-muted)',
+    borderRadius: 12,
+    // left, top, width, height set dynamically by GSAP
   },
   footer: {
     paddingLeft: 8,
@@ -236,12 +250,103 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
   const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const pillRef = useRef<HTMLDivElement>(null);
+  const sectionsRef = useRef<HTMLDivElement>(null);
+
   const isSubjectActive = !isLibrary && Boolean(subject) && !material;
   const isMaterialActive = !isLibrary && Boolean(material);
 
+  // ── Helper: reposition the sliding pill to match the active nav button ──
+  const repositionPill = (animate = false) => {
+    if (!wrapperRef.current || !pillRef.current) return;
+
+    const activeItem = wrapperRef.current.querySelector('button[aria-current="page"]');
+    if (!activeItem) {
+      if (animate) {
+        gsap.to(pillRef.current, { opacity: 0, duration: 0.15, overwrite: 'auto' });
+      } else {
+        gsap.set(pillRef.current, { opacity: 0 });
+      }
+      return;
+    }
+
+    const wrapperRect = wrapperRef.current.getBoundingClientRect();
+    const itemRect = activeItem.getBoundingClientRect();
+    const target = {
+      left: itemRect.left - wrapperRect.left,
+      top: itemRect.top - wrapperRect.top,
+      width: itemRect.width,
+      height: itemRect.height,
+      opacity: 1,
+    };
+
+    if (animate) {
+      gsap.to(pillRef.current, {
+        ...target,
+        duration: 0.32,
+        ease: 'circ.out',
+        overwrite: 'auto',
+      });
+    } else {
+      gsap.set(pillRef.current, target);
+    }
+  };
+
+  // ── Reposition whenever active route changes ───────────────────
+  useEffect(() => {
+    requestAnimationFrame(() => repositionPill(true));
+  }, [isLibrary, isSubjectActive, isMaterialActive]);
+
+  // ── Reposition on viewport resize (desktop ↔ tablet etc.) ──────
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    // Reposition after a brief delay so layout has settled
+    const handleResize = () => requestAnimationFrame(() => repositionPill(false));
+
+    const ro = new ResizeObserver(handleResize);
+    ro.observe(wrapper);
+
+    return () => ro.disconnect();
+  }, []);
+
+  // ── Gentle entrance animation for nav items ───────────────────
+  // One-time fade+slide-up on mount, plus re-animation when a new nav
+  // item appears (subject or material going from undefined → defined).
+  // Does NOT re-fire on every navigation — only when new content mounts.
+  const didInitialEntrance = useRef(false);
+  const prevHadSubject = useRef(false);
+  const prevHadMaterial = useRef(false);
+
+  useEffect(() => {
+    const hasSubject = Boolean(subject);
+    const hasMaterial = Boolean(material);
+    const subjectJustAppeared = hasSubject && !prevHadSubject.current;
+    const materialJustAppeared = hasMaterial && !prevHadMaterial.current;
+
+    prevHadSubject.current = hasSubject;
+    prevHadMaterial.current = hasMaterial;
+
+    if (!sectionsRef.current) return;
+    const items = sectionsRef.current.children;
+    if (items.length === 0) return;
+
+    // Initial mount or a new item just appeared → gentle fade+slide-up
+    if (!didInitialEntrance.current || subjectJustAppeared || materialJustAppeared) {
+      didInitialEntrance.current = true;
+      gsap.fromTo(
+        items,
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, stagger: 0.04, duration: 0.3, ease: 'power2.out', overwrite: 'auto' },
+      );
+    }
+  }, [subject, material]);
+
   return (
     <nav {...stylex.props(styles.navContainer)} aria-label="Main Navigation">
-      <div>
+      <div ref={wrapperRef} {...stylex.props(styles.wrapper)}>
         {/* Desktop Brand Header */}
         <div {...stylex.props(styles.brandHeader)}>
           <div {...stylex.props(styles.brandIcon)}>
@@ -250,8 +355,11 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
           <span {...stylex.props(styles.brandTitle)}>Project LunaClair</span>
         </div>
 
+        {/* Active pill indicator */}
+        <div ref={pillRef} {...stylex.props(styles.activePill)} />
+
         {/* Navigation Items */}
-        <div {...stylex.props(styles.navSection)}>
+        <div ref={sectionsRef} {...stylex.props(styles.navSection)}>
           <div {...stylex.props(styles.sectionLabel)}>Navigation</div>
 
           <button
