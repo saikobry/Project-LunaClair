@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MousePointer, Pencil, Eraser, Palette, ChevronLeft, Undo2, Trash2 } from 'lucide-react';
 import type { AnnotationMode, DrawingTool } from '../../../shared/types';
 import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../../../shared/constants/annotationDefaults';
@@ -19,6 +20,22 @@ interface AnnotationToolbarProps {
   hasHighlights: boolean;
 }
 
+function useIsMobileOrTablet() {
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 1023px)').matches;
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const onChange = () => setIsMobileOrTablet(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  return isMobileOrTablet;
+}
+
 export default function AnnotationToolbar({
   mode,
   onModeChange,
@@ -35,8 +52,9 @@ export default function AnnotationToolbar({
   hasHighlights,
 }: AnnotationToolbarProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const isMobileOrTablet = useIsMobileOrTablet();
 
-  return (
+  const toolbarNode = (
     <div className={`annotation-toolbar ${!isOpen ? 'collapsed' : ''}`}>
       <button
         type="button"
@@ -188,4 +206,10 @@ export default function AnnotationToolbar({
       )}
     </div>
   );
+
+  if (isMobileOrTablet && typeof document !== 'undefined') {
+    return createPortal(toolbarNode, document.body);
+  }
+
+  return toolbarNode;
 }

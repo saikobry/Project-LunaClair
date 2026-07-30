@@ -25,7 +25,14 @@ export function AnimatedTabPanel({ activeKey, children }: AnimatedTabPanelProps)
     gsap.fromTo(
       panel,
       { opacity: 0, y: 8 },
-      { opacity: 1, y: 0, duration: 0.2, ease: 'power2.out', overwrite: 'auto' },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.2,
+        ease: 'power2.out',
+        overwrite: 'auto',
+        clearProps: 'transform',
+      },
     );
   }, { dependencies: [activeKey] });
 

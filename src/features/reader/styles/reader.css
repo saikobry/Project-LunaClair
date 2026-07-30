@@ -176,6 +176,8 @@
   align-items: center;
   gap: 10px;
   padding: 12px 10px;
+  width: 64px;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -189,24 +191,6 @@
   transform: translateX(calc(-100% + 44px));
   padding: 10px;
   box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-@media (max-width: 1000px) {
-  .main-content-wrapper {
-    gap: 0;
-  }
-  .annotation-toolbar {
-    position: fixed;
-    left: 0;
-    top: 50%;
-    transform: translate(0, -50%);
-    border-radius: 0 16px 16px 0;
-    border-left: none;
-    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.08);
-  }
-  .annotation-toolbar.collapsed {
-    transform: translate(calc(-100% + 28px), -50%);
-  }
 }
 
 .toolbar-toggle-btn {
@@ -369,6 +353,87 @@
   background-color: #f3f4f6;
   color: #1f2937;
   border-color: #d1d5db;
+}
+
+/* === Bottom Dock (Tablet & Mobile) — shared base === */
+/* NOTE: placed after all base desktop rules so media queries cleanly override them */
+
+@media (max-width: 1023px) {
+  .main-content-wrapper {
+    gap: 0;
+  }
+
+  .annotation-toolbar {
+    position: fixed;
+    left: 50%;
+    top: auto;
+    width: auto;
+    /* bottom set in per-breakpoint query below */
+    transform: translateX(-50%);
+    flex-direction: row;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 16px;
+    border-left: 1px solid rgba(229, 231, 235, 0.8);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .annotation-toolbar.collapsed {
+    transform: translateX(-50%);
+    padding: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Collapse toggle icon rotation — ChevronLeft → ChevronDown */
+  .annotation-toolbar .toolbar-toggle-btn svg {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .annotation-toolbar:not(.collapsed) .toolbar-toggle-btn svg {
+    transform: rotate(90deg);
+  }
+
+  .toolbar-collapsible {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .toolbar-section {
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 16px;
+  }
+
+  .brush-colors {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .brush-sizes {
+    flex-direction: row;
+    gap: 4px;
+  }
+}
+
+/* Tablet — centered bottom dock */
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .annotation-toolbar {
+    bottom: 24px;
+  }
+}
+
+/* Mobile — elevated above AppSidebar nav bar */
+
+@media (max-width: 768px) {
+  .annotation-toolbar {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* === Selection Popover === */

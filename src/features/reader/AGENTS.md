@@ -43,6 +43,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 - Annotation types (`HighlightItem`, `DrawingPath`, `Point`, etc.) live in `shared/types/annotation.types.ts`
 - Query hooks and mutation hooks are separated; mutations live in `hooks/mutations/`
 - DI hooks (`useDocumentRepository`, `useAnnotationRepository`) provide repository access via context
+- AnnotationToolbar renders via React Portal (`createPortal`) to `document.body` on mobile/tablet viewports (`<= 1023px`) as a bottom horizontal dock to escape parent container CSS transforms
 
 ## Work Guidance
 
