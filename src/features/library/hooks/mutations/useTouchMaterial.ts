@@ -9,13 +9,10 @@ import { useLibraryRepository } from '../useLibraryRepository';
  */
 export function useTouchMaterial() {
   const queryClient = useQueryClient();
-  const { libraryRepository } = useLibraryRepository();
+  const { useCases } = useLibraryRepository();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      libraryRepository.updateMaterial(id, {
-        lastOpenedAt: new Date().toISOString(),
-      }),
+    mutationFn: (id: string) => useCases.library.touchMaterial.execute(id),
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: libraryQueryKeys.materials() });

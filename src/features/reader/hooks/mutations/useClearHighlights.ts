@@ -2,16 +2,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HighlightItem } from '../../../../shared/types/annotation.types';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Clears all highlights for a document with optimistic cache update.
  */
 export function useClearHighlights() {
     const queryClient = useQueryClient();
-    const annotationRepository = useAnnotationRepository();
+    useAnnotationRepository();
+    const context = useContextOrThrow(ApplicationContext, 'useClearHighlights');
 
     return useMutation({
-        mutationFn: (documentId: string) => annotationRepository.clearHighlights(documentId),
+        mutationFn: (documentId: string) => context.useCases.reader.clearAnnotations.execute(documentId, 'highlights'),
 
         onMutate: async (documentId) => {
             await queryClient.cancelQueries({ queryKey: readerQueryKeys.highlights(documentId) });

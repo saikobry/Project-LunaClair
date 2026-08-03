@@ -18,11 +18,11 @@ interface EditVariables {
  */
 export function useEditMaterial() {
   const queryClient = useQueryClient();
-  const { libraryRepository } = useLibraryRepository();
+  const { useCases } = useLibraryRepository();
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, input }: EditVariables) => libraryRepository.updateMaterial(id, input),
+    mutationFn: ({ id, input }: EditVariables) => useCases.library.updateMaterial.execute(id, input),
 
     onMutate: async ({ id, input }) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.materials() });

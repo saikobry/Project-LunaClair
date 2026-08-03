@@ -19,15 +19,14 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `editors/TrueFalseEditor.tsx` | Radio toggle for True/False |
 | `editors/IdentificationEditor.tsx` | Primary answer + accepted alternatives |
 | `editors/FillBlankEditor.tsx` | Template textarea + blank answer inputs |
-| `services/QuizManagementService.ts` | Application service — question validation, version increments, soft-delete archiving, quiz publishing |
-| `hooks/useQuestionManagement.ts` | Mutation hook wrapping QuizManagementService for question CRUD + publish/archive |
-| `hooks/useQuizBuilder.ts` | Mutation hook wrapping QuizManagementService for quiz CRUD + publish/archive |
+| `hooks/useQuestionManagement.ts` | Thin mutation adapter for application question use cases |
+| `hooks/useQuizBuilder.ts` | Thin mutation adapter for application quiz use cases |
 | `index.ts` | Barrel export of public API (QuizManagementScreen) |
 
 ## Local Contracts
 
 - No cross-feature imports — this feature does not import from `src/features/quiz/`
-- Repository access via `RepositoryContext` (same DI pattern as other features)
+- Query repository access via application context; mutations call `context.useCases.quizManagement`.
 - Query keys match the assessment namespace: `['assessment', 'questions', materialId]` and `['assessment', 'quizzes', materialId]`
 - `QuestionStatus` lifecycle: `draft` → `published` → `archived`
 - `QuizStatus` lifecycle: `draft` → `published` → `archived`

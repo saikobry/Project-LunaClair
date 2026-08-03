@@ -11,10 +11,10 @@ import { useLibraryRepository } from '../useLibraryRepository';
  */
 export function useCreateMaterial() {
   const queryClient = useQueryClient();
-  const { libraryRepository } = useLibraryRepository();
+  const { useCases } = useLibraryRepository();
 
   return useMutation({
-    mutationFn: (input: CreateMaterialInput) => libraryRepository.createMaterial(input),
+    mutationFn: (input: CreateMaterialInput) => useCases.library.createMaterial.execute(input),
 
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.materials() });

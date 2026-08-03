@@ -11,7 +11,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async mutation hooks via TanStack Query, dependency-injected repository (`useLibraryRepository`); the materials query hook (`useLibrary`) lives in `src/shared/hooks/` |
 | `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), Subject Quiz Explorer tree & selection hooks, DI repositories |
-| `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), QuizManagementService, publish/archive workflows |
+| `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), application use-case adapters, publish/archive workflows |
 | `subject/` | ✅ Implemented | Subject workspace — Materials / Quiz / Terms tabs; term management UI (view, reorder, unlink, attach existing, create-and-assign via `TermService`) |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
@@ -27,7 +27,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Barrel export: `index.ts` re-exports the public API (usually just the Screen component)
 - Query hooks are separated from mutation hooks. Mutations generally live in `hooks/mutations/`; the subject feature groups term mutations in `hooks/useSubjectTermMutations.ts` (per its own plan) with the query hook in `hooks/useSubjectTermUsage.ts`.
-- UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes.
+- UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes. Mutation hooks delegate workflows to `src/application/` use cases.
 - Subject term UI: `SubjectTermList` is strictly presentational (props `{ terms, onReorder, onRemove }` — zero fetching/mutations/modals); `SubjectTermsTab` is the container owning queries, mutations, and modal state. `useSubjectTermMutations` provides add/remove/reorder (optimistic) and create-and-assign hooks targeting `['library', 'terms', subjectId]` query keys.
 
 ## Work Guidance

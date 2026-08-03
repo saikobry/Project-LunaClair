@@ -21,7 +21,7 @@ export function useAddSubjectTerm(subjectId: string) {
 
   return useMutation({
     mutationFn: (termId: string) =>
-      context.subjectTermRepository.addTerm(subjectId, termId),
+      context.useCases.subject.addTerm.execute(subjectId, termId),
 
     onSuccess: () => {
       showToast('Term added to subject', { intent: 'success' });
@@ -41,7 +41,7 @@ export function useRemoveSubjectTerm(subjectId: string) {
 
   return useMutation({
     mutationFn: (termId: string) =>
-      context.subjectTermRepository.removeTerm(subjectId, termId),
+      context.useCases.subject.removeTerm.execute(subjectId, termId),
 
     onSuccess: () => {
       showToast('Term removed from subject', { intent: 'success' });
@@ -68,7 +68,7 @@ export function useReorderSubjectTerms(subjectId: string) {
 
   return useMutation({
     mutationFn: (orderedTermIds: string[]) =>
-      context.subjectTermRepository.reorderTerms(subjectId, orderedTermIds),
+      context.useCases.subject.reorderTerms.execute(subjectId, orderedTermIds),
 
     onMutate: async (orderedTermIds) => {
       await queryClient.cancelQueries({ queryKey: key });
@@ -113,7 +113,7 @@ export function useCreateAndAssignTerm(subjectId: string) {
 
   return useMutation({
     mutationFn: (title: string) =>
-      context.termService.createAndAssignTerm(subjectId, title),
+      context.useCases.subject.createAndAssignTerm.execute(subjectId, title),
 
     onSuccess: () => {
       showToast('Term created and added to subject', { intent: 'success' });

@@ -1,0 +1,3 @@
+import type { LibraryRepository } from '../../../domain/library/LibraryRepository';
+import type { SubjectRepository } from '../../../domain/library/SubjectRepository';
+export class DeleteSubjectUseCase { private readonly subjects: SubjectRepository; private readonly library: LibraryRepository; constructor(subjects: SubjectRepository, library: LibraryRepository) { this.subjects = subjects; this.library = library; } async execute(subjectId: string): Promise<void> { const materials = await this.library.getMaterials(); await Promise.all(materials.filter((material) => material.subjectId === subjectId).map((material) => this.library.updateMaterial(material.id, { subjectId: null, termId: null }))); await this.subjects.deleteSubject(subjectId); } }

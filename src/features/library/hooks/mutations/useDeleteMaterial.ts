@@ -12,11 +12,11 @@ import { useLibraryRepository } from '../useLibraryRepository';
  */
 export function useDeleteMaterial() {
   const queryClient = useQueryClient();
-  const { libraryRepository } = useLibraryRepository();
+  const { useCases } = useLibraryRepository();
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (id: string) => libraryRepository.deleteMaterial(id),
+    mutationFn: (id: string) => useCases.library.deleteMaterial.execute(id),
 
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.materials() });

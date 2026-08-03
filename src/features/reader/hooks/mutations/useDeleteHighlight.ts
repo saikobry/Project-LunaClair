@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HighlightItem } from '../../../../shared/types/annotation.types';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 interface DeleteHighlightVariables {
     documentId: string;
@@ -14,13 +16,14 @@ interface DeleteHighlightVariables {
  */
 export function useDeleteHighlight() {
     const queryClient = useQueryClient();
-    const annotationRepository = useAnnotationRepository();
+    useAnnotationRepository();
+    const context = useContextOrThrow(ApplicationContext, 'useDeleteHighlight');
 
     return useMutation({
         mutationFn: async ({ documentId, highlightId }: DeleteHighlightVariables) => {
             const current = queryClient.getQueryData<HighlightItem[]>(readerQueryKeys.highlights(documentId)) ?? [];
             const updated = current.filter((h) => h.id !== highlightId);
-            await annotationRepository.saveHighlights(documentId, updated);
+            await context.useCases.reader.saveHighlight.execute(documentId, updated);
             return updated;
         },
 

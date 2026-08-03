@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 5 (Assessment Engine Foundation)
+**Phase:** 6 (Application Layer & Domain Boundary Refinement)
 
 ## Stack
 
@@ -110,6 +110,7 @@ Feature-based architecture:
 ```
 src/
   app/            — Application shell, config, providers
+  application/    — Framework-agnostic application use cases
   domain/         — Business domain models (pure data, no UI)
   features/       — Feature modules (reader, quiz, library, …)
   infrastructure/ — Persistence layer (Dexie/IndexedDB database, repositories)
@@ -154,6 +155,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 | Child | Scope | Purpose |
 |---|---|---|
+| `src/application/AGENTS.md` | `src/application/` | Application use cases and workflow contracts |
 | `src/app/AGENTS.md` | `src/app/` | Application shell, layout, config, providers |
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |

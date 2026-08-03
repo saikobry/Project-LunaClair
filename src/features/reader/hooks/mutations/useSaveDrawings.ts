@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DrawingPath } from '../../../../shared/types/annotation.types';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 interface SaveDrawingsVariables {
     documentId: string;
@@ -14,11 +16,12 @@ interface SaveDrawingsVariables {
  */
 export function useSaveDrawings() {
     const queryClient = useQueryClient();
-    const annotationRepository = useAnnotationRepository();
+    useAnnotationRepository();
+    const context = useContextOrThrow(ApplicationContext, 'useSaveDrawings');
 
     return useMutation({
         mutationFn: ({ documentId, paths }: SaveDrawingsVariables) =>
-            annotationRepository.saveDrawings(documentId, paths),
+            context.useCases.reader.saveDrawing.execute(documentId, paths),
 
         onMutate: async ({ documentId, paths }) => {
             await queryClient.cancelQueries({ queryKey: readerQueryKeys.drawings(documentId) });

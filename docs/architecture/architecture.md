@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 5 (Assessment Engine Foundation)  
+**Version:** Phase 6 (Application Layer & Domain Boundary Refinement)
 
 ---
 
@@ -27,7 +27,8 @@ docs/
 
 ```text
 src/
-├── app/            # Application bootstrap: shell layout, config, providers
+├── app/            # Application bootstrap: shell layout, config, providers, composition root
+├── application/    # Framework-agnostic use cases and application workflows
 ├── domain/         # Business domain models (pure data, no UI) & domain services
 ├── infrastructure/ # Database infrastructure (Dexie/IndexedDB, schema, migrators, repositories)
 ├── features/       # Feature modules (feature-based, isolated)
@@ -37,7 +38,10 @@ src/
 ```
 
 ### `src/app/`
-Application-level orchestration: root shell layout (`AppShell`), configuration constants, and React providers (`AppProviders`, `RepositoryProvider`). Contains no business logic.
+Application-level orchestration: root shell layout, configuration constants, React providers, and the composition root (`createRepositories`, `createUseCases`, `createApplication`).
+
+### `src/application/`
+Framework-agnostic use cases coordinate domain contracts. A use case never imports React, TanStack Query, Dexie, browser APIs, or UI components. React hooks call use cases directly for mutations; repositories remain available to query hooks during migration.
 
 ### `src/domain/`
 Pure business domain models and domain services — interfaces, types, pure functions, strategy resolvers, and pure domain services (`AssessmentService`). Domain modules must have **zero React or UI dependencies**.
@@ -68,6 +72,10 @@ Active features:
 
 ### `src/shared/`
 Truly shared code: reusable types, constants, utility functions, design tokens, and base UI primitives.
+
+### Application workflow boundary
+
+`StartQuizSessionUseCase → SubmitQuizSessionUseCase` is the quiz lifecycle. Submission grades immutable session snapshots through `AssessmentService`, persists the result, and completes the session as one application operation. Material association checks and subject-term orchestration likewise live in application use cases, while Dexie repositories perform persistence only.
 
 ---
 

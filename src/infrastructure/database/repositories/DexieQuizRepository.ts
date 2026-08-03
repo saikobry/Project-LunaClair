@@ -35,13 +35,14 @@ export class DexieQuizRepository implements QuizRepository {
 
     async createQuiz(input: CreateQuizInput): Promise<Quiz> {
         const now = new Date().toISOString();
+        const id = generateId();
         const quiz: Quiz = {
-            id: generateId(),
+            id,
             materialId: input.materialId,
             title: input.title,
             description: input.description,
             questionIds: input.questionIds,
-            items: input.items ?? [],
+            items: (input.items ?? []).map((item) => ({ ...item, quizId: id })),
             status: input.status ?? 'draft',
             timeLimitSeconds: input.timeLimitSeconds,
             passingPercentage: input.passingPercentage,

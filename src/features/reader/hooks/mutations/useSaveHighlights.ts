@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HighlightItem } from '../../../../shared/types/annotation.types';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 interface SaveHighlightVariables {
     documentId: string;
@@ -14,11 +16,12 @@ interface SaveHighlightVariables {
  */
 export function useSaveHighlights() {
     const queryClient = useQueryClient();
-    const annotationRepository = useAnnotationRepository();
+    useAnnotationRepository();
+    const context = useContextOrThrow(ApplicationContext, 'useSaveHighlights');
 
     return useMutation({
         mutationFn: ({ documentId, highlights }: SaveHighlightVariables) =>
-            annotationRepository.saveHighlights(documentId, highlights),
+            context.useCases.reader.saveHighlight.execute(documentId, highlights),
 
         onMutate: async ({ documentId, highlights }) => {
             await queryClient.cancelQueries({ queryKey: readerQueryKeys.highlights(documentId) });

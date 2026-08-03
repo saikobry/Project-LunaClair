@@ -11,7 +11,7 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 - `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 migration is handled natively by Dexie `version(3).upgrade()`.
 - `database/DatabaseSeeder.ts` — Seeds demo subjects, global terms, subject-term links, categorized/uncategorized materials, 5 sample questions (one per type), and starter quizzes if database is empty.
 - `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()` → `seedIfEmpty()`.
-- `database/repositories/` — Concrete repository implementations:
+- `database/repositories/` — Concrete repository implementations. `DexieLibraryRepository` performs raw material persistence; material association validation belongs to application use cases.
   - `DexieQuestionRepository` → `QuestionRepository`
   - `DexieQuizRepository` → `QuizRepository`
   - `DexieQuizSessionRepository` → `QuizSessionRepository` (multi-store transactions for immutable `questionSnapshots`)

@@ -20,7 +20,7 @@ export function useDeleteTerm() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (termId: string) => context.termRepository.deleteTerm(termId),
+    mutationFn: (termId: string) => context.useCases.subject.deleteTerm.execute(termId),
 
     onSuccess: () => {
       showToast('Term deleted', { intent: 'success' });

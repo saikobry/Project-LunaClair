@@ -1,11 +1,10 @@
-import { useContext, useMemo } from 'react';
+import { useContext } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
-import { QuizManagementService } from '../services/QuizManagementService';
 
 /**
- * Hook wrapping QuizManagementService for question authoring operations.
+ * Thin React adapter for question authoring use cases.
  * Provides create, update, publish, and archive mutations with cache invalidation.
  */
 export function useQuestionManagement() {
@@ -14,38 +13,33 @@ export function useQuestionManagement() {
         throw new Error('useQuestionManagement must be used within a <ApplicationProvider>');
     }
 
-    const service = useMemo(
-        () => new QuizManagementService(context.questionRepository, context.quizRepository),
-        [context.questionRepository, context.quizRepository],
-    );
-
     const queryClient = useQueryClient();
     const invalidate = () =>
         queryClient.invalidateQueries({ queryKey: ['assessment'] });
 
     const createQuestion = useMutation({
-        mutationFn: (input: CreateQuestionInput) => service.createQuestion(input),
+        mutationFn: (input: CreateQuestionInput) => context.useCases.quizManagement.createQuestion.execute(input),
         onSettled: invalidate,
     });
 
     const updateQuestion = useMutation({
         mutationFn: ({ id, input }: { id: string; input: UpdateQuestionInput }) =>
-            service.updateQuestion(id, input),
+            context.useCases.quizManagement.updateQuestion.execute(id, input),
         onSettled: invalidate,
     });
 
     const publishQuestion = useMutation({
-        mutationFn: (id: string) => service.publishQuestion(id),
+        mutationFn: (id: string) => context.useCases.quizManagement.publishQuestion.execute(id),
         onSettled: invalidate,
     });
 
     const archiveQuestion = useMutation({
-        mutationFn: (id: string) => service.archiveQuestion(id),
+        mutationFn: (id: string) => context.useCases.quizManagement.archiveQuestion.execute(id),
         onSettled: invalidate,
     });
 
     const unarchiveQuestion = useMutation({
-        mutationFn: (id: string) => service.unarchiveQuestion(id),
+        mutationFn: (id: string) => context.useCases.quizManagement.unarchiveQuestion.execute(id),
         onSettled: invalidate,
     });
 

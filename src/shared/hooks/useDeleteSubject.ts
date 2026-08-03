@@ -19,20 +19,7 @@ export function useDeleteSubject() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: async (subjectId: string) => {
-      // 1. Unassign all materials that belong to this subject
-      const materials = await context.libraryRepository.getMaterials();
-      const subjectMaterials = materials.filter((m) => m.subjectId === subjectId);
-
-      await Promise.all(
-        subjectMaterials.map((m) =>
-          context.libraryRepository.updateMaterial(m.id, { subjectId: null }),
-        ),
-      );
-
-      // 2. Delete the subject itself
-      await context.subjectRepository.deleteSubject(subjectId);
-    },
+    mutationFn: (subjectId: string) => context.useCases.subject.deleteSubject.execute(subjectId),
 
     onSuccess: () => {
       showToast('Subject deleted', { intent: 'success' });

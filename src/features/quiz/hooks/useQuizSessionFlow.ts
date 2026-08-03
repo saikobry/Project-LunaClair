@@ -86,7 +86,12 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
         const quizResult = evaluate(questions, progress.answers);
         setResult(quizResult);
 
-        completeSession(quizResult.answers, quizResult.score)
+        const submissions = questions.map((question) => ({
+            questionId: question.id,
+            value: progress.answers.get(question.id) ?? '',
+        }));
+
+        completeSession(submissions)
             .then(() => setIsCompleted(true))
             .catch((err) => {
                 setSessionError(err instanceof Error ? err : new Error(String(err)));
