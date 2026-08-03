@@ -6,7 +6,7 @@ import { BookOpen, Plus } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library';
 import type { Term } from '../../../domain/library';
 import { MaterialCard } from '../../../shared/components/MaterialCard/MaterialCard';
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../shared/ui/Button/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 const styles = stylex.create({

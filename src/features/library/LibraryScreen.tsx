@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../domain/library';
 import type { Subject } from '../../domain/library';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
-import { useLibrary } from './hooks/useLibrary';
+import { useLibrary } from '../../shared/hooks/useLibrary';
 import { useSubjects } from '../../shared/hooks/useSubjects';
 import { useCreateSubject } from '../../shared/hooks/useCreateSubject';
 import { useEditSubject } from '../../shared/hooks/useEditSubject';

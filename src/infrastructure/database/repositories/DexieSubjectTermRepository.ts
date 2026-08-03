@@ -104,14 +104,11 @@ export class DexieSubjectTermRepository implements SubjectTermRepository {
             }
 
             // Update order on each matching row
-            for (const existingLink of existing) {
-                const newOrder = orderedTermIds.indexOf(existingLink.termId) + 1;
-                if (newOrder === 0) continue; // shouldn't happen due to validation above
-                await db.subjectTerms.put({
-                    ...existingLink,
-                    order: newOrder,
-                });
-            }
+            const updates = existing.map((link) => ({
+                ...link,
+                order: orderedTermIds.indexOf(link.termId) + 1,
+            }));
+            await db.subjectTerms.bulkPut(updates);
         });
     }
 

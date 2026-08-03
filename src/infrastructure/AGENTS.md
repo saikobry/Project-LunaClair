@@ -20,6 +20,8 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
   - `DexieSubjectRepository` → `SubjectRepository` (cascade: removes `subjectTerms` rows and clears `subjectId`/`termId` on `materials` on delete)
   - `DexieTermRepository` → `TermRepository` (cascade: removes `subjectTerms` rows and clears `termId` on `materials` on delete)
   - `DexieSubjectTermRepository` → `SubjectTermRepository` (manages many-to-many Subject ↔ Term associations with composite key `[subjectId+termId]`)
+- `database/services/` — Concrete application service implementations:
+  - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
 - `database/index.ts` — Barrel re-export of database core, startup services, schema versions, and repository singletons
 
 ## Local Contracts
@@ -32,6 +34,7 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 - Migration is idempotent — guarded by localStorage flags for v1/v2, native Dexie upgrade for v3.
 - Seeding is idempotent — skipped if `materials` store is non-empty.
 - `DexieSubjectTermRepository.addTerm()` validates subject and term existence, prevents duplicate associations, and auto-computes `max(order) + 1`.
+- `DexieTermService.createAndAssignTerm()` runs a single `db.transaction('rw', [terms, subjectTerms, subjects])` that creates the global `Term`, validates the subject, and inserts the `SubjectTerm` junction with `max(order) + 1` — the operation is atomic.
 - `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.
 - `DexieLibraryRepository.createMaterial()` and `updateMaterial()` validate that if `termId` is set, the `(subjectId, termId)` junction record exists.
 
@@ -45,4 +48,4 @@ No verification framework exists yet.
 
 ## Child DOX Index
 
-No child AGENTS.md files — `database/repositories/` is a flat directory of repository implementations.
+No child AGENTS.md files — `database/repositories/` is a flat directory of repository implementations and `database/services/` holds application service implementations.

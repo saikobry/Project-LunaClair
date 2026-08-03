@@ -6,3 +6,4 @@ export type { Term } from './Term';
 export type { TermRepository, CreateTermInput, UpdateTermInput } from './TermRepository';
 export type { SubjectTerm, SubjectTermView } from './SubjectTerm';
 export type { SubjectTermRepository } from './SubjectTermRepository';
+export type { TermService, CreateAndAssignTermResult } from './TermService';

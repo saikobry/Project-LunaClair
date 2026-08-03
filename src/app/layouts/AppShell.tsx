@@ -38,7 +38,7 @@ const styles = stylex.create({
 export type AppRoute =
   | { kind: 'library' }
   | { kind: 'terms' }
-  | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' }
+  | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'manage'; subjectId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute };
 
@@ -78,7 +78,7 @@ function urlToRoute(path: string, search: string): AppRoute | null {
   // /subjects/:subjectId
   const subjectMatch = url.pathname.match(/^\/subjects\/([^/]+)$/);
   if (subjectMatch) {
-    const tab = (url.searchParams.get('tab') as 'materials' | 'quiz') ?? 'materials';
+    const tab = (url.searchParams.get('tab') as 'materials' | 'quiz' | 'terms') ?? 'materials';
     return { kind: 'subject', subjectId: subjectMatch[1], activeTab: tab };
   }
 

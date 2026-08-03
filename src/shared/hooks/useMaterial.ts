@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 
 /**
@@ -8,9 +8,9 @@ import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKey
  * Used by workspaces when passing only a materialId.
  */
 export function useMaterial(materialId: string | undefined) {
-  const context = useContext(RepositoryContext);
+  const context = useContext(ApplicationContext);
   if (!context) {
-    throw new Error('useMaterial must be used within a <RepositoryProvider>');
+    throw new Error('useMaterial must be used within a <ApplicationProvider>');
   }
 
   const { data, isLoading, isError, error } = useQuery({

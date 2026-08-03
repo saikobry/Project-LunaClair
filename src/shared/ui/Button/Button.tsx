@@ -1,27 +1,9 @@
 import { type ReactNode, type HTMLAttributes } from 'react';
 import { Button as AstryxButton } from '@astryxdesign/core/Button';
-import type { ButtonVariant as AstryxButtonVariant } from '@astryxdesign/core/Button';
+import { mapButtonVariant, type ButtonVariant } from './buttonVariant';
 
-/**
- * LunaClair Button variant.
- * - primary: filled accent button
- * - secondary: outlined/default button
- * - danger: destructive action button
- */
-export type ButtonVariant = 'primary' | 'secondary' | 'danger';
+export type { ButtonVariant } from './buttonVariant';
 
-/** Maps LunaClair ButtonVariant to Astryx ButtonVariant. */
-function mapVariant(variant?: ButtonVariant): AstryxButtonVariant {
-  switch (variant) {
-    case 'danger':
-      return 'destructive';
-    case 'secondary':
-      return 'secondary';
-    case 'primary':
-    default:
-      return 'primary';
-  }
-}
 
 export interface ButtonProps {
   /** Accessible label (always required). */
@@ -61,9 +43,10 @@ export interface ButtonProps {
  * LunaClair Button — thin adapter over @astryxdesign/core Button.
  *
  * Exposes LunaClair-owned props instead of Astryx's. Maps `danger`
- * variant to `destructive`, `primary` to `primary`, and `secondary`
- * to `secondary`. All accessibility, focus management, disabled states,
- * and keyboard navigation are inherited from Astryx.
+ * variant to `destructive`, `primary` to `primary`, `secondary` to
+ * `secondary`, and `ghost` to `ghost`. All accessibility, focus
+ * management, disabled states, and keyboard navigation are inherited
+ * from Astryx.
  */
 export function Button({
   variant = 'primary',
@@ -84,7 +67,7 @@ export function Button({
   return (
     <AstryxButton
       label={label}
-      variant={mapVariant(variant)}
+      variant={mapButtonVariant(variant)}
       isDisabled={isDisabled}
       isLoading={isLoading}
       type={type}

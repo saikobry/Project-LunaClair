@@ -1,12 +1,12 @@
 import { useContext } from 'react';
-import { RepositoryContext } from '../../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type { QuizRepository } from '../../../domain/quiz/QuizRepository';
 
 /** DI hook returning the QuizRepository from context. */
 export function useQuizRepository(): QuizRepository {
-    const context = useContext(RepositoryContext);
+    const context = useContext(ApplicationContext);
     if (!context) {
-        throw new Error('useQuizRepository must be used within a <RepositoryProvider>');
+        throw new Error('useQuizRepository must be used within a <ApplicationProvider>');
     }
     return context.quizRepository;
 }

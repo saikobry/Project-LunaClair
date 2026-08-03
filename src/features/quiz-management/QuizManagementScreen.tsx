@@ -2,7 +2,7 @@ import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { Library, ListChecks } from 'lucide-react';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import { useMaterial } from '../../shared/hooks/useMaterial';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
@@ -38,9 +38,9 @@ interface QuizManagementScreenProps {
 }
 
 export default function QuizManagementScreen({ materialId }: QuizManagementScreenProps) {
-    const context = useContext(RepositoryContext);
+    const context = useContext(ApplicationContext);
     if (!context) {
-        throw new Error('QuizManagementScreen must be used within a <RepositoryProvider>');
+        throw new Error('QuizManagementScreen must be used within a <ApplicationProvider>');
     }
 
     const { isLoading: materialLoading } = useMaterial(materialId);

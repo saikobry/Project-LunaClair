@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { UpdateSubjectInput } from '../../domain/library';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useToast } from '../../app/providers/ToastContext';
@@ -16,7 +16,7 @@ interface EditSubjectVariables {
  */
 export function useEditSubject() {
   const queryClient = useQueryClient();
-  const context = useContextOrThrow(RepositoryContext, 'useEditSubject');
+  const context = useContextOrThrow(ApplicationContext, 'useEditSubject');
   const { showToast } = useToast();
 
   return useMutation({

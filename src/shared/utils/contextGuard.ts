@@ -7,7 +7,7 @@ import { useContext, type Context } from 'react';
 export function useContextOrThrow<T>(ctx: Context<T | null>, hookName: string): T {
   const value = useContext(ctx);
   if (!value) {
-    throw new Error(`${hookName} must be used within a <RepositoryProvider>`);
+    throw new Error(`${hookName} must be used within a <ApplicationProvider>`);
   }
   return value;
 }

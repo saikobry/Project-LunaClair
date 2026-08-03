@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { Subject } from '../../domain/library';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useToast } from '../../app/providers/ToastContext';
@@ -21,7 +21,7 @@ interface ReorderVariables {
  */
 export function useReorderSubjects() {
   const queryClient = useQueryClient();
-  const context = useContextOrThrow(RepositoryContext, 'useReorderSubjects');
+  const context = useContextOrThrow(ApplicationContext, 'useReorderSubjects');
   const { showToast } = useToast();
 
   return useMutation({

@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { RepositoryContext } from '../../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
 
 /**
@@ -8,10 +8,10 @@ import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepo
  * rather than importing concrete implementations directly.
  */
 export function useAnnotationRepository(): AnnotationRepository {
-    const context = useContext(RepositoryContext);
+    const context = useContext(ApplicationContext);
     if (!context) {
         throw new Error(
-            'useAnnotationRepository must be used within a <RepositoryProvider>',
+            'useAnnotationRepository must be used within a <ApplicationProvider>',
         );
     }
     return context.annotationRepository;

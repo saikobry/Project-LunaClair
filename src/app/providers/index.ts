@@ -1,2 +1,2 @@
 export { AppProviders } from './AppProviders';
-export { RepositoryProvider } from './RepositoryProvider';
+export { ApplicationProvider } from './ApplicationProvider';

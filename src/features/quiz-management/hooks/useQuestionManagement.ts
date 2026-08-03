@@ -1,6 +1,6 @@
 import { useContext, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
 import { QuizManagementService } from '../services/QuizManagementService';
 
@@ -9,9 +9,9 @@ import { QuizManagementService } from '../services/QuizManagementService';
  * Provides create, update, publish, and archive mutations with cache invalidation.
  */
 export function useQuestionManagement() {
-    const context = useContext(RepositoryContext);
+    const context = useContext(ApplicationContext);
     if (!context) {
-        throw new Error('useQuestionManagement must be used within a <RepositoryProvider>');
+        throw new Error('useQuestionManagement must be used within a <ApplicationProvider>');
     }
 
     const service = useMemo(

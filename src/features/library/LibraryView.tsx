@@ -6,7 +6,7 @@ import {
 import type { StudyMaterial } from '../../domain/library';
 import type { Subject } from '../../domain/library';
 import { Page } from '../../shared/ui/Page';
-import { Button } from '../../shared/ui/Button';
+import { Button } from '../../shared/ui/Button/Button';
 import { styles } from './styles/library.stylex';
 import MaterialGrid from './components/MaterialGrid';
 import SubjectCardGrid from './components/SubjectCardGrid';

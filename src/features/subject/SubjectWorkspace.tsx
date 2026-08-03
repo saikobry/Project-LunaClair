@@ -1,18 +1,18 @@
 import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, Plus } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, Plus } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../quiz/types/quizFeature.types';
 import type { StudyMaterial } from '../../domain/library';
 import { useSubject } from '../../shared/hooks/useSubject';
 import { useSubjects } from '../../shared/hooks/useSubjects';
 import { useTerms } from '../../shared/hooks/useTerms';
-import { useLibrary } from '../library/hooks/useLibrary';
+import { useLibrary } from '../../shared/hooks/useLibrary';
 import { useCreateMaterial } from '../library/hooks/mutations/useCreateMaterial';
 import { useEditMaterial } from '../library/hooks/mutations/useEditMaterial';
 import { useDeleteMaterial } from '../library/hooks/mutations/useDeleteMaterial';
 import { Page } from '../../shared/ui/Page';
-import { Button } from '../../shared/ui/Button';
+import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
@@ -21,6 +21,7 @@ import EditMaterialModal from '../library/components/EditMaterialModal';
 import DeleteConfirmationModal from '../library/components/DeleteConfirmationModal';
 import MaterialsTab from './components/MaterialsTab';
 import SubjectQuizTab from './components/SubjectQuizTab';
+import SubjectTermsTab from './components/SubjectTermsTab';
 
 const styles = stylex.create({
   loading: {
@@ -38,12 +39,13 @@ const styles = stylex.create({
   },
 });
 
-export type SubjectTab = 'materials' | 'quiz';
+export type SubjectTab = 'materials' | 'quiz' | 'terms';
 
 // Hoisted to module scope for a stable reference across renders
 const SUBJECT_TABS: { key: SubjectTab; label: string; icon: typeof BookOpen }[] = [
   { key: 'materials', label: 'Materials', icon: BookOpen },
   { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
+  { key: 'terms', label: 'Terms', icon: Layers },
 ];
 
 interface SubjectWorkspaceProps {
@@ -232,6 +234,10 @@ export default function SubjectWorkspace({
             subjectId={subjectId}
             onStartQuiz={handleStartQuiz}
           />
+        )}
+
+        {activeTab === 'terms' && (
+          <SubjectTermsTab subjectId={subjectId} />
         )}
       </AnimatedTabPanel>
 

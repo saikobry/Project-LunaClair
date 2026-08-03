@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { CreateTermInput } from '../../domain/library';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useToast } from '../../app/providers/ToastContext';
@@ -11,7 +11,7 @@ import { useContextOrThrow } from '../utils/contextGuard';
  */
 export function useCreateTerm() {
   const queryClient = useQueryClient();
-  const context = useContextOrThrow(RepositoryContext, 'useCreateTerm');
+  const context = useContextOrThrow(ApplicationContext, 'useCreateTerm');
   const { showToast } = useToast();
 
   return useMutation({

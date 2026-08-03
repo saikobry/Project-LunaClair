@@ -17,3 +17,6 @@ export { DexieAnnotationRepository, dexieAnnotationRepository } from './reposito
 export { DexieSubjectRepository, dexieSubjectRepository } from './repositories/DexieSubjectRepository';
 export { DexieTermRepository, dexieTermRepository } from './repositories/DexieTermRepository';
 export { DexieSubjectTermRepository, dexieSubjectTermRepository } from './repositories/DexieSubjectTermRepository';
+
+// Dexie application service implementations
+export { DexieTermService, dexieTermService } from './services/DexieTermService';

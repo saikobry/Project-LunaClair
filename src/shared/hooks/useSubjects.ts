@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useContextOrThrow } from '../utils/contextGuard';
 
@@ -9,7 +9,7 @@ import { useContextOrThrow } from '../utils/contextGuard';
  * Subjects without an explicit order sort to the end by title.
  */
 export function useSubjects() {
-  const context = useContextOrThrow(RepositoryContext, 'useSubjects');
+  const context = useContextOrThrow(ApplicationContext, 'useSubjects');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: [...libraryQueryKeys.root, 'subjects'],

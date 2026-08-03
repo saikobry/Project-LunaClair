@@ -66,20 +66,25 @@ export class LunaClairDatabase extends Dexie {
             const subjectTermsTable = tx.table('subjectTerms');
             const newTermsTable = tx.table('terms');
 
+            const subjectTermLinks: Array<{ subjectId: string; termId: string; order: number }> = [];
+            const cleanedTerms: Array<Record<string, unknown>> = [];
+
             for (const term of oldTerms) {
-                // Migrate: create SubjectTerm link if term has a subjectId
                 if (term.subjectId) {
-                    await subjectTermsTable.put({
+                    subjectTermLinks.push({
                         subjectId: term.subjectId,
                         termId: term.id,
                         order: term.order ?? 0,
                     });
                 }
-
-                // Strip subjectId and order from the term record
                 const { subjectId, order, ...cleanTerm } = term;
-                await newTermsTable.put(cleanTerm);
+                cleanedTerms.push(cleanTerm);
             }
+
+            await Promise.all([
+                subjectTermsTable.bulkPut(subjectTermLinks),
+                newTermsTable.bulkPut(cleanedTerms),
+            ]);
         });
     }
 }

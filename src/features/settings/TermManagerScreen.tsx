@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, SquarePen, Trash2, Tag } from 'lucide-react';
 import { Page } from '../../shared/ui/Page';
-import { Button } from '../../shared/ui/Button';
+import { Button } from '../../shared/ui/Button/Button';
 import { Dialog } from '../../shared/ui/Dialog';
 import { Input } from '../../shared/ui/Input';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
@@ -10,6 +10,7 @@ import { useTerms } from '../../shared/hooks/useTerms';
 import { useCreateTerm } from '../../shared/hooks/useCreateTerm';
 import { useEditTerm } from '../../shared/hooks/useEditTerm';
 import { useDeleteTerm } from '../../shared/hooks/useDeleteTerm';
+import { useTermUsageCounts } from '../../shared/hooks/useTermUsageCounts';
 
 const styles = stylex.create({
   list: {
@@ -137,6 +138,7 @@ const styles = stylex.create({
 
 export function TermManagerScreen() {
   const { terms, isLoading } = useTerms();
+  const { usageCounts } = useTermUsageCounts();
   const createMutation = useCreateTerm();
   const editMutation = useEditTerm();
   const deleteMutation = useDeleteTerm();
@@ -217,38 +219,53 @@ export function TermManagerScreen() {
         </div>
       ) : (
         <div {...stylex.props(styles.list)}>
-          {terms.map((term) => (
-            <div key={term.id} {...stylex.props(styles.termRow)}>
-              <div {...stylex.props(styles.termInfo)}>
-                <div {...stylex.props(styles.termIcon)}>
-                  <Tag size={16} />
+          {terms.map((term) => {
+            const usage = usageCounts.get(term.id);
+            const subjectLabel =
+              usage && usage.subjectCount > 0
+                ? `${usage.subjectCount} ${usage.subjectCount === 1 ? 'subject' : 'subjects'}`
+                : 'Unassigned';
+            const materialLabel =
+              usage && usage.materialCount > 0
+                ? `${usage.materialCount} ${usage.materialCount === 1 ? 'material' : 'materials'}`
+                : 'no materials';
+
+            return (
+              <div key={term.id} {...stylex.props(styles.termRow)}>
+                <div {...stylex.props(styles.termInfo)}>
+                  <div {...stylex.props(styles.termIcon)}>
+                    <Tag size={16} />
+                  </div>
+                  <div>
+                    <p {...stylex.props(styles.termTitle)}>{term.title}</p>
+                    <p {...stylex.props(styles.termMeta)}>
+                      {subjectLabel} · {materialLabel}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p {...stylex.props(styles.termTitle)}>{term.title}</p>
+                <div {...stylex.props(styles.actions)}>
+                  <button
+                    type="button"
+                    {...stylex.props(styles.actionBtn)}
+                    onClick={() => openEdit(term)}
+                    aria-label={`Rename ${term.title}`}
+                    title="Rename"
+                  >
+                    <SquarePen size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    {...stylex.props(styles.actionBtn, styles.deleteBtn)}
+                    onClick={() => setDeleteTarget(term)}
+                    aria-label={`Delete ${term.title}`}
+                    title="Delete"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
-              <div {...stylex.props(styles.actions)}>
-                <button
-                  type="button"
-                  {...stylex.props(styles.actionBtn)}
-                  onClick={() => openEdit(term)}
-                  aria-label={`Rename ${term.title}`}
-                  title="Rename"
-                >
-                  <SquarePen size={15} />
-                </button>
-                <button
-                  type="button"
-                  {...stylex.props(styles.actionBtn, styles.deleteBtn)}
-                  onClick={() => setDeleteTarget(term)}
-                  aria-label={`Delete ${term.title}`}
-                  title="Delete"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

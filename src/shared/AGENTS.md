@@ -13,9 +13,9 @@ Truly shared code: reusable types, constants, utility functions, and base UI com
 | `constants/annotationDefaults.ts` | `BRUSH_COLORS`, `THICKNESS_OPTIONS`, `HIGHLIGHT_COLORS` |
 | `utils/selection.ts` | `getOffsetsOfRange()`, `restoreRange()` — DOM Range ↔ character offset utilities |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
-| `ui/` | Design system primitive adapters — thin, 1-to-1 wrappers around `@astryxdesign/core` and low-level container primitives (Button, Card, Dialog, Input, Page, Breadcrumbs, Toast, Skeleton, TabList, SegmentedControl, Chip, AnimatedTabPanel) |
+| `ui/` | Design system primitive adapters — thin, 1-to-1 wrappers around `@astryxdesign/core` and low-level container primitives (Button, IconButton, Card, Dialog, Input, Page, Breadcrumbs, Toast, Skeleton, TabList, SegmentedControl, Chip, AnimatedTabPanel) |
 | `components/` | Composite / multi-element shared components built from primitives (MaterialCard, ActionMenu, TermGroupedSelector, SelectableRow) |
-| `hooks/` | Reusable shared custom hooks (`useSubject`, `useTerms`, `useMaterial`, `useTermGroupedSelection`, etc.) |
+| `hooks/` | Reusable shared custom hooks (`useSubject`, `useTerms`, `useMaterial`, `useLibrary`, `useTermUsageCounts`, `useTermGroupedSelection`, etc.) |
 
 ## Local Contracts
 

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { UpdateTermInput } from '../../domain/library';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useToast } from '../../app/providers/ToastContext';
@@ -16,7 +16,7 @@ interface EditTermVariables {
  */
 export function useEditTerm() {
   const queryClient = useQueryClient();
-  const context = useContextOrThrow(RepositoryContext, 'useEditTerm');
+  const context = useContextOrThrow(ApplicationContext, 'useEditTerm');
   const { showToast } = useToast();
 
   return useMutation({

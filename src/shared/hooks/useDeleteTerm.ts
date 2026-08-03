@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RepositoryContext } from '../../app/providers/RepositoryContext';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
 import { useToast } from '../../app/providers/ToastContext';
 import { useContextOrThrow } from '../utils/contextGuard';
@@ -16,7 +16,7 @@ import { useContextOrThrow } from '../utils/contextGuard';
  */
 export function useDeleteTerm() {
   const queryClient = useQueryClient();
-  const context = useContextOrThrow(RepositoryContext, 'useDeleteTerm');
+  const context = useContextOrThrow(ApplicationContext, 'useDeleteTerm');
   const { showToast } = useToast();
 
   return useMutation({

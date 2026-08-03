@@ -2,8 +2,8 @@ import { useState, useEffect, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../shared/ui/Dialog';
 import { Input } from '../../../shared/ui/Input';
-import { Button } from '../../../shared/ui/Button';
-import { RepositoryContext } from '../../../app/providers/RepositoryContext';
+import { Button } from '../../../shared/ui/Button/Button';
+import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { styles } from '../styles/library.stylex';
 import type { Subject, Term } from '../../../domain/library';
 
@@ -46,7 +46,7 @@ export default function EditMaterialModal({
   onSave,
   onClose,
 }: EditMaterialModalProps) {
-  const context = useContext(RepositoryContext);
+  const context = useContext(ApplicationContext);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(

@@ -6,12 +6,12 @@ Application-level orchestration: the root shell layout, configuration constants,
 
 ## Ownership
 
-- `layouts/AppShell.tsx` — Root layout shell that manages top-level navigation via `AppRoute` discriminated union (`library` | `reader` | `quiz` | `manage-quiz`). Passes `StudyMaterial` to `ReaderScreen` and `QuizManagementScreen`, `QuizLaunchRequest` to `QuizScreen`.
+- `layouts/AppShell.tsx` — Root layout shell that manages top-level navigation via `AppRoute` discriminated union (`library` | `terms` | `subject` | `workspace` | `quiz-session`). Subject routes carry `activeTab: 'materials' | 'quiz' | 'terms'` serialized as `?tab=`.
 - `bootstrap.ts` — Application initialization: calls `DatabaseInitializer.initialize()` (opens Dexie database, runs legacy localStorage migration, seeds demo data if empty)
 - `config/constants.ts` — App-wide constants (app name, studio name)
-- `providers/AppProviders.tsx` — Astryx `<Theme>`, TanStack `<QueryClientProvider>`, `<RepositoryProvider>` (dependency-injected repositories), and `<ToastProvider>` for user action notifications
-- `providers/RepositoryContext.ts` — React context definition holding `LibraryRepository`, `DocumentRepository`, `AnnotationRepository`, `QuestionRepository`, `QuizRepository`, and `QuizSessionRepository`
-- `providers/RepositoryProvider.tsx` — React context provider supplying stable singleton Dexie repositories to all feature hooks
+- `providers/AppProviders.tsx` — Astryx `<Theme>`, TanStack `<QueryClientProvider>`, `<ApplicationProvider>` (dependency-injected repositories + application services), and `<ToastProvider>` for user action notifications
+- `providers/ApplicationContext.ts` — React context definition holding `LibraryRepository`, `DocumentRepository`, `AnnotationRepository`, `QuestionRepository`, `QuizRepository`, `QuizSessionRepository`, `SubjectRepository`, `TermRepository`, `SubjectTermRepository`, and `TermService`
+- `providers/ApplicationProvider.tsx` — React context provider supplying stable singleton Dexie repositories and application services (e.g. `dexieTermService`) to all feature hooks
 - `index.ts` — Barrel export of public API
 
 ## Local Contracts
@@ -20,7 +20,7 @@ Application-level orchestration: the root shell layout, configuration constants,
 - Providers are added only when cross-feature state sharing is needed.
 - `bootstrap.ts` runs once at app startup (from `App.tsx` `useEffect`) — it initializes the database layer via `DatabaseInitializer`. No content registration needed (documents are static assets in `public/materials/`).
 - `AppShell.tsx` owns route state via `AppRoute` union (`{ name: 'library' }` | `{ name: 'reader'; material }` | `{ name: 'quiz'; launchRequest }` | `{ name: 'manage-quiz'; material }`). Document resolution is delegated to the reader feature's `useDocument` hook. Quiz entry points emit `QuizLaunchRequest` from Library and Reader screens. Quiz management navigates via `StudyMaterial`.
-- Feature hooks access repositories via dedicated DI hooks (`useLibraryRepository()`, `useDocumentRepository()`, `useAnnotationRepository()`, `useQuestionRepository()`, `useQuizRepository()`, `useQuizSessionRepository()`), never by importing concrete implementations directly.
+- Feature hooks access repositories/services via dedicated DI hooks (e.g. `useLibraryRepository()`, `useDocumentRepository()`, `useAnnotationRepository()`, `useQuestionRepository()`, `useQuizRepository()`, `useQuizSessionRepository()`, or `ApplicationContext` directly), never by importing concrete implementations directly.
 
 ## Work Guidance
 
