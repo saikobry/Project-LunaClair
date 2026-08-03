@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Feature-based modules, each containing everything needed for that feature: components, hooks, assets, types, styles, and utilities. Features are isolated — they import from `shared/`, `domain/`, or `services/`, but not from other features.
+Feature-based modules, each containing everything needed for that feature: components, hooks, assets, types, styles, and utilities. Features own their business capabilities and may consume another feature only through its curated root `index.ts` contract.
 
 ## Ownership
 
 | Feature | Status | Scope |
 |---|---|---|
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
-| `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, async mutation hooks via TanStack Query, dependency-injected repository (`useLibraryRepository`); the materials query hook (`useLibrary`) lives in `src/shared/hooks/` |
-| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks (loader, progress, submission, persistence), Subject Quiz Explorer tree & selection hooks, DI repositories |
+| `library/` | ✅ Implemented | Study Library — material grid, CRUD modals, material query/mutation hooks via TanStack Query, dependency-injected repository (`useLibraryRepository`) |
+| `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks, Subject Quiz Explorer tree & selection hooks, DI repositories |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), application use-case adapters, publish/archive workflows |
 | `subject/` | ✅ Implemented | Subject workspace — Materials / Quiz / Terms tabs; term management UI (view, reorder, unlink, attach existing, create-and-assign via `TermService`) |
 | `importer/` | 🔒 Reserved | Content import |
@@ -19,16 +19,19 @@ Feature-based modules, each containing everything needed for that feature: compo
 
 ## Local Contracts
 
-- **No cross-feature imports.** A feature must not import from another feature.
+- **Public contracts only.** Cross-feature consumers import from `src/features/<feature>/index.ts`; internal feature paths are private.
+- **Single ownership.** Every business capability (including UI, dialogs, hooks, query keys, and feature types) has one owning feature.
+- **Curated barrels.** Root `index.ts` files export only stable, intentionally supported capabilities.
+- **Domain-specific code stays in features.** `shared/` contains only domain-agnostic UI primitives, composites, and infrastructure utilities.
 - Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
 - Study content assets (markdown, figures) live in `public/materials/{sourceId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
 - Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by AppSidebar + tabs, not by per-screen buttons.
 - Feature view: `{Feature}View.tsx` — pure presentation
-- Barrel export: `index.ts` re-exports the public API (usually just the Screen component)
-- Query hooks are separated from mutation hooks. Mutations generally live in `hooks/mutations/`; the subject feature groups term mutations in `hooks/useSubjectTermMutations.ts` (per its own plan) with the query hook in `hooks/useSubjectTermUsage.ts`.
+- Query hooks are separated from mutation hooks. Mutations live in `hooks/mutations/`; subject and term queries live in `hooks/queries/`.
 - UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes. Mutation hooks delegate workflows to `src/application/` use cases.
-- Subject term UI: `SubjectTermList` is strictly presentational (props `{ terms, onReorder, onRemove }` — zero fetching/mutations/modals); `SubjectTermsTab` is the container owning queries, mutations, and modal state. `useSubjectTermMutations` provides add/remove/reorder (optimistic) and create-and-assign hooks targeting `['library', 'terms', subjectId]` query keys.
+- Subject term UI: `SubjectTermList` is strictly presentational (props `{ terms, onReorder, onRemove }` — zero fetching/mutations/modals); `SubjectTermsTab` is the container owning queries, mutations, and modal state. `useSubjectTermMutations` provides add/remove/reorder (optimistic) and create-and-assign hooks targeting `['subject', 'terms', subjectId]` query keys.
+- Feature-owned cache namespaces: `libraryQueryKeys` owns material queries, `subjectQueryKeys` owns subjects and terms, and `assessmentQueryKeys` owns quiz queries.
 
 ## Work Guidance
 

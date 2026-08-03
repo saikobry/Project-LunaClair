@@ -1,7 +1,7 @@
-import type { QuizLaunchRequest } from '../../quiz/types/quizFeature.types';
+import { SubjectQuizExplorer } from '../../quiz/components/SubjectQuizExplorer/SubjectQuizExplorer';
 import { useSubjectQuizTree } from '../../quiz/hooks/useSubjectQuizTree';
 import { useQuizTreeSelection } from '../../quiz/hooks/useQuizTreeSelection';
-import { SubjectQuizExplorer } from '../../../shared/components/SubjectQuizExplorer/SubjectQuizExplorer';
+import type { QuizLaunchRequest } from '../../quiz/types/quizFeature.types';
 
 interface SubjectQuizTabProps {
   subjectId: string;

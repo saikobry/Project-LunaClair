@@ -4,7 +4,7 @@ import { FileQuestion } from 'lucide-react';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
-import { useMaterial } from '../../shared/hooks/useMaterial';
+import { useMaterial } from '../library/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';

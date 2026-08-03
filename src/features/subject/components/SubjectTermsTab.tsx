@@ -2,8 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Layers, Link2, Plus } from 'lucide-react';
 import type { Term } from '../../../domain/library';
-import { useTerms } from '../../../shared/hooks/useTerms';
-import { useLibrary } from '../../../shared/hooks/useLibrary';
+import { useTerms } from '../hooks/queries/useTerms';
+import { useLibrary } from '../../library/hooks/queries/useLibrary';
 import { Button } from '../../../shared/ui/Button/Button';
 import SubjectTermList, { type SubjectTermListItem } from './SubjectTermList';
 import AddExistingTermModal from './AddExistingTermModal';
@@ -14,8 +14,8 @@ import {
   useRemoveSubjectTerm,
   useReorderSubjectTerms,
   useCreateAndAssignTerm,
-} from '../hooks/useSubjectTermMutations';
-import { useSubjectTermUsage } from '../hooks/useSubjectTermUsage';
+} from '../hooks/mutations/useSubjectTermMutations';
+import { useSubjectTermUsage } from '../hooks/queries/useSubjectTermUsage';
 
 const styles = stylex.create({
   container: {

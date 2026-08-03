@@ -77,7 +77,7 @@ export class LunaClairDatabase extends Dexie {
                         order: term.order ?? 0,
                     });
                 }
-                const { subjectId, order, ...cleanTerm } = term;
+                const { subjectId: _subjectId, order: _order, ...cleanTerm } = term;
                 cleanedTerms.push(cleanTerm);
             }
 

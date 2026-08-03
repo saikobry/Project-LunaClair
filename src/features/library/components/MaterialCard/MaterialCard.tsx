@@ -2,12 +2,12 @@ import { type KeyboardEvent, type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList, SquarePen, Trash2 } from 'lucide-react';
 import { DropdownMenuItem } from '@astryxdesign/core/DropdownMenu';
-import type { StudyMaterial } from '../../../domain/library';
-import { Card } from '../../ui/Card';
-import { Button } from '../../ui/Button';
-import { Chip } from '../../ui/Chip/Chip';
+import type { StudyMaterial } from '../../../../domain/library';
+import { Card } from '../../../../shared/ui/Card';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { Chip } from '../../../../shared/ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
-import { ActionMenu, menuItemStyles } from '../ActionMenu';
+import { ActionMenu, menuItemStyles } from '../../../../shared/components/ActionMenu';
 
 export interface MaterialCardProps {
   material: StudyMaterial;

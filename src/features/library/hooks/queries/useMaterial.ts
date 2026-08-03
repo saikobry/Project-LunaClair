@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { libraryQueryKeys } from '../../queries/libraryQueryKeys';
 
 /**
  * Query hook for resolving a single StudyMaterial by ID.

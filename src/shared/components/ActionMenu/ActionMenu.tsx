@@ -47,26 +47,9 @@ const styles = stylex.create({
   },
 });
 
-/**
- * Reusable StyleX styles for DropdownMenuItem to enable smooth hover
- * transitions inside an ActionMenu. Pass via the `xstyle` prop:
- *
- * ```tsx
- * <DropdownMenuItem xstyle={menuItemStyles.item} ... />
- * ```
- */
-export const menuItemStyles = stylex.create({
-  item: {
-    borderRadius: 6,
-    transition: 'background-color 0.12s ease',
-    ':hover': {
-      backgroundColor: 'rgba(0, 0, 0, 0.10)',
-    },
-    ':focus': {
-      backgroundColor: 'rgba(0, 0, 0, 0.10)',
-    },
-  },
-});
+function stopActionMenuPropagation(e: React.MouseEvent) {
+  e.stopPropagation();
+}
 
 export interface ActionMenuProps {
   /** Accessible label for the trigger button. @default "Card actions" */
@@ -127,14 +110,6 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
     return () => document.removeEventListener('keydown', handleKey);
   }, [menuOpen, closeMenu]);
 
-  const handleWrapperClick = (e: React.MouseEvent) => {
-    // Prevent clicks inside the action menu from propagating to
-    // parent card click handlers. The popup stays in the DOM even
-    // when closed (visibility toggled via CSS), so React's synthetic
-    // event dispatch completes and this handler fires reliably.
-    e.stopPropagation();
-  };
-
   const handleMenuBlur = (e: React.FocusEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       closeMenu();
@@ -152,7 +127,7 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
     <div
       ref={menuRef}
       {...stylex.props(styles.wrapper)}
-      onClick={handleWrapperClick}
+      onClick={stopActionMenuPropagation}
       onBlur={handleMenuBlur}
     >
       <ToggleButton

@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
 import type { StudyMaterial } from '../../../domain/library';
-import { MaterialCard } from '../../../shared/components/MaterialCard/MaterialCard';
+import { MaterialCard } from './MaterialCard/MaterialCard';
 import { styles } from '../styles/library.stylex';
 
 interface MaterialGridProps {

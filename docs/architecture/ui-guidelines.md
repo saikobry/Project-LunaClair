@@ -37,8 +37,9 @@ StyleX (@stylexjs/stylex)
 6. **Domain layer is pure** ❌
    - No DOM, `window`, `document`, `navigator`, `localStorage`, or browser APIs in `src/domain/`.
 
-7. **No cross-feature imports** ❌
-   - Features never import from other features. Shared code lives in `src/shared/`.
+7. **Curated feature contracts** ✅
+   - Features may consume another feature only through its root `index.ts`; deep imports into feature internals are prohibited.
+   - Domain-specific composites and hooks live in their owning feature, not `src/shared/`.
 
 ## Astryx Theme as Single Color Authority
 

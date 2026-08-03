@@ -131,12 +131,13 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 ## Import Rules
 
-1. **No cross-feature imports** — features never import from other features.
-2. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
-3. **Shared code** — if two features need the same type/constant/utility, extract to `shared/`.
-4. **Services** import from `shared/` (types) but not from features.
-5. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types) but not from features.
-6. **Barrel exports** (`index.ts`) re-export selectively — avoid deep import chains.
+1. **Curated feature contracts** — features may consume another feature only through its root `index.ts` public contract.
+2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature.
+3. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
+4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
+5. **Services** import from `shared/` (types/utilities) but not from features.
+6. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features.
+7. **Barrel exports** (`index.ts`) are curated public APIs — avoid deep import chains and giant export dumps.
 
 ## Conventions
 

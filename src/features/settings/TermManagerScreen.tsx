@@ -6,11 +6,11 @@ import { Button } from '../../shared/ui/Button/Button';
 import { Dialog } from '../../shared/ui/Dialog';
 import { Input } from '../../shared/ui/Input';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
-import { useTerms } from '../../shared/hooks/useTerms';
-import { useCreateTerm } from '../../shared/hooks/useCreateTerm';
-import { useEditTerm } from '../../shared/hooks/useEditTerm';
-import { useDeleteTerm } from '../../shared/hooks/useDeleteTerm';
-import { useTermUsageCounts } from '../../shared/hooks/useTermUsageCounts';
+import { useTerms } from '../subject/hooks/queries/useTerms';
+import { useCreateTerm } from '../subject/hooks/mutations/useCreateTerm';
+import { useEditTerm } from '../subject/hooks/mutations/useEditTerm';
+import { useDeleteTerm } from '../subject/hooks/mutations/useDeleteTerm';
+import { useTermUsageCounts } from '../subject/hooks/queries/useTermUsageCounts';
 
 const styles = stylex.create({
   list: {

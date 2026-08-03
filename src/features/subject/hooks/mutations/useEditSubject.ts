@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import type { UpdateSubjectInput } from '../../domain/library';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { useToast } from '../../app/providers/ToastContext';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import type { UpdateSubjectInput } from '../../../../domain/library';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 interface EditSubjectVariables {
   id: string;
@@ -25,7 +25,7 @@ export function useEditSubject() {
 
     onSuccess: () => {
       showToast('Subject updated', { intent: 'success' });
-      queryClient.invalidateQueries({ queryKey: libraryQueryKeys.subjects() });
+      queryClient.invalidateQueries({ queryKey: subjectQueryKeys.subjects() });
     },
   });
 }

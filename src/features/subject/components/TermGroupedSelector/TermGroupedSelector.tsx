@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { Check } from 'lucide-react';
 import type { useTermGroupedSelection } from '../../hooks/useTermGroupedSelection';
-import type { StudyMaterial, Term } from '../../../domain/library';
+import type { StudyMaterial, Term } from '../../../../domain/library';
 
 const styles = stylex.create({
   container: {

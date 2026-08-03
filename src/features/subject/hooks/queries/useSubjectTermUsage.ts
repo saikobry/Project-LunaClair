@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import type { Term } from '../../../domain/library';
-import { libraryQueryKeys } from '../../library/queries/libraryQueryKeys';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import { useContextOrThrow } from '../../../shared/utils/contextGuard';
+import type { Term } from '../../../../domain/library';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Query hook resolving how many subjects each term is shared across.
@@ -15,7 +15,7 @@ export function useSubjectTermUsage(subjectId: string, terms: Term[]) {
   const context = useContextOrThrow(ApplicationContext, 'useSubjectTermUsage');
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: [...libraryQueryKeys.root, 'terms', subjectId, 'subjectUsage'],
+    queryKey: subjectQueryKeys.subjectTermUsage(subjectId),
     queryFn: async () => {
       const results = await Promise.all(
         terms.map(async (term) => {

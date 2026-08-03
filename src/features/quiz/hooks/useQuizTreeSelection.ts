@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { QuizTreeNodeTerm } from '../types/quizTree.types';
-import type { SubjectQuizExplorerSelection } from '../../../shared/components/SubjectQuizExplorer/SubjectQuizExplorer';
+import type { SubjectQuizExplorerSelection } from '../components/SubjectQuizExplorer/SubjectQuizExplorer';
 
 /**
  * Manages selection state for the quiz tree view.

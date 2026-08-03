@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Term } from '../../../domain/library';
-import { libraryQueryKeys } from '../../library/queries/libraryQueryKeys';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import { useToast } from '../../../app/providers/ToastContext';
-import { useContextOrThrow } from '../../../shared/utils/contextGuard';
+import type { Term } from '../../../../domain/library';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useToast } from '../../../../app/providers/ToastContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /** Query key for the terms assigned to a specific subject. */
 function subjectTermsKey(subjectId: string) {
-  return [...libraryQueryKeys.root, 'terms', subjectId] as const;
+  return subjectQueryKeys.termsBySubject(subjectId);
 }
 
 /**
@@ -118,7 +118,7 @@ export function useCreateAndAssignTerm(subjectId: string) {
     onSuccess: () => {
       showToast('Term created and added to subject', { intent: 'success' });
       queryClient.invalidateQueries({ queryKey: subjectTermsKey(subjectId) });
-      queryClient.invalidateQueries({ queryKey: [...libraryQueryKeys.root, 'terms'] });
+      queryClient.invalidateQueries({ queryKey: subjectQueryKeys.terms() });
     },
   });
 }

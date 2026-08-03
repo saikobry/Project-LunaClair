@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { useToast } from '../../app/providers/ToastContext';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { libraryQueryKeys } from '../../../library/queries/libraryQueryKeys';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Mutation hook for deleting a global term.
@@ -24,8 +25,8 @@ export function useDeleteTerm() {
 
     onSuccess: () => {
       showToast('Term deleted', { intent: 'success' });
-      queryClient.invalidateQueries({ queryKey: [...libraryQueryKeys.root, 'terms'] });
-      queryClient.invalidateQueries({ queryKey: [...libraryQueryKeys.root, 'materials'] });
+      queryClient.invalidateQueries({ queryKey: subjectQueryKeys.terms() });
+      queryClient.invalidateQueries({ queryKey: libraryQueryKeys.materials() });
     },
   });
 }

@@ -4,21 +4,11 @@ export { default as QuizScreen } from './QuizScreen';
 // Types
 export type { QuizLaunchRequest, QuizFlowState } from './types/quizFeature.types';
 export type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from './types/quizTree.types';
+export { SubjectQuizExplorer } from './components/SubjectQuizExplorer/SubjectQuizExplorer';
+export type { SubjectQuizExplorerSelection, SubjectQuizExplorerProps } from './components/SubjectQuizExplorer/SubjectQuizExplorer';
 
-// Hooks
-export {
-    useQuestionRepository,
-    useQuizRepository,
-    useQuizSessionRepository,
-    useQuestions,
-    useQuizzes,
-    useQuizSessions,
-    useSubjectQuizTree,
-    useQuizTreeSelection,
-    useQuestionMutations,
-    useQuizMutations,
-    useSessionMutations,
-} from './hooks';
+// Public tree hooks used by subject workspaces.
+export { useSubjectQuizTree, useQuizTreeSelection } from './hooks';
 
 // Query keys
 export { assessmentQueryKeys } from './queries/assessmentQueryKeys';

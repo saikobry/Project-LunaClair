@@ -2,17 +2,17 @@ import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { AppRoute } from '../../app/layouts/AppShell';
-import { useMaterial } from '../../shared/hooks/useMaterial';
-import { useSubject } from '../../shared/hooks/useSubject';
-import { useTerm } from '../../shared/hooks/useTerm';
+import { useMaterial } from '../library/hooks/queries/useMaterial';
+import { useSubject } from '../subject/hooks/queries/useSubject';
+import { useTerm } from '../subject/hooks/queries/useTerm';
 import { Page } from '../../shared/ui/Page';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
-import ReaderScreen from '../reader/ReaderScreen';
+import { ReaderScreen } from '../reader';
 import QuizScreen from '../quiz/QuizScreen';
-import QuizManagementScreen from '../quiz-management/QuizManagementScreen';
+import { QuizManagementScreen } from '../quiz-management';
 
 const styles = stylex.create({
   loading: {

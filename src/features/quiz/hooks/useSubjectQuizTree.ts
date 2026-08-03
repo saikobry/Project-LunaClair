@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Quiz } from '../../../domain/quiz/Quiz';
 import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../types/quizTree.types';
-import { useLibrary } from '../../../shared/hooks/useLibrary';
-import { useTerms } from '../../../shared/hooks/useTerms';
+import { useLibrary } from '../../library/hooks/queries/useLibrary';
+import { useTerms } from '../../subject/hooks/queries/useTerms';
 import { useQuizRepository } from './useQuizRepository';
 import { assessmentQueryKeys } from '../queries/assessmentQueryKeys';
 

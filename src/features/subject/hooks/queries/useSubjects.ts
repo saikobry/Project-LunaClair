@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Query hook for fetching all subjects, sorted by their `order` field.
@@ -12,7 +12,7 @@ export function useSubjects() {
   const context = useContextOrThrow(ApplicationContext, 'useSubjects');
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: [...libraryQueryKeys.root, 'subjects'],
+    queryKey: subjectQueryKeys.subjects(),
     queryFn: ({ signal }) => context.subjectRepository.getSubjects(signal),
   });
 

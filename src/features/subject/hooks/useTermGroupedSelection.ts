@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { StudyMaterial, Term } from '../../domain/library';
+import type { StudyMaterial, Term } from '../../../domain/library';
 
 export function useTermGroupedSelection(materials: StudyMaterial[], terms: Term[]) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

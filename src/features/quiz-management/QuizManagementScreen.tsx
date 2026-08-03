@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { Library, ListChecks } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { useMaterial } from '../../shared/hooks/useMaterial';
+import { useMaterial } from '../library/hooks/queries/useMaterial';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { QuestionBankTab } from './components/QuestionBankTab';

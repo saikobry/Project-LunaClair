@@ -3,10 +3,10 @@ import * as stylex from '@stylexjs/stylex';
 import { Check, BrainCircuit, BookOpen, Search, ChevronDown } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Input } from '../../ui/Input';
-import { Button } from '../../ui/Button';
-import { SegmentedControl, SegmentedControlItem } from '../../ui/SegmentedControl/SegmentedControl';
-import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../../features/quiz/types/quizTree.types';
+import { Input } from '../../../../shared/ui/Input';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
+import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../types/quizTree.types';
 
 const styles = stylex.create({
   container: {
@@ -486,7 +486,7 @@ function TermAccordionGroup({
       const targetHeight = content.offsetHeight;
       content.style.height = '0px';
       // Force reflow so the browser registers the 0-height state
-      content.offsetHeight;
+      void content.offsetHeight;
       gsap.to(content, {
         height: targetHeight,
         opacity: 1,

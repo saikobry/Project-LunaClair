@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import type { CreateTermInput } from '../../domain/library';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { useToast } from '../../app/providers/ToastContext';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import type { CreateTermInput } from '../../../../domain/library';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Mutation hook for creating a new global term.
@@ -19,7 +19,7 @@ export function useCreateTerm() {
 
     onSuccess: () => {
       showToast('Term created', { intent: 'success' });
-      queryClient.invalidateQueries({ queryKey: [...libraryQueryKeys.root, 'terms'] });
+      queryClient.invalidateQueries({ queryKey: subjectQueryKeys.terms() });
     },
   });
 }

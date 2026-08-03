@@ -3,8 +3,8 @@ import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { Home, BookText, GraduationCap, Tag } from 'lucide-react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
-import { useSubject } from '../../../shared/hooks/useSubject';
-import { useMaterial } from '../../../shared/hooks/useMaterial';
+import { useSubject } from '../../subject/hooks/queries/useSubject';
+import { useMaterial } from '../../library/hooks/queries/useMaterial';
 import logoSvg from '../../../assets/logo.svg';
 
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';

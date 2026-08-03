@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import QuizScreen from '../../features/quiz/QuizScreen';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/library/LibraryScreen';
 import SubjectWorkspace from '../../features/subject/SubjectWorkspace';
-import MaterialWorkspace from '../../features/workspace/MaterialWorkspace';
-import QuizScreen from '../../features/quiz/QuizScreen';
+import { MaterialWorkspace, AppSidebar } from '../../features/workspace';
 import { TermManagerScreen } from '../../features/settings';
-import { AppSidebar } from '../../features/workspace/components/AppSidebar';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 
 const styles = stylex.create({

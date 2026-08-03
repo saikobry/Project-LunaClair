@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { libraryQueryKeys } from '../../queries/libraryQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Pure query hook for fetching the study materials list.
@@ -9,8 +9,8 @@ import { useContextOrThrow } from '../utils/contextGuard';
  * (useCreateMaterial, useDeleteMaterial, useEditMaterial, useTouchMaterial)
  * for all data mutations.
  *
- * Shared so multiple features (library, subject, quiz) can consume the
- * materials list without cross-feature imports.
+ * Library-owned so other features consume the material capability through
+ * the library public contract.
  */
 export function useLibrary() {
   const context = useContextOrThrow(ApplicationContext, 'useLibrary');

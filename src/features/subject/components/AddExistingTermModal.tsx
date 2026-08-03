@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, Link2, Search } from 'lucide-react';
-import { useTerms } from '../../../shared/hooks/useTerms';
+import { useTerms } from '../hooks/queries/useTerms';
 import { Dialog } from '../../../shared/ui/Dialog';
 import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button/Button';

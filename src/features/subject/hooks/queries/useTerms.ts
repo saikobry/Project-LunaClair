@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
 
 /**
  * Query hook for fetching Term entities.
@@ -17,8 +17,8 @@ export function useTerms(subjectId?: string | undefined) {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: subjectId
-      ? [...libraryQueryKeys.root, 'terms', subjectId]
-      : [...libraryQueryKeys.root, 'terms'],
+      ? subjectQueryKeys.termsBySubject(subjectId)
+      : subjectQueryKeys.terms(),
     queryFn: ({ signal }) =>
       subjectId
         ? context.subjectTermRepository.getTermsBySubject(subjectId, signal)

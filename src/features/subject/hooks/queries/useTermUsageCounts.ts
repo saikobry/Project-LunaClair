@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { useLibrary } from './useLibrary';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useLibrary } from '../../../library/hooks/queries/useLibrary';
 import { useTerms } from './useTerms';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 export interface TermUsageCounts {
   /** Number of subjects the global term is assigned to. */
@@ -19,7 +19,7 @@ export interface TermUsageCounts {
  * reference it. Returns a `Map<termId, TermUsageCounts>`.
  *
  * Subject counts come from a dedicated query keyed under
- * `['library', 'terms', ...]` (invalidated by term CRUD), while material
+ * `['subject', 'terms', ...]` (invalidated by term CRUD), while material
  * counts derive from the shared `useLibrary` query (invalidated by
  * material CRUD) — so both badge numbers stay fresh.
  */
@@ -29,7 +29,7 @@ export function useTermUsageCounts() {
   const { materials } = useLibrary();
 
   const { data: subjectCounts, isLoading } = useQuery({
-    queryKey: [...libraryQueryKeys.root, 'terms', 'usageCounts'],
+    queryKey: subjectQueryKeys.termUsageCounts(),
     queryFn: async () => {
       const entries = await Promise.all(
         terms.map(async (term) => {

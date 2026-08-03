@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
 
 /**
  * Query hook for resolving a single Term by ID.
@@ -13,7 +13,7 @@ export function useTerm(termId: string | undefined) {
   }
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: [...libraryQueryKeys.root, 'term', termId ?? ''],
+    queryKey: subjectQueryKeys.term(termId ?? ''),
     queryFn: ({ signal }) => context.termRepository.getTermById(termId!, signal),
     enabled: !!termId,
   });

@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import type { Subject } from '../../domain/library';
-import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKeys';
-import { useToast } from '../../app/providers/ToastContext';
-import { useContextOrThrow } from '../utils/contextGuard';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import type { Subject } from '../../../../domain/library';
+import { subjectQueryKeys } from '../../queries/subjectQueryKeys';
+import { useToast } from '../../../../app/providers/ToastContext';
+import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 interface ReorderVariables {
   /** Full ordered list of subject IDs in their final desired order. */
@@ -30,8 +30,8 @@ export function useReorderSubjects() {
     },
 
     onMutate: async ({ orderedIds }) => {
-      await queryClient.cancelQueries({ queryKey: libraryQueryKeys.subjects() });
-      const previousSubjects = queryClient.getQueryData<Subject[]>(libraryQueryKeys.subjects());
+      await queryClient.cancelQueries({ queryKey: subjectQueryKeys.subjects() });
+      const previousSubjects = queryClient.getQueryData<Subject[]>(subjectQueryKeys.subjects());
 
       if (previousSubjects) {
         const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
@@ -43,7 +43,7 @@ export function useReorderSubjects() {
           })
           .map((s) => ({ ...s, order: orderMap.get(s.id) ?? s.order }));
 
-        queryClient.setQueryData(libraryQueryKeys.subjects(), optimisticallyOrdered);
+        queryClient.setQueryData(subjectQueryKeys.subjects(), optimisticallyOrdered);
       }
 
       return { previousSubjects };
@@ -51,7 +51,7 @@ export function useReorderSubjects() {
 
     onError: (_err, _vars, ctx) => {
       if (ctx?.previousSubjects) {
-        queryClient.setQueryData(libraryQueryKeys.subjects(), ctx.previousSubjects);
+        queryClient.setQueryData(subjectQueryKeys.subjects(), ctx.previousSubjects);
       }
       showToast('Failed to save subject order', { intent: 'error' });
     },
@@ -61,7 +61,7 @@ export function useReorderSubjects() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: libraryQueryKeys.subjects() });
+      queryClient.invalidateQueries({ queryKey: subjectQueryKeys.subjects() });
     },
   });
 }
