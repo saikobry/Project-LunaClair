@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../shared/ui/Dialog';
 import { Input } from '../../../shared/ui/Input';
 import { Button } from '../../../shared/ui/Button';
+import { RepositoryContext } from '../../../app/providers/RepositoryContext';
 import { styles } from '../styles/library.stylex';
-import type { Subject } from '../../../domain/library';
-import type { Term } from '../../../domain/library';
+import type { Subject, Term } from '../../../domain/library';
 
 const selectStyles = stylex.create({
   select: {
@@ -33,7 +33,6 @@ interface EditMaterialModalProps {
   initialSubjectId?: string | null;
   initialTermId?: string | null;
   subjects: Subject[];
-  terms: Term[];
   onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
   onClose: () => void;
 }
@@ -44,10 +43,10 @@ export default function EditMaterialModal({
   initialSubjectId,
   initialTermId,
   subjects,
-  terms,
   onSave,
   onClose,
 }: EditMaterialModalProps) {
+  const context = useContext(RepositoryContext);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
@@ -56,24 +55,27 @@ export default function EditMaterialModal({
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     initialTermId ?? null,
   );
+  const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
 
-  // Filter terms by the selected subject
-  const availableTerms = selectedSubjectId
-    ? terms.filter((t) => t.subjectId === selectedSubjectId)
-    : [];
+  // Resolve terms for the selected subject via SubjectTermRepository
+  useEffect(() => {
+    if (!selectedSubjectId || !context) {
+      setAvailableTerms([]);
+      return;
+    }
+    let cancelled = false;
+    context.subjectTermRepository.getTermsBySubject(selectedSubjectId).then((terms) => {
+      if (!cancelled) setAvailableTerms(terms);
+    });
+    return () => { cancelled = true; };
+  }, [selectedSubjectId, context]);
 
   // Reset term when subject changes and the current term doesn't belong to the new subject
   const handleSubjectChange = (value: string) => {
     const newSubjectId = value === '__unassigned__' ? null : value;
     setSelectedSubjectId(newSubjectId);
-    // If the current term doesn't belong to the new subject, clear it
-    if (
-      selectedTermId &&
-      newSubjectId &&
-      !terms.some((t) => t.id === selectedTermId && t.subjectId === newSubjectId)
-    ) {
-      setSelectedTermId(null);
-    }
+    // Clear term when subject changes — availableTerms will re-fetch
+    setSelectedTermId(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

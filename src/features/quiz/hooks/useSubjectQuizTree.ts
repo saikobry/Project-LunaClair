@@ -55,7 +55,7 @@ export function useSubjectQuizTree(subjectId: string) {
 
     // Build the tree
     const tree = useMemo((): QuizTreeNodeTerm[] => {
-        const sortedTerms = terms.toSorted((a, b) => a.order - b.order);
+        // Terms from useTerms(subjectId) are already sorted by SubjectTerm.order
         const grouped = new Map<string, QuizTreeNodeMaterial[]>();
 
         for (const material of subjectMaterials) {
@@ -87,18 +87,18 @@ export function useSubjectQuizTree(subjectId: string) {
 
         const treeNodes: QuizTreeNodeTerm[] = [];
 
-        // Add sorted terms
-        for (const term of sortedTerms) {
+        // Add sorted terms (useTerms already returns them in SubjectTerm.order)
+        terms.forEach((term, index) => {
             const materials = grouped.get(term.id);
             if (materials && materials.length > 0) {
                 treeNodes.push({
                     id: term.id,
                     title: term.title,
-                    order: term.order,
+                    order: index + 1,
                     materials,
                 });
             }
-        }
+        });
 
         // Add unassigned materials last
         const unassigned = grouped.get('__unassigned__');

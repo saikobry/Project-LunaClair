@@ -65,7 +65,6 @@ export default function SubjectWorkspace({
   const { subject, isLoading: subjectLoading } = useSubject(subjectId);
   const { subjects } = useSubjects();
   const { terms, isLoading: termsLoading } = useTerms(subjectId);
-  const { terms: allTerms } = useTerms();
   const { materials } = useLibrary();
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
@@ -244,7 +243,6 @@ export default function SubjectWorkspace({
           initialSubjectId={editTarget.subjectId}
           initialTermId={editTarget.termId}
           subjects={subjects}
-          terms={allTerms}
           onSave={handleEditSave}
           onClose={handleEditClose}
         />

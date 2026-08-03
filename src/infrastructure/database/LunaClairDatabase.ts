@@ -5,8 +5,9 @@ import type { Quiz } from '../../domain/quiz/Quiz';
 import type { QuizSession } from '../../domain/quiz/QuizSession';
 import type { Subject } from '../../domain/library/Subject';
 import type { Term } from '../../domain/library/Term';
+import type { SubjectTerm } from '../../domain/library/SubjectTerm';
 import type { HighlightItem, DrawingPath } from '../../shared/types/annotation.types';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2 } from './schema';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -36,6 +37,8 @@ export interface MetadataRecord {
  * Dexie subclass defining the LunaClair IndexedDB database.
  * Version 1: Phase 5 stores.
  * Version 2: Phase 5.3 — adds subjects, terms tables; widens materials.
+ * Version 3: Normalizes Subject↔Term relationship — adds subjectTerms junction,
+ *            removes subjectId and order from terms (terms become global).
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -48,11 +51,36 @@ export class LunaClairDatabase extends Dexie {
     metadata!: Table<MetadataRecord, string>;
     subjects!: Table<Subject, string>;
     terms!: Table<Term, string>;
+    subjectTerms!: Table<SubjectTerm, [string, string]>;
 
     constructor() {
         super(DB_NAME);
         this.version(1).stores(SCHEMA_V1);
         this.version(2).stores(SCHEMA_V2);
+        this.version(3).stores(SCHEMA_V3).upgrade(async (tx) => {
+            // Read v2 terms (which have subjectId and order)
+            const oldTerms = await tx.table('terms').toArray();
+            if (oldTerms.length === 0) return;
+
+            // Build SubjectTerm rows from legacy term data
+            const subjectTermsTable = tx.table('subjectTerms');
+            const newTermsTable = tx.table('terms');
+
+            for (const term of oldTerms) {
+                // Migrate: create SubjectTerm link if term has a subjectId
+                if (term.subjectId) {
+                    await subjectTermsTable.put({
+                        subjectId: term.subjectId,
+                        termId: term.id,
+                        order: term.order ?? 0,
+                    });
+                }
+
+                // Strip subjectId and order from the term record
+                const { subjectId, order, ...cleanTerm } = term;
+                await newTermsTable.put(cleanTerm);
+            }
+        });
     }
 }
 

@@ -1,14 +1,15 @@
 import type { LunaClairDatabase } from './LunaClairDatabase';
 import type { Subject } from '../../domain/library/Subject';
 import type { Term } from '../../domain/library/Term';
+import type { SubjectTerm } from '../../domain/library/SubjectTerm';
 import type { StudyMaterial } from '../../domain/library/StudyMaterial';
 import type { Question } from '../../domain/quiz/Question';
 import type { Quiz, QuizQuestion } from '../../domain/quiz/Quiz';
 
 /**
  * Seeds the database with demo content if empty.
- * Creates subjects, terms, categorized materials, uncategorized material,
- * sample questions for all 5 question types, and starter quizzes.
+ * Creates subjects, global terms, subject-term links, categorized materials,
+ * uncategorized material, sample questions for all 5 question types, and starter quizzes.
  */
 export class DatabaseSeeder {
     private readonly database: LunaClairDatabase;
@@ -42,14 +43,23 @@ export class DatabaseSeeder {
             updatedAt: now,
         };
 
-        // ── Terms ─────────────────────────────────────────────
+        // ── Global Terms (standalone, no subjectId) ──────────
         const terms: Term[] = [
-            { id: 'term-prelim', subjectId: 'subject-bio-101', title: 'Prelim', order: 1, createdAt: now, updatedAt: now },
-            { id: 'term-midterm', subjectId: 'subject-bio-101', title: 'Midterm', order: 2, createdAt: now, updatedAt: now },
-            { id: 'term-finals', subjectId: 'subject-bio-101', title: 'Finals', order: 3, createdAt: now, updatedAt: now },
-            { id: 'term-h-prelim', subjectId: 'subject-world-history', title: 'Prelim', order: 1, createdAt: now, updatedAt: now },
-            { id: 'term-h-midterm', subjectId: 'subject-world-history', title: 'Midterm', order: 2, createdAt: now, updatedAt: now },
-            { id: 'term-h-finals', subjectId: 'subject-world-history', title: 'Finals', order: 3, createdAt: now, updatedAt: now },
+            { id: 'term-prelim', title: 'Prelim', createdAt: now, updatedAt: now },
+            { id: 'term-midterm', title: 'Midterm', createdAt: now, updatedAt: now },
+            { id: 'term-finals', title: 'Finals', createdAt: now, updatedAt: now },
+        ];
+
+        // ── SubjectTerm Links ────────────────────────────────
+        const subjectTerms: SubjectTerm[] = [
+            // Biology: Prelim, Midterm, Finals
+            { subjectId: 'subject-bio-101', termId: 'term-prelim', order: 1 },
+            { subjectId: 'subject-bio-101', termId: 'term-midterm', order: 2 },
+            { subjectId: 'subject-bio-101', termId: 'term-finals', order: 3 },
+            // World History: Prelim, Midterm, Finals
+            { subjectId: 'subject-world-history', termId: 'term-prelim', order: 1 },
+            { subjectId: 'subject-world-history', termId: 'term-midterm', order: 2 },
+            { subjectId: 'subject-world-history', termId: 'term-finals', order: 3 },
         ];
 
         // ── Materials (categorized + uncategorized) ───────────
@@ -113,7 +123,7 @@ export class DatabaseSeeder {
                 sourceType: 'bundled',
                 sourceId: 'ancient-civilizations',
                 subjectId: 'subject-world-history',
-                termId: 'term-h-prelim',
+                termId: 'term-prelim',
                 order: 1,
                 createdAt: now,
                 updatedAt: now,
@@ -157,6 +167,7 @@ export class DatabaseSeeder {
             [
                 this.database.subjects,
                 this.database.terms,
+                this.database.subjectTerms,
                 this.database.materials,
                 this.database.questions,
                 this.database.quizzes,
@@ -164,6 +175,7 @@ export class DatabaseSeeder {
             async () => {
                 await this.database.subjects.bulkPut([bioSubject, historySubject]);
                 await this.database.terms.bulkPut(terms);
+                await this.database.subjectTerms.bulkPut(subjectTerms);
                 await this.database.materials.bulkPut(allMaterials);
                 await this.database.questions.bulkPut(allQuestions);
                 await this.database.quizzes.bulkPut([cellQuiz, legacyQuiz]);

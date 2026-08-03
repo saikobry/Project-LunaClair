@@ -6,8 +6,8 @@ import { libraryQueryKeys } from '../../features/library/queries/libraryQueryKey
 /**
  * Query hook for fetching Term entities.
  *
- * - When `subjectId` is provided: fetches terms scoped to that subject.
- * - When `subjectId` is omitted: fetches all terms across all subjects.
+ * - When `subjectId` is provided: fetches terms scoped to that subject via SubjectTermRepository.
+ * - When `subjectId` is omitted: fetches all global terms across all subjects.
  */
 export function useTerms(subjectId?: string | undefined) {
   const context = useContext(RepositoryContext);
@@ -21,7 +21,7 @@ export function useTerms(subjectId?: string | undefined) {
       : [...libraryQueryKeys.root, 'terms'],
     queryFn: ({ signal }) =>
       subjectId
-        ? context.termRepository.getTermsBySubject(subjectId, signal)
+        ? context.subjectTermRepository.getTermsBySubject(subjectId, signal)
         : context.termRepository.getTerms(signal),
     enabled: true,
   });

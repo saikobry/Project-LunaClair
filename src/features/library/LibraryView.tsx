@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import type { StudyMaterial } from '../../domain/library';
 import type { Subject } from '../../domain/library';
-import type { Term } from '../../domain/library';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button';
 import { styles } from './styles/library.stylex';
@@ -42,7 +41,6 @@ const localStyles = stylex.create({
 interface LibraryViewProps {
   isLoading?: boolean;
   subjects: Subject[];
-  allTerms: Term[];
   materials: StudyMaterial[];
   allMaterials: StudyMaterial[];
   onNewMaterial: () => void;
@@ -77,7 +75,6 @@ interface LibraryViewProps {
 export default function LibraryView({
   isLoading = false,
   subjects,
-  allTerms,
   materials,
   allMaterials,
   onNewMaterial,
@@ -211,7 +208,6 @@ export default function LibraryView({
           initialSubjectId={editTarget.subjectId}
           initialTermId={editTarget.termId}
           subjects={subjects}
-          terms={allTerms}
           onSave={onEditSave}
           onClose={onEditClose}
         />

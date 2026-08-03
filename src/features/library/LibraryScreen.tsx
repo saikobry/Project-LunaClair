@@ -8,7 +8,6 @@ import { useCreateSubject } from '../../shared/hooks/useCreateSubject';
 import { useEditSubject } from '../../shared/hooks/useEditSubject';
 import { useDeleteSubject } from '../../shared/hooks/useDeleteSubject';
 import { useReorderSubjects } from '../../shared/hooks/useReorderSubjects';
-import { useTerms } from '../../shared/hooks/useTerms';
 import { useCreateMaterial } from './hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from './hooks/mutations/useDeleteMaterial';
 import { useEditMaterial } from './hooks/mutations/useEditMaterial';
@@ -24,9 +23,10 @@ interface LibraryScreenProps {
 export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage }: LibraryScreenProps) {
   const { materials, isLoading: materialsLoading } = useLibrary();
   const { subjects, isLoading: subjectsLoading } = useSubjects();
-  const { terms: allTerms, isLoading: termsLoading } = useTerms();
-
-  const isLibraryLoading = materialsLoading || subjectsLoading || termsLoading;
+  const isLibraryLoading = materialsLoading || subjectsLoading;
+  // Note: termsLoading is no longer tracked here since LibraryView
+  // no longer consumes allTerms. Terms are resolved on demand via
+  // SubjectTermRepository in EditMaterialModal.
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
   const editMutation = useEditMaterial();
@@ -157,7 +157,6 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
     <LibraryView
       isLoading={isLibraryLoading}
       subjects={subjects}
-      allTerms={allTerms}
       materials={uncategorizedMaterials}
       allMaterials={materials}
       onNewMaterial={handleNewMaterial}

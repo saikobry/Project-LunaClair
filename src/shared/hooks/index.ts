@@ -9,4 +9,7 @@ export { useDeleteSubject } from './useDeleteSubject';
 export { useReorderSubjects } from './useReorderSubjects';
 export { useTabKeyboardNavigation } from './useTabKeyboardNavigation';
 export { useTermGroupedSelection } from './useTermGroupedSelection';
+export { useCreateTerm } from './useCreateTerm';
+export { useEditTerm } from './useEditTerm';
+export { useDeleteTerm } from './useDeleteTerm';
 

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Freebuff desktop app data
+.freebuff/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

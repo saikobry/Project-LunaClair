@@ -7,6 +7,7 @@ import type { QuizRepository } from '../../domain/quiz/QuizRepository';
 import type { QuizSessionRepository } from '../../domain/quiz/QuizSessionRepository';
 import type { SubjectRepository } from '../../domain/library/SubjectRepository';
 import type { TermRepository } from '../../domain/library/TermRepository';
+import type { SubjectTermRepository } from '../../domain/library/SubjectTermRepository';
 
 export interface RepositoryContextValue {
     libraryRepository: LibraryRepository;
@@ -17,6 +18,7 @@ export interface RepositoryContextValue {
     quizSessionRepository: QuizSessionRepository;
     subjectRepository: SubjectRepository;
     termRepository: TermRepository;
+    subjectTermRepository: SubjectTermRepository;
 }
 
 export const RepositoryContext = createContext<RepositoryContextValue | null>(null);

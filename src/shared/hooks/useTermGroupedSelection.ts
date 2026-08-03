@@ -4,19 +4,14 @@ import type { StudyMaterial, Term } from '../../domain/library';
 export function useTermGroupedSelection(materials: StudyMaterial[], terms: Term[]) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const sortedTerms = useMemo(
-    () => terms.toSorted((a, b) => a.order - b.order),
-    [terms],
-  );
-
   const materialsByTerm = useMemo(() => {
     const map = new Map<string, StudyMaterial[]>();
-    for (const term of sortedTerms) {
+    for (const term of terms) {
       const termMaterials = materials.filter((m) => m.termId === term.id);
       if (termMaterials.length > 0) map.set(term.id, termMaterials);
     }
     return map;
-  }, [materials, sortedTerms]);
+  }, [materials, terms]);
 
   const allIds = useMemo(() => materials.map((m) => m.id), [materials]);
 
@@ -67,7 +62,7 @@ export function useTermGroupedSelection(materials: StudyMaterial[], terms: Term[
   }, [allIds, selectedIds]);
 
   return {
-    sortedTerms,
+    terms, // Terms are already ordered by SubjectTerm.order from the hook
     materialsByTerm,
     allIds,
     selectedIds,

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag } from 'lucide-react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { useSubject } from '../../../shared/hooks/useSubject';
 import { useMaterial } from '../../../shared/hooks/useMaterial';
@@ -224,29 +224,32 @@ const styles = stylex.create({
     opacity: 0,
     backgroundColor: 'var(--color-accent-muted)',
     borderRadius: 12,
-    // left, top, width, height set dynamically by GSAP
   },
   footer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
     paddingLeft: 8,
-    fontSize: 12,
-    color: 'var(--color-text-disabled)',
     [tablet]: {
-      display: 'none',
+      alignItems: 'center',
+      paddingLeft: 0,
     },
     [mobile]: {
       display: 'none',
     },
   },
+
 });
 
 export interface AppSidebarProps {
   subjectId?: string;
   materialId?: string;
   isLibrary: boolean;
+  isTerms?: boolean;
   onNavigate: (route: AppRoute) => void;
 }
 
-export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: AppSidebarProps) {
+export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, onNavigate }: AppSidebarProps) {
   const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
 
@@ -254,8 +257,8 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
   const pillRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef<HTMLDivElement>(null);
 
-  const isSubjectActive = !isLibrary && Boolean(subject) && !material;
-  const isMaterialActive = !isLibrary && Boolean(material);
+  const isSubjectActive = !isLibrary && !isTerms && Boolean(subject) && !material;
+  const isMaterialActive = !isLibrary && !isTerms && Boolean(material);
 
   // ── Helper: reposition the sliding pill to match the active nav button ──
   const repositionPill = (animate = false) => {
@@ -296,14 +299,13 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
   // ── Reposition whenever active route changes ───────────────────
   useEffect(() => {
     requestAnimationFrame(() => repositionPill(true));
-  }, [isLibrary, isSubjectActive, isMaterialActive]);
+  }, [isLibrary, isTerms, isSubjectActive, isMaterialActive]);
 
   // ── Reposition on viewport resize (desktop ↔ tablet etc.) ──────
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    // Reposition after a brief delay so layout has settled
     const handleResize = () => requestAnimationFrame(() => repositionPill(false));
 
     const ro = new ResizeObserver(handleResize);
@@ -313,9 +315,6 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
   }, []);
 
   // ── Gentle entrance animation for nav items ───────────────────
-  // One-time fade+slide-up on mount, plus re-animation when a new nav
-  // item appears (subject or material going from undefined → defined).
-  // Does NOT re-fire on every navigation — only when new content mounts.
   const didInitialEntrance = useRef(false);
   const prevHadSubject = useRef(false);
   const prevHadMaterial = useRef(false);
@@ -333,7 +332,6 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
     const items = sectionsRef.current.children;
     if (items.length === 0) return;
 
-    // Initial mount or a new item just appeared → gentle fade+slide-up
     if (!didInitialEntrance.current || subjectJustAppeared || materialJustAppeared) {
       didInitialEntrance.current = true;
       gsap.fromTo(
@@ -373,7 +371,18 @@ export function AppSidebar({ subjectId, materialId, isLibrary, onNavigate }: App
             <span {...stylex.props(styles.navLabel)}>Library</span>
           </button>
 
-          {!isLibrary && (
+          <button
+            type="button"
+            {...stylex.props(styles.navItem, isTerms && styles.navItemActive)}
+            onClick={() => onNavigate({ kind: 'terms' })}
+            aria-current={isTerms ? 'page' : undefined}
+            title="Manage Terms"
+          >
+            <Tag size={18} />
+            <span {...stylex.props(styles.navLabel)}>Terms</span>
+          </button>
+
+          {!isLibrary && !isTerms && (
             <>
               <div {...stylex.props(styles.divider)} aria-hidden="true" />
 

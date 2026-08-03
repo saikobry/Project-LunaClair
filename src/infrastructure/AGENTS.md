@@ -6,10 +6,10 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 
 ## Ownership
 
-- `database/schema.ts` — Version 1 Dexie schema (8 object stores: `materials`, `questions`, `quizzes`, `quizSessions`, `highlights`, `drawings`, `preferences`, `metadata`)
-- `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`.
-- `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata.
-- `database/DatabaseSeeder.ts` — Seeds demo material, 5 sample questions (one per type), and a starter quiz if database is empty.
+- `database/schema.ts` — Version 1/2/3 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`)
+- `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records.
+- `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 migration is handled natively by Dexie `version(3).upgrade()`.
+- `database/DatabaseSeeder.ts` — Seeds demo subjects, global terms, subject-term links, categorized/uncategorized materials, 5 sample questions (one per type), and starter quizzes if database is empty.
 - `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()` → `seedIfEmpty()`.
 - `database/repositories/` — Concrete repository implementations:
   - `DexieQuestionRepository` → `QuestionRepository`
@@ -17,17 +17,23 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
   - `DexieQuizSessionRepository` → `QuizSessionRepository` (multi-store transactions for immutable `questionSnapshots`)
   - `DexieLibraryRepository` → `LibraryRepository`
   - `DexieAnnotationRepository` → `AnnotationRepository`
-- `database/index.ts` — Barrel re-export of database core, startup services, and repository singletons
+  - `DexieSubjectRepository` → `SubjectRepository` (cascade: removes `subjectTerms` rows and clears `subjectId`/`termId` on `materials` on delete)
+  - `DexieTermRepository` → `TermRepository` (cascade: removes `subjectTerms` rows and clears `termId` on `materials` on delete)
+  - `DexieSubjectTermRepository` → `SubjectTermRepository` (manages many-to-many Subject ↔ Term associations with composite key `[subjectId+termId]`)
+- `database/index.ts` — Barrel re-export of database core, startup services, schema versions, and repository singletons
 
 ## Local Contracts
 
 - Imports from `domain/` (contract interfaces, model types) and `shared/` (annotation types, storage keys) — never from features.
 - All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`).
 - `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
-- Schema versioning: v1 contains only Phase 5 stores. Future stores added via `version(2)`, `version(3)`, etc.
+- Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global).
 - Database name: `lunaclair-db`.
-- Migration is idempotent — guarded by `lunaclair.migration.v1.complete` localStorage flag.
+- Migration is idempotent — guarded by localStorage flags for v1/v2, native Dexie upgrade for v3.
 - Seeding is idempotent — skipped if `materials` store is non-empty.
+- `DexieSubjectTermRepository.addTerm()` validates subject and term existence, prevents duplicate associations, and auto-computes `max(order) + 1`.
+- `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.
+- `DexieLibraryRepository.createMaterial()` and `updateMaterial()` validate that if `termId` is set, the `(subjectId, termId)` junction record exists.
 
 ## Work Guidance
 

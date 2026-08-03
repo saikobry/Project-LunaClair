@@ -16,11 +16,6 @@ export class DexieTermRepository implements TermRepository {
         return db.terms.toArray();
     }
 
-    async getTermsBySubject(subjectId: string, signal?: AbortSignal): Promise<Term[]> {
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return db.terms.where('subjectId').equals(subjectId).toArray();
-    }
-
     async getTermById(id: string, signal?: AbortSignal): Promise<Term | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         return (await db.terms.get(id)) ?? null;
@@ -30,9 +25,7 @@ export class DexieTermRepository implements TermRepository {
         const now = new Date().toISOString();
         const term: Term = {
             id: generateId(),
-            subjectId: input.subjectId,
             title: input.title,
-            order: input.order,
             createdAt: now,
             updatedAt: now,
         };
@@ -54,7 +47,34 @@ export class DexieTermRepository implements TermRepository {
     }
 
     async deleteTerm(id: string): Promise<void> {
-        await db.terms.delete(id);
+        await db.transaction('rw', [db.terms, db.subjectTerms, db.materials], async () => {
+            // Remove all SubjectTerm junction rows referencing this term
+            const links = await db.subjectTerms
+                .where('termId')
+                .equals(id)
+                .toArray();
+
+            if (links.length > 0) {
+                await db.subjectTerms.bulkDelete(
+                    links.map((l) => [l.subjectId, l.termId] as [string, string]),
+                );
+            }
+
+            // Clear termId on any materials referencing this term
+            const materials = await db.materials
+                .where('termId')
+                .equals(id)
+                .toArray();
+
+            if (materials.length > 0) {
+                const now = new Date().toISOString();
+                const updated = materials.map((m) => ({ ...m, termId: undefined, updatedAt: now }));
+                await db.materials.bulkPut(updated);
+            }
+
+            // Delete the term itself
+            await db.terms.delete(id);
+        });
     }
 }
 

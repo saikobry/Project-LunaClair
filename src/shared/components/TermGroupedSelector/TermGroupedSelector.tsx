@@ -123,7 +123,7 @@ export interface TermGroupedSelectorProps {
 export function TermGroupedSelector({
   selection,
 }: TermGroupedSelectorProps) {
-  const { sortedTerms, materialsByTerm, selectedIds, toggleMaterial, toggleTerm } = selection;
+  const { terms: sortedTerms, materialsByTerm, selectedIds, toggleMaterial, toggleTerm } = selection;
 
   return (
     <div {...stylex.props(styles.container)}>

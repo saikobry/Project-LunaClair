@@ -89,9 +89,7 @@ export default function MaterialsTab({
     const presentTermIds = new Set(
       materials.flatMap((m) => (m.termId ? [m.termId] : [])),
     );
-    return terms
-      .filter((t) => presentTermIds.has(t.id))
-      .toSorted((a, b) => a.order - b.order);
+    return terms.filter((t) => presentTermIds.has(t.id));
   }, [terms, materials]);
 
   const filteredMaterials = useMemo(() => {

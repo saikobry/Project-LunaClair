@@ -48,7 +48,39 @@ export class DexieSubjectRepository implements SubjectRepository {
     }
 
     async deleteSubject(id: string): Promise<void> {
-        await db.subjects.delete(id);
+        await db.transaction('rw', [db.subjects, db.subjectTerms, db.materials], async () => {
+            // Delete the subject record
+            await db.subjects.delete(id);
+
+            // Cascade-delete all associated SubjectTerm junction rows
+            const links = await db.subjectTerms
+                .where('subjectId')
+                .equals(id)
+                .toArray();
+
+            if (links.length > 0) {
+                await db.subjectTerms.bulkDelete(
+                    links.map((l) => [l.subjectId, l.termId] as [string, string]),
+                );
+            }
+
+            // Clear subjectId and termId on associated materials
+            const materials = await db.materials
+                .where('subjectId')
+                .equals(id)
+                .toArray();
+
+            if (materials.length > 0) {
+                const now = new Date().toISOString();
+                const updated = materials.map((m) => ({
+                    ...m,
+                    subjectId: undefined,
+                    termId: undefined,
+                    updatedAt: now,
+                }));
+                await db.materials.bulkPut(updated);
+            }
+        });
     }
 
     async reorderSubjects(orderedIds: string[]): Promise<void> {

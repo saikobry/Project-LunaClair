@@ -5,6 +5,7 @@ import LibraryScreen from '../../features/library/LibraryScreen';
 import SubjectWorkspace from '../../features/subject/SubjectWorkspace';
 import MaterialWorkspace from '../../features/workspace/MaterialWorkspace';
 import QuizScreen from '../../features/quiz/QuizScreen';
+import { TermManagerScreen } from '../../features/settings';
 import { AppSidebar } from '../../features/workspace/components/AppSidebar';
 import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
 
@@ -36,6 +37,7 @@ const styles = stylex.create({
 
 export type AppRoute =
   | { kind: 'library' }
+  | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'manage'; subjectId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute };
@@ -47,6 +49,8 @@ function routeToUrl(route: AppRoute): string {
   switch (route.kind) {
     case 'library':
       return '/';
+    case 'terms':
+      return '/terms';
     case 'subject':
       return `/subjects/${route.subjectId}?tab=${route.activeTab}`;
     case 'workspace':
@@ -82,6 +86,11 @@ function urlToRoute(path: string, search: string): AppRoute | null {
   const quizMatch = url.pathname.match(/^\/quiz\/([^/]+)$/);
   if (quizMatch) {
     return { kind: 'quiz-session', quizId: quizMatch[1], materialIds: [], returnTo: { kind: 'library' } };
+  }
+
+  // /terms
+  if (url.pathname === '/terms') {
+    return { kind: 'terms' };
   }
 
   // / (library)
@@ -215,6 +224,7 @@ export default function AppShell() {
           subjectId={routeSubjectId}
           materialId={routeMaterialId}
           isLibrary={currentRoute.kind === 'library'}
+          isTerms={currentRoute.kind === 'terms'}
           onNavigate={navigate}
         />
       </div>
@@ -226,6 +236,9 @@ export default function AppShell() {
             onStartQuiz={handleStartQuiz}
             onManage={handleManageQuiz}
           />
+        )}
+        {currentRoute.kind === 'terms' && (
+          <TermManagerScreen />
         )}
         {currentRoute.kind === 'subject' && (
           <SubjectWorkspace
