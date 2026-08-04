@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { StudyMaterial } from '../../../../../domain/library';
 import type { CreateMaterialInput } from '../../../../../domain/library/LibraryRepository';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
+import { useToast } from '../../../../../app/providers/ToastContext';
 import { useLibraryRepository } from '../useLibraryRepository';
 
 /**
@@ -12,6 +13,7 @@ import { useLibraryRepository } from '../useLibraryRepository';
 export function useCreateMaterial() {
   const queryClient = useQueryClient();
   const { useCases } = useLibraryRepository();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (input: CreateMaterialInput) => useCases.library.createMaterial.execute(input),
@@ -37,7 +39,12 @@ export function useCreateMaterial() {
       return { previous };
     },
 
+    onSuccess: (created) => {
+      showToast(`Material "${created.title}" created`, { intent: 'success' });
+    },
+
     onError: (_err, _input, context) => {
+      showToast('Failed to create study material', { intent: 'error' });
       if (context?.previous) {
         queryClient.setQueryData(catalogQueryKeys.materials(), context.previous);
       }

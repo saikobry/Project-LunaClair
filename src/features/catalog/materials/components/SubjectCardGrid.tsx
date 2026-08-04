@@ -452,11 +452,13 @@ function DraggableSubjectCard({
                     <ActionMenuItem
                       icon={<SquarePen size={14} />}
                       label="Edit"
+                      description="Modify this subject"
                       onClick={onEdit}
                     />
                     <ActionMenuItem
                       icon={<Trash2 size={14} />}
                       label="Delete"
+                      description="This action cannot be undone"
                       onClick={onDelete}
                     />
                   </ActionMenu>

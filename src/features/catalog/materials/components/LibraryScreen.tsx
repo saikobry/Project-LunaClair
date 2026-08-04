@@ -12,6 +12,7 @@ import { useCreateMaterial } from '../hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from '../hooks/mutations/useDeleteMaterial';
 import { useEditMaterial } from '../hooks/mutations/useEditMaterial';
 import LibraryView from './LibraryView';
+import LibraryModals from './LibraryModals';
 
 interface LibraryScreenProps {
   onOpenMaterial: (materialId: string) => void;
@@ -40,13 +41,13 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   const [subjectEditTarget, setSubjectEditTarget] = useState<Subject | null>(null);
   const [subjectDeleteTarget, setSubjectDeleteTarget] = useState<Subject | null>(null);
   const [showCreateSubject, setShowCreateSubject] = useState(false);
+  const [showCreateMaterial, setShowCreateMaterial] = useState(false);
 
   const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
 
   const handleNewMaterial = useCallback(() => {
-    const title = `Study Material ${materials.length + 1}`;
-    createMutation.mutate({ title });
-  }, [materials.length, createMutation]);
+    setShowCreateMaterial(true);
+  }, []);
 
   const handleNewSubject = useCallback(() => {
     setShowCreateSubject(true);
@@ -77,6 +78,18 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
 
   const handleEditClose = useCallback(() => {
     setEditTarget(null);
+  }, []);
+
+  const handleCreateMaterialSave = useCallback(
+    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
+      createMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined });
+      setShowCreateMaterial(false);
+    },
+    [createMutation],
+  );
+
+  const handleCreateMaterialClose = useCallback(() => {
+    setShowCreateMaterial(false);
   }, []);
 
   const handleCreateSubjectSave = useCallback(
@@ -154,38 +167,46 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
   );
 
   return (
-    <LibraryView
-      isLoading={isLibraryLoading}
-      subjects={subjects}
-      materials={uncategorizedMaterials}
-      allMaterials={materials}
-      onNewMaterial={handleNewMaterial}
-      onNewSubject={handleNewSubject}
-      onOpen={handleOpen}
-      onOpenSubject={onOpenSubject}
-      onEdit={handleEditTrigger}
-      onDelete={handleDeleteTrigger}
-      onStartQuiz={handleStartQuiz}
-      onManage={(m) => onManage(m.id, m.subjectId)}
-      editTarget={editTarget}
-      deleteTarget={deleteTarget}
-      subjectEditTarget={subjectEditTarget}
-      subjectDeleteTarget={subjectDeleteTarget}
-      showCreateSubject={showCreateSubject}
-      isSavingReorder={reorderSubjectsMutation.isPending}
-      onEditSave={handleEditSave}
-      onEditClose={handleEditClose}
-      onSubjectEdit={handleSubjectEdit}
-      onSubjectDelete={handleSubjectDelete}
-      onSubjectReorder={handleSubjectReorder}
-      onSubjectEditSave={handleSubjectEditSave}
-      onSubjectEditClose={handleSubjectEditClose}
-      onSubjectDeleteConfirm={handleSubjectDeleteConfirm}
-      onSubjectDeleteClose={handleSubjectDeleteClose}
-      onCreateSubjectSave={handleCreateSubjectSave}
-      onCreateSubjectClose={handleCreateSubjectClose}
-      onDeleteConfirm={handleDeleteConfirm}
-      onDeleteClose={handleDeleteClose}
-    />
+    <>
+      <LibraryView
+        isLoading={isLibraryLoading}
+        subjects={subjects}
+        materials={uncategorizedMaterials}
+        allMaterials={materials}
+        onNewMaterial={handleNewMaterial}
+        onNewSubject={handleNewSubject}
+        onOpen={handleOpen}
+        onOpenSubject={onOpenSubject}
+        onEdit={handleEditTrigger}
+        onDelete={handleDeleteTrigger}
+        onStartQuiz={handleStartQuiz}
+        onManage={(m) => onManage(m.id, m.subjectId)}
+        isSavingReorder={reorderSubjectsMutation.isPending}
+        onSubjectEdit={handleSubjectEdit}
+        onSubjectDelete={handleSubjectDelete}
+        onSubjectReorder={handleSubjectReorder}
+      />
+      <LibraryModals
+        subjects={subjects}
+        editTarget={editTarget}
+        deleteTarget={deleteTarget}
+        subjectEditTarget={subjectEditTarget}
+        subjectDeleteTarget={subjectDeleteTarget}
+        showCreateSubject={showCreateSubject}
+        showCreateMaterial={showCreateMaterial}
+        onEditSave={handleEditSave}
+        onEditClose={handleEditClose}
+        onSubjectEditSave={handleSubjectEditSave}
+        onSubjectEditClose={handleSubjectEditClose}
+        onSubjectDeleteConfirm={handleSubjectDeleteConfirm}
+        onSubjectDeleteClose={handleSubjectDeleteClose}
+        onCreateSubjectSave={handleCreateSubjectSave}
+        onCreateSubjectClose={handleCreateSubjectClose}
+        onCreateMaterialSave={handleCreateMaterialSave}
+        onCreateMaterialClose={handleCreateMaterialClose}
+        onDeleteConfirm={handleDeleteConfirm}
+        onDeleteClose={handleDeleteClose}
+      />
+    </>
   );
 }

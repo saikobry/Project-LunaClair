@@ -18,6 +18,7 @@ import { TabList, Tab } from '../../../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import EditMaterialModal from '../../materials/modals/EditMaterialModal';
+import CreateMaterialModal from '../../materials/modals/CreateMaterialModal';
 import DeleteConfirmationModal from '../../materials/modals/DeleteConfirmationModal';
 import MaterialsTab from './MaterialsTab';
 import SubjectQuizTab from './SubjectQuizTab';
@@ -100,11 +101,11 @@ export default function SubjectWorkspace({
   // actions (Terms tab) can trigger them; the tab renders the modals.
   const [showAddExistingTerm, setShowAddExistingTerm] = useState(false);
   const [showCreateTerm, setShowCreateTerm] = useState(false);
+  const [showCreateMaterial, setShowCreateMaterial] = useState(false);
 
   const handleAddMaterial = useCallback(() => {
-    const title = `Study Material ${materials.length + 1}`;
-    createMaterialMutation.mutate({ title, subjectId });
-  }, [materials.length, createMaterialMutation, subjectId]);
+    setShowCreateMaterial(true);
+  }, []);
 
   const handleEditTrigger = useCallback((material: StudyMaterial) => {
     setEditTarget(material);
@@ -135,6 +136,18 @@ export default function SubjectWorkspace({
 
   const handleDeleteClose = useCallback(() => {
     setDeleteTarget(null);
+  }, []);
+
+  const handleCreateMaterialSave = useCallback(
+    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
+      createMaterialMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined });
+      setShowCreateMaterial(false);
+    },
+    [createMaterialMutation],
+  );
+
+  const handleCreateMaterialClose = useCallback(() => {
+    setShowCreateMaterial(false);
   }, []);
 
   const handleStartQuiz = useCallback(
@@ -291,6 +304,15 @@ export default function SubjectWorkspace({
           title={deleteTarget.title}
           onConfirm={handleDeleteConfirm}
           onClose={handleDeleteClose}
+        />
+      )}
+
+      {showCreateMaterial && (
+        <CreateMaterialModal
+          subjects={subjects}
+          initialSubjectId={subjectId}
+          onSave={handleCreateMaterialSave}
+          onClose={handleCreateMaterialClose}
         />
       )}
     </Page>

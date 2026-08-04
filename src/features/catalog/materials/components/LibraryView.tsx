@@ -11,10 +11,6 @@ import { styles } from '../../shared/styles/library.stylex';
 import MaterialGrid from './MaterialGrid';
 import SubjectCardGrid from './SubjectCardGrid';
 import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
-import EditMaterialModal from '../modals/EditMaterialModal';
-import EditSubjectModal from '../../subjects/modals/EditSubjectModal';
-import CreateSubjectModal from '../../subjects/modals/CreateSubjectModal';
-import DeleteConfirmationModal from '../modals/DeleteConfirmationModal';
 
 const localStyles = stylex.create({
   section: {
@@ -51,25 +47,10 @@ interface LibraryViewProps {
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
-  editTarget: StudyMaterial | null;
-  deleteTarget: StudyMaterial | null;
-  subjectEditTarget: Subject | null;
-  subjectDeleteTarget: Subject | null;
-  showCreateSubject: boolean;
   isSavingReorder?: boolean;
-  onEditSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
-  onEditClose: () => void;
   onSubjectEdit: (subject: Subject) => void;
   onSubjectDelete: (subject: Subject) => void;
   onSubjectReorder: (orderedIds: string[]) => void;
-  onSubjectEditSave: (title: string, description: string) => void;
-  onSubjectEditClose: () => void;
-  onSubjectDeleteConfirm: () => void;
-  onSubjectDeleteClose: () => void;
-  onCreateSubjectSave: (title: string, description: string) => void;
-  onCreateSubjectClose: () => void;
-  onDeleteConfirm: () => void;
-  onDeleteClose: () => void;
 }
 
 export default function LibraryView({
@@ -85,25 +66,10 @@ export default function LibraryView({
   onDelete,
   onStartQuiz,
   onManage,
-  editTarget,
-  deleteTarget,
-  subjectEditTarget,
-  subjectDeleteTarget,
-  showCreateSubject,
   isSavingReorder,
-  onEditSave,
-  onEditClose,
   onSubjectEdit,
   onSubjectDelete,
   onSubjectReorder,
-  onSubjectEditSave,
-  onSubjectEditClose,
-  onSubjectDeleteConfirm,
-  onSubjectDeleteClose,
-  onCreateSubjectSave,
-  onCreateSubjectClose,
-  onDeleteConfirm,
-  onDeleteClose,
 }: LibraryViewProps) {
   const totalCount = allMaterials.length;
   const description = isLoading
@@ -198,52 +164,6 @@ export default function LibraryView({
             Create Material
           </Button>
         </div>
-      )}
-
-      {/* Modals */}
-      {editTarget && (
-        <EditMaterialModal
-          initialTitle={editTarget.title}
-          initialDescription={editTarget.description ?? ''}
-          initialSubjectId={editTarget.subjectId}
-          initialTermId={editTarget.termId}
-          subjects={subjects}
-          onSave={onEditSave}
-          onClose={onEditClose}
-        />
-      )}
-
-      {showCreateSubject && (
-        <CreateSubjectModal
-          onSave={onCreateSubjectSave}
-          onClose={onCreateSubjectClose}
-        />
-      )}
-
-      {subjectEditTarget && (
-        <EditSubjectModal
-          initialTitle={subjectEditTarget.title}
-          initialDescription={subjectEditTarget.description ?? ''}
-          onSave={onSubjectEditSave}
-          onClose={onSubjectEditClose}
-        />
-      )}
-
-      {subjectDeleteTarget && (
-        <DeleteConfirmationModal
-          title={subjectDeleteTarget.title}
-          itemType="Subject"
-          onConfirm={onSubjectDeleteConfirm}
-          onClose={onSubjectDeleteClose}
-        />
-      )}
-
-      {deleteTarget && (
-        <DeleteConfirmationModal
-          title={deleteTarget.title}
-          onConfirm={onDeleteConfirm}
-          onClose={onDeleteClose}
-        />
       )}
     </Page>
   );
