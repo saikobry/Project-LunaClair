@@ -5,8 +5,9 @@ import type { Question } from '../../../domain/quiz/Question';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
 import type { CSSProperties } from 'react';
 import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../shared/ui/Button/Button';
 import { Card } from '../../../shared/ui/Card';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog';
 
 import { useToast } from '../../../app/providers/ToastContext';
 import { QuizBuilderDialog } from './QuizBuilderDialog';
@@ -155,6 +156,7 @@ export function QuizCatalogTab({
     const { showToast } = useToast();
     const [builderOpen, setBuilderOpen] = useState(false);
     const [editTargetQuiz, setEditTargetQuiz] = useState<Quiz | null>(null);
+    const [archiveTargetQuiz, setArchiveTargetQuiz] = useState<Quiz | null>(null);
     const [showArchived, setShowArchived] = useState(false);
 
     const archivedCount = quizzes.filter((q) => q.status === 'archived').length;
@@ -294,7 +296,7 @@ export function QuizCatalogTab({
                                             icon={<Archive size={14} />}
                                             isIconOnly
                                             tooltip="Archive"
-                                            onClick={() => { onArchive(quiz.id); showToast('Quiz archived', { intent: 'info' }); }}
+                                            onClick={() => setArchiveTargetQuiz(quiz)}
                                         />
                                     )}
                                 </div>
@@ -303,6 +305,23 @@ export function QuizCatalogTab({
                     ))}
                 </div>
             )}
+
+            <ConfirmationDialog
+                isOpen={Boolean(archiveTargetQuiz)}
+                title="Archive Quiz"
+                message={`Are you sure you want to archive "${archiveTargetQuiz?.title}"? It will no longer be visible in the active catalog, but you can restore it anytime.`}
+                confirmLabel="Archive Quiz"
+                cancelLabel="Cancel"
+                intent="warning"
+                onConfirm={() => {
+                    if (archiveTargetQuiz) {
+                        onArchive(archiveTargetQuiz.id);
+                        showToast('Quiz archived', { intent: 'info' });
+                    }
+                    setArchiveTargetQuiz(null);
+                }}
+                onCancel={() => setArchiveTargetQuiz(null)}
+            />
 
             <QuizBuilderDialog
                 key={editTargetQuiz?.id ?? 'new-quiz'}
