@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, Layers, Plus } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, Link2, Plus } from 'lucide-react';
 import type { AppRoute } from '../../../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../../../quiz';
 import type { StudyMaterial } from '../../../../domain/library';
@@ -95,6 +95,11 @@ export default function SubjectWorkspace({
 
   const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
+
+  // Term modal open-state — lifted from SubjectTermsTab so the Page header
+  // actions (Terms tab) can trigger them; the tab renders the modals.
+  const [showAddExistingTerm, setShowAddExistingTerm] = useState(false);
+  const [showCreateTerm, setShowCreateTerm] = useState(false);
 
   const handleAddMaterial = useCallback(() => {
     const title = `Study Material ${materials.length + 1}`;
@@ -205,6 +210,25 @@ export default function SubjectWorkspace({
           >
             Add Material
           </Button>
+        ) : activeTab === 'terms' ? (
+          <>
+            <Button
+              label="Add Existing Term"
+              variant="secondary"
+              icon={<Link2 size={16} />}
+              onClick={() => setShowAddExistingTerm(true)}
+            >
+              Add Existing Term
+            </Button>
+            <Button
+              label="Create Term"
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => setShowCreateTerm(true)}
+            >
+              Create Term
+            </Button>
+          </>
         ) : undefined
       }
     >
@@ -237,7 +261,15 @@ export default function SubjectWorkspace({
         )}
 
         {activeTab === 'terms' && (
-          <SubjectTermsTab subjectId={subjectId} />
+          <SubjectTermsTab
+            subjectId={subjectId}
+            showAddExisting={showAddExistingTerm}
+            showCreate={showCreateTerm}
+            onOpenAddExisting={() => setShowAddExistingTerm(true)}
+            onOpenCreate={() => setShowCreateTerm(true)}
+            onCloseAddExisting={() => setShowAddExistingTerm(false)}
+            onCloseCreate={() => setShowCreateTerm(false)}
+          />
         )}
       </AnimatedTabPanel>
 

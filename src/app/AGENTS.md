@@ -8,7 +8,7 @@ Application-level orchestration: the root shell layout, configuration constants,
 
 - `layouts/AppShell.tsx` — Root layout shell that manages top-level navigation via `AppRoute` discriminated union (`library` | `terms` | `subject` | `workspace` | `quiz-session`). Subject routes carry `activeTab: 'materials' | 'quiz' | 'terms'` serialized as `?tab=`.
 - `layouts/MaterialWorkspace.tsx` — Material workspace shell (Read / Quiz / Manage tab bar + Page shell) wrapping `ReaderScreen`, `QuizScreen`, and `QuizManagementScreen`. Consumes catalog hooks (`useMaterial`, `useSubject`, `useTerm`) through the catalog public contract.
-- `layouts/AppSidebar/AppSidebar.tsx` — Global navigation rail (desktop sidebar, tablet rail, mobile bottom dock) with GSAP sliding active pill. Consumes `useSubject` / `useMaterial` through the catalog public contract.
+- `layouts/AppSidebar/AppSidebar.tsx` — Global navigation rail (desktop sidebar, tablet rail, mobile bottom dock) with GSAP sliding active pill. Consumes `useSubject` / `useMaterial` via direct catalog hook imports (scoped app-shell exception to the feature barrel rule — see `src/features/AGENTS.md`).
 - `bootstrap/` — Composition root: creates repositories, use cases, and the application graph.
 - `bootstrap.ts` — Application initialization: calls `DatabaseInitializer.initialize()` (opens Dexie database, runs legacy localStorage migration, seeds demo data if empty)
 - `config/constants.ts` — App-wide constants (app name, studio name)

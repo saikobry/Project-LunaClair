@@ -3,7 +3,8 @@ import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { Home, BookText, GraduationCap, Tag } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
-import { useSubject, useMaterial } from '../../../features/catalog';
+import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
+import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
 import logoSvg from '../../../assets/logo.svg';
 
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
@@ -228,14 +229,46 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
-    paddingLeft: 8,
-    [tablet]: {
-      alignItems: 'center',
-      paddingLeft: 0,
-    },
     [mobile]: {
       display: 'none',
     },
+  },
+  footerDesktop: {
+    display: 'flex',
+    paddingLeft: 8,
+    [tablet]: {
+      display: 'none',
+    },
+  },
+  footerTablet: {
+    display: 'none',
+    [tablet]: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+    },
+  },
+  footerLogo: {
+    width: 26,
+    height: 26,
+    objectFit: 'contain',
+  },
+  versionBadge: {
+    fontSize: 9,
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    color: 'var(--color-text-secondary)',
+    backgroundColor: 'var(--color-background-muted)',
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'var(--color-border)',
+    borderRadius: 999,
+    paddingTop: 2,
+    paddingBottom: 2,
+    paddingLeft: 6,
+    paddingRight: 6,
+    whiteSpace: 'nowrap',
   },
 
 });
@@ -435,7 +468,13 @@ export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, 
       </div>
 
       <div {...stylex.props(styles.footer)}>
-        <span>Project LunaClair v1.0</span>
+        <div {...stylex.props(styles.footerDesktop)}>
+          <span>Project LunaClair v1.0</span>
+        </div>
+        <div {...stylex.props(styles.footerTablet)}>
+          <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
+          <span {...stylex.props(styles.versionBadge)}>v1.0</span>
+        </div>
       </div>
     </nav>
   );

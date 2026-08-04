@@ -23,26 +23,6 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: 20,
   },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  headerText: {
-    fontSize: 13.5,
-    color: 'var(--color-text-secondary)',
-    margin: '4px 0 0',
-    maxWidth: 460,
-    lineHeight: 1.5,
-  },
   actions: {
     display: 'flex',
     alignItems: 'center',
@@ -85,16 +65,35 @@ const styles = stylex.create({
 
 interface SubjectTermsTabProps {
   subjectId: string;
+  /** Whether the "Add Existing Term" modal is open — controlled by the workspace Page header actions. */
+  showAddExisting: boolean;
+  /** Whether the "Create Term" modal is open — controlled by the workspace Page header actions. */
+  showCreate: boolean;
+  onOpenAddExisting: () => void;
+  onOpenCreate: () => void;
+  onCloseAddExisting: () => void;
+  onCloseCreate: () => void;
 }
 
 /**
  * Main container for the subject's Terms tab.
  *
- * Consumes `useTerms(subjectId)` plus material/usage counts, manages the
- * reorder / unlink / add-existing / create mutations and their modals,
- * and feeds the purely presentational `SubjectTermList`.
+ * Consumes `useTerms(subjectId)` plus material/usage counts, owns the
+ * reorder / unlink / add-existing / create mutations, and renders the
+ * term modals. Modal open-state is controlled by the parent
+ * `SubjectWorkspace` (which hosts the tab actions in the Page header),
+ * while `unlinkTarget` stays local. Feeds the purely presentational
+ * `SubjectTermList`.
  */
-export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
+export default function SubjectTermsTab({
+  subjectId,
+  showAddExisting,
+  showCreate,
+  onOpenAddExisting,
+  onOpenCreate,
+  onCloseAddExisting,
+  onCloseCreate,
+}: SubjectTermsTabProps) {
   const { terms, isLoading } = useTerms(subjectId);
   const { materials } = useLibrary();
   const { subjectCounts } = useSubjectTermUsage(subjectId, terms);
@@ -104,9 +103,6 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
   const reorderMutation = useReorderSubjectTerms(subjectId);
   const createMutation = useCreateAndAssignTerm(subjectId);
 
-  // Modal visibility state
-  const [showAddExisting, setShowAddExisting] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
   const [unlinkTarget, setUnlinkTarget] = useState<Term | null>(null);
 
   // Enrich terms with material counts (materials in this subject) and
@@ -155,35 +151,6 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
 
   return (
     <div {...stylex.props(styles.container)}>
-      <div {...stylex.props(styles.header)}>
-        <div>
-          <h2 {...stylex.props(styles.headerTitle)}>Assigned Terms</h2>
-          <p {...stylex.props(styles.headerText)}>
-            Organize study materials by term. Terms are global — reuse them
-            across subjects, reorder them here, or unlink them without deleting
-            the term itself.
-          </p>
-        </div>
-        <div {...stylex.props(styles.actions)}>
-          <Button
-            label="Add Existing Term"
-            variant="ghost"
-            icon={<Link2 size={16} />}
-            onClick={() => setShowAddExisting(true)}
-          >
-            Add Existing Term
-          </Button>
-          <Button
-            label="Create Term"
-            variant="primary"
-            icon={<Plus size={16} />}
-            onClick={() => setShowCreate(true)}
-          >
-            Create Term
-          </Button>
-        </div>
-      </div>
-
       {terms.length === 0 ? (
         <div {...stylex.props(styles.empty)}>
           <div {...stylex.props(styles.emptyIcon)}>
@@ -197,9 +164,9 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
           <div {...stylex.props(styles.actions)}>
             <Button
               label="Add Existing Term"
-              variant="ghost"
+              variant="secondary"
               icon={<Link2 size={16} />}
-              onClick={() => setShowAddExisting(true)}
+              onClick={onOpenAddExisting}
             >
               Add Existing Term
             </Button>
@@ -207,7 +174,7 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
               label="Create Term"
               variant="primary"
               icon={<Plus size={16} />}
-              onClick={() => setShowCreate(true)}
+              onClick={onOpenCreate}
             >
               Create Term
             </Button>
@@ -227,7 +194,7 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
           assignedTermIds={new Set(terms.map((t) => t.id))}
           isAdding={addMutation.isPending}
           onAdd={(termId) => addMutation.mutate(termId)}
-          onClose={() => setShowAddExisting(false)}
+          onClose={onCloseAddExisting}
         />
       )}
 
@@ -235,7 +202,7 @@ export default function SubjectTermsTab({ subjectId }: SubjectTermsTabProps) {
         <CreateTermModal
           isCreating={createMutation.isPending}
           onCreate={(title) => createMutation.mutate(title)}
-          onClose={() => setShowCreate(false)}
+          onClose={onCloseCreate}
         />
       )}
 

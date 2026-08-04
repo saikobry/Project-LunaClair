@@ -132,7 +132,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 ## Import Rules
 
 1. **Curated feature contracts** — features may consume another feature only through its root `index.ts` public contract.
-2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature.
+2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. Scoped exception: the app shell (`src/app/layouts/`) may import specific catalog query hooks directly (see `src/features/AGENTS.md`); all other cross-feature imports use feature root barrels.
 3. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
 5. **Services** import from `shared/` (types/utilities) but not from features.

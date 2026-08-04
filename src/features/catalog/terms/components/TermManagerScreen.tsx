@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, SquarePen, Trash2, Tag } from 'lucide-react';
 import { Page } from '../../../../shared/ui/Page';
 import { Button } from '../../../../shared/ui/Button/Button';
+import { IconButton } from '../../../../shared/ui/IconButton/IconButton';
 import { Dialog } from '../../../../shared/ui/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { ConfirmationDialog } from '../../../../shared/ui/Dialog/ConfirmationDialog';
@@ -65,30 +66,6 @@ const styles = stylex.create({
     display: 'flex',
     gap: 4,
     flexShrink: 0,
-  },
-  actionBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 34,
-    height: 34,
-    padding: 0,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-    border: 'none',
-    color: 'var(--color-text-disabled)',
-    cursor: 'pointer',
-    transition: 'all 0.12s ease',
-    ':hover': {
-      backgroundColor: 'var(--color-background-muted)',
-      color: 'var(--color-text-secondary)',
-    },
-  },
-  deleteBtn: {
-    ':hover': {
-      backgroundColor: 'var(--color-danger-muted, rgba(239, 68, 68, 0.1))',
-      color: '#dc2626',
-    },
   },
   empty: {
     display: 'flex',
@@ -244,24 +221,20 @@ export function TermManagerScreen() {
                   </div>
                 </div>
                 <div {...stylex.props(styles.actions)}>
-                  <button
-                    type="button"
-                    {...stylex.props(styles.actionBtn)}
+                  <IconButton
+                    label={`Rename ${term.title}`}
+                    icon={<SquarePen size={15} />}
+                    variant="ghost"
                     onClick={() => openEdit(term)}
-                    aria-label={`Rename ${term.title}`}
-                    title="Rename"
-                  >
-                    <SquarePen size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    {...stylex.props(styles.actionBtn, styles.deleteBtn)}
+                    tooltip="Rename"
+                  />
+                  <IconButton
+                    label={`Delete ${term.title}`}
+                    icon={<Trash2 size={15} />}
+                    variant="danger"
                     onClick={() => setDeleteTarget(term)}
-                    aria-label={`Delete ${term.title}`}
-                    title="Delete"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    tooltip="Delete"
+                  />
                 </div>
               </div>
             );
