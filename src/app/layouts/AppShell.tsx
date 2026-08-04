@@ -1,12 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import QuizScreen from '../../features/quiz/QuizScreen';
-import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
-import LibraryScreen from '../../features/library/LibraryScreen';
-import SubjectWorkspace from '../../features/subject/SubjectWorkspace';
-import { MaterialWorkspace, AppSidebar } from '../../features/workspace';
-import { TermManagerScreen } from '../../features/settings';
-import { useTouchMaterial } from '../../features/library/hooks/mutations/useTouchMaterial';
+// Named import: a combined `import QuizScreen, { type QuizLaunchRequest }`
+// against the quiz barrel fails with TS2613 (no default export).
+import { QuizScreen } from '../../features/quiz';
+import type { QuizLaunchRequest } from '../../features/quiz';
+import {
+  LibraryScreen,
+  SubjectWorkspace,
+  TermManagerScreen,
+  useTouchMaterial,
+} from '../../features/catalog';
+import MaterialWorkspace from './MaterialWorkspace';
+import { AppSidebar } from './AppSidebar/AppSidebar';
 
 const styles = stylex.create({
   shell: {

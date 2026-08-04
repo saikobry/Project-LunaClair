@@ -112,7 +112,7 @@ src/
   app/            — Application shell, config, providers
   application/    — Framework-agnostic application use cases
   domain/         — Business domain models (pure data, no UI)
-  features/       — Feature modules (reader, quiz, library, …)
+  features/       — Feature modules (catalog, reader, quiz, quiz-management, …)
   infrastructure/ — Persistence layer (Dexie/IndexedDB database, repositories)
   shared/         — Shared types, constants, utilities, base components
   services/       — Legacy infrastructure services (localStorage, content fetch)

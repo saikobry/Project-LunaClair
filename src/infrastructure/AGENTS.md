@@ -26,7 +26,7 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 
 ## Local Contracts
 
-- Imports from `domain/` (contract interfaces, model types) and `shared/` (annotation types, storage keys) — never from features.
+- Imports from `domain/` (contract interfaces, model types, annotation value shapes) and `shared/` (storage keys) — never from features.
 - All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`).
 - `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
 - Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global).

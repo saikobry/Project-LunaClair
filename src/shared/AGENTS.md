@@ -8,10 +8,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 
 | Module | Contents |
 |---|---|
-| `types/annotation.types.ts` | Shared annotation value shapes used by reader and persistence contracts |
 | `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) |
-| `constants/annotationDefaults.ts` | `BRUSH_COLORS`, `THICKNESS_OPTIONS`, `HIGHLIGHT_COLORS` |
-| `utils/selection.ts` | `getOffsetsOfRange()`, `restoreRange()` — DOM Range ↔ character offset utilities |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
 | `ui/` | Design system primitive adapters and low-level container primitives |
 | `components/` | Domain-neutral composites such as `ActionMenu` and `SelectableRow` |

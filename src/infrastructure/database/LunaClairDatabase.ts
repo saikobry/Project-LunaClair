@@ -6,7 +6,7 @@ import type { QuizSession } from '../../domain/quiz/QuizSession';
 import type { Subject } from '../../domain/library/Subject';
 import type { Term } from '../../domain/library/Term';
 import type { SubjectTerm } from '../../domain/library/SubjectTerm';
-import type { HighlightItem, DrawingPath } from '../../shared/types/annotation.types';
+import type { HighlightItem, DrawingPath } from '../../domain/reader';
 import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */

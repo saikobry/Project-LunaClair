@@ -1,0 +1,128 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { Quiz } from '../../../../domain/quiz/Quiz';
+import type { Question } from '../../../../domain/quiz/Question';
+import type { QuizMode } from '../../../../domain/quiz/QuizMode';
+import type { QuizResult } from '../../../../domain/quiz/AssessmentService';
+import type { QuizFlowState, QuizLaunchRequest } from '../../types/quizFeature.types';
+import type { AnswerValue } from '../../components/QuestionRenderer';
+import { useQuizLoader } from './useQuizLoader';
+import { useQuizProgress } from './useQuizProgress';
+import { useQuizSubmission } from './useQuizSubmission';
+import { useQuizPersistence } from './useQuizPersistence';
+
+export interface QuizSessionFlow {
+    flowState: QuizFlowState;
+    questions: Question[];
+    /** The individual quizzes loaded from the repository. For unified quizzes, this is the source array before virtual merging. */
+    sourceQuizzes: Quiz[];
+    currentIndex: number;
+    currentQuestion: Question | null;
+    totalQuestions: number;
+    answeredCount: number;
+    isLastQuestion: boolean;
+    mode: QuizMode;
+    result: QuizResult | null;
+    error: Error | null;
+    answers: Map<string, AnswerValue>;
+    setAnswer: (questionId: string, value: AnswerValue) => void;
+    goNext: () => void;
+    goPrev: () => void;
+    submit: () => void;
+    retake: () => void;
+}
+
+/**
+ * Orchestrator hook composing modular sub-hooks into a clean QuizFlowState machine.
+ * Consumes the new discriminated QuizLaunchRequest union.
+ * Manages the full lifecycle: load → session create → answer → submit → persist.
+ */
+export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessionFlow {
+    const mode: QuizMode = launchRequest.mode ?? 'practice';
+    const { quiz, sourceQuizzes, questions, isLoading, isError, error } = useQuizLoader(launchRequest);
+
+    const progress = useQuizProgress(questions);
+    const { evaluate } = useQuizSubmission();
+    const { createSession, completeSession } = useQuizPersistence();
+
+    const [result, setResult] = useState<QuizResult | null>(null);
+    const [sessionError, setSessionError] = useState<Error | null>(null);
+    const [isCompleted, setIsCompleted] = useState(false);
+    const sessionCreated = useRef(false);
+
+    // ── Derive flowState from props during render ──
+    // This replaces the old useEffect that adjusted state after prop changes.
+    // Deriving during render means the correct value is available on the very
+    // first render — no stale-frame flicker for the user.
+    const flowState: QuizFlowState = isCompleted
+        ? 'completed'
+        : sessionError
+            ? 'error'
+            : isLoading
+                ? 'loading'
+                : isError
+                    ? 'error'
+                    : !quiz || questions.length === 0
+                        ? 'empty'
+                        : 'ready';
+
+    // Create session when quiz becomes ready
+    useEffect(() => {
+        if (flowState === 'ready' && quiz && !sessionCreated.current) {
+            sessionCreated.current = true;
+
+            const createPromise = launchRequest.type === 'quizzes'
+                ? createSession({ source: 'virtual', quiz, mode })
+                : createSession({ source: 'stored', quizId: quiz.id, mode });
+
+            createPromise.catch((err) => {
+                setSessionError(err instanceof Error ? err : new Error(String(err)));
+            });
+        }
+    }, [flowState, quiz, mode, createSession, launchRequest]);
+
+    const submit = useCallback(() => {
+        if (!quiz || questions.length === 0) return;
+
+        const quizResult = evaluate(questions, progress.answers);
+        setResult(quizResult);
+
+        const submissions = questions.map((question) => ({
+            questionId: question.id,
+            value: progress.answers.get(question.id) ?? '',
+        }));
+
+        completeSession(submissions)
+            .then(() => setIsCompleted(true))
+            .catch((err) => {
+                setSessionError(err instanceof Error ? err : new Error(String(err)));
+            });
+    }, [quiz, questions, progress.answers, evaluate, completeSession]);
+
+    const retake = useCallback(() => {
+        setResult(null);
+        setSessionError(null);
+        setIsCompleted(false);
+        progress.reset();
+        sessionCreated.current = false;
+    }, [progress]);
+
+    return {
+        flowState,
+        questions,
+        sourceQuizzes,
+        currentIndex: progress.currentIndex,
+        currentQuestion: progress.currentQuestion,
+        totalQuestions: progress.totalQuestions,
+        answeredCount: progress.answeredCount,
+        isLastQuestion: progress.isLastQuestion,
+        mode,
+        result,
+        error: (sessionError ?? error) as Error | null,
+        answers: progress.answers,
+        setAnswer: progress.setAnswer,
+        goNext: progress.goNext,
+        goPrev: progress.goPrev,
+        submit,
+        retake,
+    };
+}

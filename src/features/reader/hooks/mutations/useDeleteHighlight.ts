@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { HighlightItem } from '../../../../shared/types/annotation.types';
+import type { HighlightItem } from '../../../../domain/reader';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';

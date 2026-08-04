@@ -1,4 +1,4 @@
-import type { HighlightItem, DrawingPath } from '../../shared/types/annotation.types';
+import type { HighlightItem, DrawingPath } from './annotation.types';
 
 /**
  * Async contract for annotation persistence (highlights + drawings).

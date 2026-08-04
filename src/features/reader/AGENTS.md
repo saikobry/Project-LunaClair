@@ -22,6 +22,8 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `hooks/useHighlights.ts` | TanStack Query–backed highlight state + CSS Custom Highlight API registration |
 | `hooks/useDrawings.ts` | TanStack Query–backed drawing paths + body scroll-lock when drawing |
 | `hooks/useTextSelection.ts` | Listens to `selectionchange`, computes popover position, detects highlight clicks |
+| `constants/annotationDefaults.ts` | `BRUSH_COLORS`, `THICKNESS_OPTIONS`, `HIGHLIGHT_COLORS` annotation tool presets |
+| `utils/selection.ts` | `getOffsetsOfRange()`, `restoreRange()` — DOM Range ↔ character offset utilities |
 | `hooks/mutations/useSaveHighlights.ts` | Mutation: persist full highlights array (optimistic) |
 | `hooks/mutations/useDeleteHighlight.ts` | Mutation: remove single highlight by ID (optimistic) |
 | `hooks/mutations/useClearHighlights.ts` | Mutation: clear all highlights (optimistic) |
@@ -39,8 +41,8 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 - All annotation methods require an explicit `documentId` parameter
 - Drawing mode locks body scroll (`overflow: hidden`, `touchAction: none`, `overscrollBehavior: none`)
 - Highlights use the CSS Custom Highlight API (`CSS.highlights.set`) — no DOM wrapper nodes
-- Text selection offsets are computed via shared utility `getOffsetsOfRange` / `restoreRange` from `shared/utils/selection.ts`
-- Annotation types (`HighlightItem`, `DrawingPath`, `Point`, etc.) live in `shared/types/annotation.types.ts`
+- Text selection offsets are computed via feature-local `getOffsetsOfRange` / `restoreRange` in `utils/selection.ts`
+- Annotation value types (`HighlightItem`, `DrawingPath`, `Point`, `HighlightColor`, `AnnotationMode`, `DrawingTool`) live in `domain/reader/annotation.types.ts` (owned by the reader domain contract — also consumed by `infrastructure/` and `services/` persistence adapters)
 - Query hooks and mutation hooks are separated; mutations live in `hooks/mutations/`
 - DI hooks (`useDocumentRepository`, `useAnnotationRepository`) provide repository access via context
 - AnnotationToolbar renders via React Portal (`createPortal`) to `document.body` on mobile/tablet viewports (`<= 1023px`) as a bottom horizontal dock to escape parent container CSS transforms

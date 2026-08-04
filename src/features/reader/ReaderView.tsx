@@ -1,5 +1,5 @@
 import { type RefObject } from 'react';
-import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../shared/types';
+import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader';
 import type { PopoverState } from './types';
 import MarkdownViewer from './components/MarkdownViewer';
 import AnnotationToolbar from './components/AnnotationToolbar';

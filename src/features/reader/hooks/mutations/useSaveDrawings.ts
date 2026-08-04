@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { DrawingPath } from '../../../../shared/types/annotation.types';
+import type { DrawingPath } from '../../../../domain/reader';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
 import { useAnnotationRepository } from '../useAnnotationRepository';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';

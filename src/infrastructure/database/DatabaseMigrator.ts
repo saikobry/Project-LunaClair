@@ -1,6 +1,6 @@
 import type { LunaClairDatabase, HighlightRecord, DrawingRecord } from './LunaClairDatabase';
 import type { StudyMaterial } from '../../domain/library/StudyMaterial';
-import type { HighlightItem, DrawingPath } from '../../shared/types/annotation.types';
+import type { HighlightItem, DrawingPath } from '../../domain/reader';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 
 const MIGRATION_KEY = 'lunaclair.migration.v1.complete';

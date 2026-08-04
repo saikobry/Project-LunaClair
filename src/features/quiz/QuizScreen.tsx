@@ -3,13 +3,13 @@ import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft, AlertTriangle, Inbox, Layers } from 'lucide-react';
 import type { AnswerValue } from './components/QuestionRenderer';
 import type { QuizLaunchRequest } from './types/quizFeature.types';
-import { useQuizSessionFlow } from './hooks/useQuizSessionFlow';
-import { useQuestions } from './hooks/useQuestions';
+import { useQuizSessionFlow } from './hooks/session/useQuizSessionFlow';
+import { useQuestions } from './hooks/queries/useQuestions';
 import { QuizView } from './components/QuizView';
 import { QuizResultView } from './components/QuizResultView';
 import { QuizStartView } from './components/QuizStartView';
 import { Page } from '../../shared/ui/Page';
-import { Button } from '../../shared/ui/Button';
+import { Button } from '../../shared/ui/Button/Button';
 import { QuestionSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import { useToast } from '../../app/providers/ToastContext';
 

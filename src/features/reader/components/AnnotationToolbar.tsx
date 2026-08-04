@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MousePointer, Pencil, Eraser, Palette, ChevronLeft, Undo2, Trash2 } from 'lucide-react';
-import type { AnnotationMode, DrawingTool } from '../../../shared/types';
-import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../../../shared/constants/annotationDefaults';
+import type { AnnotationMode, DrawingTool } from '../../../domain/reader';
+import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../constants/annotationDefaults';
 
 interface AnnotationToolbarProps {
   mode: AnnotationMode;

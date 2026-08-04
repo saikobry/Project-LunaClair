@@ -1,4 +1,4 @@
-import type { HighlightItem, DrawingPath } from '../../../shared/types/annotation.types';
+import type { HighlightItem, DrawingPath } from '../../../domain/reader';
 import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
 import { db, type HighlightRecord, type DrawingRecord } from '../LunaClairDatabase';
 

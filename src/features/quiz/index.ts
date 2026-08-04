@@ -7,8 +7,8 @@ export type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '.
 export { SubjectQuizExplorer } from './components/SubjectQuizExplorer/SubjectQuizExplorer';
 export type { SubjectQuizExplorerSelection, SubjectQuizExplorerProps } from './components/SubjectQuizExplorer/SubjectQuizExplorer';
 
-// Public tree hooks used by subject workspaces.
-export { useSubjectQuizTree, useQuizTreeSelection } from './hooks';
+// Public hooks (query, mutation, session flow, and repository DI hooks).
+export * from './hooks';
 
 // Query keys
 export { assessmentQueryKeys } from './queries/assessmentQueryKeys';

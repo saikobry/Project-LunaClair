@@ -1,6 +1,6 @@
 import { Trash2 } from 'lucide-react';
-import type { HighlightColor } from '../../../shared/types';
-import { HIGHLIGHT_COLORS } from '../../../shared/constants/annotationDefaults';
+import type { HighlightColor } from '../../../domain/reader';
+import { HIGHLIGHT_COLORS } from '../constants/annotationDefaults';
 
 interface SelectionPopoverProps {
   x: number;
