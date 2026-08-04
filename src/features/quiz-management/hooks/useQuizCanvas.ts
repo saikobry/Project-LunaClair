@@ -139,3 +139,5 @@ export function useQuizCanvas() {
         reorderItems,
     };
 }
+
+export type QuizCanvas = ReturnType<typeof useQuizCanvas>;

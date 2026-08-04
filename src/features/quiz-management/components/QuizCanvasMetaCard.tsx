@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Input } from '../../../shared/ui/Input/Input';
+import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 
 const styles = stylex.create({
     metaCard: {
@@ -22,15 +23,6 @@ const styles = stylex.create({
         fontWeight: 500,
         color: 'var(--color-text-primary)',
         margin: 0,
-    },
-    passingInput: {
-        width: 84,
-        padding: '6px 8px',
-        fontSize: 13,
-        border: '1px solid var(--color-border)',
-        borderRadius: 6,
-        color: 'var(--color-text-primary)',
-        backgroundColor: 'var(--color-background)',
     },
 });
 
@@ -62,27 +54,19 @@ export const QuizCanvasMetaCard = forwardRef<HTMLDivElement, QuizCanvasMetaCardP
                 />
                 <div {...stylex.props(styles.passingRow)}>
                     <p {...stylex.props(styles.passingLabel)}>Passing percentage</p>
-                    <input
-                        type="number"
+                    <NumberInput
+                        label="Passing percentage"
+                        isLabelHidden
+                        value={passingPercentage}
+                        onChange={(value) =>
+                            onChange({ passingPercentage: Math.min(100, Math.max(0, value)) })
+                        }
                         min={0}
                         max={100}
-                        value={passingPercentage}
-                        onChange={(event) => {
-                            const raw = event.target.value;
-                            if (raw === '') {
-                                onChange({ passingPercentage: 0 });
-                                return;
-                            }
-                            const parsed = Number(raw);
-                            if (Number.isNaN(parsed)) return;
-                            onChange({
-                                passingPercentage: Math.min(100, Math.max(0, parsed)),
-                            });
-                        }}
-                        {...stylex.props(styles.passingInput)}
-                        aria-label="Passing percentage"
+                        units="%"
+                        width={90}
+                        size="sm"
                     />
-                    <p {...stylex.props(styles.passingLabel)}>%</p>
                 </div>
             </div>
         );

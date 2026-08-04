@@ -4,6 +4,7 @@ import type { DragEvent, ReactNode } from 'react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import { Input } from '../../../shared/ui/Input';
+import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 import { Selector } from '../../../shared/ui/Selector/Selector';
 import { getQuestionEditor, QUESTION_TYPE_OPTIONS } from '../editors/QuestionEditorRegistry';
 
@@ -67,16 +68,6 @@ const styles = stylex.create({
     typeSelector: {
         flex: 1,
         minWidth: 0,
-    },
-    pointsInput: {
-        width: 72,
-        flexShrink: 0,
-        padding: '6px 8px',
-        fontSize: 13,
-        border: '1px solid var(--color-border)',
-        borderRadius: 6,
-        color: 'var(--color-text-primary)',
-        backgroundColor: 'var(--color-background)',
     },
     pointsLabel: {
         fontSize: 12,
@@ -196,17 +187,16 @@ export function QuizCanvasQuestionCard({
                         />
                     </div>
                     <span {...stylex.props(styles.pointsLabel)}>Points</span>
-                    <input
-                        type="number"
-                        min={1}
+                    <NumberInput
+                        label="Points"
+                        isLabelHidden
                         value={item.points}
-                        onChange={(event) => {
-                            const value = event.target.valueAsNumber;
-                            onChange({ points: Number.isFinite(value) ? value : 0 });
-                        }}
+                        onChange={(value) => onChange({ points: value })}
+                        min={1}
+                        width={80}
+                        size="sm"
                         onClick={(event) => event.stopPropagation()}
-                        {...stylex.props(styles.pointsInput)}
-                        aria-label={`Points for question ${index + 1}`}
+                        style={{ flexShrink: 0 }}
                     />
                 </>
             ) : (

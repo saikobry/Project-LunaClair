@@ -15,6 +15,15 @@ export type { ConfirmIntent } from './Dialog/ConfirmationDialog';
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
+export { NumberInput } from './NumberInput/NumberInput';
+export type { NumberInputProps } from './NumberInput/NumberInput';
+
+export { Checkbox } from './Checkbox/Checkbox';
+export type { CheckboxProps } from './Checkbox/Checkbox';
+
+export { Banner } from './Banner/Banner';
+export type { BannerProps, BannerVariant } from './Banner/Banner';
+
 export { Page } from './Page';
 export type { PageProps } from './Page';
 

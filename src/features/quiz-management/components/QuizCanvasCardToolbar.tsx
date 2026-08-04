@@ -2,12 +2,11 @@ import * as stylex from '@stylexjs/stylex';
 import { ArrowDown, ArrowUp, Copy, Library, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../shared/ui/Button/Button';
 
+const desktop = '@media (min-width: 769px)';
+const mobile = '@media (max-width: 768px)';
+
 const styles = stylex.create({
     cardToolbar: {
-        position: 'absolute',
-        bottom: -18,
-        left: '50%',
-        transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
         gap: 4,
@@ -17,6 +16,22 @@ const styles = stylex.create({
         borderRadius: 999,
         boxShadow: 'var(--shadow-med)',
         zIndex: 3,
+        // Google Forms style: docked vertically to the right of the active card.
+        [desktop]: {
+            position: 'absolute',
+            right: -52,
+            top: 0,
+            flexDirection: 'column',
+        },
+        // Mobile: fixed bottom navbar, centered above the canvas padding.
+        [mobile]: {
+            position: 'fixed',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            flexDirection: 'row',
+            zIndex: 100,
+        },
     },
 });
 

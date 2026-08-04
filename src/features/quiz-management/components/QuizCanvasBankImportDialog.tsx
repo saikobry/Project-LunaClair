@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { Question } from '../../../domain/quiz/Question';
 import { Button } from '../../../shared/ui/Button/Button';
+import { Checkbox } from '../../../shared/ui/Checkbox/Checkbox';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 
 const styles = stylex.create({
@@ -27,23 +28,9 @@ const styles = stylex.create({
         borderColor: 'var(--color-accent)',
         backgroundColor: 'var(--color-accent-muted)',
     },
-    prompt: {
-        flex: 1,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        margin: 0,
-    },
     meta: {
         fontSize: 11,
         color: 'var(--color-text-disabled)',
-        flexShrink: 0,
-    },
-    checkbox: {
-        width: 15,
-        height: 15,
-        accentColor: 'var(--color-accent)',
-        cursor: 'pointer',
         flexShrink: 0,
     },
     empty: {
@@ -131,18 +118,13 @@ export function QuizCanvasBankImportDialog({
                                 key={question.id}
                                 {...stylex.props(styles.row, isSelected && styles.rowSelected)}
                             >
-                                <input
-                                    type="checkbox"
-                                    id={`import-${question.id}`}
-                                    checked={isSelected}
+                                <Checkbox
+                                    label={question.prompt}
+                                    isChecked={isSelected}
                                     onChange={() => toggle(question.id)}
-                                    onClick={(event) => event.stopPropagation()}
-                                    {...stylex.props(styles.checkbox)}
-                                    aria-label={`Import question: ${question.prompt}`}
+                                    size="sm"
+                                    style={{ flex: 1, minWidth: 0 }}
                                 />
-                                <label htmlFor={`import-${question.id}`} {...stylex.props(styles.prompt)}>
-                                    {question.prompt}
-                                </label>
                                 <span {...stylex.props(styles.meta)}>v{question.version}</span>
                             </div>
                         );
