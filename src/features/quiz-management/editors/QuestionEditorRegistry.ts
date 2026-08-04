@@ -28,6 +28,15 @@ export function getQuestionEditor(type: QuestionType): EditorComponent {
     return registry[type];
 }
 
+/** Authoring labels for each question type (dropdowns and selectors). */
+export const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
+    { value: 'multiple_choice', label: 'Multiple Choice' },
+    { value: 'multiple_select', label: 'Multiple Select' },
+    { value: 'true_false', label: 'True / False' },
+    { value: 'identification', label: 'Identification' },
+    { value: 'fill_in_blank', label: 'Fill in the Blank' },
+];
+
 /** Default payload factories for creating new questions by type. */
 export function createDefaultPayload(type: QuestionType): QuestionAnswerPayload {
     switch (type) {

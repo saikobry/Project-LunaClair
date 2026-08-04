@@ -43,6 +43,14 @@ export { resolveStrategy } from './strategies/QuestionStrategyResolver';
 // Virtual quiz
 export { buildUnifiedQuestionSetFromQuizzes, createVirtualQuizFromQuizzes } from './virtualQuiz';
 
+// Quiz editor service contract (atomic authoring saves)
+export type {
+    QuizEditorService,
+    QuizEditorQuestionChange,
+    SaveQuizToRepositoryInput,
+    SaveQuizToRepositoryResult,
+} from './QuizEditorService';
+
 // Assessment service
 export { AssessmentService, assessmentService } from './AssessmentService';
 export type { QuizResult } from './AssessmentService';

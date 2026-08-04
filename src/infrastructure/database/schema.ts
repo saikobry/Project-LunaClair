@@ -4,6 +4,8 @@
  * Version 2: Phase 5.3 — adds subjects, terms tables; widens materials.
  * Version 3: Normalizes Subject↔Term relationship — adds subjectTerms junction,
  *            removes subjectId and order from terms (terms become global).
+ * Version 4: Adds quizEditingDrafts — local crash-recovery store for the
+ *            quiz canvas authoring session (autosaved QuizDraft DTOs).
  */
 export const SCHEMA_V1 = {
     materials: 'id, sourceType, createdAt, lastOpenedAt',
@@ -43,5 +45,10 @@ export const SCHEMA_V3 = {
     subjectTerms: '[subjectId+termId], subjectId, termId',
 } as const;
 
+export const SCHEMA_V4 = {
+    ...SCHEMA_V3,
+    quizEditingDrafts: 'draftId, quizId, materialId, updatedAt',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;

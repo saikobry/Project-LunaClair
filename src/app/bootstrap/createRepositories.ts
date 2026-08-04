@@ -1,5 +1,15 @@
 import { localDocumentRepository } from '../../services/content/LocalDocumentRepository';
-import { dexieAnnotationRepository, dexieLibraryRepository, dexieQuestionRepository, dexieQuizRepository, dexieQuizSessionRepository, dexieSubjectRepository, dexieSubjectTermRepository, dexieTermRepository, dexieTermService } from '../../infrastructure/database';
+import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
+import { dexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';
+import { dexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
+import { dexieQuizDraftRepository } from '../../infrastructure/database/repositories/DexieQuizDraftRepository';
+import { dexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
+import { dexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
+import { dexieSubjectRepository } from '../../infrastructure/database/repositories/DexieSubjectRepository';
+import { dexieSubjectTermRepository } from '../../infrastructure/database/repositories/DexieSubjectTermRepository';
+import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
+import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
+import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
 
 export function createRepositories() {
     return {
@@ -13,6 +23,8 @@ export function createRepositories() {
         termRepository: dexieTermRepository,
         subjectTermRepository: dexieSubjectTermRepository,
         termService: dexieTermService,
+        quizDraftRepository: dexieQuizDraftRepository,
+        quizEditorService: dexieQuizEditorService,
     };
 }
 

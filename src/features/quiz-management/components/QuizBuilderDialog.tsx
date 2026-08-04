@@ -4,8 +4,8 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { Question } from '../../../domain/quiz/Question';
 import type { Quiz } from '../../../domain/quiz/Quiz';
 import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
-import { Dialog } from '../../../shared/ui/Dialog';
-import { Button } from '../../../shared/ui/Button';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input';
 import { useToast } from '../../../app/providers/ToastContext';
 
@@ -81,6 +81,11 @@ const styles = stylex.create({
     },
 });
 
+/**
+ * @deprecated Superseded by the full-screen canvas workspace
+ * (`QuizCanvasBuilder`). Kept temporarily during the transition; new
+ * quiz authoring flows must use the canvas builder.
+ */
 interface QuizBuilderDialogProps {
     isOpen: boolean;
     onClose: () => void;

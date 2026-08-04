@@ -10,6 +10,8 @@ export { UpdateQuizUseCase } from './use-cases/quiz-management/UpdateQuizUseCase
 export { ArchiveQuizUseCase } from './use-cases/quiz-management/ArchiveQuizUseCase';
 export { UnarchiveQuizUseCase } from './use-cases/quiz-management/UnarchiveQuizUseCase';
 export { PublishQuizUseCase } from './use-cases/quiz-management/PublishQuizUseCase';
+export { SaveQuizUseCase } from './use-cases/quiz-management/SaveQuizUseCase';
+export type { SaveQuizResult } from './use-cases/quiz-management/SaveQuizUseCase';
 export { CreateMaterialUseCase } from './use-cases/library/CreateMaterialUseCase';
 export { UpdateMaterialUseCase } from './use-cases/library/UpdateMaterialUseCase';
 export { DeleteMaterialUseCase } from './use-cases/library/DeleteMaterialUseCase';

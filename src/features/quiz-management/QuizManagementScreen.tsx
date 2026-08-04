@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { Library, ListChecks } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
-import { useMaterial } from '../catalog';
+import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { QuestionBankTab } from './components/QuestionBankTab';
@@ -91,10 +91,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                 {activeTab === 'quizzes' && (
                     <QuizCatalogTab
                         quizzes={quizzes}
-                        questions={questions}
                         materialId={materialId}
-                        onCreate={(input, qs) => quizBuilder.createQuiz.mutate({ input, questions: qs })}
-                        onUpdate={(id, input) => quizBuilder.updateQuiz.mutate({ id, input })}
                         onPublish={(id) => quizBuilder.publishQuiz.mutate(id)}
                         onArchive={(id) => quizBuilder.archiveQuiz.mutate(id)}
                         onUnarchive={(id) => quizBuilder.unarchiveQuiz.mutate(id)}

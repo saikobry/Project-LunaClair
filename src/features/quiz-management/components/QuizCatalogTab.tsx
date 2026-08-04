@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, EyeOff, Eye } from 'lucide-react';
-import type { Question } from '../../../domain/quiz/Question';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
 import type { CSSProperties } from 'react';
-import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Card } from '../../../shared/ui/Card';
-import { ConfirmationDialog } from '../../../shared/ui/Dialog';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 import { useToast } from '../../../app/providers/ToastContext';
-import { QuizBuilderDialog } from './QuizBuilderDialog';
+import { QuizCanvasBuilder } from './QuizCanvasBuilder';
 
 const styles = stylex.create({
     container: {
@@ -132,10 +130,7 @@ const STATUS_RANK: Record<string, number> = { published: 0, draft: 1, archived: 
 
 interface QuizCatalogTabProps {
     quizzes: Quiz[];
-    questions: Question[];
     materialId: string;
-    onCreate: (input: CreateQuizInput, questions: Question[]) => void;
-    onUpdate: (id: string, input: UpdateQuizInput) => void;
     onPublish: (id: string) => void;
     onArchive: (id: string) => void;
     onUnarchive?: (id: string) => void;
@@ -145,17 +140,13 @@ interface QuizCatalogTabProps {
 
 export function QuizCatalogTab({
     quizzes,
-    questions,
     materialId,
-    onCreate,
-    onUpdate,
     onPublish,
     onArchive,
     onUnarchive,
 }: QuizCatalogTabProps) {
     const { showToast } = useToast();
-    const [builderOpen, setBuilderOpen] = useState(false);
-    const [editTargetQuiz, setEditTargetQuiz] = useState<Quiz | null>(null);
+    const [canvasTarget, setCanvasTarget] = useState<{ quizId?: string } | null>(null);
     const [archiveTargetQuiz, setArchiveTargetQuiz] = useState<Quiz | null>(null);
     const [showArchived, setShowArchived] = useState(false);
 
@@ -199,38 +190,28 @@ export function QuizCatalogTab({
                     label="Create quiz"
                     variant="primary"
                     icon={<Plus size={14} />}
-                    onClick={() => { setEditTargetQuiz(null); setBuilderOpen(true); }}
+                    onClick={() => setCanvasTarget({})}
                 >
                     Create Quiz
                 </Button>
             </div>
 
             {quizzes.length === 0 ? (
-                questions.length === 0 ? (
-                    <div {...stylex.props(styles.empty)}>
-                        <Inbox size={40} />
-                        <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Add questions to the question bank first</p>
-                        <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
-                            You need to create questions before you can build quizzes.
-                        </p>
-                    </div>
-                ) : (
-                    <div {...stylex.props(styles.empty)}>
-                        <Inbox size={40} />
-                        <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Start building your quiz catalog</p>
-                        <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
-                            Select questions from the question bank and organize them into a quiz.
-                        </p>
-                        <Button
-                            label="Create first quiz"
-                            variant="primary"
-                            icon={<Plus size={14} />}
-                            onClick={() => { setEditTargetQuiz(null); setBuilderOpen(true); }}
-                        >
-                            Create First Quiz
-                        </Button>
-                    </div>
-                )
+                <div {...stylex.props(styles.empty)}>
+                    <Inbox size={40} />
+                    <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Start building your quiz catalog</p>
+                    <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
+                        Add questions on the canvas or import them from the question bank.
+                    </p>
+                    <Button
+                        label="Create first quiz"
+                        variant="primary"
+                        icon={<Plus size={14} />}
+                        onClick={() => setCanvasTarget({})}
+                    >
+                        Create First Quiz
+                    </Button>
+                </div>
             ) : visibleQuizzes.length === 0 ? (
                 <div {...stylex.props(styles.empty)}>
                     <ArchiveRestore size={40} />
@@ -278,7 +259,7 @@ export function QuizCatalogTab({
                                         icon={<Pencil size={14} />}
                                         isIconOnly
                                         tooltip="Edit"
-                                        onClick={() => { setEditTargetQuiz(quiz); setBuilderOpen(true); }}
+                                        onClick={() => setCanvasTarget({ quizId: quiz.id })}
                                     />
                                     {quiz.status === 'archived' && onUnarchive ? (
                                         <Button
@@ -323,16 +304,14 @@ export function QuizCatalogTab({
                 onCancel={() => setArchiveTargetQuiz(null)}
             />
 
-            <QuizBuilderDialog
-                key={editTargetQuiz?.id ?? 'new-quiz'}
-                isOpen={builderOpen}
-                onClose={() => setBuilderOpen(false)}
-                materialId={materialId}
-                questions={questions}
-                quiz={editTargetQuiz}
-                onSave={onCreate}
-                onUpdate={onUpdate}
-            />
+            {canvasTarget && (
+                <QuizCanvasBuilder
+                    key={canvasTarget.quizId ?? 'new-quiz'}
+                    materialId={materialId}
+                    quizId={canvasTarget.quizId}
+                    onClose={() => setCanvasTarget(null)}
+                />
+            )}
         </div>
     );
 }
