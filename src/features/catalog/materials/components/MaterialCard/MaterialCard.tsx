@@ -1,13 +1,12 @@
 import { type KeyboardEvent, type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList, SquarePen, Trash2 } from 'lucide-react';
-import { DropdownMenuItem } from '@astryxdesign/core/DropdownMenu';
 import type { StudyMaterial } from '../../../../../domain/library';
 import { Card } from '../../../../../shared/ui/Card';
 import { Button } from '../../../../../shared/ui/Button/Button';
 import { Chip } from '../../../../../shared/ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
-import { ActionMenu, menuItemStyles } from '../../../../../shared/components/ActionMenu';
+import { ActionMenu, ActionMenuItem } from '../../../../../shared/components/ActionMenu';
 
 export interface MaterialCardProps {
   material: StudyMaterial;
@@ -96,21 +95,19 @@ export function MaterialCard({
           {hasMenuActions && (
             <ActionMenu>
               {onEdit && (
-                <DropdownMenuItem
+                <ActionMenuItem
                   icon={<SquarePen size={14} />}
                   label="Edit"
                   description="Modify this material"
                   onClick={handleEdit}
-                  xstyle={menuItemStyles.item}
                 />
               )}
               {onDelete && (
-                <DropdownMenuItem
+                <ActionMenuItem
                   icon={<Trash2 size={14} />}
                   label="Delete"
                   description="This action cannot be undone"
                   onClick={handleDelete}
-                  xstyle={menuItemStyles.item}
                 />
               )}
             </ActionMenu>

@@ -9,12 +9,11 @@ import {
   Trash2,
   ArrowUpDown,
 } from 'lucide-react';
-import { DropdownMenuItem } from '@astryxdesign/core/DropdownMenu';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import type { Subject } from '../../../../domain/library';
 import { Card } from '../../../../shared/ui/Card';
-import { ActionMenu, menuItemStyles } from '../../../../shared/components/ActionMenu';
+import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
 
 // Pixels of pointer movement tolerated during a long-press before treating
 // it as an intentional scroll/drag rather than a still hold.
@@ -450,17 +449,15 @@ function DraggableSubjectCard({
               {!isReorderMode && (
                 <div onClick={(e) => e.stopPropagation()}>
                   <ActionMenu>
-                    <DropdownMenuItem
+                    <ActionMenuItem
                       icon={<SquarePen size={14} />}
                       label="Edit"
                       onClick={onEdit}
-                      xstyle={menuItemStyles.item}
                     />
-                    <DropdownMenuItem
+                    <ActionMenuItem
                       icon={<Trash2 size={14} />}
                       label="Delete"
                       onClick={onDelete}
-                      xstyle={menuItemStyles.item}
                     />
                   </ActionMenu>
                 </div>

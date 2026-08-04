@@ -54,7 +54,7 @@ function stopActionMenuPropagation(e: React.MouseEvent) {
 export interface ActionMenuProps {
   /** Accessible label for the trigger button. @default "Card actions" */
   label?: string;
-  /** Menu content — typically Astryx DropdownMenuItem components. */
+  /** Menu content — typically ActionMenuItem components. */
   children?: ReactNode;
 }
 
@@ -64,7 +64,7 @@ export interface ActionMenuProps {
  *
  * Handles open/close state, outside-click dismissal, Escape key, and
  * focus blur automatically. Wraps children in a DropdownMenuContext so
- * Astryx DropdownMenuItem components can auto-close the menu on click.
+ * menu items (e.g. ActionMenuItem) can auto-close the menu on click.
  *
  * The popup is always rendered in the DOM (hidden via display:none when
  * closed) so React's synthetic event dispatch completes reliably before
@@ -74,8 +74,8 @@ export interface ActionMenuProps {
  * @example
  * ```tsx
  * <ActionMenu>
- *   <DropdownMenuItem icon={<SquarePen size={14} />} label="Edit" onClick={handleEdit} />
- *   <DropdownMenuItem icon={<Trash2 size={14} />} label="Delete" onClick={handleDelete} />
+ *   <ActionMenuItem icon={<SquarePen size={14} />} label="Edit" onClick={handleEdit} />
+ *   <ActionMenuItem icon={<Trash2 size={14} />} label="Delete" onClick={handleDelete} />
  * </ActionMenu>
  * ```
  */

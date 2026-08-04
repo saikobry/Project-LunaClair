@@ -38,4 +38,6 @@ export type { ChipProps } from './Chip/Chip';
 export { Selector } from './Selector/Selector';
 export type { SelectorProps, SelectorOption } from './Selector/Selector';
 
-
+export { Outline } from './Outline/Outline';
+export type { OutlineProps, OutlineItem } from './Outline/Outline';
+export { parseOutlineFromMarkdown } from './Outline/parseOutlineFromMarkdown';

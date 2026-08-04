@@ -14,7 +14,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `components/DrawingCanvas.tsx` | Freehand SVG drawing canvas with pen/eraser tools |
 | `components/SelectionPopover.tsx` | Floating popover on text selection — highlight color picker or delete existing highlight |
 | `components/AnnotationToolbar.tsx` | Tool mode switcher (select/draw) + actions (undo drawing, clear all, open TOC) |
-| `components/Toc.tsx` | Responsive table of contents (mobile sticky top dropdown + desktop Astryx Outline sidebar) extracted from markdown headings |
+| `components/Toc.tsx` | Responsive table of contents (mobile sticky top dropdown + desktop LunaClair Outline adapter sidebar) extracted from markdown headings |
 | `queries/readerQueryKeys.ts` | Query key factory: `root`, `document(id)`, `highlights(docId)`, `drawings(docId)` |
 | `hooks/useDocumentRepository.ts` | DI consumer hook returning `DocumentRepository` from context |
 | `hooks/useAnnotationRepository.ts` | DI consumer hook returning `AnnotationRepository` from context |

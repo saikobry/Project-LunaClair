@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp, List } from 'lucide-react';
-import { Outline, parseOutlineFromMarkdown } from '@astryxdesign/core/Outline';
+import { Outline, parseOutlineFromMarkdown } from '../../../shared/ui/Outline';
 
 const mobileQuery = '@media (max-width: 768px)';
 const desktopQuery = '@media (min-width: 769px)';
