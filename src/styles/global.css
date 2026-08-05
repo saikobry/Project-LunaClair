@@ -68,3 +68,32 @@ nav[aria-label] button {
   color: inherit;
   cursor: pointer;
 }
+
+/* === Reader annotations (CSS Custom Highlight API) === */
+/* StyleX cannot target dynamic custom highlight pseudo-elements
+   (::highlight(hl-*)) inside stylex.create(), so these live here. */
+::highlight(hl-yellow) {
+  background-color: rgba(254, 240, 138, 0.55);
+}
+::highlight(hl-green) {
+  background-color: rgba(187, 247, 208, 0.55);
+}
+::highlight(hl-pink) {
+  background-color: rgba(251, 207, 232, 0.55);
+}
+::highlight(hl-blue) {
+  background-color: rgba(191, 219, 254, 0.55);
+}
+
+/* === Reader fenced-block reset === */
+/* Reset inline-code chrome for fenced blocks so the code sits flush inside
+   the dark <pre> shell (descendant selector — not expressible in StyleX).
+   Markdown figures are rendered as semantic <figure>/<figcaption> by
+   MarkdownViewer's rehype plugin, so no caption rules are needed here. */
+.markdown-viewer pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 1em;
+  color: inherit;
+}

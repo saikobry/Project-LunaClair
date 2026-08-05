@@ -1,6 +1,5 @@
 /* Master Stylesheet — Project LunaClair */
 
 @import './global.css';
-@import '../features/reader/styles/reader.css';
 @import '@astryxdesign/core/astryx.css';
 @import '@astryxdesign/theme-neutral/theme.css';

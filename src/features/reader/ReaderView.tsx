@@ -1,4 +1,5 @@
 import { type RefObject } from 'react';
+import * as stylex from '@stylexjs/stylex';
 import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader';
 import type { PopoverState } from './types';
 import MarkdownViewer from './components/MarkdownViewer';
@@ -6,7 +7,32 @@ import AnnotationToolbar from './components/AnnotationToolbar';
 import DrawingCanvas from './components/DrawingCanvas';
 import SelectionPopover from './components/SelectionPopover';
 import { TocMobile, TocDesktop } from './components/Toc';
-import './styles/reader.css';
+
+const dockQuery = '@media (max-width: 1023px)';
+
+const styles = stylex.create({
+  layout: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 32,
+    width: '100%',
+  },
+  mainContent: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 32,
+    flex: 1,
+    minWidth: 0,
+    [dockQuery]: {
+      gap: 0,
+    },
+  },
+  viewer: {
+    position: 'relative',
+    flex: 1,
+    maxWidth: 800,
+  },
+});
 
 interface ReaderViewProps {
   content: string;
@@ -59,8 +85,8 @@ export default function ReaderView({
   onClosePopover,
 }: ReaderViewProps) {
   return (
-    <div className="reader-layout">
-      <div className="main-content-wrapper">
+    <div {...stylex.props(styles.layout)}>
+      <div {...stylex.props(styles.mainContent)}>
         <AnnotationToolbar
           mode={mode}
           onModeChange={onModeChange}
@@ -76,7 +102,7 @@ export default function ReaderView({
           hasDrawings={hasDrawings}
           hasHighlights={hasHighlights}
         />
-        <div className="viewer-container">
+        <div {...stylex.props(styles.viewer)}>
           <TocMobile content={content} />
           <div style={{ position: 'relative' }} ref={containerRef}>
             <MarkdownViewer text={content} />
