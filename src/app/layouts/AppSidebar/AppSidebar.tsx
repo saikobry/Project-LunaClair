@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag, Focus } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
@@ -71,44 +71,12 @@ const styles = stylex.create({
       paddingRight: 12,
     },
   },
-  brandHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 8,
-    paddingRight: 8,
-    marginBottom: 20,
-    [tablet]: {
-      display: 'none',
-    },
-    [mobile]: {
-      display: 'none',
-    },
-  },
-  brandIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-    flexShrink: 0,
-  },
-  brandLogo: {
-    width: 36,
-    height: 36,
-    objectFit: 'contain',
-  },
-  brandTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    letterSpacing: '-0.5px',
-    color: 'var(--color-text-primary)',
-  },
   navSection: {
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
     flex: 1,
+    justifyContent: 'flex-start',
     [mobile]: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -225,20 +193,64 @@ const styles = stylex.create({
     backgroundColor: 'var(--color-accent-muted)',
     borderRadius: 12,
   },
+  // Unified bottom-left brand card: logo, version, and Focus Mode toggle
   footer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: 8,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'var(--color-border)',
+    borderRadius: 16,
+    backgroundColor: 'var(--color-background-surface)',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'all 0.15s ease',
+    ':hover': {
+      backgroundColor: 'var(--color-background-muted)',
+    },
+    // Tablet: the 60px rail already provides its own border/background —
+    // strip the nested card so the logo & badge sit cleanly inside it.
+    [tablet]: {
+      borderStyle: 'none',
+      backgroundColor: 'transparent',
+      paddingTop: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
     [mobile]: {
       display: 'none',
     },
   },
+  // Desktop: 2-row brand card — row 1 brand identity, row 2 Focus trigger
   footerDesktop: {
     display: 'flex',
-    paddingLeft: 8,
+    flexDirection: 'column',
+    gap: 6,
+    width: '100%',
     [tablet]: {
       display: 'none',
     },
+  },
+  footerRow1: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  footerRow1Badge: {
+    marginLeft: 'auto',
+  },
+  footerRow2: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    width: '100%',
   },
   footerTablet: {
     display: 'none',
@@ -246,13 +258,59 @@ const styles = stylex.create({
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
     },
   },
   footerLogo: {
-    width: 26,
-    height: 26,
+    width: 22,
+    height: 22,
     objectFit: 'contain',
+    flexShrink: 0,
+  },
+  footerTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: 'var(--color-text-primary)',
+    // Full title — never truncate
+    whiteSpace: 'nowrap',
+  },
+  footerFocusLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    whiteSpace: 'nowrap',
+  },
+  footerFocusIcon: {
+    marginLeft: 'auto',
+    flexShrink: 0,
+    color: 'var(--color-text-secondary)',
+    [tablet]: {
+      // Tablet rail stacks vertically — keep the icon centered there.
+      marginLeft: 0,
+    },
+  },
+  // Mobile-only Focus Mode entry button (touch devices have no keyboard)
+  mobileFocusButton: {
+    display: 'none',
+    [mobile]: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 44,
+      height: 44,
+      flexShrink: 0,
+      backgroundColor: 'transparent',
+      borderStyle: 'none',
+      borderRadius: 16,
+      color: 'var(--color-text-secondary)',
+      cursor: 'pointer',
+      outline: 'none',
+      transition: 'all 0.15s ease',
+      ':hover': {
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-primary)',
+      },
+    },
   },
   versionBadge: {
     fontSize: 9,
@@ -278,10 +336,20 @@ export interface AppSidebarProps {
   materialId?: string;
   isLibrary: boolean;
   isTerms?: boolean;
+  isFocusMode: boolean;
+  onToggleFocusMode: () => void;
   onNavigate: (route: AppRoute) => void;
 }
 
-export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, onNavigate }: AppSidebarProps) {
+export function AppSidebar({
+  subjectId,
+  materialId,
+  isLibrary,
+  isTerms = false,
+  isFocusMode,
+  onToggleFocusMode,
+  onNavigate,
+}: AppSidebarProps) {
   const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
 
@@ -328,10 +396,55 @@ export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, 
     }
   };
 
+  const navRef = useRef<HTMLElement>(null);
+  const didInitialFocusAnim = useRef(false);
+
+  // ── Focus Mode: morph the nav toward/away from the bottom-left corner ──
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    // Shrink into (or expand out of) the bottom-left corner, matching the
+    // floating logo restore button position. The desktop sidebar is
+    // edge-to-edge, so anchor the morph at the restore button's center;
+    // the tablet rail and mobile bottom bar already touch that corner.
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const isTablet = window.matchMedia('(min-width: 769px) and (max-width: 1023px)').matches;
+    const origin = isMobile || isTablet ? 'left bottom' : '38px calc(100% - 38px)';
+
+    const hidden = {
+      autoAlpha: 0,
+      scale: 0.05,
+      transformOrigin: origin,
+      pointerEvents: 'none',
+    };
+    const visible = {
+      autoAlpha: 1,
+      scale: 1,
+      transformOrigin: origin,
+      pointerEvents: 'auto',
+    };
+
+    if (!didInitialFocusAnim.current) {
+      didInitialFocusAnim.current = true;
+      // Set (never animate) on first paint so a persisted Focus Mode
+      // never flashes the rail before hiding.
+      gsap.set(nav, isFocusMode ? hidden : visible);
+      return;
+    }
+
+    gsap.to(nav, {
+      ...(isFocusMode ? hidden : visible),
+      duration: 0.35,
+      ease: 'power2.inOut',
+      overwrite: 'auto',
+    });
+  }, [isFocusMode]);
+
   // ── Reposition whenever active route changes ───────────────────
   useEffect(() => {
     requestAnimationFrame(() => repositionPill(true));
-  }, [isLibrary, isTerms, isSubjectActive, isMaterialActive]);
+  }, [isLibrary, isTerms, isSubjectActive, isMaterialActive, isFocusMode]);
 
   // ── Reposition on viewport resize (desktop ↔ tablet etc.) ──────
   useEffect(() => {
@@ -375,16 +488,12 @@ export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, 
   }, [subject, material]);
 
   return (
-    <nav {...stylex.props(styles.navContainer)} aria-label="Main Navigation">
+    <nav
+      ref={navRef}
+      {...stylex.props(styles.navContainer)}
+      aria-label="Main Navigation"
+    >
       <div ref={wrapperRef} {...stylex.props(styles.wrapper)}>
-        {/* Desktop Brand Header */}
-        <div {...stylex.props(styles.brandHeader)}>
-          <div {...stylex.props(styles.brandIcon)}>
-            <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.brandLogo)} />
-          </div>
-          <span {...stylex.props(styles.brandTitle)}>Project LunaClair</span>
-        </div>
-
         {/* Active pill indicator */}
         <div ref={pillRef} {...stylex.props(styles.activePill)} />
 
@@ -464,18 +573,48 @@ export function AppSidebar({ subjectId, materialId, isLibrary, isTerms = false, 
               )}
             </>
           )}
+
+          {/* Mobile-only Focus Mode entry */}
+          <button
+            type="button"
+            {...stylex.props(styles.mobileFocusButton)}
+            onClick={onToggleFocusMode}
+            aria-label="Enter Focus Mode"
+            title="Enter Focus Mode"
+          >
+            <Focus size={18} />
+          </button>
         </div>
       </div>
 
-      <div {...stylex.props(styles.footer)}>
+      <button
+        type="button"
+        {...stylex.props(styles.footer)}
+        onClick={onToggleFocusMode}
+        aria-label="Enter Focus Mode"
+        title="Enter Focus Mode (Cmd/Ctrl+B)"
+      >
         <div {...stylex.props(styles.footerDesktop)}>
-          <span>Project LunaClair v1.0</span>
+          <div {...stylex.props(styles.footerRow1)}>
+            <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
+            <span {...stylex.props(styles.footerTitle)}>Project LunaClair</span>
+            <span
+              {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
+            >
+              v1.0
+            </span>
+          </div>
+          <div {...stylex.props(styles.footerRow2)}>
+            <span {...stylex.props(styles.footerFocusLabel)}>Focus Mode (Cmd+B)</span>
+            <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
+          </div>
         </div>
         <div {...stylex.props(styles.footerTablet)}>
           <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
           <span {...stylex.props(styles.versionBadge)}>v1.0</span>
+          <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
         </div>
-      </div>
+      </button>
     </nav>
   );
 }

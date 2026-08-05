@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Authoring feature for creating, editing, publishing, and archiving questions and quizzes. Separate from the learner quiz-taking experience (`src/features/quiz/`). Provides a Question Bank manager, Quiz Catalog, the full-screen quiz canvas builder (Google Forms-style authoring), type-specific question editors, and publishing workflows.
+Authoring feature for creating, editing, publishing, and archiving questions and quizzes. Separate from the learner quiz-taking experience (`src/features/quiz/`). Provides a Question Bank manager, Quiz Catalog, the quiz canvas builder (Google Forms-style authoring, rendered on a dedicated `quiz-canvas` app-shell route so the global sidebar stays visible), type-specific question editors, and publishing workflows.
 
 ## Ownership
 
@@ -11,12 +11,12 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `QuizManagementScreen.tsx` | Feature orchestrator — tab navigation (Question Bank / Quiz Catalog), data fetching, wires management hooks. Rendered embedded inside MaterialWorkspace (no self-owned Page shell or back button) |
 | `components/QuestionBankTab.tsx` | Question list with search, type/difficulty/status filters, quiz usage tags ("Used in X quizzes" / "Not used in any quiz"), archive confirmation safeguards for shared questions, and empty state CTAs |
 | `components/QuestionEditorDialog.tsx` | Modal form for creating/editing questions — metadata inputs + type-specific editor |
-| `components/QuizCatalogTab.tsx` | Quiz list with status badges, publish/archive controls (archive requires confirmation dialog), opens the full-screen canvas builder for create/edit |
-| `components/QuizCanvasBuilder.tsx` | Full-screen Google Forms-style authoring workspace — thin shell: modal frame, sticky header (back, autosave badge, reserved AI/Preview/History/Settings slots, Save Quiz), crash-recovery `Banner` (shared Astryx adapter), loading state, bank import dialog. Editor lifecycle delegated to `useQuizCanvasEditor`; canvas body to `QuizCanvasQuestionList` |
+| `components/QuizCatalogTab.tsx` | Quiz list with status badges, publish/archive controls (archive requires confirmation dialog), Create/Edit buttons navigate to the dedicated `quiz-canvas` route (`onNavigate({ kind: 'quiz-canvas', materialId, quizId? })`) |
+| `components/QuizCanvasBuilder.tsx` | Google Forms-style authoring workspace rendered on the **dedicated `quiz-canvas` screen route** — full-height (`flex: 1`, `height: 100%`) `div.workspace-container` filling `<main>` with an internally scrolling canvas, so the sidebar stays visible and Focus Mode stays toggleable while editing. Exported from the feature barrel for `AppShell`. Thin shell: workspace frame, sticky header (back, autosave badge, reserved AI/Preview/History/Settings slots, Save Quiz), crash-recovery `Banner` (shared Astryx adapter), loading state, bank import dialog. Editor lifecycle delegated to `useQuizCanvasEditor`; canvas body to `QuizCanvasQuestionList` |
 | `components/QuizCanvasMetaCard.tsx` | Quiz title/description header card with passing-percentage `NumberInput` (shared Astryx adapter, `units="%"`) |
 | `components/QuizCanvasQuestionList.tsx` | Scrollable canvas body: meta card, question cards (active card gets the floating toolbar), empty state, add-question button. Owns drag-and-drop reorder presentation via shared `useDragReorder`; all draft mutations delegate through the `canvas` API |
 | `components/QuizCanvasQuestionCard.tsx` | Single canvas question card — collapsed/active states, drag handle, type dropdown (locked for bank-linked cards), points `NumberInput`, inline validation errors, type editor embedding |
-| `components/QuizCanvasCardToolbar.tsx` | Active-card action bar (add/duplicate/move/import/delete) — Google Forms responsive positioning: `position: absolute; right: -52px` vertical dock on desktop (≥769px), fixed centered bottom navbar on mobile (≤768px) |
+| `components/QuizCanvasCardToolbar.tsx` | Active-card action bar (add/duplicate/move/import/delete) — Google Forms responsive positioning: `position: absolute; right: -52px` vertical dock on desktop (≥769px), fixed centered bottom navbar on mobile (≤768px) at `bottom: calc(84px + safe-area)`, dropping to `calc(16px + safe-area)` when Focus Mode hides the bottom nav (`useFocusMode` context, optional `isFocusMode` prop override) |
 | `components/QuizCanvasBankImportDialog.tsx` | Picker importing Question Bank questions onto the canvas as bank-linked cards (selection via shared Astryx `Checkbox` adapter) |
 | `components/QuizBuilderDialog.tsx` | `@deprecated` — superseded by `QuizCanvasBuilder`, kept during transition |
 | `editors/QuestionEditorRegistry.ts` | Registry mapping `QuestionType` → editor component; default payload factory; `QUESTION_TYPE_OPTIONS` labels |
@@ -28,8 +28,8 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `hooks/useQuestionManagement.ts` | Thin mutation adapter for application question use cases |
 | `hooks/useQuizBuilder.ts` | Thin mutation adapter for application quiz use cases (publish/archive/unarchive; `createQuiz`/`updateQuiz` retained only for the deprecated dialog) |
 | `hooks/useQuizCanvas.ts` | Pure canvas state hook — `QuizDraft` DTO, `activeCardId`, and card mutations (add below, duplicate, delete, reorder, type change, bank import) keyed by stable `tempId`s. Exports the `QuizCanvas` result type for consumers |
-| `hooks/useQuizCanvasEditor.ts` | Quiz canvas editor lifecycle hook — seeds the canvas from the catalog (or an empty draft), detects crash-recovery drafts, runs the 3-layer save model (`useDraftAutosave` Dexie draft → `SaveQuizUseCase` atomic commit), focus/scroll helpers, and bank-import picker state. Consumed by `QuizCanvasBuilder` |
-| `index.ts` | Barrel export of public API (QuizManagementScreen) |
+| `hooks/useQuizCanvasEditor.ts` | Quiz canvas editor lifecycle hook — seeds the canvas from the catalog (or an empty draft), detects crash-recovery drafts, runs the 3-layer save model (`useDraftAutosave` Dexie draft → `SaveQuizUseCase` atomic commit), focus/scroll helpers, bank-import picker state, and Escape-to-close (window keydown, deferred while the bank import modal is open). Exposes the workspace `containerRef` (non-modal). Consumed by `QuizCanvasBuilder` |
+| `index.ts` | Barrel export of public API — `QuizManagementScreen` and `QuizCanvasBuilder` (consumed by `AppShell` for the `quiz-canvas` route) |
 
 ## Local Contracts
 

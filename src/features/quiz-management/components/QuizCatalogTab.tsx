@@ -3,12 +3,12 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, EyeOff, Eye } from 'lucide-react';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
 import type { CSSProperties } from 'react';
+import type { AppRoute } from '../../../app/layouts/AppShell';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Card } from '../../../shared/ui/Card';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 import { useToast } from '../../../app/providers/ToastContext';
-import { QuizCanvasBuilder } from './QuizCanvasBuilder';
 
 const styles = stylex.create({
     container: {
@@ -131,22 +131,21 @@ const STATUS_RANK: Record<string, number> = { published: 0, draft: 1, archived: 
 interface QuizCatalogTabProps {
     quizzes: Quiz[];
     materialId: string;
+    onNavigate: (route: AppRoute) => void;
     onPublish: (id: string) => void;
     onArchive: (id: string) => void;
     onUnarchive?: (id: string) => void;
 }
 
-
-
 export function QuizCatalogTab({
     quizzes,
     materialId,
+    onNavigate,
     onPublish,
     onArchive,
     onUnarchive,
 }: QuizCatalogTabProps) {
     const { showToast } = useToast();
-    const [canvasTarget, setCanvasTarget] = useState<{ quizId?: string } | null>(null);
     const [archiveTargetQuiz, setArchiveTargetQuiz] = useState<Quiz | null>(null);
     const [showArchived, setShowArchived] = useState(false);
 
@@ -190,7 +189,7 @@ export function QuizCatalogTab({
                     label="Create quiz"
                     variant="primary"
                     icon={<Plus size={14} />}
-                    onClick={() => setCanvasTarget({})}
+                    onClick={() => onNavigate({ kind: 'quiz-canvas', materialId })}
                 >
                     Create Quiz
                 </Button>
@@ -207,7 +206,7 @@ export function QuizCatalogTab({
                         label="Create first quiz"
                         variant="primary"
                         icon={<Plus size={14} />}
-                        onClick={() => setCanvasTarget({})}
+                        onClick={() => onNavigate({ kind: 'quiz-canvas', materialId })}
                     >
                         Create First Quiz
                     </Button>
@@ -259,7 +258,7 @@ export function QuizCatalogTab({
                                         icon={<Pencil size={14} />}
                                         isIconOnly
                                         tooltip="Edit"
-                                        onClick={() => setCanvasTarget({ quizId: quiz.id })}
+                                        onClick={() => onNavigate({ kind: 'quiz-canvas', materialId, quizId: quiz.id })}
                                     />
                                     {quiz.status === 'archived' && onUnarchive ? (
                                         <Button
@@ -303,15 +302,6 @@ export function QuizCatalogTab({
                 }}
                 onCancel={() => setArchiveTargetQuiz(null)}
             />
-
-            {canvasTarget && (
-                <QuizCanvasBuilder
-                    key={canvasTarget.quizId ?? 'new-quiz'}
-                    materialId={materialId}
-                    quizId={canvasTarget.quizId}
-                    onClose={() => setCanvasTarget(null)}
-                />
-            )}
         </div>
     );
 }

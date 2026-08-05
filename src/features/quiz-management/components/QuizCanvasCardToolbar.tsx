@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { ArrowDown, ArrowUp, Copy, Library, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../shared/ui/Button/Button';
+import { useFocusMode } from '../../../app/providers/FocusModeContext';
 
 const desktop = '@media (min-width: 769px)';
 const mobile = '@media (max-width: 768px)';
@@ -23,14 +24,23 @@ const styles = stylex.create({
             top: 0,
             flexDirection: 'column',
         },
-        // Mobile: fixed bottom navbar, centered above the canvas padding.
+        // Mobile: fixed bottom navbar, centered above the app bottom nav.
         [mobile]: {
             position: 'fixed',
-            bottom: 16,
+            bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             flexDirection: 'row',
-            zIndex: 100,
+            // Stays under the Focus Mode restore FAB (zIndex 150) so the
+            // logo button always remains reachable in Focus Mode.
+            zIndex: 149,
+            transition: 'bottom 0.35s ease',
+        },
+    },
+    // Focus Mode: the bottom nav is hidden — drop down to the bottom edge.
+    cardToolbarFocus: {
+        [mobile]: {
+            bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
         },
     },
 });
@@ -44,6 +54,8 @@ interface QuizCanvasCardToolbarProps {
     onMoveDown: () => void;
     onImportFromBank: () => void;
     onDelete: () => void;
+    /** Overrides the Focus Mode state from context when provided. */
+    isFocusMode?: boolean;
 }
 
 export function QuizCanvasCardToolbar({
@@ -55,9 +67,18 @@ export function QuizCanvasCardToolbar({
     onMoveDown,
     onImportFromBank,
     onDelete,
+    isFocusMode,
 }: QuizCanvasCardToolbarProps) {
+    const { isFocusMode: contextIsFocusMode } = useFocusMode();
+    const focusMode = isFocusMode ?? contextIsFocusMode;
+
     return (
-        <div {...stylex.props(styles.cardToolbar)}>
+        <div
+            {...stylex.props(
+                styles.cardToolbar,
+                focusMode && styles.cardToolbarFocus,
+            )}
+        >
             <Button
                 label="Add question below"
                 variant="secondary"

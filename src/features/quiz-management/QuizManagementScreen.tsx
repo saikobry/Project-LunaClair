@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { Library, ListChecks } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
+import type { AppRoute } from '../../app/layouts/AppShell';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
@@ -35,9 +36,10 @@ type Tab = 'questions' | 'quizzes';
 
 interface QuizManagementScreenProps {
     materialId: string;
+    onNavigate: (route: AppRoute) => void;
 }
 
-export default function QuizManagementScreen({ materialId }: QuizManagementScreenProps) {
+export default function QuizManagementScreen({ materialId, onNavigate }: QuizManagementScreenProps) {
     const context = useContext(ApplicationContext);
     if (!context) {
         throw new Error('QuizManagementScreen must be used within a <ApplicationProvider>');
@@ -92,6 +94,7 @@ export default function QuizManagementScreen({ materialId }: QuizManagementScree
                     <QuizCatalogTab
                         quizzes={quizzes}
                         materialId={materialId}
+                        onNavigate={onNavigate}
                         onPublish={(id) => quizBuilder.publishQuiz.mutate(id)}
                         onArchive={(id) => quizBuilder.archiveQuiz.mutate(id)}
                         onUnarchive={(id) => quizBuilder.unarchiveQuiz.mutate(id)}

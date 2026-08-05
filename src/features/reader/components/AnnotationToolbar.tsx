@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MousePointer, Pencil, Eraser, Palette, ChevronLeft, Undo2, Trash2 } from 'lucide-react';
 import type { AnnotationMode, DrawingTool } from '../../../domain/reader';
+import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../constants/annotationDefaults';
 
 interface AnnotationToolbarProps {
@@ -18,6 +19,8 @@ interface AnnotationToolbarProps {
   onClearHighlights: () => void;
   hasDrawings: boolean;
   hasHighlights: boolean;
+  /** Overrides the Focus Mode state from context when provided. */
+  isFocusMode?: boolean;
 }
 
 function useIsMobileOrTablet() {
@@ -50,12 +53,19 @@ export default function AnnotationToolbar({
   onClearHighlights,
   hasDrawings,
   hasHighlights,
+  isFocusMode,
 }: AnnotationToolbarProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const isMobileOrTablet = useIsMobileOrTablet();
+  const { isFocusMode: contextIsFocusMode } = useFocusMode();
+  const focusMode = isFocusMode ?? contextIsFocusMode;
 
   const toolbarNode = (
-    <div className={`annotation-toolbar ${!isOpen ? 'collapsed' : ''}`}>
+    <div
+      className={`annotation-toolbar ${!isOpen ? 'collapsed' : ''} ${
+        focusMode ? 'annotation-toolbar--focus' : ''
+      }`}
+    >
       <button
         type="button"
         className="toolbar-toggle-btn"

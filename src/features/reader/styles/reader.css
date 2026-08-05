@@ -428,11 +428,22 @@
   }
 }
 
-/* Mobile — elevated above AppSidebar nav bar */
+/* Mobile — elevated above AppSidebar nav bar; drops to the bottom edge
+   in Focus Mode when the nav bar is hidden */
 
 @media (max-width: 768px) {
   .annotation-toolbar {
     bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    /* Keep the base transitions for all props, but ease `bottom` over 0.35s */
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.35s ease;
+    /* Stays under the Focus Mode restore FAB (zIndex 150) so the logo
+       button always remains reachable in Focus Mode. */
+    z-index: 149;
+  }
+
+  .annotation-toolbar.annotation-toolbar--focus,
+  .annotation-toolbar.annotation-toolbar--focus.collapsed {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 

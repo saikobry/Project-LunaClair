@@ -8,5 +8,6 @@ export const STORAGE_KEYS = {
   },
   settings: {
     theme: 'lunaclair.settings.theme',
+    focusMode: 'lunaclair.focus_mode',
   },
 } as const;

@@ -30,7 +30,8 @@ export interface QuizCanvasEditorResult {
     saveLabel: string;
     autosaveLabel: string;
     autosaveStatus: DraftAutosaveStatus;
-    dialogRef: RefObject<HTMLDialogElement | null>;
+    /** Root element of the embedded workspace (non-modal). */
+    containerRef: RefObject<HTMLDivElement | null>;
     titleCardRef: RefObject<HTMLDivElement | null>;
     cardRefs: RefObject<Map<string, HTMLElement>>;
     bankQuestions: Question[];
@@ -72,7 +73,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
     const [saveState, setSaveState] = useState<QuizCanvasSaveState>('idle');
     const [bankImport, setBankImport] = useState<{ open: boolean; anchor: number | null }>({ open: false, anchor: null });
 
-    const dialogRef = useRef<HTMLDialogElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const cardRefs = useRef(new Map<string, HTMLElement>());
     const titleCardRef = useRef<HTMLDivElement>(null);
     const savedTimerRef = useRef<number | null>(null);
@@ -144,11 +145,6 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         if (savedTimerRef.current != null) window.clearTimeout(savedTimerRef.current);
     }, []);
 
-    // Open as native modal dialog on mount.
-    useEffect(() => {
-        dialogRef.current?.showModal();
-    }, []);
-
     const focusCard = useCallback((tempId: string) => {
         requestAnimationFrame(() => {
             cardRefs.current.get(tempId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -202,17 +198,18 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         onClose();
     }, [flush, onClose]);
 
-    // Intercept native Escape-to-close to route through the autosave-flushing close handler.
+    // Embedded workspace (no native dialog): route Escape through the
+    // autosave-flushing close handler. The bank import picker is its own
+    // modal — it owns Escape while open.
     useEffect(() => {
-        const dialog = dialogRef.current;
-        if (!dialog) return;
-        const onCancel = (event: Event) => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || bankImport.open || event.defaultPrevented) return;
             event.preventDefault();
             void handleBack();
         };
-        dialog.addEventListener('cancel', onCancel);
-        return () => dialog.removeEventListener('cancel', onCancel);
-    }, [handleBack]);
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [handleBack, bankImport.open]);
 
     const handleRestore = useCallback(() => {
         if (!recovery) return;
@@ -241,7 +238,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
                 : autosaveStatus === 'pending' ? 'Unsaved changes'
                     : '';
 
-    const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : 'Save Quiz';
+    const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save Quiz';
 
     return {
         canvas,
@@ -252,7 +249,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         saveLabel,
         autosaveLabel,
         autosaveStatus,
-        dialogRef,
+        containerRef,
         titleCardRef,
         cardRefs,
         bankQuestions,

@@ -122,6 +122,7 @@ export default function MaterialWorkspace({
         {activeTab === 'manage' && (
           <QuizManagementScreen
             materialId={materialId}
+            onNavigate={onNavigate}
           />
         )}
       </AnimatedTabPanel>

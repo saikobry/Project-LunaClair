@@ -13,7 +13,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | `components/MarkdownViewer.tsx` | Renders processed markdown via `react-markdown` + `rehype-highlight` |
 | `components/DrawingCanvas.tsx` | Freehand SVG drawing canvas with pen/eraser tools |
 | `components/SelectionPopover.tsx` | Floating popover on text selection — highlight color picker or delete existing highlight |
-| `components/AnnotationToolbar.tsx` | Tool mode switcher (select/draw) + actions (undo drawing, clear all, open TOC) |
+| `components/AnnotationToolbar.tsx` | Tool mode switcher (select/draw) + actions (undo drawing, clear all, open TOC). On mobile it renders as a fixed bottom dock that sits at `bottom: calc(84px + safe-area)` and drops to `calc(16px + safe-area)` in Focus Mode (`useFocusMode` context, optional `isFocusMode` prop override) |
 | `components/Toc.tsx` | Responsive table of contents (mobile sticky top dropdown + desktop LunaClair Outline adapter sidebar) extracted from markdown headings |
 | `queries/readerQueryKeys.ts` | Query key factory: `root`, `document(id)`, `highlights(docId)`, `drawings(docId)` |
 | `hooks/useDocumentRepository.ts` | DI consumer hook returning `DocumentRepository` from context |
@@ -45,7 +45,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 - Annotation value types (`HighlightItem`, `DrawingPath`, `Point`, `HighlightColor`, `AnnotationMode`, `DrawingTool`) live in `domain/reader/annotation.types.ts` (owned by the reader domain contract — also consumed by `infrastructure/` and `services/` persistence adapters)
 - Query hooks and mutation hooks are separated; mutations live in `hooks/mutations/`
 - DI hooks (`useDocumentRepository`, `useAnnotationRepository`) provide repository access via context
-- AnnotationToolbar renders via React Portal (`createPortal`) to `document.body` on mobile/tablet viewports (`<= 1023px`) as a bottom horizontal dock to escape parent container CSS transforms
+- AnnotationToolbar renders via React Portal (`createPortal`) to `document.body` on mobile/tablet viewports (`<= 1023px`) as a bottom horizontal dock to escape parent container CSS transforms. On mobile (`<= 768px`) the dock is elevated to `calc(84px + safe-area)` above the app bottom nav; in Focus Mode (`annotation-toolbar--focus` class) it transitions down to `calc(16px + safe-area)`. Context flows through the portal
 
 ## Work Guidance
 

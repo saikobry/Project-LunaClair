@@ -7,18 +7,18 @@ import { QuizCanvasHeader } from './QuizCanvasHeader';
 import { QuizCanvasQuestionList } from './QuizCanvasQuestionList';
 
 const styles = stylex.create({
-    overlay: {
-        position: 'fixed',
-        inset: 0,
-        zIndex: 60,
+    // Dedicated screen route: fills the app shell <main> area while the
+    // global sidebar stays visible and interactive. The canvas body
+    // (`QuizCanvasQuestionList`) scrolls internally.
+    workspace: {
         display: 'flex',
         flexDirection: 'column',
-        border: 'none',
-        padding: 0,
-        width: '100%',
+        flex: 1,
+        minHeight: 0,
         height: '100%',
-        maxWidth: 'none',
-        maxHeight: 'none',
+        width: '100%',
+        backgroundColor: 'var(--color-background-surface)',
+        overflow: 'hidden',
     },
     loading: {
         display: 'flex',
@@ -43,12 +43,16 @@ interface QuizCanvasBuilderProps {
 }
 
 /**
- * Full-screen Google Forms-style quiz authoring workspace.
+ * Google Forms-style quiz authoring workspace, rendered as a dedicated
+ * `quiz-canvas` screen route that occupies the app shell <main> area
+ * (not a modal overlay), so the global sidebar stays visible and Focus
+ * Mode can be toggled while editing.
  *
- * Thin shell: owns the modal frame, header, crash-recovery banner, loading
- * state, and the bank import dialog. The editor lifecycle (seeding, autosave,
- * save/close, focus helpers) lives in `useQuizCanvasEditor`; the scrollable
- * canvas body lives in `QuizCanvasQuestionList`.
+ * Thin shell: owns the workspace frame, header, crash-recovery banner,
+ * loading state, and the bank import dialog. The editor lifecycle (seeding,
+ * autosave, save/close, Escape handling, focus helpers) lives in
+ * `useQuizCanvasEditor`; the scrollable canvas body lives in
+ * `QuizCanvasQuestionList`.
  */
 export function QuizCanvasBuilder({ materialId, quizId, onClose }: QuizCanvasBuilderProps) {
     const {
@@ -60,7 +64,7 @@ export function QuizCanvasBuilder({ materialId, quizId, onClose }: QuizCanvasBui
         saveLabel,
         autosaveLabel,
         autosaveStatus,
-        dialogRef,
+        containerRef,
         titleCardRef,
         cardRefs,
         bankQuestions,
@@ -77,7 +81,13 @@ export function QuizCanvasBuilder({ materialId, quizId, onClose }: QuizCanvasBui
     const { draft, activeCardId } = canvas;
 
     return (
-        <dialog ref={dialogRef} {...stylex.props(styles.overlay)} aria-label="Quiz builder">
+        <div
+            ref={containerRef}
+            className="workspace-container"
+            {...stylex.props(styles.workspace)}
+            role="region"
+            aria-label="Quiz builder"
+        >
             <QuizCanvasHeader
                 draftTitle={draft?.title.trim() || ''}
                 autosaveLabel={autosaveLabel}
@@ -129,6 +139,6 @@ export function QuizCanvasBuilder({ materialId, quizId, onClose }: QuizCanvasBui
                 usedQuestionIds={draft?.items.map((item) => item.questionId).filter((id): id is string => Boolean(id)) ?? []}
                 onImport={(picked) => canvas.addBankItems(picked, bankImport.anchor ?? undefined)}
             />
-        </dialog>
+        </div>
     );
 }
