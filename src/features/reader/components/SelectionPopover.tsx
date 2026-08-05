@@ -143,7 +143,7 @@ export default function SelectionPopover({
             size="sm"
             label="Remove Highlight"
             tooltip="Remove Highlight"
-            icon={<Trash2 size={16} />}
+            icon={<Trash2 size={16} color="#f87171" />}
             xstyle={styles.popoverDelete}
             onClick={onDelete}
           />
@@ -155,7 +155,7 @@ export default function SelectionPopover({
           size="sm"
           label="Cancel"
           tooltip="Cancel"
-          icon={<X size={16} />}
+          icon={<X size={16} color="#9ca3af" />}
           xstyle={styles.popoverAction}
           onClick={onClose}
         />

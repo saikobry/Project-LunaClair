@@ -2,6 +2,8 @@ import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft, Check, Clock, Eye, Settings, Sparkles } from 'lucide-react';
 import { Button } from '../../../shared/ui/Button/Button';
 
+const mobile = '@media (max-width: 768px)';
+
 const styles = stylex.create({
     header: {
         display: 'flex',
@@ -11,6 +13,11 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-background)',
         borderBottom: '1px solid var(--color-border)',
         flexShrink: 0,
+        // Mobile: collapse padding/gap so the Save Quiz button stays visible.
+        [mobile]: {
+            padding: '8px 12px',
+            gap: 8,
+        },
     },
     headerTitle: {
         fontSize: 15,
@@ -21,6 +28,10 @@ const styles = stylex.create({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         maxWidth: 320,
+        minWidth: 0,
+        [mobile]: {
+            maxWidth: 140,
+        },
     },
     autosaveBadge: {
         fontSize: 12,
@@ -39,6 +50,13 @@ const styles = stylex.create({
         height: 22,
         backgroundColor: 'var(--color-border)',
         flexShrink: 0,
+    },
+    // Reserved (disabled) action slots and dividers are dropped on mobile
+    // to keep the Save Quiz button unclipped.
+    hiddenOnMobile: {
+        [mobile]: {
+            display: 'none',
+        },
     },
 });
 
@@ -94,8 +112,9 @@ export function QuizCanvasHeader({
                 isIconOnly
                 isDisabled
                 tooltip="AI generation — coming soon"
+                {...stylex.props(styles.hiddenOnMobile)}
             />
-            <div {...stylex.props(styles.slotDivider)} />
+            <div {...stylex.props(styles.slotDivider, styles.hiddenOnMobile)} />
             <Button
                 label="Preview (coming soon)"
                 variant="ghost"
@@ -103,6 +122,7 @@ export function QuizCanvasHeader({
                 isIconOnly
                 isDisabled
                 tooltip="Preview — coming soon"
+                {...stylex.props(styles.hiddenOnMobile)}
             />
             <Button
                 label="History (coming soon)"
@@ -111,6 +131,7 @@ export function QuizCanvasHeader({
                 isIconOnly
                 isDisabled
                 tooltip="History — coming soon"
+                {...stylex.props(styles.hiddenOnMobile)}
             />
             <Button
                 label="Settings (coming soon)"
@@ -119,8 +140,9 @@ export function QuizCanvasHeader({
                 isIconOnly
                 isDisabled
                 tooltip="Settings — coming soon"
+                {...stylex.props(styles.hiddenOnMobile)}
             />
-            <div {...stylex.props(styles.slotDivider)} />
+            <div {...stylex.props(styles.slotDivider, styles.hiddenOnMobile)} />
             <Button
                 label="Save quiz"
                 variant="primary"
