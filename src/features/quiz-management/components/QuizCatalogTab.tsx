@@ -2,10 +2,8 @@ import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, EyeOff, Eye } from 'lucide-react';
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
-import type { CSSProperties } from 'react';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Card } from '../../../shared/ui/Card';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 import { useToast } from '../../../app/providers/ToastContext';
@@ -37,6 +35,28 @@ const styles = stylex.create({
         flexDirection: 'column',
         gap: 10,
     },
+    catalogCard: {
+        backgroundColor: 'var(--color-background)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 10,
+        padding: 16,
+        boxShadow: 'var(--shadow-low)',
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
+        ':hover': {
+            borderColor: 'var(--color-accent)',
+            boxShadow: '0 4px 14px rgba(99, 102, 241, 0.12)',
+            transform: 'translateY(-1px)',
+        },
+    },
+    cardStatusPublished: {
+        borderLeft: '3px solid var(--color-success)',
+    },
+    cardStatusDraft: {
+        borderLeft: '3px solid var(--color-warning)',
+    },
+    cardStatusArchived: {
+        borderLeft: '3px solid var(--color-border-emphasized)',
+    },
     cardContent: {
         display: 'flex',
         flexDirection: 'column',
@@ -61,9 +81,28 @@ const styles = stylex.create({
     },
     meta: {
         display: 'flex',
-        gap: 12,
-        fontSize: 12,
-        color: 'var(--color-text-disabled)',
+        alignItems: 'center',
+        gap: 6,
+    },
+    metaChip: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 8px',
+        fontSize: 11,
+        fontWeight: 600,
+        borderRadius: 5,
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-secondary)',
+    },
+    passTag: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 8px',
+        fontSize: 11,
+        fontWeight: 600,
+        borderRadius: 5,
+        backgroundColor: 'var(--color-accent-muted)',
+        color: 'var(--color-accent)',
     },
     badges: {
         display: 'flex',
@@ -90,6 +129,7 @@ const styles = stylex.create({
         fontSize: 11,
         fontWeight: 600,
         textTransform: 'uppercase',
+        letterSpacing: 0.4,
         border: 'none',
         borderRadius: 5,
     },
@@ -115,14 +155,11 @@ function statusBadgeStyle(status: QuizStatus) {
     }
 }
 
-function statusBorderColor(status: QuizStatus): string {
+function statusAccentStyle(status: QuizStatus) {
     switch (status) {
-        case 'published':
-            return 'var(--color-success-muted)';
-        case 'draft':
-            return 'var(--color-warning-muted)';
-        case 'archived':
-            return 'var(--color-background-muted)';
+        case 'published': return styles.cardStatusPublished;
+        case 'draft': return styles.cardStatusDraft;
+        case 'archived': return styles.cardStatusArchived;
     }
 }
 
@@ -222,7 +259,10 @@ export function QuizCatalogTab({
             ) : (
                 <div {...stylex.props(styles.list)}>
                     {visibleQuizzes.toSorted((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0) || a.title.localeCompare(b.title)).map((quiz) => (
-                        <Card key={quiz.id} style={{ padding: 16, border: `2px solid ${statusBorderColor(quiz.status)}` } as CSSProperties}>
+                        <div
+                            key={quiz.id}
+                            {...stylex.props(styles.catalogCard, statusAccentStyle(quiz.status))}
+                        >
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                                 <div {...stylex.props(styles.cardContent)}>
                                     <div {...stylex.props(styles.titleRow)}>
@@ -232,9 +272,11 @@ export function QuizCatalogTab({
                                         <p {...stylex.props(styles.description)}>{quiz.description}</p>
                                     )}
                                     <div {...stylex.props(styles.meta)}>
-                                        <span>{quiz.questionIds.length} question{quiz.questionIds.length !== 1 ? 's' : ''}</span>
+                                        <span {...stylex.props(styles.metaChip)}>
+                                            {quiz.questionIds.length} question{quiz.questionIds.length !== 1 ? 's' : ''}
+                                        </span>
                                         {quiz.passingPercentage != null && (
-                                            <span>Pass: {quiz.passingPercentage}%</span>
+                                            <span {...stylex.props(styles.passTag)}>Pass: {quiz.passingPercentage}%</span>
                                         )}
                                     </div>
                                     <div {...stylex.props(styles.badges)}>
@@ -281,7 +323,7 @@ export function QuizCatalogTab({
                                     )}
                                 </div>
                             </div>
-                        </Card>
+                        </div>
                     ))}
                 </div>
             )}

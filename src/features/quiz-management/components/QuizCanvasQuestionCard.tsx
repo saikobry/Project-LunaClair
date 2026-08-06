@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { GripVertical, Link2 } from 'lucide-react';
-import type { DragEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import { Input } from '../../../shared/ui/Input';
@@ -19,18 +19,18 @@ const styles = stylex.create({
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         cursor: 'pointer',
-        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease, border-width 0.15s ease',
     },
     cardActive: {
+        borderWidth: 2,
         borderColor: 'var(--color-accent)',
-        boxShadow: 'var(--shadow-med)',
+        boxShadow: '0 4px 20px rgba(99, 102, 241, 0.2)',
         cursor: 'default',
     },
-    cardDragOver: {
-        borderTop: '2px dashed var(--color-accent)',
-    },
     cardDragging: {
-        opacity: 0.5,
+        borderWidth: 2,
+        borderColor: 'var(--color-accent)',
+        boxShadow: '0 14px 32px rgba(99, 102, 241, 0.25)',
     },
     header: {
         display: 'flex',
@@ -84,8 +84,9 @@ const styles = stylex.create({
         whiteSpace: 'nowrap',
     },
     collapsedPromptEmpty: {
-        color: 'var(--color-text-disabled)',
-        fontStyle: 'italic',
+        // Clean muted placeholder — never the gray-italic "Untitled question"
+        // fallback, so a held card always reads as a live, typed prompt.
+        color: 'var(--color-text-secondary)',
     },
     body: {
         display: 'flex',
@@ -113,20 +114,10 @@ interface QuizCanvasQuestionCardProps {
     item: QuestionDraft;
     index: number;
     isActive: boolean;
-    isDragOver: boolean;
-    isDragging: boolean;
+    /** True while this card is held by a drag — active cards render as a clean collapsed summary. */
+    isDragging?: boolean;
     errors: string[];
     cardRef: (el: HTMLElement | null) => void;
-    handleProps: {
-        draggable: boolean;
-        onDragStart: (event: DragEvent) => void;
-        onDragEnd: () => void;
-    };
-    itemProps: {
-        onDragOver: (event: DragEvent) => void;
-        onDragLeave: () => void;
-        onDrop: (event: DragEvent) => void;
-    };
     onActivate: () => void;
     onChange: (patch: Partial<QuestionDraft>) => void;
     onTypeChange: (type: QuestionType) => void;
@@ -138,28 +129,35 @@ interface QuizCanvasQuestionCardProps {
  * Collapsed (inactive) cards show only the prompt summary; the active
  * card expands into full editing with the type-specific editor. Bank-
  * linked cards are tagged and lock their type (the Question Bank owns
- * the question's type).
+ * the question's type). While dragged (`isDragging`), an active card
+ * renders as a clean collapsed summary (`effectiveIsActive`) instead of
+ * a clipped editor. Visual states: the active card gets a prominent 2px
+ * accent border + indigo glow (`cardActive`); the held card keeps the 2px
+ * accent border with an elevated floating shadow (`cardDragging`). Shadows
+ * are CSS-owned — GSAP never tweens `box-shadow` on this card. The grip is
+ * the drag trigger for the GSAP `Draggable` instance owned by
+ * `QuizCanvasQuestionList`.
  */
 export function QuizCanvasQuestionCard({
     item,
     index,
     isActive,
-    isDragOver,
-    isDragging,
+    isDragging = false,
     errors,
     cardRef,
-    handleProps,
-    itemProps,
     onActivate,
     onChange,
     onTypeChange,
 }: QuizCanvasQuestionCardProps) {
+    // While being dragged, an active card renders as a clean collapsed summary
+    // (no clipped editor) and re-expands once the drag ends.
+    const effectiveIsActive = isActive && !isDragging;
     const EditorComponent = getQuestionEditor(item.type);
 
     const headerRow: ReactNode = (
         <div {...stylex.props(styles.header)}>
             <span
-                {...handleProps}
+                data-canvas-drag-handle
                 {...stylex.props(styles.grip)}
                 aria-label={`Drag to reorder question ${index + 1}`}
                 onClick={(event) => event.stopPropagation()}
@@ -173,7 +171,7 @@ export function QuizCanvasQuestionCard({
                     Bank
                 </span>
             )}
-            {isActive ? (
+            {effectiveIsActive ? (
                 <>
                     <div {...stylex.props(styles.typeSelector)}>
                         <Selector
@@ -215,11 +213,9 @@ export function QuizCanvasQuestionCard({
     return (
         <div
             ref={cardRef}
-            {...itemProps}
             {...stylex.props(
                 styles.card,
-                isActive && styles.cardActive,
-                isDragOver && styles.cardDragOver,
+                effectiveIsActive && styles.cardActive,
                 isDragging && styles.cardDragging,
             )}
             onClick={onActivate}
@@ -228,7 +224,7 @@ export function QuizCanvasQuestionCard({
         >
             {headerRow}
 
-            {isActive ? (
+            {effectiveIsActive ? (
                 <div {...stylex.props(styles.body)} onClick={(event) => event.stopPropagation()}>
                     <Input
                         label={`Question ${index + 1} prompt`}

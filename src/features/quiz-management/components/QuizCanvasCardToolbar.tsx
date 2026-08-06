@@ -3,36 +3,44 @@ import { ArrowDown, ArrowUp, Copy, Library, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../shared/ui/Button/Button';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 
-const desktop = '@media (min-width: 769px)';
-const mobile = '@media (max-width: 768px)';
+const desktop = '@media (min-width: 640px)';
+const mobile = '@media (max-width: 639px)';
 
 const styles = stylex.create({
     cardToolbar: {
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        padding: 4,
-        backgroundColor: 'var(--color-background)',
+        padding: 6,
+        backgroundColor: 'var(--color-background-surface)',
         border: '1px solid var(--color-border)',
-        borderRadius: 999,
-        boxShadow: 'var(--shadow-med)',
-        zIndex: 3,
-        // Google Forms style: docked vertically to the right of the active card.
+        borderRadius: 10,
+        boxShadow: 'var(--shadow-low)',
+        zIndex: 10,
+        // Visual-only dock: positioning is owned by the `toolbarAbsoluteWrapper`
+        // lane in QuizCanvasToolbarLane (absolute top: 0 + GSAP y glide).
+        // Desktop/tablet (≥640px): vertical icon column.
         [desktop]: {
-            position: 'absolute',
-            right: -52,
-            top: 0,
             flexDirection: 'column',
         },
-        // Mobile: fixed bottom navbar, centered above the app bottom nav.
+        // Mobile (<640px): sleek floating glassmorphism bottom pill. It floats
+        // above the app bottom nav (`calc(84px + safe-area)`) and drops to the
+        // bottom edge in Focus Mode when the nav is hidden; zIndex 149 stays
+        // under the Focus Mode restore FAB (zIndex 150) so it stays reachable.
         [mobile]: {
             position: 'fixed',
             bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            left: 16,
+            right: 16,
+            justifyContent: 'space-around',
+            padding: '8px 12px',
+            borderRadius: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(12px)',
+            // Older Safari (pre-18) needs the -webkit- prefix for the glass effect.
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.16)',
             flexDirection: 'row',
-            // Stays under the Focus Mode restore FAB (zIndex 150) so the
-            // logo button always remains reachable in Focus Mode.
             zIndex: 149,
             transition: 'bottom 0.35s ease',
         },
@@ -92,6 +100,7 @@ export function QuizCanvasCardToolbar({
                 variant="secondary"
                 icon={<Copy size={14} />}
                 isIconOnly
+                isDisabled={index === -1}
                 tooltip="Duplicate"
                 onClick={onDuplicate}
             />
@@ -100,7 +109,7 @@ export function QuizCanvasCardToolbar({
                 variant="secondary"
                 icon={<ArrowUp size={14} />}
                 isIconOnly
-                isDisabled={index === 0}
+                isDisabled={index <= 0}
                 tooltip="Move up"
                 onClick={onMoveUp}
             />
@@ -109,7 +118,7 @@ export function QuizCanvasCardToolbar({
                 variant="secondary"
                 icon={<ArrowDown size={14} />}
                 isIconOnly
-                isDisabled={index === totalItems - 1}
+                isDisabled={index === -1 || index === totalItems - 1}
                 tooltip="Move down"
                 onClick={onMoveDown}
             />
@@ -126,6 +135,7 @@ export function QuizCanvasCardToolbar({
                 variant="danger"
                 icon={<Trash2 size={14} />}
                 isIconOnly
+                isDisabled={index === -1}
                 tooltip="Delete"
                 onClick={onDelete}
             />
