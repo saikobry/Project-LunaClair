@@ -146,6 +146,8 @@ export function QuizCanvasQuestionList({
     const items = draft.items;
     /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
     const [draggingId, setDraggingId] = useState<string | null>(null);
+    /** Incrementing layout version counter to signal settled layout updates to the toolbar lane. */
+    const [layoutVersion, setLayoutVersion] = useState(0);
     const gridRef = useRef<HTMLDivElement | null>(null);
     /** Outer bounds container for canvas body flex row. */
     const canvasBodyRef = useRef<HTMLDivElement | null>(null);
@@ -246,6 +248,7 @@ export function QuizCanvasQuestionList({
             const wrapper = wrapperEls.current.get(item.tempId);
             if (wrapper) prevHeightsRef.current.set(item.tempId, wrapper.offsetHeight);
         }
+        setLayoutVersion((v) => v + 1);
     }, [applyPositions]);
 
     const startHeightTween = useCallback((tempId: string, wrapper: HTMLDivElement, fromHeight: number, toHeight: number) => {
@@ -533,6 +536,9 @@ export function QuizCanvasQuestionList({
                     activeCardId={activeCardId}
                     draggingId={draggingId}
                     titleCardRef={titleCardRef}
+                    gridRef={gridRef}
+                    targetYMap={targetYMapRef.current}
+                    layoutVersion={layoutVersion}
                     canvasBodyRef={canvasBodyRef}
                     cardWrapperMapRef={wrapperEls}
                     canvas={canvas}

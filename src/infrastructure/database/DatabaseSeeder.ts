@@ -5,6 +5,7 @@ import type { SubjectTerm } from '../../domain/library/SubjectTerm';
 import type { StudyMaterial } from '../../domain/library/StudyMaterial';
 import type { Question } from '../../domain/quiz/Question';
 import type { Quiz, QuizQuestion } from '../../domain/quiz/Quiz';
+import { build50CellBiologyQuestions, build50QuestionQuizObj } from './seeds/build50QuestionQuiz';
 
 /**
  * Seeds the database with demo content if empty.
@@ -154,11 +155,13 @@ export class DatabaseSeeder {
         const allMaterials = [...materials, legacyMaterial];
 
         // ── Questions for each material ────────────────────────
+        const master50Questions = build50CellBiologyQuestions(now);
         const cellQuestions = this.buildCellStructureQuestions(now);
         const legacyQuestions = this.buildLegacySampleQuestions(now);
-        const allQuestions = [...cellQuestions, ...legacyQuestions];
+        const allQuestions = [...master50Questions, ...cellQuestions, ...legacyQuestions];
 
         // ── Quizzes ────────────────────────────────────────────
+        const master50Quiz = build50QuestionQuizObj(now);
         const cellQuiz = this.buildQuiz('quiz-cell-001', 'cell-structure', 'Cell Structure Quiz', cellQuestions, now);
         const legacyQuiz = this.buildQuiz('quiz-anatomy-001', 'anatomy-physiology', 'Body Membranes — Practice Quiz', legacyQuestions, now);
 
@@ -178,7 +181,7 @@ export class DatabaseSeeder {
                 await this.database.subjectTerms.bulkPut(subjectTerms);
                 await this.database.materials.bulkPut(allMaterials);
                 await this.database.questions.bulkPut(allQuestions);
-                await this.database.quizzes.bulkPut([cellQuiz, legacyQuiz]);
+                await this.database.quizzes.bulkPut([master50Quiz, cellQuiz, legacyQuiz]);
             },
         );
     }

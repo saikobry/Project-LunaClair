@@ -1,8 +1,11 @@
 import * as stylex from '@stylexjs/stylex';
-import { useCallback, useEffect, useState, type RefObject } from 'react';
+import gsap from 'gsap';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizCanvas } from '../hooks/useQuizCanvas';
 import { QuizCanvasCardToolbar } from './QuizCanvasCardToolbar';
+
+const REFLOW_DURATION = 0.35;
 
 const styles = stylex.create({
     toolbarLane: {
@@ -20,11 +23,9 @@ const styles = stylex.create({
         left: 0,
         width: 'fit-content',
         willChange: 'transform',
-        transition: 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)',
         '@media (max-width: 639px)': {
             position: 'static',
             width: 'auto',
-            transition: 'none',
             willChange: 'auto',
         },
     },
@@ -35,25 +36,30 @@ export interface QuizCanvasToolbarLaneProps {
     activeCardId: string | null;
     draggingId: string | null;
     titleCardRef?: RefObject<HTMLDivElement | null>;
-    canvasBodyRef: RefObject<HTMLDivElement | null>;
-    /** Map of card wrapper DOM elements keyed by tempId */
-    cardWrapperMapRef: RefObject<Map<string, HTMLDivElement>>;
+    gridRef?: RefObject<HTMLDivElement | null>;
+    targetYMap?: Map<string, number>;
+    layoutVersion?: number;
+    canvasBodyRef?: RefObject<HTMLDivElement | null>;
+    cardWrapperMapRef?: RefObject<Map<string, HTMLDivElement>>;
     canvas: QuizCanvas;
     onFocusCard: (tempId: string) => void;
     onImportFromBank: (index: number) => void;
 }
 
 /**
- * Decoupled right toolbar lane component (Google Forms Continuous Observation Pattern).
+ * Decoupled right toolbar lane component (Direction-Aware Adaptive Settle Engine).
  *
- * Owns the positioning wrapper (`position: absolute; top: 0`) and uses a `ResizeObserver`
- * combined with physical `getBoundingClientRect` DOM measurement to track the active card's
- * exact Y-offset relative to the shared `canvasBody` anchor. When no question card is selected,
- * it defaults to anchoring beside the Meta Card (`titleCardRef`).
- * Glides smoothly via native CSS `transform: translateY(...)` (`cubic-bezier(0.2, 0, 0, 1)`).
- * Dynamically clears `transform` on mobile (<640px) so `position: fixed` child toolbar stays
- * anchored to the viewport bottom without containing block interference.
- * Preserves wrapper DOM node across drag cycles with opacity/pointer-events to prevent teleporting.
+ * Glides the active card toolbar using GSAP (`gsap.to`) anchored to active card DOM bounding rects.
+ * - Direction-Aware Settle Engine:
+ *   - Moving UP (Card N -> Card N-1): Target card is ABOVE old card. Its top edge position is ALREADY
+ *     settled at t=0ms (since cards above it were already collapsed). Glides IMMEDIATELY (0ms delay).
+ *   - Moving DOWN (Card N -> Card N+1): Target card is BELOW old card. The old card above must collapse
+ *     (350ms duration) before target top edge settles. Waits 350ms for zero-rebound landing.
+ * - Typing dilemma fix: ResizeObserver on the active card node provides live adjustments as text is typed.
+ * - Drag freeze fix: Freezes the toolbar at its last Y coordinate while a card is being dragged,
+ *   and glides to the active card's final slot on drag release (`requestAnimationFrame`).
+ * - Meta Card fallback: Anchors beside titleCardRef when activeCardId is null.
+ * - Mobile (<640px): Clears inline transforms so fixed viewport bottom bar operates cleanly.
  */
 export function QuizCanvasToolbarLane({
     items,
@@ -66,10 +72,18 @@ export function QuizCanvasToolbarLane({
     onFocusCard,
     onImportFromBank,
 }: QuizCanvasToolbarLaneProps) {
-    const [toolbarY, setToolbarY] = useState(0);
+    const toolbarWrapperRef = useRef<HTMLDivElement | null>(null);
+    const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const isDragging = draggingId !== null;
+    const isDraggingRef = useRef(isDragging);
+    isDraggingRef.current = isDragging;
+
     const [isMobile, setIsMobile] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false,
     );
+    const isMobileRef = useRef(isMobile);
+    isMobileRef.current = isMobile;
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -82,56 +96,115 @@ export function QuizCanvasToolbarLane({
     }, []);
 
     const activeIndex = items.findIndex((item) => item.tempId === activeCardId);
-    const activeCardNode = activeCardId ? cardWrapperMapRef.current?.get(activeCardId) : null;
-    const targetNode = activeCardNode ?? titleCardRef?.current ?? null;
+    const isMetaCard = activeCardId === null || activeIndex === -1;
+    const effectiveIndex = isMetaCard ? -1 : activeIndex;
 
-    const updatePosition = useCallback(() => {
-        if (isMobile) return;
-        const canvasBodyNode = canvasBodyRef.current;
-        if (!targetNode || !canvasBodyNode) return;
+    const prevIndexRef = useRef(effectiveIndex);
 
-        const targetRect = targetNode.getBoundingClientRect();
-        const bodyRect = canvasBodyNode.getBoundingClientRect();
-        const calculatedY = Math.max(0, targetRect.top - bodyRect.top);
+    const updatePosition = useCallback(
+        (duration = REFLOW_DURATION) => {
+            const wrapper = toolbarWrapperRef.current;
+            if (!wrapper || isDraggingRef.current || isMobileRef.current) return;
 
-        setToolbarY(calculatedY);
-    }, [isMobile, targetNode, canvasBodyRef]);
+            const canvasBodyNode = canvasBodyRef?.current;
+            const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
+            const targetNode = activeNode ?? titleCardRef?.current ?? null;
 
+            if (!targetNode || !canvasBodyNode) return;
+
+            const targetRect = targetNode.getBoundingClientRect();
+            const bodyRect = canvasBodyNode.getBoundingClientRect();
+            const nextY = Math.max(0, targetRect.top - bodyRect.top);
+
+            gsap.to(wrapper, {
+                y: nextY,
+                duration,
+                ease: 'power2.out',
+                overwrite: 'auto',
+            });
+        },
+        [activeCardId, canvasBodyRef, cardWrapperMapRef, titleCardRef],
+    );
+
+    // 1. Direction-Aware Adaptive Active Card Selection
     useEffect(() => {
-        if (isMobile || !targetNode) return;
+        const oldIndex = prevIndexRef.current;
+        const newIndex = effectiveIndex;
+        prevIndexRef.current = effectiveIndex;
 
-        updatePosition();
+        const wrapper = toolbarWrapperRef.current;
+        if (isMobile) {
+            if (wrapper) {
+                gsap.killTweensOf(wrapper, 'y');
+                gsap.set(wrapper, { clearProps: 'transform,y' });
+            }
+            return;
+        }
 
-        const canvasBodyNode = canvasBodyRef.current;
-        if (!canvasBodyNode) return;
+        if (isDragging) return;
+
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        if (wrapper) gsap.killTweensOf(wrapper, 'y');
+
+        // Directional Adaptive Delay:
+        // Moving UP (newIndex < oldIndex): Target card is ABOVE old card -> top edge position is ALREADY settled at t=0! (0ms delay)
+        // Moving DOWN (newIndex > oldIndex): Target card is BELOW old card -> old card above must collapse (350ms delay)
+        const isMovingUp = newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex;
+        const delay = isMovingUp ? 0 : 350;
+
+        if (delay === 0) {
+            updatePosition(REFLOW_DURATION);
+        } else {
+            settleTimerRef.current = setTimeout(() => {
+                updatePosition(REFLOW_DURATION);
+            }, delay);
+        }
+
+        return () => {
+            if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        };
+    }, [isMobile, effectiveIndex, isDragging, updatePosition]);
+
+    // 2. Typing & Active Card Resizing Observation
+    useEffect(() => {
+        if (isMobile) return;
+
+        const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
+        const targetNode = activeNode ?? titleCardRef?.current ?? null;
+        if (!targetNode) return;
 
         const observer = new ResizeObserver(() => {
-            updatePosition();
+            if (isDraggingRef.current) return;
+            // Live subtle adjustment while typing inside active card
+            updatePosition(0.15);
         });
 
-        observer.observe(canvasBodyNode);
         observer.observe(targetNode);
 
-        window.addEventListener('resize', updatePosition);
+        const handleResize = () => updatePosition(0.15);
+        window.addEventListener('resize', handleResize);
 
         return () => {
             observer.disconnect();
-            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('resize', handleResize);
         };
-    }, [isMobile, targetNode, canvasBodyRef, updatePosition]);
+    }, [isMobile, activeCardId, cardWrapperMapRef, titleCardRef, updatePosition]);
 
-    const isMetaCard = activeCardId === null || activeIndex === -1;
-    const effectiveIndex = isMetaCard ? -1 : activeIndex;
+    // 3. Drag Release Handling: Freeze during drag, glide to slot on release
+    useEffect(() => {
+        if (!isDragging) {
+            const rafId = requestAnimationFrame(() => {
+                updatePosition(REFLOW_DURATION);
+            });
+            return () => cancelAnimationFrame(rafId);
+        }
+    }, [isDragging, updatePosition]);
 
     return (
         <div {...stylex.props(styles.toolbarLane)}>
             <div
+                ref={toolbarWrapperRef}
                 {...stylex.props(styles.toolbarAbsoluteWrapper)}
-                style={{
-                    transform: isMobile ? undefined : `translateY(${toolbarY}px)`,
-                    opacity: draggingId !== null ? 0 : 1,
-                    pointerEvents: draggingId !== null ? 'none' : 'auto',
-                }}
             >
                 <QuizCanvasCardToolbar
                     index={effectiveIndex}
