@@ -172,6 +172,14 @@ export function QuizCanvasQuestionList({
     const targetYMapRef = useRef(new Map<string, number>());
     /** Stable wrapper heights from the last settled layout — the "from" state of the next expand/collapse tween. */
     const prevHeightsRef = useRef(new Map<string, number>());
+    /**
+     * Self-healing per-card RESTING (collapsed) height cache, sampled in
+     * `settleLayout` for inactive, error-free cards. Feeds the toolbar lane's
+     * resting-position target. Callout mount/unmount resizes wrappers →
+     * ResizeObserver → `settleLayout`, so the cache self-corrects without
+     * explicit invalidation.
+     */
+    const collapsedHeightsRef = useRef(new Map<string, number>());
     /** tempIds whose height tween is currently mid-flight (physical push). */
     const heightAnimRef = useRef(new Set<string>());
     /** Previously active card id — detects expand/collapse transitions. */
@@ -182,6 +190,10 @@ export function QuizCanvasQuestionList({
     // Live snapshots so Draggable closures never read stale state.
     const itemsRef = useRef(items);
     itemsRef.current = items;
+    const activeCardIdRef = useRef(activeCardId);
+    activeCardIdRef.current = activeCardId;
+    const errorsRef = useRef(errors);
+    errorsRef.current = errors;
     const reorderRef = useRef(canvas.reorderItems);
     reorderRef.current = canvas.reorderItems;
 
@@ -247,6 +259,19 @@ export function QuizCanvasQuestionList({
         for (const item of itemsRef.current) {
             const wrapper = wrapperEls.current.get(item.tempId);
             if (wrapper) prevHeightsRef.current.set(item.tempId, wrapper.offsetHeight);
+        }
+
+        // Resting-height cache for the toolbar lane: sample INACTIVE, error-free
+        // cards only — at settle they ARE at their resting height. Error cards
+        // are skipped so the cache stays callout-free (the lane derives the
+        // callout bump from the live `errors` prop instead, avoiding stale
+        // snapshots and double-counting). Self-healing: any error state toggle
+        // resizes wrappers → ResizeObserver → this settle path.
+        for (const item of itemsRef.current) {
+            if (activeCardIdRef.current === item.tempId) continue;
+            if (errorsRef.current?.items[item.tempId]?.length) continue;
+            const wrapper = wrapperEls.current.get(item.tempId);
+            if (wrapper) collapsedHeightsRef.current.set(item.tempId, wrapper.offsetHeight);
         }
         setLayoutVersion((v) => v + 1);
     }, [applyPositions]);
@@ -342,6 +367,7 @@ export function QuizCanvasQuestionList({
                 instance.kill();
                 draggablesRef.current.delete(tempId);
                 positionedRef.current.delete(tempId);
+                collapsedHeightsRef.current.delete(tempId);
             }
         }
 
@@ -541,6 +567,10 @@ export function QuizCanvasQuestionList({
                     layoutVersion={layoutVersion}
                     canvasBodyRef={canvasBodyRef}
                     cardWrapperMapRef={wrapperEls}
+                    collapsedHeights={collapsedHeightsRef.current}
+                    errors={errors}
+                    gutter={GUTTER}
+                    collapsedHeightFallback={COMPACT_HEIGHT}
                     canvas={canvas}
                     onFocusCard={onFocusCard}
                     onImportFromBank={onImportFromBank}

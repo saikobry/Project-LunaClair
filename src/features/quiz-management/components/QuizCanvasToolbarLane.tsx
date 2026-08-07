@@ -1,11 +1,45 @@
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizCanvas } from '../hooks/useQuizCanvas';
 import { QuizCanvasCardToolbar } from './QuizCanvasCardToolbar';
 
+/**
+ * Transition glide duration (s) — matches `QuizCanvasQuestionList`'s
+ * `REFLOW_DURATION` so the toolbar arrives alongside the card collapse.
+ */
 const REFLOW_DURATION = 0.35;
+/** Drift-verify nudge duration (s). */
+const FOLLOW_DURATION = 0.12;
+/** Consecutive frames a signal must hold before the loop treats it as settled. */
+const SETTLE_FRAMES = 6;
+/** Sub-pixel tolerance (px) below which a frame counts as settled. */
+const SETTLE_EPSILON = 0.5;
+
+// Deterministic error-callout estimate (see `errorCallout` in
+// QuizCanvasQuestionCard): 8px top + 8px bottom padding, ~18px per 12px-font
+// line, ~55 chars per line at the card's ~660px content width.
+const CALLOUT_PADDING_VERTICAL = 16;
+const CALLOUT_LINE_HEIGHT = 18;
+const CALLOUT_CHARS_PER_LINE = 90; // ~12px font in a ~660px card body
+
+/**
+ * Deterministic estimate of a collapsed card's error-callout height, derived
+ * from the message count/length in the `errors` prop — never a live DOM
+ * measurement. Deliberately approximate: the drift-verify phase of the follow
+ * loop is the intended corrector. Do NOT "improve" this into a
+ * `getBoundingClientRect` call — that would reintroduce the mid-transition
+ * measurement race this resting-position model exists to avoid.
+ */
+function estimateCalloutHeight(errors: string[]): number {
+    const lines = errors.reduce(
+        (total, message) => total + Math.max(1, Math.ceil(message.length / CALLOUT_CHARS_PER_LINE)),
+        0,
+    );
+    return CALLOUT_PADDING_VERTICAL + lines * CALLOUT_LINE_HEIGHT;
+}
 
 const styles = stylex.create({
     toolbarLane: {
@@ -41,49 +75,83 @@ export interface QuizCanvasToolbarLaneProps {
     layoutVersion?: number;
     canvasBodyRef?: RefObject<HTMLDivElement | null>;
     cardWrapperMapRef?: RefObject<Map<string, HTMLDivElement>>;
+    /**
+     * Self-healing per-card RESTING (collapsed) heights, sampled by
+     * `QuizCanvasQuestionList.settleLayout` for inactive, error-free cards.
+     */
+    collapsedHeights?: Map<string, number>;
+    /** Current save-validation errors keyed by tempId — drives the callout bump. */
+    errors?: QuizDraftErrors | null;
+    /** Inter-card gap (px) — `QuizCanvasQuestionList`'s GUTTER. */
+    gutter?: number;
+    /** Fallback collapsed height for never-sampled cards — `QuizCanvasQuestionList`'s COMPACT_HEIGHT. */
+    collapsedHeightFallback?: number;
     canvas: QuizCanvas;
     onFocusCard: (tempId: string) => void;
     onImportFromBank: (index: number) => void;
 }
 
 /**
- * Decoupled right toolbar lane component (Direction-Aware Adaptive Settle Engine).
+ * Decoupled right toolbar lane component (rAF Follow Loop — Resting-Position
+ * Model).
  *
- * Glides the active card toolbar using GSAP (`gsap.to`) anchored to active card DOM bounding rects.
- * - Direction-Aware Settle Engine:
- *   - Moving UP (Card N -> Card N-1): Target card is ABOVE old card. Its top edge position is ALREADY
- *     settled at t=0ms (since cards above it were already collapsed). Glides IMMEDIATELY (0ms delay).
- *   - Moving DOWN (Card N -> Card N+1): Target card is BELOW old card. The old card above must collapse
- *     (350ms duration) before target top edge settles. Waits 350ms for zero-rebound landing.
- * - Typing dilemma fix: ResizeObserver on the active card node provides live adjustments as text is typed.
- * - Drag freeze fix: Freezes the toolbar at its last Y coordinate while a card is being dragged,
- *   and glides to the active card's final slot on drag release (`requestAnimationFrame`).
- * - Meta Card fallback: Anchors beside titleCardRef when activeCardId is null.
- * - Mobile (<640px): Clears inline transforms so fixed viewport bottom bar operates cleanly.
+ * The toolbar glides toward the active card's RESTING top: where its top edge
+ * WILL be once every card above it is at its resting (collapsed) height. That
+ * target is computed from state — the per-card collapsed-height cache (with a
+ * `COMPACT_HEIGHT`-style fallback for never-sampled cards) plus a
+ * deterministic error-callout estimate from the `errors` prop — and is a
+ * CONSTANT while the layout animates. There is nothing to race against, no
+ * timing bet, and no wait: the one 0.35s glide runs in parallel with the card
+ * collapse, and they arrive together.
+ *
+ * - Transition: while the live layout is still moving (collapse/reflow), issue
+ *   ONE long glide to the constant resting target. Chasing a constant means no
+ *   dip/wobble (the target never moves under us) and no re-issued tween drag.
+ * - Drift-verify: once the live position holds still for `SETTLE_FRAMES`,
+ *   reality wins — if the estimate missed (e.g. callout line-count
+ *   approximation), the loop corrects with short snappy nudges, then stops
+ *   polling.
+ * - Cache contract: heights come from `QuizCanvasQuestionList`'s self-healing
+ *   `collapsedHeightsRef` (error-free inactive cards at settle; callout
+ *   mount/unmount re-samples via ResizeObserver). The old active card's
+ *   collapsed height is its cache entry (last sampled while inactive) — never
+ *   a live read of its mid-collapse rect.
+ * - Idle wake: `ResizeObserver` on the target node + the title card (its
+ *   height change moves the grid, shifting the resting target) + `window
+ *   resize`.
+ * - Drag freeze: while a card is dragged the loop is suspended (toolbar stays
+ *   frozen); on release the `isDragging` dependency re-runs it and it glides
+ *   to the resting target at the new slot.
+ * - Meta Card fallback: anchors at the lane origin (`y = 0`) beside the title
+ *   card when `activeCardId` is null or not found.
+ * - Mobile (<640px): clears inline transforms so the fixed viewport bottom bar
+ *   operates cleanly.
  */
 export function QuizCanvasToolbarLane({
     items,
     activeCardId,
     draggingId,
     titleCardRef,
+    gridRef,
     canvasBodyRef,
     cardWrapperMapRef,
+    collapsedHeights,
+    errors,
+    gutter = 20,
+    collapsedHeightFallback = 76,
     canvas,
     onFocusCard,
     onImportFromBank,
 }: QuizCanvasToolbarLaneProps) {
     const toolbarWrapperRef = useRef<HTMLDivElement | null>(null);
-    const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** True while the follow loop is idle (has stopped polling) — gates lazy wake-ups. */
+    const followLoopSettledRef = useRef(true);
 
     const isDragging = draggingId !== null;
-    const isDraggingRef = useRef(isDragging);
-    isDraggingRef.current = isDragging;
 
     const [isMobile, setIsMobile] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false,
     );
-    const isMobileRef = useRef(isMobile);
-    isMobileRef.current = isMobile;
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -99,41 +167,33 @@ export function QuizCanvasToolbarLane({
     const isMetaCard = activeCardId === null || activeIndex === -1;
     const effectiveIndex = isMetaCard ? -1 : activeIndex;
 
-    const prevIndexRef = useRef(effectiveIndex);
-
-    const updatePosition = useCallback(
-        (duration = REFLOW_DURATION) => {
-            const wrapper = toolbarWrapperRef.current;
-            if (!wrapper || isDraggingRef.current || isMobileRef.current) return;
-
-            const canvasBodyNode = canvasBodyRef?.current;
-            const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
-            const targetNode = activeNode ?? titleCardRef?.current ?? null;
-
-            if (!targetNode || !canvasBodyNode) return;
-
-            const targetRect = targetNode.getBoundingClientRect();
-            const bodyRect = canvasBodyNode.getBoundingClientRect();
-            const nextY = Math.max(0, targetRect.top - bodyRect.top);
-
-            gsap.to(wrapper, {
-                y: nextY,
-                duration,
-                ease: 'power2.out',
-                overwrite: 'auto',
-            });
-        },
-        [activeCardId, canvasBodyRef, cardWrapperMapRef, titleCardRef],
-    );
-
-    // 1. Direction-Aware Adaptive Active Card Selection
+    // Latest-items snapshot for the follow loop. `items` is deliberately NOT
+    // an effect dependency: the resting sum over cards above the target is
+    // commutative, so any reorder that changes WHICH cards are above also
+    // changes `effectiveIndex`, while typing only reorders/regrows cards below
+    // the target (resting target unchanged). Syncing in a passive effect keeps
+    // the loop from re-arming on every keystroke without a render-time ref
+    // write.
+    const itemsRef = useRef(items);
     useEffect(() => {
-        const oldIndex = prevIndexRef.current;
-        const newIndex = effectiveIndex;
-        prevIndexRef.current = effectiveIndex;
+        itemsRef.current = items;
+    });
 
+    // Restart counter for the follow loop — bumped by the wake observers when
+    // geometry changes while the loop is idle. Re-running the loop effect is
+    // cheap: it re-arms the rAF poll and re-glides/re-verifies within a few
+    // frames.
+    const [wakeTick, setWakeTick] = useState(0);
+    const wakeFollowLoop = useCallback(() => setWakeTick((tick) => tick + 1), []);
+
+    // 1. rAF follow loop — the single owner of the toolbar's Y (Resting-Position
+    //    Model + drift-verify). Handles focus changes, reorders, error-callout
+    //    toggles, drag freeze/release, and mobile clearing. The wake observers
+    //    below only nudge this loop to restart; they never tween the wrapper.
+    useEffect(() => {
         const wrapper = toolbarWrapperRef.current;
         if (isMobile) {
+            followLoopSettledRef.current = true;
             if (wrapper) {
                 gsap.killTweensOf(wrapper, 'y');
                 gsap.set(wrapper, { clearProps: 'transform,y' });
@@ -141,31 +201,112 @@ export function QuizCanvasToolbarLane({
             return;
         }
 
+        // Drag freeze: keep the toolbar exactly where it is while a card is
+        // held. When the drag ends, `isDragging` flips and this effect re-runs,
+        // gliding to the resting target at the active card's new slot.
         if (isDragging) return;
 
-        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-        if (wrapper) gsap.killTweensOf(wrapper, 'y');
-
-        // Directional Adaptive Delay:
-        // Moving UP (newIndex < oldIndex): Target card is ABOVE old card -> top edge position is ALREADY settled at t=0! (0ms delay)
-        // Moving DOWN (newIndex > oldIndex): Target card is BELOW old card -> old card above must collapse (350ms delay)
-        const isMovingUp = newIndex >= 0 && oldIndex >= 0 && newIndex < oldIndex;
-        const delay = isMovingUp ? 0 : 350;
-
-        if (delay === 0) {
-            updatePosition(REFLOW_DURATION);
-        } else {
-            settleTimerRef.current = setTimeout(() => {
-                updatePosition(REFLOW_DURATION);
-            }, delay);
-        }
-
-        return () => {
-            if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        // Resting target: the active card's top once every card above it is at
+        // its resting (collapsed) height. Computed from state — cache +
+        // fallback + deterministic callout estimate — so it is a constant while
+        // the layout animates (no live read of anything mid-transition).
+        const computeRestingTargetY = () => {
+            if (effectiveIndex < 0) return 0;
+            const bodyNode = canvasBodyRef?.current;
+            const gridNode = gridRef?.current;
+            if (!bodyNode || !gridNode) return 0;
+            const gridTop = gridNode.getBoundingClientRect().top - bodyNode.getBoundingClientRect().top;
+            let y = gridTop;
+            for (let k = 0; k < effectiveIndex; k += 1) {
+                const card = itemsRef.current[k];
+                const cardErrors = errors?.items[card.tempId] ?? [];
+                const base = collapsedHeights?.get(card.tempId) ?? collapsedHeightFallback;
+                y += base + (cardErrors.length > 0 ? estimateCalloutHeight(cardErrors) : 0) + gutter;
+            }
+            return Math.max(0, y);
         };
-    }, [isMobile, effectiveIndex, isDragging, updatePosition]);
 
-    // 2. Typing & Active Card Resizing Observation
+        followLoopSettledRef.current = false;
+        let rafId = 0;
+        let framesStable = 0; // frames the toolbar has sat at its target
+        let liveStableFrames = 0; // frames the LIVE target position has held still
+        let lastLiveY: number | null = null;
+        let glideIssued = false;
+
+        const tick = () => {
+            const bodyNode = canvasBodyRef?.current;
+            const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
+            const targetNode = activeNode ?? titleCardRef?.current ?? null;
+
+            if (targetNode && bodyNode && wrapper) {
+                const liveY = Math.max(0, targetNode.getBoundingClientRect().top - bodyNode.getBoundingClientRect().top);
+
+                // Layout-stability detector: while cards are collapsing/reflowing
+                // the live position keeps moving → trust the constant resting
+                // estimate. Once it holds still for SETTLE_FRAMES, reality wins.
+                if (lastLiveY !== null && Math.abs(liveY - lastLiveY) >= SETTLE_EPSILON) {
+                    liveStableFrames = 0;
+                } else {
+                    liveStableFrames += 1;
+                }
+                lastLiveY = liveY;
+
+                const layoutSettled = liveStableFrames >= SETTLE_FRAMES;
+                const currentY = gsap.getProperty(wrapper, 'y') as number;
+
+                if (!layoutSettled) {
+                    // Transition: ONE long glide to the constant resting target,
+                    // issued once — the target is fixed, so re-issuing would only
+                    // drag the tween out. The card collapse runs in parallel;
+                    // both are 0.35s power2.out, so they arrive together.
+                    if (!glideIssued) {
+                        glideIssued = true;
+                        gsap.to(wrapper, {
+                            y: computeRestingTargetY(),
+                            duration: REFLOW_DURATION,
+                            ease: 'power2.out',
+                            overwrite: 'auto',
+                        });
+                    }
+                } else {
+                    // Drift-verify: the estimate can be slightly off (callout
+                    // line-count approximation). Now that the layout settled,
+                    // trust the live position and correct with short snappy
+                    // nudges; once clean for SETTLE_FRAMES, stop polling.
+                    const delta = liveY - currentY;
+                    if (Math.abs(delta) < SETTLE_EPSILON) {
+                        framesStable += 1;
+                    } else {
+                        framesStable = 0;
+                        gsap.to(wrapper, {
+                            y: liveY,
+                            duration: FOLLOW_DURATION,
+                            ease: 'power2.out',
+                            overwrite: 'auto',
+                        });
+                    }
+                }
+            }
+
+            if (framesStable < SETTLE_FRAMES || liveStableFrames < SETTLE_FRAMES) {
+                rafId = requestAnimationFrame(tick);
+            } else {
+                followLoopSettledRef.current = true;
+            }
+        };
+
+        rafId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafId);
+        // Deps: `activeCardId`/`effectiveIndex`/`errors` change the resting
+        // computation (focus change, reorder, error-callout toggles); `items` is
+        // read via `itemsRef` (see above — re-arming on every keystroke would
+        // defeat the settle-stop); `wakeTick` (trigger-only) restarts after idle
+        // wakes; the refs keep the loop fresh against the live DOM.
+    }, [isMobile, activeCardId, effectiveIndex, errors, isDragging, wakeTick, gutter, collapsedHeightFallback, canvasBodyRef, cardWrapperMapRef, titleCardRef, gridRef, collapsedHeights]);
+
+    // 2. Idle wake observers — restart the follow loop when geometry changes
+    //    while it is stopped. Observes the target node AND the title card (its
+    //    height change moves the grid, shifting the resting target).
     useEffect(() => {
         if (isMobile) return;
 
@@ -173,32 +314,27 @@ export function QuizCanvasToolbarLane({
         const targetNode = activeNode ?? titleCardRef?.current ?? null;
         if (!targetNode) return;
 
-        const observer = new ResizeObserver(() => {
-            if (isDraggingRef.current) return;
-            // Live subtle adjustment while typing inside active card
-            updatePosition(0.15);
-        });
+        // `isDragging` is read from this closure (re-created when the drag
+        // state flips) so no ref is mutated during render.
+        const wakeIfIdle = () => {
+            if (isDragging) return;
+            if (!followLoopSettledRef.current) return;
+            wakeFollowLoop();
+        };
 
+        const observer = new ResizeObserver(wakeIfIdle);
         observer.observe(targetNode);
+        const metaNode = titleCardRef?.current;
+        if (metaNode && metaNode !== targetNode) observer.observe(metaNode);
 
-        const handleResize = () => updatePosition(0.15);
+        const handleResize = () => wakeIfIdle();
         window.addEventListener('resize', handleResize);
 
         return () => {
             observer.disconnect();
             window.removeEventListener('resize', handleResize);
         };
-    }, [isMobile, activeCardId, cardWrapperMapRef, titleCardRef, updatePosition]);
-
-    // 3. Drag Release Handling: Freeze during drag, glide to slot on release
-    useEffect(() => {
-        if (!isDragging) {
-            const rafId = requestAnimationFrame(() => {
-                updatePosition(REFLOW_DURATION);
-            });
-            return () => cancelAnimationFrame(rafId);
-        }
-    }, [isDragging, updatePosition]);
+    }, [isMobile, activeCardId, isDragging, cardWrapperMapRef, titleCardRef, wakeFollowLoop]);
 
     return (
         <div {...stylex.props(styles.toolbarLane)}>
