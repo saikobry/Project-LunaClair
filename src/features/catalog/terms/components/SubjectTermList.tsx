@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { Draggable } from 'gsap/Draggable';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp, GripVertical, Unlink } from 'lucide-react';
-import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import type { Term } from '../../../../domain/library';
 import { IconButton } from '../../../../shared/ui/IconButton';
+
+gsap.registerPlugin(Draggable);
 
 /**
  * Enriched term entry rendered by `SubjectTermList`.
@@ -128,7 +130,6 @@ function DraggableTermRow({
   canMoveDown,
   onMoveUp,
   onMoveDown,
-  onDropOn,
   onRemove,
 }: {
   item: SubjectTermListItem;
@@ -137,40 +138,10 @@ function DraggableTermRow({
   canMoveDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onDropOn: (sourceId: string, targetId: string) => void;
   onRemove: (termId: string) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  // Pragmatic DnD: the grip handle is the draggable source, the row is the drop target.
-  useEffect(() => {
-    const rowEl = rowRef.current;
-    const handleEl = handleRef.current;
-    if (!rowEl || !handleEl) return;
-
-    return combine(
-      draggable({
-        element: handleEl,
-        getInitialData: () => ({ termId: item.term.id }),
-        onDragStart: () => setIsDragging(true),
-        onDrop: () => setIsDragging(false),
-      }),
-      dropTargetForElements({
-        element: rowEl,
-        getData: () => ({ termId: item.term.id }),
-        onDragEnter: () => setIsDragOver(true),
-        onDragLeave: () => setIsDragOver(false),
-        onDrop: ({ source }) => {
-          setIsDragOver(false);
-          const sourceId = (source.data as { termId?: string }).termId;
-          if (sourceId && sourceId !== item.term.id) onDropOn(sourceId, item.term.id);
-        },
-      }),
-    );
-  }, [item.term.id, onDropOn]);
 
   const sharedLabel =
     item.subjectCount <= 1
@@ -182,11 +153,8 @@ function DraggableTermRow({
   return (
     <div
       ref={rowRef}
-      {...stylex.props(
-        styles.row,
-        isDragging && styles.rowDragging,
-        isDragOver && styles.rowDragOver,
-      )}
+      data-term-id={item.term.id}
+      {...stylex.props(styles.row)}
     >
       <IconButton
         ref={handleRef}
@@ -251,6 +219,182 @@ function DraggableTermRow({
  * available via drag handle and via keyboard-accessible up/down buttons.
  */
 export default function SubjectTermList({ terms, onReorder, onRemove }: SubjectTermListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const draggablesRef = useRef<Map<string, Draggable>>(new Map());
+  const dragOriginIndexRef = useRef(-1);
+  const candidateIndexRef = useRef(-1);
+  const wasDraggedRef = useRef(false);
+
+  const termsRef = useRef(terms);
+  useLayoutEffect(() => {
+    termsRef.current = terms;
+  });
+
+  useLayoutEffect(() => {
+    const listEl = listRef.current;
+    if (!listEl) return;
+
+    const currentIds = new Set(terms.map((t) => t.term.id));
+    for (const [id, instance] of Array.from(draggablesRef.current.entries())) {
+      if (!currentIds.has(id)) {
+        instance.kill();
+        draggablesRef.current.delete(id);
+      }
+    }
+
+    for (const item of terms) {
+      const termId = item.term.id;
+      const rowEl = listEl.querySelector<HTMLElement>(`[data-term-id="${termId}"]`);
+      if (!rowEl) continue;
+      const handleEl = rowEl.querySelector<HTMLElement>('[data-drag-handle="true"]');
+      if (!handleEl) continue;
+
+      const existing = Draggable.get(rowEl);
+      if (existing) {
+        draggablesRef.current.set(termId, existing as Draggable);
+        continue;
+      }
+
+      const [instance] = Draggable.create(rowEl, {
+        trigger: handleEl,
+        type: 'y',
+        lockAxis: true,
+        zIndexBoost: false,
+        cursor: 'grab',
+        activeCursor: 'grabbing',
+        onPress(this: Draggable) {
+          wasDraggedRef.current = false;
+          // Resolve the origin from the live list rather than a closure
+          // snapshot: Draggable instances are reused across reorders, so a
+          // captured index map goes stale after the first successful move.
+          const indexMap = new Map(termsRef.current.map(({ term }, idx) => [term.id, idx]));
+          const fromIdx = indexMap.get(termId) ?? -1;
+          dragOriginIndexRef.current = fromIdx;
+          candidateIndexRef.current = fromIdx;
+
+          gsap.set(rowEl, { zIndex: 100 });
+          gsap.to(rowEl, {
+            scale: 1.01,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+            duration: 0.15,
+            overwrite: 'auto',
+          });
+        },
+        onDrag(this: Draggable) {
+          wasDraggedRef.current = true;
+          const currentList = termsRef.current;
+          const fromIdx = dragOriginIndexRef.current;
+          if (fromIdx === -1) return;
+
+          const listRect = listEl.getBoundingClientRect();
+          const rowRect = rowEl.getBoundingClientRect();
+          const dragCenterY = rowRect.top - listRect.top + rowRect.height / 2;
+
+          const rows = Array.from(listEl.querySelectorAll<HTMLElement>('[data-term-id]'));
+          if (!rows.length) return;
+          const rowHeight = rows[0].offsetHeight;
+          const gap = 8;
+
+          const rawCandidate = Math.floor(dragCenterY / (rowHeight + gap));
+          const candidateIdx = Math.max(0, Math.min(currentList.length - 1, rawCandidate));
+
+          const prevCand = candidateIndexRef.current;
+          if (candidateIdx !== prevCand) {
+            const prevCenterY = prevCand * (rowHeight + gap) + rowHeight / 2;
+            const dist = Math.abs(dragCenterY - prevCenterY);
+            if (dist < 15) return;
+            candidateIndexRef.current = candidateIdx;
+          }
+
+          const toIdx = candidateIndexRef.current;
+
+          currentList.forEach((t, i) => {
+            const currentTermId = t.term.id;
+            if (currentTermId === termId) return;
+            const siblingEl = listEl.querySelector<HTMLElement>(`[data-term-id="${currentTermId}"]`);
+            if (!siblingEl) return;
+
+            let newSlot = i;
+            if (fromIdx < toIdx && i > fromIdx && i <= toIdx) {
+              newSlot = i - 1;
+            } else if (fromIdx > toIdx && i >= toIdx && i < fromIdx) {
+              newSlot = i + 1;
+            }
+
+            const dy = (newSlot - i) * (rowHeight + gap);
+            gsap.to(siblingEl, {
+              y: dy,
+              duration: 0.3,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            });
+          });
+        },
+        onRelease(this: Draggable) {
+          const fromIdx = dragOriginIndexRef.current;
+          const toIdx = candidateIndexRef.current;
+          const rows = Array.from(listEl.querySelectorAll<HTMLElement>('[data-term-id]'));
+          const rowHeight = rows[0]?.offsetHeight ?? 60;
+          const gap = 8;
+
+          if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+            const finalDy = (toIdx - fromIdx) * (rowHeight + gap);
+
+            gsap.to(rowEl, {
+              y: finalDy,
+              scale: 1,
+              boxShadow: 'none',
+              duration: 0.2,
+              ease: 'power2.out',
+              overwrite: 'auto',
+              onComplete: () => {
+                const next = [...termsRef.current];
+                const [moved] = next.splice(fromIdx, 1);
+                next.splice(toIdx, 0, moved);
+                onReorder(next.map((t) => t.term.id));
+
+                const allRows = listEl.querySelectorAll<HTMLElement>('[data-term-id]');
+                // Kill the sibling displacement tweens (0.3s, restarted every
+                // pointermove) before clearing transforms — otherwise one can
+                // still be running when clearProps fires and will re-apply its
+                // y, leaving the sibling displaced out of its slot. Defer the
+                // clearProps one frame so the reorder has committed to the DOM.
+                gsap.killTweensOf(allRows, 'y');
+                requestAnimationFrame(() => {
+                  allRows.forEach((r) => gsap.set(r, { clearProps: 'zIndex,y' }));
+                });
+              },
+            });
+          } else {
+            gsap.to(rowEl, {
+              y: 0,
+              scale: 1,
+              boxShadow: 'none',
+              duration: 0.15,
+              ease: 'power2.out',
+              overwrite: 'auto',
+              onComplete: () => {
+                gsap.set(rowEl, { clearProps: 'zIndex,y' });
+              },
+            });
+          }
+        },
+      });
+
+      draggablesRef.current.set(item.term.id, instance);
+    }
+  }, [terms, onReorder]);
+
+  useEffect(() => {
+    const draggables = draggablesRef.current;
+    return () => {
+      for (const instance of draggables.values()) {
+        instance.kill();
+      }
+      draggables.clear();
+    };
+  }, []);
+
   // Shared move helper: moves the term at fromIndex to toIndex (splice + insert).
   const moveTermTo = useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -263,16 +407,6 @@ export default function SubjectTermList({ terms, onReorder, onRemove }: SubjectT
     [terms, onReorder],
   );
 
-  const handleDropOn = useCallback(
-    (sourceId: string, targetId: string) => {
-      const sourceIndex = terms.findIndex((t) => t.term.id === sourceId);
-      const targetIndex = terms.findIndex((t) => t.term.id === targetId);
-      if (sourceIndex === -1 || targetIndex === -1) return;
-      moveTermTo(sourceIndex, targetIndex);
-    },
-    [terms, moveTermTo],
-  );
-
   const handleMove = useCallback(
     (index: number, direction: -1 | 1) => {
       moveTermTo(index, index + direction);
@@ -281,7 +415,7 @@ export default function SubjectTermList({ terms, onReorder, onRemove }: SubjectT
   );
 
   return (
-    <div {...stylex.props(styles.list)}>
+    <div ref={listRef} {...stylex.props(styles.list)}>
       {terms.map((item, index) => (
         <DraggableTermRow
           key={item.term.id}
@@ -291,10 +425,10 @@ export default function SubjectTermList({ terms, onReorder, onRemove }: SubjectT
           canMoveDown={index < terms.length - 1}
           onMoveUp={() => handleMove(index, -1)}
           onMoveDown={() => handleMove(index, 1)}
-          onDropOn={handleDropOn}
           onRemove={onRemove}
         />
       ))}
     </div>
   );
 }
+

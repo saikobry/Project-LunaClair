@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useCallback, useLayoutEffect, type PointerEvent } from 'react';
 import gsap from 'gsap';
+import { Draggable } from 'gsap/Draggable';
 import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
 import {
@@ -9,21 +10,16 @@ import {
   Trash2,
   ArrowUpDown,
 } from 'lucide-react';
-import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import type { Subject } from '../../../../domain/library';
 import { Card } from '../../../../shared/ui/Card';
 import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
+
+gsap.registerPlugin(Draggable);
 
 // Pixels of pointer movement tolerated during a long-press before treating
 // it as an intentional scroll/drag rather than a still hold.
 const LONG_PRESS_MOVE_THRESHOLD = 10;
 const LONG_PRESS_DURATION_MS = 400;
-
-const dropzonePulse = stylex.keyframes({
-  '0%': { opacity: 0.4, transform: 'scale(1)' },
-  '100%': { opacity: 0.95, transform: 'scale(1)' },
-});
 
 const styles = stylex.create({
   section: {
@@ -62,29 +58,6 @@ const styles = stylex.create({
     ':hover': {
       transform: 'translateY(-2px)',
     },
-  },
-  subjectCardDragging: {
-    opacity: 0.35,
-    transform: 'scale(0.97)',
-  },
-  subjectCardDragOver: {
-    position: 'relative',
-    zIndex: 5,
-  },
-  dropTargetGlow: {
-    position: 'absolute',
-    inset: -5,
-    borderRadius: 20,
-    pointerEvents: 'none',
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    borderColor: 'var(--color-accent)',
-    backgroundColor: 'var(--color-accent-muted)',
-    animationName: dropzonePulse,
-    animationDuration: '1.2s',
-    animationIterationCount: 'infinite',
-    animationDirection: 'alternate',
-    zIndex: 10,
   },
   reorderModeCard: {
     cursor: 'grab',
@@ -241,25 +214,24 @@ function DraggableSubjectCard({
   isReorderMode,
   isMoved,
   onEnterReorderMode,
-  onDropCard,
   onOpen,
   onEdit,
   onDelete,
+  suppressClickRef,
+  suppressedCardIdRef,
 }: {
   subject: Subject;
   materialCount: number;
   isReorderMode: boolean;
   isMoved: boolean;
   onEnterReorderMode: () => void;
-  onDropCard: (sourceId: string, targetId: string) => void;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  suppressClickRef: React.RefObject<boolean>;
+  suppressedCardIdRef: React.RefObject<string | null>;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-
-  const [isDragging, setIsDragging] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -313,7 +285,7 @@ function DraggableSubjectCard({
 
   const resetCardTransform = () => {
     const el = cardRef.current;
-    if (el && !isReorderMode && !isDragging) {
+    if (el && !isReorderMode) {
       gsap.to(el, {
         scale: 1,
         rotate: 0,
@@ -342,94 +314,29 @@ function DraggableSubjectCard({
     resetCardTransform();
   };
 
-  // ── Pragmatic DnD Setup ──
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-
-    return combine(
-      draggable({
-        element: el,
-        canDrag: () => isReorderMode,
-        getInitialData: () => ({ id: subject.id }),
-        onDragStart: () => {
-          setIsDragging(true);
-          requestAnimationFrame(() => {
-            gsap.to(el, {
-              scale: 1.03,
-              opacity: 0.7,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              duration: 0.2,
-              ease: 'power2.out',
-              overwrite: 'auto',
-            });
-          });
-        },
-        onDrop: () => {
-          setIsDragging(false);
-          gsap.to(el, {
-            scale: 1,
-            opacity: 1,
-            boxShadow: 'none',
-            duration: 0.25,
-            ease: 'back.out(1.2)',
-            overwrite: 'auto',
-          });
-        },
-      }),
-      dropTargetForElements({
-        element: el,
-        canDrop: () => isReorderMode,
-        getData: () => ({ id: subject.id }),
-        onDragEnter: ({ source }) => {
-          if (source.data.id !== subject.id) {
-            setIsDragOver(true);
-            gsap.to(el, { scale: 1.02, duration: 0.15, ease: 'power1.out', overwrite: 'auto' });
-          }
-        },
-        onDragLeave: () => {
-          setIsDragOver(false);
-          gsap.to(el, { scale: 1, duration: 0.15, overwrite: 'auto' });
-        },
-        onDrop: ({ source }) => {
-          setIsDragOver(false);
-          gsap.to(el, { scale: 1, duration: 0.1, overwrite: 'auto' });
-
-          if (source.data.id !== subject.id) {
-            onDropCard(source.data.id as string, subject.id);
-          }
-        },
-      }),
-    );
-  }, [subject.id, isReorderMode, onDropCard]);
-
   return (
     <div
       ref={cardRef}
       data-subject-id={subject.id}
-      draggable={isReorderMode}
       {...stylex.props(
-        isDragging && styles.subjectCardDragging,
-        isDragOver && styles.subjectCardDragOver,
         isReorderMode && styles.reorderModeCard,
         isReorderMode && isMoved && styles.movedCardBorder,
       )}
       data-animate="stagger-card"
       style={{
         position: 'relative',
-        userSelect: isDragging ? 'none' : 'auto',
         height: '100%',
         borderRadius: 16,
       }}
     >
-      {/* Animated Drop Target Glow Ring — shown only when this card is being hovered as a drop zone */}
-      {isReorderMode && isDragOver && (
-        <div {...stylex.props(styles.dropTargetGlow)} />
-      )}
       <Card>
         <div
           {...stylex.props(styles.subjectCard)}
-          onClick={() => { if (!isReorderMode) onOpen(); }}
+          onClick={() => {
+            if (!isReorderMode && !(suppressClickRef.current && suppressedCardIdRef.current === subject.id)) {
+              onOpen();
+            }
+          }}
           onPointerDown={startPress}
           onPointerUp={endPress}
           onPointerMove={handlePointerMove}
@@ -490,6 +397,387 @@ function DraggableSubjectCard({
 }
 
 // ── Parent Grid Component ─────────────────────────────────────────
+// ── Subcomponents & Hooks ─────────────────────────────────────────
+
+interface SubjectGridHeaderProps {
+  isReorderMode: boolean;
+  hasUnsavedChanges: boolean;
+  isSavingReorder: boolean;
+  onEnterReorder: () => void;
+  onCancelReorder: () => void;
+  onSaveReorder: () => void;
+}
+
+function SubjectGridHeader({
+  isReorderMode,
+  hasUnsavedChanges,
+  isSavingReorder,
+  onEnterReorder,
+  onCancelReorder,
+  onSaveReorder,
+}: SubjectGridHeaderProps) {
+  return (
+    <div {...stylex.props(styles.sectionHeader)}>
+      <h2 {...stylex.props(styles.sectionTitle)}>Subjects</h2>
+
+      <div {...stylex.props(styles.actionRow)}>
+        {isReorderMode && hasUnsavedChanges && (
+          <span {...stylex.props(styles.unsavedPill)}>Unsaved changes</span>
+        )}
+
+        {isReorderMode ? (
+          <>
+            <button
+              {...stylex.props(
+                styles.cancelButton,
+                isSavingReorder && styles.cancelButtonDisabled,
+              )}
+              onClick={onCancelReorder}
+              disabled={isSavingReorder}
+            >
+              Cancel
+            </button>
+            <button
+              {...stylex.props(
+                styles.saveButton,
+                isSavingReorder && styles.saveButtonDisabled,
+              )}
+              onClick={onSaveReorder}
+              disabled={isSavingReorder}
+            >
+              {isSavingReorder ? 'Saving...' : 'Save Order'}
+            </button>
+          </>
+        ) : (
+          <button
+            {...stylex.props(styles.reorderToggleBtn)}
+            onClick={onEnterReorder}
+          >
+            <ArrowUpDown size={14} />
+            Reorder
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface UseSubjectGridReorderOptions {
+  subjects: Subject[];
+  isSavingReorder: boolean;
+  onSubjectReorder: (orderedIds: string[]) => void;
+  subjectsGridRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function useSubjectGridReorder({
+  subjects,
+  isSavingReorder,
+  onSubjectReorder,
+  subjectsGridRef,
+}: UseSubjectGridReorderOptions) {
+  // ── Reorder & Preview State ──
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [prevSubjects, setPrevSubjects] = useState(subjects);
+  const [previewSubjects, setPreviewSubjects] = useState<Subject[]>(subjects);
+
+  if (subjects !== prevSubjects) {
+    setPrevSubjects(subjects);
+    if (!isReorderMode) {
+      setPreviewSubjects(subjects);
+    }
+  }
+
+  // ── GSAP Draggable Reorder Registry & Math Engine ──
+  const draggablesRef = useRef<Map<string, Draggable>>(new Map());
+  const wasDraggedRef = useRef(false);
+  const dragOriginIndexRef = useRef(-1);
+  const candidateIndexRef = useRef(-1);
+
+  const suppressClickRef = useRef(false);
+  const suppressedCardIdRef = useRef<string | null>(null);
+  const suppressTimerRef = useRef<number | null>(null);
+
+  const previewSubjectsRef = useRef(previewSubjects);
+  useLayoutEffect(() => {
+    previewSubjectsRef.current = previewSubjects;
+  });
+
+  const colCountRef = useRef(1);
+  const cardDimsRef = useRef<{ width: number; height: number; gap: number }>({ width: 280, height: 160, gap: 16 });
+
+  const updateGridMetrics = useCallback(() => {
+    const gridEl = subjectsGridRef.current;
+    if (!gridEl) return;
+    const cards = gridEl.querySelectorAll<HTMLElement>('[data-subject-id]');
+    if (!cards.length) return;
+
+    const firstCard = cards[0];
+    const cardWidth = firstCard.offsetWidth;
+    const cardHeight = firstCard.offsetHeight;
+    const gap = 16;
+
+    const templateColumns = getComputedStyle(gridEl).gridTemplateColumns;
+    const colCount =
+      templateColumns && templateColumns !== 'none'
+        ? Math.max(1, templateColumns.split(' ').length)
+        : Math.max(1, Math.floor((gridEl.clientWidth + gap) / (cardWidth + gap)));
+
+    colCountRef.current = colCount;
+    cardDimsRef.current = { width: cardWidth, height: cardHeight, gap };
+  }, [subjectsGridRef]);
+
+  useLayoutEffect(() => {
+    updateGridMetrics();
+    const gridEl = subjectsGridRef.current;
+    if (!gridEl) return;
+
+    const observer = new ResizeObserver(() => {
+      updateGridMetrics();
+    });
+    observer.observe(gridEl);
+
+    return () => observer.disconnect();
+  }, [updateGridMetrics, previewSubjects, subjectsGridRef]);
+
+  useLayoutEffect(() => {
+    const gridEl = subjectsGridRef.current;
+    if (!gridEl || !isReorderMode) {
+      for (const instance of draggablesRef.current.values()) {
+        instance.kill();
+      }
+      draggablesRef.current.clear();
+      return;
+    }
+
+    const currentIds = new Set(previewSubjects.map((s) => s.id));
+    for (const [id, instance] of Array.from(draggablesRef.current.entries())) {
+      if (!currentIds.has(id)) {
+        instance.kill();
+        draggablesRef.current.delete(id);
+      }
+    }
+
+    for (const subject of previewSubjects) {
+      const cardEl = gridEl.querySelector<HTMLElement>(`[data-subject-id="${subject.id}"]`);
+      if (!cardEl) continue;
+
+      const existing = Draggable.get(cardEl);
+      if (existing) {
+        draggablesRef.current.set(subject.id, existing as Draggable);
+        continue;
+      }
+
+      const [instance] = Draggable.create(cardEl, {
+        type: 'x,y',
+        zIndexBoost: false,
+        cursor: 'grab',
+        activeCursor: 'grabbing',
+        onPress(this: Draggable) {
+          wasDraggedRef.current = false;
+          const indexMap = new Map(previewSubjectsRef.current.map((s, idx) => [s.id, idx]));
+          const fromIdx = indexMap.get(subject.id) ?? -1;
+          dragOriginIndexRef.current = fromIdx;
+          candidateIndexRef.current = fromIdx;
+
+          gsap.set(cardEl, { zIndex: 1000 });
+          gsap.to(cardEl, {
+            scale: 1.03,
+            boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+            duration: 0.2,
+            overwrite: 'auto',
+          });
+        },
+        onDragStart(this: Draggable) {
+          updateGridMetrics();
+        },
+        onDrag(this: Draggable) {
+          wasDraggedRef.current = true;
+          const currentList = previewSubjectsRef.current;
+          const fromIdx = dragOriginIndexRef.current;
+          if (fromIdx === -1) return;
+
+          const gridRect = gridEl.getBoundingClientRect();
+          const cardRect = cardEl.getBoundingClientRect();
+          const centerX = cardRect.left - gridRect.left + cardRect.width / 2;
+          const centerY = cardRect.top - gridRect.top + cardRect.height / 2;
+
+          const { width: cardW, height: cardH, gap } = cardDimsRef.current;
+          const cols = colCountRef.current;
+
+          const targetCol = Math.max(0, Math.min(cols - 1, Math.floor(centerX / (cardW + gap))));
+          const targetRow = Math.max(0, Math.floor(centerY / (cardH + gap)));
+          const rawTargetIndex = targetRow * cols + targetCol;
+          const candidateIdx = Math.max(0, Math.min(currentList.length - 1, rawTargetIndex));
+
+          const prevCandidate = candidateIndexRef.current;
+          if (candidateIdx !== prevCandidate) {
+            const candCol = prevCandidate % cols;
+            const candRow = Math.floor(prevCandidate / cols);
+            const candCenterX = candCol * (cardW + gap) + cardW / 2;
+            const candCenterY = candRow * (cardH + gap) + cardH / 2;
+
+            const dist = Math.hypot(centerX - candCenterX, centerY - candCenterY);
+            const SWAP_EPSILON = 20;
+            if (dist < SWAP_EPSILON) return;
+
+            candidateIndexRef.current = candidateIdx;
+          }
+
+          const toIdx = candidateIndexRef.current;
+
+          currentList.forEach((item, i) => {
+            if (item.id === subject.id) return;
+            const itemEl = gridEl.querySelector<HTMLElement>(`[data-subject-id="${item.id}"]`);
+            if (!itemEl) return;
+
+            let newSlot = i;
+            if (fromIdx < toIdx && i > fromIdx && i <= toIdx) {
+              newSlot = i - 1;
+            } else if (fromIdx > toIdx && i >= toIdx && i < fromIdx) {
+              newSlot = i + 1;
+            }
+
+            const originCol = i % cols;
+            const originRow = Math.floor(i / cols);
+            const slotCol = newSlot % cols;
+            const slotRow = Math.floor(newSlot / cols);
+
+            const dx = (slotCol - originCol) * (cardW + gap);
+            const dy = (slotRow - originRow) * (cardH + gap);
+
+            gsap.to(itemEl, {
+              x: dx,
+              y: dy,
+              duration: 0.3,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            });
+          });
+        },
+        onRelease(this: Draggable) {
+          const fromIdx = dragOriginIndexRef.current;
+          const toIdx = candidateIndexRef.current;
+          const { width: cardW, height: cardH, gap } = cardDimsRef.current;
+          const cols = colCountRef.current;
+
+          if (wasDraggedRef.current) {
+            suppressClickRef.current = true;
+            suppressedCardIdRef.current = subject.id;
+            if (suppressTimerRef.current !== null) clearTimeout(suppressTimerRef.current);
+            suppressTimerRef.current = window.setTimeout(() => {
+              suppressClickRef.current = false;
+              suppressedCardIdRef.current = null;
+              suppressTimerRef.current = null;
+            }, 150);
+          }
+
+          if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+            const originCol = fromIdx % cols;
+            const originRow = Math.floor(fromIdx / cols);
+            const slotCol = toIdx % cols;
+            const slotRow = Math.floor(toIdx / cols);
+
+            const finalDx = (slotCol - originCol) * (cardW + gap);
+            const finalDy = (slotRow - originRow) * (cardH + gap);
+
+            gsap.to(cardEl, {
+              x: finalDx,
+              y: finalDy,
+              scale: 1,
+              boxShadow: 'none',
+              duration: 0.25,
+              ease: 'power2.out',
+              overwrite: 'auto',
+              onComplete: () => {
+                setPreviewSubjects((prev) => {
+                  const updated = [...prev];
+                  const [moved] = updated.splice(fromIdx, 1);
+                  updated.splice(toIdx, 0, moved);
+                  return updated;
+                });
+
+                const allCards = gridEl.querySelectorAll<HTMLElement>('[data-subject-id]');
+                gsap.killTweensOf(allCards, 'x,y');
+                requestAnimationFrame(() => {
+                  allCards.forEach((card) => {
+                    gsap.set(card, { clearProps: 'zIndex,x,y' });
+                  });
+                });
+              },
+            });
+          } else {
+            gsap.to(cardEl, {
+              x: 0,
+              y: 0,
+              scale: 1,
+              boxShadow: 'none',
+              duration: 0.2,
+              ease: 'power2.out',
+              overwrite: 'auto',
+              onComplete: () => {
+                gsap.set(cardEl, { clearProps: 'zIndex,x,y' });
+              },
+            });
+          }
+        },
+      });
+
+      draggablesRef.current.set(subject.id, instance);
+    }
+  }, [previewSubjects, isReorderMode, setPreviewSubjects, updateGridMetrics, subjectsGridRef]);
+
+  useEffect(() => {
+    const draggables = draggablesRef.current;
+    return () => {
+      for (const instance of draggables.values()) {
+        instance.kill();
+      }
+      draggables.clear();
+      if (suppressTimerRef.current !== null) clearTimeout(suppressTimerRef.current);
+    };
+  }, []);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (previewSubjects.length !== subjects.length) return true;
+    return previewSubjects.some((sub, i) => sub.id !== subjects[i]?.id);
+  }, [previewSubjects, subjects]);
+
+  const getIsMoved = useCallback(
+    (subjectId: string, index: number): boolean => subjects[index]?.id !== subjectId,
+    [subjects],
+  );
+
+  const handleEnterReorder = useCallback(() => {
+    setPreviewSubjects((prev) => (prev.length ? prev : [...subjects]));
+    setIsReorderMode(true);
+  }, [subjects]);
+
+  const handleCancelReorder = () => {
+    if (isSavingReorder) return;
+    setPreviewSubjects([...subjects]);
+    setIsReorderMode(false);
+  };
+
+  const handleSaveReorder = () => {
+    if (isSavingReorder) return;
+    onSubjectReorder(previewSubjects.map((s) => s.id));
+    setIsReorderMode(false);
+  };
+
+  return {
+    isReorderMode,
+    previewSubjects,
+    hasUnsavedChanges,
+    handleEnterReorder,
+    handleCancelReorder,
+    handleSaveReorder,
+    suppressClickRef,
+    suppressedCardIdRef,
+    getIsMoved,
+  };
+}
+
+// ── Parent Grid Component ─────────────────────────────────────────
 interface SubjectCardGridProps {
   subjects: Subject[];
   allMaterials: Array<{ subjectId?: string | null }>;
@@ -511,63 +799,22 @@ export default function SubjectCardGrid({
 }: SubjectCardGridProps) {
   const subjectsGridRef = useRef<HTMLDivElement>(null);
 
-  // ── Reorder & Preview State ──
-  const [isReorderMode, setIsReorderMode] = useState(false);
-  const [previewSubjects, setPreviewSubjects] = useState<Subject[]>(subjects);
-
-  // Keep preview in sync when parent subjects change outside reorder mode
-  useEffect(() => {
-    if (!isReorderMode) {
-      setPreviewSubjects(subjects);
-    }
-  }, [subjects, isReorderMode]);
-
-  // ── GSAP FLIP position transition for smooth 60fps displacement ──
-  const cardPositions = useRef<Map<string, DOMRect>>(new Map());
-  const prevOrderRef = useRef<string[]>([]);
-
-  useLayoutEffect(() => {
-    if (!subjectsGridRef.current) return;
-    const currentOrder = previewSubjects.map((s) => s.id);
-    const orderChanged =
-      prevOrderRef.current.length === currentOrder.length &&
-      prevOrderRef.current.some((id, i) => id !== currentOrder[i]);
-
-    prevOrderRef.current = currentOrder;
-
-    const cards = subjectsGridRef.current.querySelectorAll<HTMLElement>('[data-subject-id]');
-
-    if (!orderChanged) {
-      // Order didn't change — update stored rects without triggering FLIP transforms
-      cards.forEach((card) => {
-        const id = card.getAttribute('data-subject-id');
-        if (id) cardPositions.current.set(id, card.getBoundingClientRect());
-      });
-      return;
-    }
-
-    // Order changed — animate cards gliding from previous rect to new rect
-    cards.forEach((card) => {
-      const id = card.getAttribute('data-subject-id');
-      if (!id) return;
-      const newRect = card.getBoundingClientRect();
-      const prevRect = cardPositions.current.get(id);
-
-      if (prevRect) {
-        const dx = prevRect.left - newRect.left;
-        const dy = prevRect.top - newRect.top;
-        // Ignore minor sub-pixel or scale-induced bounding box shifts (< 5px)
-        if (Math.hypot(dx, dy) > 5) {
-          gsap.fromTo(
-            card,
-            { x: dx, y: dy },
-            { x: 0, y: 0, duration: 0.25, ease: 'power2.out', overwrite: 'auto' },
-          );
-        }
-      }
-      cardPositions.current.set(id, newRect);
-    });
-  }, [previewSubjects]);
+  const {
+    isReorderMode,
+    previewSubjects,
+    hasUnsavedChanges,
+    handleEnterReorder,
+    handleCancelReorder,
+    handleSaveReorder,
+    suppressClickRef,
+    suppressedCardIdRef,
+    getIsMoved,
+  } = useSubjectGridReorder({
+    subjects,
+    isSavingReorder,
+    onSubjectReorder,
+    subjectsGridRef,
+  });
 
   // ── Precomputed material counts ──
   const materialCountBySubjectId = useMemo(() => {
@@ -578,49 +825,6 @@ export default function SubjectCardGrid({
     }
     return counts;
   }, [allMaterials]);
-
-  // ── Corrected swap handler — places moved item at target position ──
-  const handleDropReorder = useCallback((sourceId: string, targetId: string) => {
-    setPreviewSubjects((prev) => {
-      const sourceIdx = prev.findIndex((s) => s.id === sourceId);
-      const targetIdx = prev.findIndex((s) => s.id === targetId);
-      if (sourceIdx === -1 || targetIdx === -1 || sourceIdx === targetIdx) return prev;
-
-      const updated = [...prev];
-      const [moved] = updated.splice(sourceIdx, 1);
-      updated.splice(targetIdx, 0, moved);
-      return updated;
-    });
-  }, []);
-
-  // ── Derived state ──
-  const hasUnsavedChanges = useMemo(() => {
-    if (previewSubjects.length !== subjects.length) return true;
-    return previewSubjects.some((sub, i) => sub.id !== subjects[i]?.id);
-  }, [previewSubjects, subjects]);
-
-  const getIsMoved = useCallback(
-    (subjectId: string, index: number): boolean => subjects[index]?.id !== subjectId,
-    [subjects],
-  );
-
-  // ── Event handlers ──
-  const handleEnterReorder = useCallback(() => {
-    setPreviewSubjects((prev) => (prev.length ? prev : [...subjects]));
-    setIsReorderMode(true);
-  }, [subjects]);
-
-  const handleCancelReorder = () => {
-    if (isSavingReorder) return;
-    setPreviewSubjects([...subjects]);
-    setIsReorderMode(false);
-  };
-
-  const handleSaveReorder = () => {
-    if (isSavingReorder) return;
-    onSubjectReorder(previewSubjects.map((s) => s.id));
-    setIsReorderMode(false);
-  };
 
   // Parent controls the initial staggered entrance animation
   useGSAP(() => {
@@ -636,48 +840,14 @@ export default function SubjectCardGrid({
 
   return (
     <div {...stylex.props(styles.section)}>
-      <div {...stylex.props(styles.sectionHeader)}>
-        <h2 {...stylex.props(styles.sectionTitle)}>Subjects</h2>
-
-        <div {...stylex.props(styles.actionRow)}>
-          {isReorderMode && hasUnsavedChanges && (
-            <span {...stylex.props(styles.unsavedPill)}>Unsaved changes</span>
-          )}
-
-          {isReorderMode ? (
-            <>
-              <button
-                {...stylex.props(
-                  styles.cancelButton,
-                  isSavingReorder && styles.cancelButtonDisabled,
-                )}
-                onClick={handleCancelReorder}
-                disabled={isSavingReorder}
-              >
-                Cancel
-              </button>
-              <button
-                {...stylex.props(
-                  styles.saveButton,
-                  isSavingReorder && styles.saveButtonDisabled,
-                )}
-                onClick={handleSaveReorder}
-                disabled={isSavingReorder}
-              >
-                {isSavingReorder ? 'Saving...' : 'Save Order'}
-              </button>
-            </>
-          ) : (
-            <button
-              {...stylex.props(styles.reorderToggleBtn)}
-              onClick={handleEnterReorder}
-            >
-              <ArrowUpDown size={14} />
-              Reorder
-            </button>
-          )}
-        </div>
-      </div>
+      <SubjectGridHeader
+        isReorderMode={isReorderMode}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isSavingReorder={isSavingReorder}
+        onEnterReorder={handleEnterReorder}
+        onCancelReorder={handleCancelReorder}
+        onSaveReorder={handleSaveReorder}
+      />
 
       <div
         ref={subjectsGridRef}
@@ -694,14 +864,16 @@ export default function SubjectCardGrid({
             isReorderMode={isReorderMode}
             isMoved={getIsMoved(subject.id, index)}
             onEnterReorderMode={handleEnterReorder}
-            onDropCard={handleDropReorder}
             onOpen={() => onOpenSubject(subject.id)}
             onEdit={() => onSubjectEdit(subject)}
             onDelete={() => onSubjectDelete(subject)}
+            suppressClickRef={suppressClickRef}
+            suppressedCardIdRef={suppressedCardIdRef}
           />
         ))}
       </div>
     </div>
   );
 }
+
 
