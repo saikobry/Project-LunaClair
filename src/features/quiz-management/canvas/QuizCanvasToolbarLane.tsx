@@ -1,10 +1,10 @@
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import type { QuizCanvas } from '../hooks/useQuizCanvas';
+import type { QuizCanvas } from './hooks/useQuizCanvas';
 import { QuizCanvasCardToolbar } from './QuizCanvasCardToolbar';
 import { QuizCanvasPinVisualizer } from './QuizCanvasPinVisualizer';
 
@@ -80,6 +80,9 @@ interface VelocitySample {
     v: number;
     at: number;
 }
+
+/** Scroll-pin state. */
+type PinState = 'anchored' | 'top' | 'bottom';
 
 /**
  * Read a velocity sample with exponential decay toward 0 once scrolling stops
@@ -176,170 +179,46 @@ export interface QuizCanvasToolbarLaneProps {
     onImportFromBank: (index: number) => void;
 }
 
+// ── Section hooks ──────────────────────────────────────────────────────────
+// The toolbar lane's motion subsystems (resting-target computation, rAF follow
+// loop, scroll-pin evaluator) live in focused hooks below so the component
+// stays readable. Shared refs/state are created in the component and threaded
+// in as parameters; hook call order mirrors the original effect order, which
+// preserves layout-effect sequencing (the resting-target ref sync must run
+// before the pin evaluator's layout pass).
+
 /**
- * Decoupled right toolbar lane component (rAF Follow Loop — Resting-Position
- * Model).
- *
- * The toolbar glides toward the active card's RESTING top: where its top edge
- * WILL be once every card above it is at its resting (collapsed) height. That
- * target is computed from state — the per-card collapsed-height cache (with a
- * `COMPACT_HEIGHT`-style fallback for never-sampled cards) plus a
- * deterministic error-callout estimate from the `errors` prop — and is a
- * CONSTANT while the layout animates. There is nothing to race against, no
- * timing bet, and no wait: the one 0.35s glide runs in parallel with the card
- * collapse, and they arrive together.
- *
- * - Transition: while the live layout is still moving (collapse/reflow), issue
- *   ONE long glide to the constant resting target. Chasing a constant means no
- *   dip/wobble (the target never moves under us) and no re-issued tween drag.
- * - Drift-verify: once the live position holds still for `SETTLE_FRAMES`,
- *   reality wins — if the estimate missed (e.g. callout line-count
- *   approximation), the loop corrects with short snappy nudges, then stops
- *   polling.
- * - Cache contract: heights come from `QuizCanvasQuestionList`'s self-healing
- *   `collapsedHeightsRef` (error-free inactive cards at settle; callout
- *   mount/unmount re-samples via ResizeObserver). The old active card's
- *   collapsed height is its cache entry (last sampled while inactive) — never
- *   a live read of its mid-collapse rect.
- * - Idle wake: `ResizeObserver` on the target node + the title card (its
- *   height change moves the grid, shifting the resting target) + `window
- *   resize`.
- * - Drag freeze: while a card is dragged the loop is suspended (toolbar stays
- *   frozen); on release the `isDragging` dependency re-runs it and it glides
- *   to the resting target at the new slot.
- * - Meta Card fallback: anchors at the lane origin (`y = 0`) beside the title
- *   card when `activeCardId` is null or not found.
- * - Scroll pinning: while the chase is anchored the toolbar scrolls with the
- *   content; the toolbar pins to the top or bottom edge (`position: fixed`,
- *   same lane column) the moment its hypothetical footprint's LEADING edge
- *   leaves the VIEWPORT's visible box (top: `hypoTop < topInset`, the sticky
- *   header's height; bottom: `hypoBottom > effectiveBottom = innerHeight −
- *   bottomInset`, the viewport bottom minus the shell's bottom-bar inset) —
- *   so it is ALREADY pinned the instant it would start scrolling out of
- *   view, a true sticky toolbar.
- *   Geometry-based (which side the footprint is leaving); scroll speed feeds
- *   only a short anticipation lead at the pin edges (≤ MAX_PIN_LEAD). Unpinning requires the footprint to fully clear both
- *   visible edges by the 40px `PIN_REENTER` margin (symmetric full-fit), and
- *   that gap between the pin line (the edge) and the gate (40px inside) is
- *   the hysteresis preventing anchored ↔ pinned flip-flop. While pinned the
- *   chase is suspended; unpinning converts the pinned viewport position back
- *   into the scroller's content space so the chase glides from where the
- *   toolbar visually was — no jump. Pinning is a continuous lock (0.25s ease
- *   from the toolbar's current on-screen position into the pinned position —
- *   no fade, since the edge-touch trigger pins while it is already at the
- *   edge); the unpin handoff is seamless and the return glide is owned by the
- *   chase re-arm.
- *   Trigger: NOT "does the card intersect" (an IntersectionObserver on the
- *   card fires too late — the toolbar is far shorter than an expanded card,
- *   so it is fully clipped while the card still "intersects" — and can't
- *   express a hypothetical rect for the wrapper, whose real rect is
- *   meaningless while `position: fixed`). Instead a scroll/rAF evaluator
- *   computes the toolbar's hypothetical anchored rect (the card's doc-space
- *   top + the toolbar's own height) against the viewport's visible box
- *   (below the sticky header, above the bottom bar). WINDOW-SCROLL mode: the
- *   page owns the scroll — events come from `window`, `scrollTop` is
- *   `window.scrollY`, and the visible box is `topInset` → `innerHeight −
- *   bottomInset` rather than a scroller element's rect.
- * - Mobile (<640px): clears inline transforms and any pin styles so the fixed
- *   viewport bottom bar operates cleanly.
+ * Resting target: the active card's top once every card above it is at its
+ * resting (collapsed) height. Computed from STATE — cache + fallback +
+ * deterministic callout estimate — so it is a constant while the layout
+ * animates (no live read of anything mid-transition). Shared by the chase (the
+ * one-glide endpoint), the pinning evaluator (the pin/unpin footprint), and
+ * the pinviz visualizer, so all act on the SAME stable position.
  */
-export function QuizCanvasToolbarLane({
-    items,
-    activeCardId,
-    draggingId,
-    titleCardRef,
-    gridRef,
-    canvasBodyRef,
-    cardWrapperMapRef,
-    collapsedHeights,
-    errors,
-    gutter = 20,
-    collapsedHeightFallback = 76,
-    canvas,
-    onFocusCard,
-    onImportFromBank,
-    bottomInset = 0,
-    topInset = 0,
-}: QuizCanvasToolbarLaneProps) {
-    const toolbarWrapperRef = useRef<HTMLDivElement | null>(null);
-    /** Shared scroll-speed sample (px/s + timestamp) — written by the evaluator's scroll listener, read by the chase and the pin lead. */
-    const velocityRef = useRef<VelocitySample>({ v: 0, at: 0 });
-    /** True while the follow loop is idle (has stopped polling) — gates lazy wake-ups. */
-    const followLoopSettledRef = useRef(true);
-    /**
-     * True while the toolbar is pinned to a viewport edge. Set synchronously
-     * by the pinning effect (outside React's commit) so the chase rAF can
-     * never tween the `position: fixed` wrapper in the one-frame gap between
-     * the pinning effect's DOM writes and the `pinState` commit.
-     */
-    const pinnedRef = useRef(false);
-    /**
-     * Scroll-pin state — while not 'anchored' the follow loop is suspended
-     * (the toolbar is pinned to a viewport edge, outside the chase's
-     * coordinate space).
-     */
-    const [pinState, setPinState] = useState<'anchored' | 'top' | 'bottom'>('anchored');
+function useRestingTarget(params: {
+    effectiveIndex: number;
+    errors?: QuizDraftErrors | null;
+    collapsedHeights?: Map<string, number>;
+    collapsedHeightFallback: number;
+    gutter: number;
+    gridRef?: RefObject<HTMLDivElement | null>;
+    canvasBodyRef?: RefObject<HTMLDivElement | null>;
+    itemsRef: RefObject<QuestionDraft[]>;
+}): {
+    computeRestingTargetY: () => number;
+    computeRestingTargetYRef: RefObject<() => number>;
+} {
+    const {
+        effectiveIndex,
+        errors,
+        collapsedHeights,
+        collapsedHeightFallback,
+        gutter,
+        gridRef,
+        canvasBodyRef,
+        itemsRef,
+    } = params;
 
-    /**
-     * Last `bottomInset` the pinning effect ran with — detects INSET-DRIVEN
-     * re-arms (a Focus Mode toggle at ≤768px flips `bottomInset`). Those must
-     * animate the pinned offset instead of re-reading it instantly; every other
-     * re-arm keeps the instant `refreshPin`. See the re-arm branch in effect 3.
-     */
-    const prevBottomInsetRef = useRef(bottomInset);
-
-    // The sidebar rail animates its width on Focus Mode toggles (GSAP tween,
-    // no `resize` event), shifting the lane horizontally while the toolbar may
-    // be pinned — the pinning effect re-arms on this and re-reads `left`.
-    const { isFocusMode } = useFocusMode();
-
-    const isDragging = draggingId !== null;
-
-    const [isMobile, setIsMobile] = useState(() =>
-        typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false,
-    );
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const query = window.matchMedia('(max-width: 639px)');
-        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-        setIsMobile(query.matches);
-
-        query.addEventListener('change', handler);
-        return () => query.removeEventListener('change', handler);
-    }, []);
-
-    const activeIndex = items.findIndex((item) => item.tempId === activeCardId);
-    const isMetaCard = activeCardId === null || activeIndex === -1;
-    const effectiveIndex = isMetaCard ? -1 : activeIndex;
-
-    // Latest-items snapshot for the follow loop. `items` is deliberately NOT
-    // an effect dependency: the resting sum over cards above the target is
-    // commutative, so any reorder that changes WHICH cards are above also
-    // changes `effectiveIndex`, while typing only reorders/regrows cards below
-    // the target (resting target unchanged). Syncing in a passive effect keeps
-    // the loop from re-arming on every keystroke without a render-time ref
-    // write.
-    const itemsRef = useRef(items);
-    useEffect(() => {
-        itemsRef.current = items;
-    });
-
-    // Restart counter for the follow loop — bumped by the wake observers when
-    // geometry changes while the loop is idle. Re-running the loop effect is
-    // cheap: it re-arms the rAF poll and re-glides/re-verifies within a few
-    // frames.
-    const [wakeTick, setWakeTick] = useState(0);
-    const wakeFollowLoop = useCallback(() => setWakeTick((tick) => tick + 1), []);
-
-    /**
-     * Resting target: the active card's top once every card above it is at its
-     * resting (collapsed) height. Computed from STATE — cache + fallback +
-     * deterministic callout estimate — so it is a constant while the layout
-     * animates (no live read of anything mid-transition). Shared by the chase
-     * (effect 1 — the one-glide endpoint) and the pinning evaluator (effect 3 —
-     * the pin/unpin footprint), so both act on the SAME stable position.
-     */
     const computeRestingTargetY = useCallback(() => {
         if (effectiveIndex < 0) return 0;
         const bodyNode = canvasBodyRef?.current;
@@ -354,23 +233,80 @@ export function QuizCanvasToolbarLane({
             y += base + (cardErrors.length > 0 ? estimateCalloutHeight(cardErrors) : 0) + gutter;
         }
         return Math.max(0, y);
-    }, [effectiveIndex, errors, collapsedHeights, collapsedHeightFallback, gutter, gridRef, canvasBodyRef]);
+        // Deps: state/props + `itemsRef` (stable ref threaded through `params`,
+        // listed for react-doctor/exhaustive-deps; never changes identity).
+    }, [effectiveIndex, errors, collapsedHeights, collapsedHeightFallback, gutter, gridRef, canvasBodyRef, itemsRef]);
 
-    // Latest-callback ref — lets effect 3 (and the pinviz visualizer) read the
-    // freshest resting target WITHOUT re-arming their rAF/observer setups on
-    // every errors/items change. Synced DURING RENDER (the codebase's
-    // `itemsRef.current = items` pattern), deliberately NOT in a passive
+    // Latest-callback ref — lets the pin evaluator (and the pinviz visualizer)
+    // read the freshest resting target WITHOUT re-arming their rAF/observer
+    // setups on every errors/items change. Synced in a LAYOUT effect — NOT
+    // during render (React can replay or discard render work, so render-phase
+    // ref writes can leak from UI that never commits), and NOT in a passive
     // effect: after a focus change the evaluator/visualizer may evaluate a
     // frame before a passive effect flushes, and reading the OLD active
     // card's resting top for one frame is exactly the stale footprint that
-    // produced the transient flicker.
+    // produced the transient flicker. This hook is called before the pin
+    // evaluator, so its layout effect runs first in the same commit pass.
     const computeRestingTargetYRef = useRef(computeRestingTargetY);
-    computeRestingTargetYRef.current = computeRestingTargetY;
+    useLayoutEffect(() => {
+        computeRestingTargetYRef.current = computeRestingTargetY;
+    });
 
-    // 1. rAF follow loop — the single owner of the toolbar's Y (Resting-Position
-    //    Model + drift-verify). Handles focus changes, reorders, error-callout
-    //    toggles, drag freeze/release, and mobile clearing. The wake observers
-    //    below only nudge this loop to restart; they never tween the wrapper.
+    return { computeRestingTargetY, computeRestingTargetYRef };
+}
+
+/**
+ * The rAF follow loop — the single owner of the toolbar's Y (Resting-Position
+ * Model + drift-verify). Handles focus changes, reorders, error-callout
+ * toggles, drag freeze/release, and mobile clearing. The idle wake observers
+ * (still in the component) only nudge this loop to restart; they never tween
+ * the wrapper. See the component docstring for the full model.
+ */
+function useToolbarFollowLoop(params: {
+    isMobile: boolean;
+    activeCardId: string | null;
+    isDragging: boolean;
+    pinState: PinState;
+    wakeTick: number;
+    canvasBodyRef?: RefObject<HTMLDivElement | null>;
+    cardWrapperMapRef?: RefObject<Map<string, HTMLDivElement>>;
+    titleCardRef?: RefObject<HTMLDivElement | null>;
+    toolbarWrapperRef: RefObject<HTMLDivElement | null>;
+    velocityRef: RefObject<VelocitySample>;
+    pinnedRef: RefObject<boolean>;
+    followLoopSettledRef: RefObject<boolean>;
+    setPinState: Dispatch<SetStateAction<PinState>>;
+    computeRestingTargetY: () => number;
+}) {
+    const {
+        isMobile,
+        activeCardId,
+        isDragging,
+        pinState,
+        wakeTick,
+        canvasBodyRef,
+        cardWrapperMapRef,
+        titleCardRef,
+        toolbarWrapperRef,
+        velocityRef,
+        pinnedRef,
+        followLoopSettledRef,
+        setPinState,
+        computeRestingTargetY,
+    } = params;
+
+    /**
+     * Effect Event mirror of `computeRestingTargetY` — the rAF `tick` is its
+     * ONLY caller, so the chase must NOT re-subscribe when the resting-target
+     * callback's identity changes (every `errors`/`effectiveIndex`
+     * recomputation) — re-arming would kill the loop mid-glide and re-issue
+     * the one-glide, the exact re-issued-tween drag the resting model avoids.
+     * An Effect Event is non-reactive: it always calls the latest callback but
+     * is never a dependency. Declared HERE because an Effect Event must not
+     * leave the hook/effect that owns it.
+     */
+    const computeRestingTargetYEvent = useEffectEvent(computeRestingTargetY);
+
     useEffect(() => {
         const wrapper = toolbarWrapperRef.current;
         if (isMobile) {
@@ -396,7 +332,7 @@ export function QuizCanvasToolbarLane({
 
         // Pinned freeze: while the toolbar is fixed to a viewport edge its
         // position lives outside the chase's content-space coordinate system;
-        // the pinning effect resumes the chase (via `pinState`) on unpin.
+        // the pinning evaluator resumes the chase (via `pinState`) on unpin.
         if (pinState !== 'anchored') return;
 
         followLoopSettledRef.current = false;
@@ -411,7 +347,7 @@ export function QuizCanvasToolbarLane({
             // outside React, so this loop may tick once more before the
             // `pinState` commit cleans it up. A tween here would fly the fixed
             // wrapper to a content-space coordinate — bail and let the pinning
-            // effect resume the chase on unpin.
+            // evaluator resume the chase on unpin.
             if (pinnedRef.current) return;
 
             // Scroll speed this frame (decaying once scrolling stops) — drives
@@ -485,7 +421,7 @@ export function QuizCanvasToolbarLane({
                     if (!glideIssued) {
                         glideIssued = true;
                         gsap.to(wrapper, {
-                            y: computeRestingTargetY(),
+                            y: computeRestingTargetYEvent(),
                             duration: REFLOW_DURATION,
                             ease: 'power2.out',
                             overwrite: 'auto',
@@ -525,74 +461,98 @@ export function QuizCanvasToolbarLane({
 
         rafId = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(rafId);
-        // Deps: `activeCardId`/`effectiveIndex`/`errors` change the resting
-        // computation (focus change, reorder, error-callout toggles); `items` is
-        // read via `itemsRef` (see above — re-arming on every keystroke would
-        // defeat the settle-stop); `wakeTick` (trigger-only) restarts after idle
-        // wakes; the refs keep the loop fresh against the live DOM.
-    }, [isMobile, activeCardId, isDragging, pinState, wakeTick, canvasBodyRef, cardWrapperMapRef, titleCardRef, computeRestingTargetY]);
+        // Deps: `activeCardId` re-arms on focus changes (the chase's main
+        // re-glide trigger); `items` is read via `itemsRef` (re-arming on every
+        // keystroke would defeat the settle-stop); `wakeTick` (trigger-only)
+        // restarts after idle wakes. `toolbarWrapperRef`/`velocityRef`/
+        // `pinnedRef`/`followLoopSettledRef`/`setPinState` are stable refs + a
+        // setter threaded through `params` — listed so
+        // react-doctor/exhaustive-deps sees the captures match; they never
+        // re-arm the loop. The resting target is deliberately NOT a dep — the
+        // rAF tick reads it via `computeRestingTargetYEvent` (an Effect
+        // Event), which always sees the latest value without re-subscribing
+        // the loop.
+    }, [isMobile, activeCardId, isDragging, pinState, wakeTick, canvasBodyRef, cardWrapperMapRef, titleCardRef, toolbarWrapperRef, velocityRef, pinnedRef, followLoopSettledRef, setPinState]);
+}
 
-    // 2. Idle wake observers — restart the follow loop when geometry changes
-    //    while it is stopped. Observes the target node AND the title card (its
-    //    height change moves the grid, shifting the resting target).
+/**
+ * Scroll pinning — geometry evaluator. WINDOW-SCROLL mode: the page owns the
+ * scroll, so the visible box is derived from insets (`topInset` = sticky
+ * header height, `bottomInset` = bottom-bar height) instead of a scroller
+ * element's rect. See the component docstring for the full model. Owns the
+ * activation-detection ref (`prevActiveCardIdRef`) and the inset-change ref
+ * (`prevBottomInsetRef`); the activation re-arm runs one RELAXED evaluation
+ * (zero hysteresis margin + zero velocity lead) so the toolbar reacts to a
+ * card click in the same frame.
+ */
+function useToolbarPinEvaluator(params: {
+    isMobile: boolean;
+    isDragging: boolean;
+    activeCardId: string | null;
+    pinState: PinState;
+    isFocusMode: boolean;
+    bottomInset: number;
+    topInset: number;
+    canvasBodyRef?: RefObject<HTMLDivElement | null>;
+    cardWrapperMapRef?: RefObject<Map<string, HTMLDivElement>>;
+    titleCardRef?: RefObject<HTMLDivElement | null>;
+    gridRef?: RefObject<HTMLDivElement | null>;
+    toolbarWrapperRef: RefObject<HTMLDivElement | null>;
+    velocityRef: RefObject<VelocitySample>;
+    pinnedRef: RefObject<boolean>;
+    computeRestingTargetYRef: RefObject<() => number>;
+    setPinState: Dispatch<SetStateAction<PinState>>;
+}) {
+    const {
+        isMobile,
+        isDragging,
+        activeCardId,
+        pinState,
+        isFocusMode,
+        bottomInset,
+        topInset,
+        canvasBodyRef,
+        cardWrapperMapRef,
+        titleCardRef,
+        gridRef,
+        toolbarWrapperRef,
+        velocityRef,
+        pinnedRef,
+        computeRestingTargetYRef,
+        setPinState,
+    } = params;
+
+    /**
+     * Last `bottomInset` the evaluator ran with — detects INSET-DRIVEN re-arms
+     * (a Focus Mode toggle at ≤768px flips `bottomInset`). Those must animate
+     * the pinned offset instead of re-reading it instantly; every other re-arm
+     * keeps the instant `refreshPin`. See the re-arm branch below.
+     */
+    const prevBottomInsetRef = useRef(bottomInset);
+
+    /**
+     * Last `activeCardId` the evaluator ran with — detects ACTIVATION re-arms
+     * (a focus change). Those must bypass the scroll-hysteresis band: a
+     * deliberate click cannot flip-flop (only scroll stutter can), so the
+     * first evaluation after a focus change uses the relaxed gate — zero
+     * `PIN_REENTER` margin and zero velocity lead — making the toolbar react
+     * to the click in the same frame: unpin onto the newly-activated card the
+     * moment its footprint is anywhere fully visible, or flip straight to the
+     * correct edge, instead of holding the old pin until the 40px full-fit
+     * margin clears.
+     */
+    const prevActiveCardIdRef = useRef(activeCardId);
+
     useEffect(() => {
-        if (isMobile) return;
+        // Activation detection — synced FIRST, even before the isMobile /
+        // isDragging guard (it only touches a ref, no DOM), so the ref never
+        // goes stale: every re-arm with a changed `activeCardId` is an
+        // activation, and its first evaluation must bypass the hysteresis band
+        // (see `relaxed` in `evaluate`) so the toolbar reacts to the click in
+        // the same frame instead of holding the old pin.
+        const activated = prevActiveCardIdRef.current !== activeCardId;
+        prevActiveCardIdRef.current = activeCardId;
 
-        const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
-        const targetNode = activeNode ?? titleCardRef?.current ?? null;
-        if (!targetNode) return;
-
-        // `isDragging` is read from this closure (re-created when the drag
-        // state flips) so no ref is mutated during render.
-        const wakeIfIdle = () => {
-            if (isDragging) return;
-            if (!followLoopSettledRef.current) return;
-            wakeFollowLoop();
-        };
-
-        const observer = new ResizeObserver(wakeIfIdle);
-        observer.observe(targetNode);
-        const metaNode = titleCardRef?.current;
-        if (metaNode && metaNode !== targetNode) observer.observe(metaNode);
-
-        const handleResize = () => wakeIfIdle();
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', handleResize);
-        };
-    }, [isMobile, activeCardId, isDragging, cardWrapperMapRef, titleCardRef, wakeFollowLoop]);
-
-    // 3. Scroll pinning — geometry evaluator. WINDOW-SCROLL mode: the page
-    //    owns the scroll, so the visible box is derived from insets (`topInset`
-    //    = sticky header height, `bottomInset` = bottom-bar height) instead of
-    //    a scroller element's rect. The trigger is NOT "does the card intersect
-    //    the visible box" (an IntersectionObserver on the card), but "would
-    //    the toolbar's OWN footprint fit inside the viewport's visible box if
-    //    it were anchored to the card right now". The toolbar is ~224px tall
-    //    while an expanded card can be far taller, so a card-based IO trigger
-    //    fires too LATE (the toolbar is already fully clipped above while the
-    //    card still "intersects") and unpins too EARLY (40px of card overlap
-    //    while the toolbar is still mostly clipped). An IO also can't express
-    //    a hypothetical rect for a node that isn't fixed yet — while pinned
-    //    the wrapper is position: fixed, so its real rect is meaningless. So:
-    //    on scroll/resize/layout frames, compute the toolbar's would-be
-    //    viewport rect from the card's doc-space top (+ the toolbar's real
-    //    height) — the RESTING top, a constant during layout transitions, so a focus change never produces a transient pin→unpin snap (the live rect would poke past an edge mid-collapse) — and compare it against
-    //    the visible box (below the sticky header, above the bottom bar). Pure
-    //    geometry, state-independent — the same philosophy as before (a static
-    //    fact checked at any instant, never scroll direction/velocity). The
-    //    pin decision is an EDGE-TOUCH trigger: the toolbar pins the moment
-    //    its hypothetical footprint's leading edge leaves the visible box
-    //    (top: `hypoTop < topInset`; bottom: `hypoBottom > effectiveBottom =
-    //    innerHeight − bottomInset`) — so it is ALREADY pinned the instant it
-    //    would start scrolling out of view. A velocity-anticipation lead (≤
-    //    MAX_PIN_LEAD) pulls the pin slightly earlier on fast flings so the
-    //    locked toolbar never pops above the edge. Unpinning stays symmetric
-    //    full-fit with the 40px `PIN_REENTER` margin, and the gap (edge vs
-    //    40px inside) is the hysteresis against boundary flip-flop.
-    useEffect(() => {
         if (isMobile || isDragging) return;
 
         const wrapper = toolbarWrapperRef.current;
@@ -755,7 +715,7 @@ export function QuizCanvasToolbarLane({
         // faster than frames; the evaluator reads ~4 rects — trivial).
         let rafId: number | null = null;
 
-        const evaluate = () => {
+        const evaluate = (relaxed = false) => {
             rafId = null;
 
             const bodyRect = bodyNode.getBoundingClientRect();
@@ -798,10 +758,23 @@ export function QuizCanvasToolbarLane({
             // header overlap on a fling). Capped below PIN_REENTER so the pin
             // threshold can never cross the unpin gate (hysteresis holds even at
             // extreme velocity). At rest this reduces to plain edge-touch.
-            const lead = Math.min(
-                readVelocity(velocityRef.current, performance.now()) * VELOCITY_LEAD_S,
-                MAX_PIN_LEAD,
-            );
+            // Velocity-anticipation lead — zeroed on the relaxed activation
+            // evaluation: a click has no scroll to anticipate, so the decision
+            // is pure geometry at click time.
+            const lead = relaxed
+                ? 0
+                : Math.min(
+                      readVelocity(velocityRef.current, performance.now()) * VELOCITY_LEAD_S,
+                      MAX_PIN_LEAD,
+                  );
+            // Unpin gate margin — 0 on the relaxed activation evaluation: the
+            // card the user just clicked may sit inside the scroll-hysteresis
+            // band (fully visible but not 40px clear of an edge). The band
+            // only guards scroll flip-flop, and a deliberate click cannot
+            // flip-flop — the click is allowed straight through to
+            // full-fit-without-margin. Scroll/resize ticks keep the 40px
+            // margin.
+            const gate = relaxed ? 0 : PIN_REENTER;
             if (hypoTop < topInset + lead) {
                 // EDGE-TOUCH trigger: the footprint's leading (top) edge has
                 // reached the sticky header's bottom edge (`topInset`) — the
@@ -816,8 +789,8 @@ export function QuizCanvasToolbarLane({
                 // bottom nav).
                 next = 'bottom';
             } else if (
-                hypoTop >= topInset + PIN_REENTER &&
-                hypoBottom <= effectiveBottom - PIN_REENTER
+                hypoTop >= topInset + gate &&
+                hypoBottom <= effectiveBottom - gate
             ) {
                 // Fully clear of BOTH edges by the dead-band margin — safe to
                 // unpin. Symmetric full-fit: unpin only when the toolbar's own
@@ -842,10 +815,21 @@ export function QuizCanvasToolbarLane({
 
         const scheduleEvaluate = () => {
             if (rafId !== null) return;
-            rafId = requestAnimationFrame(evaluate);
+            // Wrapped (not `requestAnimationFrame(evaluate)`): rAF would pass
+            // the frame timestamp into the `relaxed` parameter.
+            rafId = requestAnimationFrame(() => evaluate());
         };
 
         scheduleEvaluate();
+        // Activation re-arm: run the relaxed evaluation ONCE, synchronously,
+        // so the toolbar reacts to the click in the same frame — a pinned
+        // toolbar must not stay glued to its old edge while the card it was
+        // just asked to follow sits elsewhere on screen (this effect's own
+        // cleanup already cancelled the previous run's pending rAF). Every
+        // later scroll/resize evaluation keeps the strict hysteresis gate.
+        if (activated) {
+            evaluate(true);
+        }
         // Scroll-speed tracker — feeds the chase's velocity-scaled follow
         // duration (effect 1) and this evaluator's pin-anticipation lead.
         // EMA-smoothed and timestamped so `readVelocity` decays it smoothly
@@ -992,7 +976,248 @@ export function QuizCanvasToolbarLane({
         // re-arms this effect so `refreshPin` re-reads the lane's `left` after
         // the rail-width animation shifts it. `topInset` re-arms on sticky-
         // header height changes (breakpoints), re-deriving the visible box.
-    }, [isMobile, isDragging, activeCardId, pinState, isFocusMode, bottomInset, topInset, canvasBodyRef, cardWrapperMapRef, titleCardRef, gridRef]);
+        // `toolbarWrapperRef`/`pinnedRef`/`computeRestingTargetYRef`/
+        // `velocityRef`/`setPinState` are stable refs + a setter threaded
+        // through `params` — listed for react-doctor/exhaustive-deps; they
+        // never re-arm the evaluator.
+    }, [isMobile, isDragging, activeCardId, pinState, isFocusMode, bottomInset, topInset, canvasBodyRef, cardWrapperMapRef, titleCardRef, gridRef, toolbarWrapperRef, pinnedRef, computeRestingTargetYRef, velocityRef, setPinState]);
+}
+
+/**
+ * Decoupled right toolbar lane component (rAF Follow Loop — Resting-Position
+ * Model).
+ *
+ * The toolbar glides toward the active card's RESTING top: where its top edge
+ * WILL be once every card above it is at its resting (collapsed) height. That
+ * target is computed from state — the per-card collapsed-height cache (with a
+ * `COMPACT_HEIGHT`-style fallback for never-sampled cards) plus a
+ * deterministic error-callout estimate from the `errors` prop — and is a
+ * CONSTANT while the layout animates. There is nothing to race against, no
+ * timing bet, and no wait: the one 0.35s glide runs in parallel with the card
+ * collapse, and they arrive together.
+ *
+ * - Transition: while the live layout is still moving (collapse/reflow), issue
+ *   ONE long glide to the constant resting target. Chasing a constant means no
+ *   dip/wobble (the target never moves under us) and no re-issued tween drag.
+ * - Drift-verify: once the live position holds still for `SETTLE_FRAMES`,
+ *   reality wins — if the estimate missed (e.g. callout line-count
+ *   approximation), the loop corrects with short snappy nudges, then stops
+ *   polling.
+ * - Cache contract: heights come from `QuizCanvasQuestionList`'s self-healing
+ *   `collapsedHeightsRef` (error-free inactive cards at settle; callout
+ *   mount/unmount re-samples via ResizeObserver). The old active card's
+ *   collapsed height is its cache entry (last sampled while inactive) — never
+ *   a live read of its mid-collapse rect.
+ * - Idle wake: `ResizeObserver` on the target node + the title card (its
+ *   height change moves the grid, shifting the resting target) + `window
+ *   resize`.
+ * - Drag freeze: while a card is dragged the loop is suspended (toolbar stays
+ *   frozen); on release the `isDragging` dependency re-runs it and it glides
+ *   to the resting target at the new slot.
+ * - Meta Card fallback: anchors at the lane origin (`y = 0`) beside the title
+ *   card when `activeCardId` is null or not found.
+ * - Scroll pinning: while the chase is anchored the toolbar scrolls with the
+ *   content; the toolbar pins to the top or bottom edge (`position: fixed`,
+ *   same lane column) the moment its hypothetical footprint's LEADING edge
+ *   leaves the VIEWPORT's visible box (top: `hypoTop < topInset`, the sticky
+ *   header's height; bottom: `hypoBottom > effectiveBottom = innerHeight −
+ *   bottomInset`, the viewport bottom minus the shell's bottom-bar inset) —
+ *   so it is ALREADY pinned the instant it would start scrolling out of
+ *   view, a true sticky toolbar.
+ *   Geometry-based (which side the footprint is leaving); scroll speed feeds
+ *   only a short anticipation lead at the pin edges (≤ MAX_PIN_LEAD). Unpinning requires the footprint to fully clear both
+ *   visible edges by the 40px `PIN_REENTER` margin (symmetric full-fit), and
+ *   that gap between the pin line (the edge) and the gate (40px inside) is
+ *   the hysteresis preventing anchored ↔ pinned flip-flop. While pinned the
+ *   chase is suspended; unpinning converts the pinned viewport position back
+ *   into the scroller's content space so the chase glides from where the
+ *   toolbar visually was — no jump. Pinning is a continuous lock (0.25s ease
+ *   from the toolbar's current on-screen position into the pinned position —
+ *   no fade, since the edge-touch trigger pins while it is already at the
+ *   edge); the unpin handoff is seamless and the return glide is owned by the
+ *   chase re-arm.
+ *   Trigger: NOT "does the card intersect" (an IntersectionObserver on the
+ *   card fires too late — the toolbar is far shorter than an expanded card,
+ *   so it is fully clipped while the card still "intersects" — and can't
+ *   express a hypothetical rect for the wrapper, whose real rect is
+ *   meaningless while `position: fixed`). Instead a scroll/rAF evaluator
+ *   computes the toolbar's hypothetical anchored rect (the card's doc-space
+ *   top + the toolbar's own height) against the viewport's visible box
+ *   (below the sticky header, above the bottom bar). WINDOW-SCROLL mode: the
+ *   page owns the scroll — events come from `window`, `scrollTop` is
+ *   `window.scrollY`, and the visible box is `topInset` → `innerHeight −
+ *   bottomInset` rather than a scroller element's rect.
+ * - Mobile (<640px): clears inline transforms and any pin styles so the fixed
+ *   viewport bottom bar operates cleanly.
+ */
+export function QuizCanvasToolbarLane({
+    items,
+    activeCardId,
+    draggingId,
+    titleCardRef,
+    gridRef,
+    canvasBodyRef,
+    cardWrapperMapRef,
+    collapsedHeights,
+    errors,
+    gutter = 20,
+    collapsedHeightFallback = 76,
+    canvas,
+    onFocusCard,
+    onImportFromBank,
+    bottomInset = 0,
+    topInset = 0,
+}: QuizCanvasToolbarLaneProps) {
+    const toolbarWrapperRef = useRef<HTMLDivElement | null>(null);
+    /** Shared scroll-speed sample (px/s + timestamp) — written by the evaluator's scroll listener, read by the chase and the pin lead. */
+    const velocityRef = useRef<VelocitySample>({ v: 0, at: 0 });
+    /** True while the follow loop is idle (has stopped polling) — gates lazy wake-ups. */
+    const followLoopSettledRef = useRef(true);
+    /**
+     * True while the toolbar is pinned to a viewport edge. Set synchronously
+     * by the pinning evaluator (outside React's commit) so the chase rAF can
+     * never tween the `position: fixed` wrapper in the one-frame gap between
+     * the evaluator's DOM writes and the `pinState` commit.
+     */
+    const pinnedRef = useRef(false);
+    /**
+     * Scroll-pin state — while not 'anchored' the follow loop is suspended
+     * (the toolbar is pinned to a viewport edge, outside the chase's
+     * coordinate space).
+     */
+    const [pinState, setPinState] = useState<PinState>('anchored');
+
+    // The sidebar rail animates its width on Focus Mode toggles (GSAP tween,
+    // no `resize` event), shifting the lane horizontally while the toolbar may
+    // be pinned — the pinning evaluator re-arms on this and re-reads `left`.
+    const { isFocusMode } = useFocusMode();
+
+    const isDragging = draggingId !== null;
+
+    const [isMobile, setIsMobile] = useState(() =>
+        typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false,
+    );
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const query = window.matchMedia('(max-width: 639px)');
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        setIsMobile(query.matches);
+
+        query.addEventListener('change', handler);
+        return () => query.removeEventListener('change', handler);
+    }, []);
+
+    const activeIndex = items.findIndex((item) => item.tempId === activeCardId);
+    const isMetaCard = activeCardId === null || activeIndex === -1;
+    const effectiveIndex = isMetaCard ? -1 : activeIndex;
+
+    // Latest-items snapshot for the follow loop. `items` is deliberately NOT
+    // an effect dependency: the resting sum over cards above the target is
+    // commutative, so any reorder that changes WHICH cards are above also
+    // changes `effectiveIndex`, while typing only reorders/regrows cards below
+    // the target (resting target unchanged). Syncing in a passive effect keeps
+    // the loop from re-arming on every keystroke without a render-time ref
+    // write.
+    const itemsRef = useRef(items);
+    useEffect(() => {
+        itemsRef.current = items;
+    });
+
+    // Restart counter for the follow loop — bumped by the wake observers when
+    // geometry changes while the loop is idle. Re-running the loop effect is
+    // cheap: it re-arms the rAF poll and re-glides/re-verifies within a few
+    // frames.
+    const [wakeTick, setWakeTick] = useState(0);
+    const wakeFollowLoop = useCallback(() => setWakeTick((tick) => tick + 1), []);
+
+    // Resting target + its latest-callback ref — shared by the chase (the
+    // one-glide endpoint), the pin evaluator (the pin/unpin footprint), and
+    // the pinviz visualizer, so all act on the SAME stable position.
+    const { computeRestingTargetY, computeRestingTargetYRef } = useRestingTarget({
+        effectiveIndex,
+        errors,
+        collapsedHeights,
+        collapsedHeightFallback,
+        gutter,
+        gridRef,
+        canvasBodyRef,
+        itemsRef,
+    });
+
+    // rAF follow loop (the chase) — the single owner of the toolbar's Y.
+    useToolbarFollowLoop({
+        isMobile,
+        activeCardId,
+        isDragging,
+        pinState,
+        wakeTick,
+        canvasBodyRef,
+        cardWrapperMapRef,
+        titleCardRef,
+        toolbarWrapperRef,
+        velocityRef,
+        pinnedRef,
+        followLoopSettledRef,
+        setPinState,
+        computeRestingTargetY,
+    });
+
+
+    // 2. Idle wake observers — restart the follow loop when geometry changes
+    //    while it is stopped. Observes the target node AND the title card (its
+    //    height change moves the grid, shifting the resting target).
+    useEffect(() => {
+        if (isMobile) return;
+
+        const activeNode = activeCardId ? cardWrapperMapRef?.current?.get(activeCardId) : null;
+        const targetNode = activeNode ?? titleCardRef?.current ?? null;
+        if (!targetNode) return;
+
+        // `isDragging` is read from this closure (re-created when the drag
+        // state flips) so no ref is mutated during render.
+        const wakeIfIdle = () => {
+            if (isDragging) return;
+            if (!followLoopSettledRef.current) return;
+            wakeFollowLoop();
+        };
+
+        const observer = new ResizeObserver(wakeIfIdle);
+        observer.observe(targetNode);
+        const metaNode = titleCardRef?.current;
+        if (metaNode && metaNode !== targetNode) observer.observe(metaNode);
+
+        const handleResize = () => wakeIfIdle();
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [isMobile, activeCardId, isDragging, cardWrapperMapRef, titleCardRef, wakeFollowLoop]);
+
+    // Scroll pinning — geometry evaluator. Owns the activation-detection ref
+    // (`prevActiveCardIdRef`) and the inset-change ref (`prevBottomInsetRef`);
+    // a card-click re-arm runs one RELAXED evaluation so the toolbar reacts in
+    // the same frame. See the hook doc for the full model.
+    useToolbarPinEvaluator({
+        isMobile,
+        isDragging,
+        activeCardId,
+        pinState,
+        isFocusMode,
+        bottomInset,
+        topInset,
+        canvasBodyRef,
+        cardWrapperMapRef,
+        titleCardRef,
+        gridRef,
+        toolbarWrapperRef,
+        velocityRef,
+        pinnedRef,
+        computeRestingTargetYRef,
+        setPinState,
+    });
 
     return (
         <>

@@ -2,7 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { Banner } from '../../../shared/ui/Banner/Banner';
 import { Button } from '../../../shared/ui/Button/Button';
-import { useQuizCanvasEditor } from '../hooks/useQuizCanvasEditor';
+import { useQuizCanvasEditor } from './hooks/useQuizCanvasEditor';
 import { QuizCanvasBankImportDialog } from './QuizCanvasBankImportDialog';
 import { QuizCanvasHeader } from './QuizCanvasHeader';
 import { QuizCanvasQuestionList } from './QuizCanvasQuestionList';

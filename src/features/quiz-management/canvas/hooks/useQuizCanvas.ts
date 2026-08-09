@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import type { QuizDraft, QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import { makeDraftTempId } from '../../../application/quiz-management/drafts/QuizDraft';
-import type { Question } from '../../../domain/quiz/Question';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import { createDefaultPayload } from '../editors/QuestionEditorRegistry';
+import type { QuizDraft, QuestionDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
+import { makeDraftTempId } from '../../../../application/quiz-management/drafts/QuizDraft';
+import type { Question } from '../../../../domain/quiz/Question';
+import type { QuestionType } from '../../../../domain/quiz/QuestionType';
+import { createDefaultPayload } from '../../editors/QuestionEditorRegistry';
 
 /**
  * Pure canvas state hook for the quiz authoring session.

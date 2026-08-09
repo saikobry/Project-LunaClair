@@ -1,12 +1,12 @@
 import { useCallback, useContext, useEffect, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import { useToast } from '../../../app/providers/ToastContext';
-import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import { createEmptyQuizDraft, createQuizDraftFromQuiz } from '../../../application/quiz-management/drafts/QuizDraft';
-import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
-import type { Question } from '../../../domain/quiz/Question';
-import { useDraftAutosave, type DraftAutosaveStatus } from '../../../shared/hooks/useDraftAutosave';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useToast } from '../../../../app/providers/ToastContext';
+import type { QuizDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
+import { createEmptyQuizDraft, createQuizDraftFromQuiz } from '../../../../application/quiz-management/drafts/QuizDraft';
+import type { QuizDraftErrors } from '../../../../application/quiz-management/drafts/quizDraftValidation';
+import type { Question } from '../../../../domain/quiz/Question';
+import { useDraftAutosave, type DraftAutosaveStatus } from '../../../../shared/hooks/useDraftAutosave';
 import { useQuizCanvas, type QuizCanvas } from './useQuizCanvas';
 
 export type QuizCanvasSaveState = 'idle' | 'saving' | 'saved';

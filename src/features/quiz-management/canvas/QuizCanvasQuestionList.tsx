@@ -1,11 +1,11 @@
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { Draggable } from 'gsap/Draggable';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import type { QuestionDraft, QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
 import { Button } from '../../../shared/ui/Button/Button';
-import type { QuizCanvas } from '../hooks/useQuizCanvas';
+import type { QuizCanvas } from './hooks/useQuizCanvas';
 import { QuizCanvasMetaCard } from './QuizCanvasMetaCard';
 import { QuizCanvasQuestionCard } from './QuizCanvasQuestionCard';
 import { QuizCanvasToolbarLane } from './QuizCanvasToolbarLane';
@@ -150,87 +150,65 @@ interface QuizCanvasQuestionListProps {
     topInset?: number;
 }
 
+// ── Section hooks ──────────────────────────────────────────────────────────
+// The canvas body's two motion subsystems (accordion layout orchestration and
+// the GSAP Draggable reorder lifecycle) live in focused hooks below so the
+// component stays readable. Shared refs/state are created in the component and
+// threaded in as parameters; hook call order mirrors the original effect
+// order, which preserves layout-effect sequencing (the snapshot-ref sync in
+// the component runs before these hooks' layout effects).
+
 /**
- * Scrollable canvas body of the quiz builder.
- *
- * Renders the meta card and single-column question cards. Cards are placed
- * into an absolutely-positioned grid using synchronous DOM height accumulation
- * before paint, guaranteeing zero overlap when expanding/collapsing.
- *
- * Physical push accordion physics, GSAP Draggable reordering, and height tweens
- * are managed 100% locally here. The sticky right toolbar dock is decoupled and
- * rendered by `<QuizCanvasToolbarLane />`.
+ * Accordion layout orchestration — owns `applyPositions` / `settleLayout` /
+ * `startHeightTween` / `updateLayoutPositions` plus the layout effects that
+ * drive them (active-card change, drag end, wrapper ResizeObserver). Cards are
+ * placed into an absolutely-positioned grid using synchronous DOM height
+ * accumulation before paint, guaranteeing zero overlap when expanding /
+ * collapsing; expanding/collapsing cards are physically pushed with GSAP
+ * height tweens. Also owns the resting-height cache (`collapsedHeightsRef`)
+ * sampled at settle for the toolbar lane's resting target.
  */
-export function QuizCanvasQuestionList({
-    draft,
-    activeCardId,
-    errors,
-    titleCardRef,
-    cardRefs,
-    canvas,
-    onFocusCard,
-    onImportFromBank,
-    bottomInset = 0,
-    topInset = 0,
-}: QuizCanvasQuestionListProps) {
-    const items = draft.items;
-    /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
-    const [draggingId, setDraggingId] = useState<string | null>(null);
-    /** Incrementing layout version counter to signal settled layout updates to the toolbar lane. */
-    const [layoutVersion, setLayoutVersion] = useState(0);
-    const gridRef = useRef<HTMLDivElement | null>(null);
-    /** Outer bounds container for canvas body flex row. */
-    const canvasBodyRef = useRef<HTMLDivElement | null>(null);
-    /** Outer bounds container (meta card + question grid + bottom dropzone) for GSAP Draggable. */
-    const questionColumnRef = useRef<HTMLDivElement | null>(null);
-    const wrapperEls = useRef(new Map<string, HTMLDivElement>());
-    /** Live GSAP Draggable instance per mounted card (keyed by tempId). */
-    const draggablesRef = useRef(new Map<string, Draggable>());
-    /** tempId of the card currently held by GSAP Draggable. */
-    const draggingIdRef = useRef<string | null>(null);
-    /** True if real drag displacement occurred during the active press cycle. */
-    const wasDraggedRef = useRef(false);
-    /** Temporary flag to block the trailing click event right after a drop. */
-    const suppressClickRef = useRef(false);
-    /** tempId of the card whose trailing click is being suppressed (scoped to the dragged card only). */
-    const suppressedCardIdRef = useRef<string | null>(null);
-    /** Pending suppression-clear timer id (cleared on new suppression and unmount). */
-    const suppressTimerRef = useRef<number | null>(null);
-    /** tempIds placed at least once (skip initial jump animation). */
-    const positionedRef = useRef(new Set<string>());
-    /** Live Map of calculated target Y coordinates per card (tempId -> Y). */
-    const targetYMapRef = useRef(new Map<string, number>());
-    /** Stable wrapper heights from the last settled layout — the "from" state of the next expand/collapse tween. */
-    const prevHeightsRef = useRef(new Map<string, number>());
-    /**
-     * Self-healing per-card RESTING (collapsed) height cache, sampled in
-     * `settleLayout` for inactive, error-free cards. Feeds the toolbar lane's
-     * resting-position target. Callout mount/unmount resizes wrappers →
-     * ResizeObserver → `settleLayout`, so the cache self-corrects without
-     * explicit invalidation.
-     */
-    const collapsedHeightsRef = useRef(new Map<string, number>());
-    /** tempIds whose height tween is currently mid-flight (physical push). */
-    const heightAnimRef = useRef(new Set<string>());
-    /** Previously active card id — detects expand/collapse transitions. */
-    const prevActiveCardIdRef = useRef<string | null>(null);
+function useCardPositionLayout(params: {
+    items: QuestionDraft[];
+    activeCardId: string | null;
+    draggingId: string | null;
+    itemsRef: RefObject<QuestionDraft[]>;
+    activeCardIdRef: RefObject<string | null>;
+    errorsRef: RefObject<QuizDraftErrors | null>;
+    wrapperEls: RefObject<Map<string, HTMLDivElement>>;
+    draggingIdRef: RefObject<string | null>;
+    positionedRef: RefObject<Set<string>>;
+    targetYMapRef: RefObject<Map<string, number>>;
+    gridRef: RefObject<HTMLDivElement | null>;
+    collapsedHeightsRef: RefObject<Map<string, number>>;
+    heightAnimRef: RefObject<Set<string>>;
+    setLayoutVersion: Dispatch<SetStateAction<number>>;
+    prevActiveCardIdRef: RefObject<string | null>;
+}): { applyPositions: (animate: boolean) => void } {
+    const {
+        items,
+        activeCardId,
+        draggingId,
+        itemsRef,
+        activeCardIdRef,
+        errorsRef,
+        wrapperEls,
+        draggingIdRef,
+        positionedRef,
+        targetYMapRef,
+        gridRef,
+        collapsedHeightsRef,
+        heightAnimRef,
+        setLayoutVersion,
+        prevActiveCardIdRef,
+    } = params;
+
     /** Grid height placed at least once (first placement is instant, not tweened). */
     const gridPositionedRef = useRef(false);
-
-    // Live snapshots so Draggable closures never read stale state.
-    const itemsRef = useRef(items);
-    itemsRef.current = items;
-    const activeCardIdRef = useRef(activeCardId);
-    activeCardIdRef.current = activeCardId;
-    const errorsRef = useRef(errors);
-    errorsRef.current = errors;
-    const reorderRef = useRef(canvas.reorderItems);
-    reorderRef.current = canvas.reorderItems;
-
-    const registerWrapper = useCallback((tempId: string, el: HTMLDivElement | null) => {
-        if (el) wrapperEls.current.set(tempId, el);
-        else wrapperEls.current.delete(tempId);
-    }, []);
+    /** Stable wrapper heights from the last settled layout — the "from" state of the next expand/collapse tween. */
+    const prevHeightsRef = useRef(new Map<string, number>());
+    /** Previously held card id — detects drag-end transitions. */
+    const prevDraggingIdRef = useRef<string | null>(null);
 
     // ── Position Layout (tween or snap) ──
     const applyPositions = useCallback((animate: boolean) => {
@@ -281,7 +259,10 @@ export function QuizCanvasQuestionList({
                 gridPositionedRef.current = true;
             }
         }
-    }, []);
+        // Deps: all entries are refs threaded through `params` — stable
+        // identities, so this callback is still created once; they're listed
+        // only so react-doctor/exhaustive-deps sees the captures match.
+    }, [itemsRef, wrapperEls, draggingIdRef, positionedRef, targetYMapRef, gridRef]);
 
     const settleLayout = useCallback(() => {
         applyPositions(true);
@@ -304,7 +285,11 @@ export function QuizCanvasQuestionList({
             if (wrapper) collapsedHeightsRef.current.set(item.tempId, wrapper.offsetHeight);
         }
         setLayoutVersion((v) => v + 1);
-    }, [applyPositions]);
+        // Deps: `applyPositions` + stable refs/setter threaded through
+        // `params` — listed for react-doctor/exhaustive-deps; they never
+        // change identity, so `settleLayout` is still recreated only when
+        // `applyPositions` changes.
+    }, [applyPositions, itemsRef, wrapperEls, activeCardIdRef, errorsRef, collapsedHeightsRef, setLayoutVersion]);
 
     const startHeightTween = useCallback((tempId: string, wrapper: HTMLDivElement, fromHeight: number, toHeight: number) => {
         heightAnimRef.current.add(tempId);
@@ -328,7 +313,9 @@ export function QuizCanvasQuestionList({
                 },
             },
         );
-    }, [applyPositions, settleLayout]);
+        // Deps: `applyPositions`/`settleLayout` + `heightAnimRef` (stable ref)
+        // listed for react-doctor/exhaustive-deps.
+    }, [applyPositions, settleLayout, heightAnimRef]);
 
     const updateLayoutPositions = useCallback((options: { animateHeightChange?: boolean } = {}) => {
         if (heightAnimRef.current.size > 0) return;
@@ -355,15 +342,16 @@ export function QuizCanvasQuestionList({
         }
 
         settleLayout();
-    }, [settleLayout, startHeightTween, applyPositions]);
+        // Deps: the three callbacks + stable refs threaded through `params`
+        // (listed for react-doctor/exhaustive-deps; never change identity).
+    }, [settleLayout, startHeightTween, applyPositions, heightAnimRef, itemsRef, wrapperEls]);
 
     useLayoutEffect(() => {
         const activeChanged = prevActiveCardIdRef.current !== activeCardId;
         prevActiveCardIdRef.current = activeCardId;
         updateLayoutPositions({ animateHeightChange: activeChanged });
-    }, [activeCardId, items, updateLayoutPositions]);
+    }, [activeCardId, items, updateLayoutPositions, prevActiveCardIdRef]);
 
-    const prevDraggingIdRef = useRef<string | null>(null);
     useLayoutEffect(() => {
         if (draggingId !== null) {
             const held = wrapperEls.current.get(draggingId);
@@ -374,7 +362,7 @@ export function QuizCanvasQuestionList({
         if (dragEnded) {
             updateLayoutPositions({ animateHeightChange: true });
         }
-    }, [draggingId, updateLayoutPositions]);
+    }, [draggingId, updateLayoutPositions, wrapperEls]);
 
     useEffect(() => {
         if (typeof ResizeObserver === 'undefined') return;
@@ -387,7 +375,59 @@ export function QuizCanvasQuestionList({
         }
 
         return () => observer.disconnect();
-    }, [items, updateLayoutPositions]);
+    }, [items, updateLayoutPositions, wrapperEls]);
+
+    return { applyPositions };
+}
+
+/**
+ * GSAP Draggable reorder lifecycle — creates/kills one `Draggable` per card
+ * (grip trigger, direction-aware midpoint crossing swaps with hysteresis),
+ * drives the trailing-click suppression after a real drag, and kills all
+ * instances on unmount. Dragging auto-collapses the held card to its compact
+ * summary; on release the physical push engine re-expands it at its new slot.
+ */
+function useCardDragReorder(params: {
+    items: QuestionDraft[];
+    cardRefs: RefObject<Map<string, HTMLElement>>;
+    applyPositions: (animate: boolean) => void;
+    questionColumnRef: RefObject<HTMLDivElement | null>;
+    wrapperEls: RefObject<Map<string, HTMLDivElement>>;
+    itemsRef: RefObject<QuestionDraft[]>;
+    draggingIdRef: RefObject<string | null>;
+    positionedRef: RefObject<Set<string>>;
+    collapsedHeightsRef: RefObject<Map<string, number>>;
+    targetYMapRef: RefObject<Map<string, number>>;
+    heightAnimRef: RefObject<Set<string>>;
+    reorderRef: RefObject<QuizCanvas['reorderItems']>;
+    suppressClickRef: RefObject<boolean>;
+    suppressedCardIdRef: RefObject<string | null>;
+    setDraggingId: Dispatch<SetStateAction<string | null>>;
+}) {
+    const {
+        items,
+        cardRefs,
+        applyPositions,
+        questionColumnRef,
+        wrapperEls,
+        itemsRef,
+        draggingIdRef,
+        positionedRef,
+        collapsedHeightsRef,
+        targetYMapRef,
+        heightAnimRef,
+        reorderRef,
+        suppressClickRef,
+        suppressedCardIdRef,
+        setDraggingId,
+    } = params;
+
+    /** Live GSAP Draggable instance per mounted card (keyed by tempId). */
+    const draggablesRef = useRef(new Map<string, Draggable>());
+    /** True if real drag displacement occurred during the active press cycle. */
+    const wasDraggedRef = useRef(false);
+    /** Pending suppression-clear timer id (cleared on new suppression and unmount). */
+    const suppressTimerRef = useRef<number | null>(null);
 
     useLayoutEffect(() => {
         const currentIds = new Set(items.map((item) => item.tempId));
@@ -445,14 +485,23 @@ export function QuizCanvasQuestionList({
                     if (!wrapper) return;
 
                     const current = itemsRef.current;
-                    const from = current.findIndex((entry) => entry.tempId === item.tempId);
+                    // tempId → index lookup, built ONCE per drag frame (the
+                    // swap loop below needs `to` for every other card and
+                    // `from` for the held card — an in-loop findIndex would
+                    // make the loop O(n²) on larger quizzes). tempIds are
+                    // unique stable keys, so the Map is exact (no duplicate-
+                    // key / first-match semantics to preserve).
+                    const indexByTempId = new Map(
+                        current.map((entry, index): [string, number] => [entry.tempId, index]),
+                    );
+                    const from = indexByTempId.get(item.tempId) ?? -1;
                     if (from === -1) return;
 
                     const dragCenterY = this.y + COMPACT_HEIGHT / 2;
 
                     for (const [targetId, targetEl] of wrapperEls.current) {
                         if (targetId === item.tempId) continue;
-                        const to = current.findIndex((entry) => entry.tempId === targetId);
+                        const to = indexByTempId.get(targetId) ?? -1;
                         if (to === -1) continue;
 
                         const targetY = targetYMapRef.current.get(targetId) ?? 0;
@@ -509,12 +558,144 @@ export function QuizCanvasQuestionList({
             });
             draggablesRef.current.set(item.tempId, instance);
         }
-    }, [items, cardRefs, applyPositions, updateLayoutPositions]);
+        // Deps: `items`/`cardRefs` (mount + card churn), `applyPositions`
+        // (captured by the `onDragStart` closure). The remaining entries are
+        // refs + the `setDraggingId` setter threaded through `params` — all
+        // stable identities, so they never re-arm this effect; they're listed
+        // only so react-doctor/exhaustive-deps sees the captures match.
+        // `updateLayoutPositions` is deliberately NOT a dep — this effect
+        // never reads it; listing it would re-kill and recreate every
+        // Draggable instance on its identity changes. The layout hook owns
+        // `updateLayoutPositions`.
+    }, [items, cardRefs, applyPositions, itemsRef, wrapperEls, draggingIdRef, positionedRef, collapsedHeightsRef, targetYMapRef, heightAnimRef, reorderRef, suppressClickRef, suppressedCardIdRef, questionColumnRef, setDraggingId]);
 
     useEffect(() => () => {
         for (const instance of draggablesRef.current.values()) instance.kill();
         draggablesRef.current.clear();
         if (suppressTimerRef.current !== null) clearTimeout(suppressTimerRef.current);
+    }, []);
+}
+
+/**
+ * Scrollable canvas body of the quiz builder.
+ *
+ * Renders the meta card and single-column question cards. Cards are placed
+ * into an absolutely-positioned grid using synchronous DOM height accumulation
+ * before paint, guaranteeing zero overlap when expanding/collapsing.
+ *
+ * Physical push accordion physics, GSAP Draggable reordering, and height tweens
+ * are managed 100% locally here. The sticky right toolbar dock is decoupled and
+ * rendered by `<QuizCanvasToolbarLane />`.
+ */
+export function QuizCanvasQuestionList({
+    draft,
+    activeCardId,
+    errors,
+    titleCardRef,
+    cardRefs,
+    canvas,
+    onFocusCard,
+    onImportFromBank,
+    bottomInset = 0,
+    topInset = 0,
+}: QuizCanvasQuestionListProps) {
+    const items = draft.items;
+    /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
+    const [draggingId, setDraggingId] = useState<string | null>(null);
+    /** Incrementing layout version counter to signal settled layout updates to the toolbar lane. */
+    const [layoutVersion, setLayoutVersion] = useState(0);
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    /** Outer bounds container for canvas body flex row. */
+    const canvasBodyRef = useRef<HTMLDivElement | null>(null);
+    /** Outer bounds container (meta card + question grid + bottom dropzone) for GSAP Draggable. */
+    const questionColumnRef = useRef<HTMLDivElement | null>(null);
+    /** Live registry of question card wrapper elements keyed by tempId (shared with the toolbar lane). */
+    const wrapperEls = useRef(new Map<string, HTMLDivElement>());
+    /** tempId of the card currently held by GSAP Draggable. */
+    const draggingIdRef = useRef<string | null>(null);
+    /** Temporary flag to block the trailing click event right after a drop. */
+    const suppressClickRef = useRef(false);
+    /** tempId of the card whose trailing click is being suppressed (scoped to the dragged card only). */
+    const suppressedCardIdRef = useRef<string | null>(null);
+    /** tempIds placed at least once (skip initial jump animation). */
+    const positionedRef = useRef(new Set<string>());
+    /** Live Map of calculated target Y coordinates per card (tempId -> Y). */
+    const targetYMapRef = useRef(new Map<string, number>());
+    /**
+     * Self-healing per-card RESTING (collapsed) height cache, sampled in
+     * `settleLayout` for inactive, error-free cards. Feeds the toolbar lane's
+     * resting-position target. Callout mount/unmount resizes wrappers →
+     * ResizeObserver → `settleLayout`, so the cache self-corrects without
+     * explicit invalidation.
+     */
+    const collapsedHeightsRef = useRef(new Map<string, number>());
+    /** tempIds whose height tween is currently mid-flight (physical push). */
+    const heightAnimRef = useRef(new Set<string>());
+    /** Previously active card id — detects expand/collapse transitions. */
+    const prevActiveCardIdRef = useRef<string | null>(null);
+
+    // Live snapshots so Draggable closures never read stale state. Synced in
+    // a LAYOUT effect — NOT during render (React can replay or discard render
+    // work, so render-phase ref writes can leak from UI that never commits),
+    // and NOT in a passive effect: the section hooks' layout effects call
+    // `updateLayoutPositions` → `settleLayout` → `applyPositions`, which read
+    // these refs in the same commit — the sync must run before them, in the
+    // layout pass (declaration order = execution order).
+    const itemsRef = useRef(items);
+    const activeCardIdRef = useRef(activeCardId);
+    const errorsRef = useRef(errors);
+    const reorderRef = useRef(canvas.reorderItems);
+    useLayoutEffect(() => {
+        itemsRef.current = items;
+        activeCardIdRef.current = activeCardId;
+        errorsRef.current = errors;
+        reorderRef.current = canvas.reorderItems;
+    });
+
+    // Accordion layout orchestration (applyPositions / settleLayout / height
+    // tweens + their layout effects). The returned `applyPositions` is the
+    // drag lifecycle's `onDragStart` collapse push.
+    const { applyPositions } = useCardPositionLayout({
+        items,
+        activeCardId,
+        draggingId,
+        itemsRef,
+        activeCardIdRef,
+        errorsRef,
+        wrapperEls,
+        draggingIdRef,
+        positionedRef,
+        targetYMapRef,
+        gridRef,
+        collapsedHeightsRef,
+        heightAnimRef,
+        setLayoutVersion,
+        prevActiveCardIdRef,
+    });
+
+    // GSAP Draggable reorder lifecycle (create/kill per card, swap logic,
+    // trailing-click suppression, unmount cleanup).
+    useCardDragReorder({
+        items,
+        cardRefs,
+        applyPositions,
+        questionColumnRef,
+        wrapperEls,
+        itemsRef,
+        draggingIdRef,
+        positionedRef,
+        collapsedHeightsRef,
+        targetYMapRef,
+        heightAnimRef,
+        reorderRef,
+        suppressClickRef,
+        suppressedCardIdRef,
+        setDraggingId,
+    });
+
+    const registerWrapper = useCallback((tempId: string, el: HTMLDivElement | null) => {
+        if (el) wrapperEls.current.set(tempId, el);
+        else wrapperEls.current.delete(tempId);
     }, []);
 
     return (

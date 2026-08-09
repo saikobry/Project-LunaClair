@@ -1,2 +1,2 @@
 export { default as QuizManagementScreen } from './QuizManagementScreen';
-export { QuizCanvasBuilder } from './components/QuizCanvasBuilder';
+export { QuizCanvasBuilder } from './canvas';
