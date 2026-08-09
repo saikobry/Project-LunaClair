@@ -7,6 +7,7 @@ import type { QuestionDraft } from '../../../application/quiz-management/drafts/
 import type { QuizCanvas } from './hooks/useQuizCanvas';
 import { QuizCanvasCardToolbar } from './QuizCanvasCardToolbar';
 import { QuizCanvasPinVisualizer } from './QuizCanvasPinVisualizer';
+import { readVelocity, estimateCalloutHeight, type VelocitySample } from './utils/toolbarMath';
 
 /**
  * Transition glide duration (s) — matches `QuizCanvasQuestionList`'s
@@ -23,13 +24,6 @@ const FOLLOW_DURATION = 0.12;
 const SETTLE_FRAMES = 6;
 /** Sub-pixel tolerance (px) below which a frame counts as settled. */
 const SETTLE_EPSILON = 0.5;
-
-// Deterministic error-callout estimate (see `errorCallout` in
-// QuizCanvasQuestionCard): 8px top + 8px bottom padding, ~18px per 12px-font
-// line, ~55 chars per line at the card's ~660px content width.
-const CALLOUT_PADDING_VERTICAL = 16;
-const CALLOUT_LINE_HEIGHT = 18;
-const CALLOUT_CHARS_PER_LINE = 90; // ~12px font in a ~660px card body
 
 /** Gap (px) from the visible edge when the toolbar is pinned. */
 const PIN_MARGIN = 16;
@@ -75,39 +69,8 @@ const MIN_FOLLOW_DURATION = 0.035;
 const VELOCITY_LEAD_S = 0.02;
 const MAX_PIN_LEAD = 32;
 
-/** Smoothed scroll-speed sample — `v` (px/s) captured at `at` (ms). */
-interface VelocitySample {
-    v: number;
-    at: number;
-}
-
 /** Scroll-pin state. */
 type PinState = 'anchored' | 'top' | 'bottom';
-
-/**
- * Read a velocity sample with exponential decay toward 0 once scrolling stops
- * (τ ≈ 80ms) — the number fades out smoothly as the content coasts instead of
- * snapping to 0, so keep-pace chasing and the pin lead wind down naturally.
- */
-function readVelocity(sample: VelocitySample, now: number): number {
-    return sample.v * Math.exp(-(now - sample.at) / 80);
-}
-
-/**
- * Deterministic estimate of a collapsed card's error-callout height, derived
- * from the message count/length in the `errors` prop — never a live DOM
- * measurement. Deliberately approximate: the drift-verify phase of the follow
- * loop is the intended corrector. Do NOT "improve" this into a
- * `getBoundingClientRect` call — that would reintroduce the mid-transition
- * measurement race this resting-position model exists to avoid.
- */
-function estimateCalloutHeight(errors: string[]): number {
-    const lines = errors.reduce(
-        (total, message) => total + Math.max(1, Math.ceil(message.length / CALLOUT_CHARS_PER_LINE)),
-        0,
-    );
-    return CALLOUT_PADDING_VERTICAL + lines * CALLOUT_LINE_HEIGHT;
-}
 
 const styles = stylex.create({
     toolbarLane: {

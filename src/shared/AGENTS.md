@@ -12,7 +12,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
 | `ui/` | Design system primitive adapters and low-level container primitives |
 | `components/` | Domain-neutral composites such as `ActionMenu` and `SelectableRow` |
-| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useTabKeyboardNavigation`, `useDragReorder` (generic HTML5 drag-and-drop list reordering with keyboard fallbacks), `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback — owns no domain types) |
+| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useTabKeyboardNavigation`, `useDragReorder` (generic HTML5 drag-and-drop list reordering with keyboard fallbacks), `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer) |
 
 ## Local Contracts
 

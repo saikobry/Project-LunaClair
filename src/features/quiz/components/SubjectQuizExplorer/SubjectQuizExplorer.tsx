@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, BrainCircuit, BookOpen, Search, ChevronDown } from 'lucide-react';
 import gsap from 'gsap';
@@ -6,6 +6,7 @@ import { useGSAP } from '@gsap/react';
 import { Input } from '../../../../shared/ui/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
+import { useDebounce } from '../../../../shared/hooks';
 import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../types/quizTree.types';
 
 const styles = stylex.create({
@@ -627,15 +628,9 @@ export function SubjectQuizExplorer({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 200);
   const [activeTermFilter, setActiveTermFilter] = useState<string | null>(null);
   const [collapsedTermIds, setCollapsedTermIds] = useState<Set<string>>(new Set());
-
-  // ── Debounce search so filtering + entrance animation don't fire per keystroke ──
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 200);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   const {
     selectedQuizIds,
