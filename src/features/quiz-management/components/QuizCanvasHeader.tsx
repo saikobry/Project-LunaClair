@@ -10,9 +10,21 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 12,
         padding: '10px 20px',
-        backgroundColor: 'var(--color-background)',
+        // Solid, opaque — this bar sticks (sticky lives on the builder's
+        // header WRAPPER, see QuizCanvasBuilder.headerWrap), so cards must
+        // never show through it. Uses --color-background-surface (the
+        // workspace's own surface) so the stuck bar reads as one continuous
+        // page — NOT the undefined legacy --color-background token (which
+        // would drop the declaration and make the bar transparent).
+        backgroundColor: 'var(--color-background-surface)',
         borderBottom: '1px solid var(--color-border)',
         flexShrink: 0,
+        // NOTE: the sticky behavior itself lives on the builder's header
+        // WRAPPER (see QuizCanvasBuilder.headerWrap) — sticky must sit on the
+        // element whose containing block is the tall scrolling workspace;
+        // putting it here (inside a same-height wrapper) would give it zero
+        // room to stick. This element stays plain: opaque background + border
+        // so the stuck wrapper reads as a solid bar.
         // Mobile: collapse padding/gap so the Save Quiz button stays visible.
         [mobile]: {
             padding: '8px 12px',

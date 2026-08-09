@@ -27,22 +27,38 @@ const COMPACT_HEIGHT = 76;
  * cards footroom past the bottom card's midpoint so any card — collapsed or
  * expanded — can swap into the last slot. Geometry: a fully expanded card
  * (≈380px) needs its center to reach `gridHeight − lastCardH/2 + epsilon`,
- * which requires a buffer of ≥ ~158px; 200 keeps margin for taller editors.
+ * which requires a buffer of ≥ ~158px; 160 sits at that documented floor — do
+ * not go lower without headlessly re-verifying drag-to-last-slot.
  */
-const BOTTOM_BUFFER = 200;
+const BOTTOM_BUFFER = 160;
 /** Hysteresis (px) applied to midpoint swap thresholds to prevent oscillation. */
 const SWAP_EPSILON = 4;
 
 const styles = stylex.create({
     canvas: {
-        flex: 1,
-        overflowY: 'auto',
+        // WINDOW-SCROLL mode: `.canvas` is no longer a scrollport — the
+        // DOCUMENT scrolls (see QuizCanvasBuilder). It remains the horizontal
+        // centering column for the maxWidth-capped canvas body; the toolbar
+        // lane pins against the VIEWPORT box (sticky-header `topInset` +
+        // bottom-bar `bottomInset`), not this element.
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '16px 16px 96px',
+        // Bottom padding tiers — the space below the drag dropzone at the end
+        // of the scroll (the dropzone itself is `BOTTOM_BUFFER` = 160px, which
+        // is functional footroom, not dead space):
+        // - <640px: 48px — the floating pill sits `calc(84px + safe-area)`
+        //   above the viewport bottom (top edge ≈134–170px with a ~50px pill
+        //   and up to ~34px safe-area); the 160px dropzone below the last
+        //   card keeps it clear, so 48px is safe (the old 96px was overkill).
+        // - 640–768px: 24px — no pill at this width; tight end-of-scroll.
+        // - ≥768px: 48px — standard desktop breathing room.
+        padding: '16px 16px 48px',
         '@media (min-width: 640px)': {
-            padding: '24px 16px 96px',
+            padding: '24px 16px 24px',
+        },
+        '@media (min-width: 768px)': {
+            padding: '24px 16px 48px',
         },
     },
     canvasBody: {
@@ -120,6 +136,18 @@ interface QuizCanvasQuestionListProps {
     onFocusCard: (tempId: string) => void;
     /** Opens the bank import picker anchored after the given card index. */
     onImportFromBank: (index: number) => void;
+    /**
+     * Height (px) of app chrome overlapping the canvas's bottom edge (the
+     * shell's mobile bottom nav, ≤768px) — forwarded to the toolbar lane for
+     * its bottom-pin bound / unpin gate.
+     */
+    bottomInset?: number;
+    /**
+     * Height (px) of the sticky builder header — the toolbar lane's TOP pin
+     * bound in viewport space (window-scroll mode): the pinned toolbar locks
+     * BELOW this, never over it. Measured by the builder via ResizeObserver.
+     */
+    topInset?: number;
 }
 
 /**
@@ -142,6 +170,8 @@ export function QuizCanvasQuestionList({
     canvas,
     onFocusCard,
     onImportFromBank,
+    bottomInset = 0,
+    topInset = 0,
 }: QuizCanvasQuestionListProps) {
     const items = draft.items;
     /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
@@ -574,6 +604,8 @@ export function QuizCanvasQuestionList({
                     canvas={canvas}
                     onFocusCard={onFocusCard}
                     onImportFromBank={onImportFromBank}
+                    bottomInset={bottomInset}
+                    topInset={topInset}
                 />
             </div>
         </div>

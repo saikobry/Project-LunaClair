@@ -15,7 +15,7 @@ const styles = stylex.create({
         flexDirection: 'column',
         gap: 12,
         padding: 16,
-        backgroundColor: 'var(--color-background)',
+        backgroundColor: 'var(--color-background-card)',
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         cursor: 'pointer',

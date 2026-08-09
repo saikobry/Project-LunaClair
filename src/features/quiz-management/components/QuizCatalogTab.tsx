@@ -36,7 +36,7 @@ const styles = stylex.create({
         gap: 10,
     },
     catalogCard: {
-        backgroundColor: 'var(--color-background)',
+        backgroundColor: 'var(--color-background-card)',
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         padding: 16,

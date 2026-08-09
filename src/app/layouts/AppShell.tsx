@@ -153,6 +153,11 @@ const styles = stylex.create({
       paddingBottom: 0,
     },
   },
+  // NOTE: the quiz-canvas route scrolls the WINDOW (migrated off the internal
+  // scroller) — the workspace grows to content and `main`'s mobile bottom
+  // padding is its real page-scroll clearance again, exactly like the other
+  // routes. No route-scoped `main` pin here anymore (the old
+  // `mainCanvasRoute` 100svh clamp was removed with the migration).
   // Floating logo restore button (bottom-left) shown only in Focus Mode
   focusRestoreButton: {
     position: 'fixed',
@@ -200,6 +205,32 @@ export default function AppShell() {
   );
 
   const touchMutation = useTouchMaterial();
+
+  // Bottom-bar clearance (px): the shell's OWN declared `main` bottom padding
+  // (`calc(88px + env(safe-area-inset-bottom))` at ≤768px; 0 at >768px and in
+  // Focus Mode, where the nav is hidden) — the exact height of app chrome that
+  // overlaps the quiz canvas's bottom edge. Passed down to the quiz builder so
+  // its toolbar lane's bottom-pin bound / unpin gate stay ABOVE the mobile
+  // bottom nav instead of sliding under it.
+  const mainRef = useRef<HTMLElement>(null);
+  const [bottomInset, setBottomInset] = useState(0);
+
+  // Focus Mode swaps main's class (padding-bottom → 0 at ≤768px), which
+  // re-runs this effect — a bottom-pinned toolbar follows the nav's
+  // disappearance. `getComputedStyle` forces a recalc, so reading right after
+  // the commit already sees the new class; no rAF needed. `setBottomInset`
+  // bails out on identical values, so resize storms don't re-render.
+  useEffect(() => {
+    const measure = () => {
+      const main = mainRef.current;
+      if (!main) return;
+      const px = Number.parseFloat(getComputedStyle(main).paddingBottom);
+      setBottomInset(Number.isFinite(px) ? Math.max(0, px) : 0);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [isFocusMode]);
 
   // Toggle Focus Mode. Persistence happens in the effect below so the
   // updater stays pure (StrictMode-safe) and rapid toggles never read
@@ -351,7 +382,10 @@ export default function AppShell() {
             onNavigate={navigate}
           />
         </div>
-      <main {...stylex.props(styles.main, isFocusMode && styles.mainFocus)}>
+      <main
+        ref={mainRef}
+        {...stylex.props(styles.main, isFocusMode && styles.mainFocus)}
+      >
         {currentRoute.kind === 'library' && (
           <LibraryScreen
             onOpenMaterial={handleOpenMaterial}
@@ -385,6 +419,7 @@ export default function AppShell() {
             key={currentRoute.quizId ?? 'new-quiz'}
             materialId={currentRoute.materialId}
             quizId={currentRoute.quizId}
+            bottomInset={bottomInset}
             onClose={() =>
               navigate({
                 kind: 'workspace',

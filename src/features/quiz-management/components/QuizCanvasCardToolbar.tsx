@@ -32,7 +32,12 @@ const styles = stylex.create({
             bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
             left: 16,
             right: 16,
-            justifyContent: 'space-around',
+            // Center the actions toward the middle of the bar instead of
+            // spreading them edge-to-edge (`space-around`) — a centered
+            // cluster keeps the thumb within natural reach. The gap bump is
+            // scoped to the pill so the desktop/tablet column keeps its 4px.
+            justifyContent: 'center',
+            gap: 8,
             padding: '8px 12px',
             borderRadius: 20,
             backgroundColor: 'rgba(255, 255, 255, 0.94)',
