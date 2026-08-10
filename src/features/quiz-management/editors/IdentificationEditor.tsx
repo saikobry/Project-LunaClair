@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import type { IdentificationPayload } from '../../../domain/quiz/AnswerPayload';
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input';
 
 const styles = stylex.create({
@@ -19,7 +19,7 @@ const styles = stylex.create({
     sectionLabel: {
         fontSize: 13,
         fontWeight: 600,
-        color: '#3d3548',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     altRow: {
@@ -32,7 +32,7 @@ const styles = stylex.create({
     },
     hint: {
         fontSize: 12,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
     },
 });
@@ -97,8 +97,8 @@ export function IdentificationEditor({ value, onChange }: IdentificationEditorPr
                         </div>
                         <Button
                             label={`Remove alternative ${item.index + 1}`}
-                            variant="danger"
-                            icon={<Trash2 size={14} />}
+                            variant="ghost"
+                            icon={<X size={14} />}
                             isIconOnly
                             onClick={() => removeAlternative(item.index)}
                         />

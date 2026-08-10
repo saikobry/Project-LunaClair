@@ -16,7 +16,7 @@ const styles = stylex.create({
     sectionLabel: {
         fontSize: 13,
         fontWeight: 600,
-        color: '#3d3548',
+        color: 'var(--color-text-primary)',
         margin: 0,
     },
     textarea: {
@@ -25,11 +25,11 @@ const styles = stylex.create({
         padding: '10px 12px',
         fontSize: 14,
         fontFamily: 'inherit',
-        border: '1px solid #e5e4e7',
+        border: '1px solid var(--color-border, #e5e4e7)',
         borderRadius: 8,
         resize: 'vertical',
-        color: '#08060d',
-        backgroundColor: '#ffffff',
+        color: 'var(--color-text-primary)',
+        backgroundColor: 'var(--color-background-card, #ffffff)',
         boxSizing: 'border-box',
     },
     blanksList: {
@@ -39,7 +39,7 @@ const styles = stylex.create({
     },
     hint: {
         fontSize: 12,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
         lineHeight: 1.4,
     },

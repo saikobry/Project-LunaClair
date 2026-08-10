@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import type { TrueFalsePayload } from '../../../domain/quiz/AnswerPayload';
+import { CorrectAnswerIndicator } from '../../../shared/ui/CorrectAnswerIndicator/CorrectAnswerIndicator';
 
 const styles = stylex.create({
     container: {
@@ -8,32 +9,43 @@ const styles = stylex.create({
         gap: 12,
     },
     optionRow: {
+        // StyleX drops the `all` shorthand — write the native-button resets
+        // explicitly or the UA's button chrome (background + border) leaks.
+        appearance: 'none',
+        font: 'inherit',
+        boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
         gap: 10,
+        width: '100%',
         padding: '10px 14px',
-        border: '1px solid #e5e4e7',
+        // `border` shorthand is dropped by StyleX 0.19 — use longhands so the
+        // 1px transparent border (layout reservation, no visible ring) ships.
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor: 'transparent',
         borderRadius: 8,
         cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'background-color 0.15s ease, border-color 0.15s ease',
+        ':focus-visible': {
+            outline: '2px solid var(--color-success)',
+            outlineOffset: 2,
+        },
     },
     optionRowActive: {
-        borderColor: '#6366f1',
-        backgroundColor: '#eef2ff',
-    },
-    radio: {
-        width: 16,
-        height: 16,
-        accentColor: '#6366f1',
-        cursor: 'pointer',
+        borderColor: 'transparent',
+        backgroundColor: 'var(--color-success-muted)',
     },
     label: {
         fontSize: 14,
         fontWeight: 500,
-        color: '#08060d',
+        color: 'var(--color-text-primary)',
+        flex: 1,
     },
     hint: {
         fontSize: 12,
-        color: '#6b6375',
+        color: 'var(--color-text-secondary)',
         margin: 0,
     },
 });
@@ -47,30 +59,32 @@ export function TrueFalseEditor({ value, onChange }: TrueFalseEditorProps) {
     return (
         <div {...stylex.props(styles.container)}>
             <p {...stylex.props(styles.hint)}>Select the correct answer.</p>
-            <label
+            <button
+                type="button"
                 {...stylex.props(styles.optionRow, value.correctAnswer === true && styles.optionRowActive)}
+                onClick={() => onChange({ ...value, correctAnswer: true })}
             >
-                <input
-                    type="radio"
-                    name="trueFalse"
-                    checked={value.correctAnswer === true}
-                    onChange={() => onChange({ ...value, correctAnswer: true })}
-                    {...stylex.props(styles.radio)}
+                <CorrectAnswerIndicator
+                    isSelected={value.correctAnswer === true}
+                    onToggle={() => onChange({ ...value, correctAnswer: true })}
+                    ariaLabel="Mark True as correct"
+                    shape="circle"
                 />
                 <span {...stylex.props(styles.label)}>True</span>
-            </label>
-            <label
+            </button>
+            <button
+                type="button"
                 {...stylex.props(styles.optionRow, value.correctAnswer === false && styles.optionRowActive)}
+                onClick={() => onChange({ ...value, correctAnswer: false })}
             >
-                <input
-                    type="radio"
-                    name="trueFalse"
-                    checked={value.correctAnswer === false}
-                    onChange={() => onChange({ ...value, correctAnswer: false })}
-                    {...stylex.props(styles.radio)}
+                <CorrectAnswerIndicator
+                    isSelected={value.correctAnswer === false}
+                    onToggle={() => onChange({ ...value, correctAnswer: false })}
+                    ariaLabel="Mark False as correct"
+                    shape="circle"
                 />
                 <span {...stylex.props(styles.label)}>False</span>
-            </label>
+            </button>
         </div>
     );
 }

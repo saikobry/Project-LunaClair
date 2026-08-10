@@ -4,3 +4,4 @@ export type { DragReorderState, UseDragReorderOptions, UseDragReorderResult } fr
 export { useDraftAutosave } from './useDraftAutosave';
 export type { DraftAutosaveStatus, UseDraftAutosaveOptions, UseDraftAutosaveResult } from './useDraftAutosave';
 export { useDebounce } from './useDebounce';
+export { useStableListKeys } from './useStableListKeys';

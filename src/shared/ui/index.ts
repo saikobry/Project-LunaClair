@@ -15,6 +15,9 @@ export type { ConfirmIntent } from './Dialog/ConfirmationDialog';
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
+export { TextArea } from './TextArea/TextArea';
+export type { TextAreaProps } from './TextArea/TextArea';
+
 export { NumberInput } from './NumberInput/NumberInput';
 export type { NumberInputProps } from './NumberInput/NumberInput';
 
@@ -50,3 +53,9 @@ export type { SelectorProps, SelectorOption } from './Selector/Selector';
 export { Outline } from './Outline/Outline';
 export type { OutlineProps, OutlineItem } from './Outline/Outline';
 export { parseOutlineFromMarkdown } from './Outline/parseOutlineFromMarkdown';
+
+export { Token } from './Token/Token';
+export type { TokenProps, TokenColor, TokenSize } from './Token/Token';
+
+export { CorrectAnswerIndicator } from './CorrectAnswerIndicator/CorrectAnswerIndicator';
+export type { CorrectAnswerIndicatorProps } from './CorrectAnswerIndicator/CorrectAnswerIndicator';

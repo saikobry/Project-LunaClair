@@ -367,6 +367,20 @@ function useCardPositionLayout(params: {
     useEffect(() => {
         if (typeof ResizeObserver === 'undefined') return;
         const observer = new ResizeObserver(() => {
+            // While ANY height tween is mid-flight — a card accordion tween OR the
+            // active card's nested metadata drawer (which registers here via the
+            // `heightAnimRef` it shares with the card) — take the cheap
+            // frame-synced instant-push branch: read live wrapper heights and snap
+            // lower cards along, exactly like the accordion tween's `onUpdate`
+            // repositioning. Settling instead would restart glide tweens AND bump
+            // `layoutVersion` (a full canvas React re-render) every frame for the
+            // whole tween, which is what dropped frames during the drawer
+            // animation. Dragging is excluded: the held card's height snap is
+            // already handled by the drag-collapse `applyPositions(true)` glide.
+            if (heightAnimRef.current.size > 0 && draggingIdRef.current === null) {
+                applyPositions(false);
+                return;
+            }
             updateLayoutPositions();
         });
 
@@ -375,7 +389,7 @@ function useCardPositionLayout(params: {
         }
 
         return () => observer.disconnect();
-    }, [items, updateLayoutPositions, wrapperEls]);
+    }, [items, updateLayoutPositions, wrapperEls, heightAnimRef, draggingIdRef, applyPositions]);
 
     return { applyPositions };
 }
@@ -748,6 +762,7 @@ export function QuizCanvasQuestionList({
                                                 isActive={isActive}
                                                 isDragging={isDragging}
                                                 errors={errors?.items[item.tempId] ?? []}
+                                                heightAnimRef={heightAnimRef}
                                                 cardRef={(el) => {
                                                     if (el) cardRefs.current.set(item.tempId, el);
                                                     else cardRefs.current.delete(item.tempId);
