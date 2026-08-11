@@ -117,7 +117,7 @@ const styles = stylex.create({
     textTransform: 'uppercase',
     letterSpacing: '0.3px',
     backgroundColor: 'var(--color-warning-muted)',
-    color: '#854d0e',
+    color: 'var(--color-on-warning-muted)',
     borderRadius: 4,
     lineHeight: 1.4,
     marginLeft: 6,

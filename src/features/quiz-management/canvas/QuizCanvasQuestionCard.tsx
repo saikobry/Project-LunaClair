@@ -2,6 +2,7 @@ import { useState, type ReactNode, type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { GripVertical, Link2 } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import { Input } from '../../../shared/ui/Input';
 import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
@@ -9,29 +10,55 @@ import { Selector } from '../../../shared/ui/Selector/Selector';
 import { getQuestionEditor, QUESTION_TYPE_OPTIONS } from '../editors/QuestionEditorRegistry';
 import { QuizCanvasAnswerMetadataDrawer } from './QuizCanvasAnswerMetadataDrawer';
 
-function formatCorrectAnswerSummary(payload: QuestionDraft['payload']): string | null {
+/** Answers shown in the collapsed answer chip before the "+N more" suffix. */
+const MAX_VISIBLE_ANSWERS = 3;
+
+/**
+ * Joins the correct answers for the collapsed chip. Multi-answer questions
+ * (multiple-select) render as ONE chip — `✓ A + B + C` — keeping the
+ * single-select "one chip = one verdict" grammar, with `+` reading as "all
+ * of these" (AND) rather than alternatives. Long sets truncate with a
+ * "+N more" suffix; the full list stays available on hover (title tooltip)
+ * and by opening the card.
+ */
+function formatAnswerList(answers: string[]): string {
+    if (answers.length <= 1) return answers[0] ?? '';
+    const visible = answers.slice(0, MAX_VISIBLE_ANSWERS);
+    const joined = visible.join(' + ');
+    const hidden = answers.length - visible.length;
+    return hidden > 0 ? `${joined} +${hidden} more` : joined;
+}
+
+/**
+ * The correct-answer strings for a payload, in display order. Multiple-select
+ * returns ONE ENTRY PER correct choice (joined into a single "✓ A + B + C"
+ * chip in the collapsed card); every other type returns a single entry
+ * (fill-in-blank joins its blanks into one string). Returns null when there
+ * is no answer to show.
+ */
+function getCorrectAnswerList(payload: QuestionDraft['payload']): string[] | null {
     switch (payload.type) {
         case 'multiple_choice': {
             const text = payload.choices[payload.correctIndex]?.trim();
-            return text ? text : null;
+            return text ? [text] : null;
         }
         case 'multiple_select': {
             const selected = payload.correctIndices.flatMap((i) => {
                 const text = payload.choices[i]?.trim();
                 return text ? [text] : [];
             });
-            return selected.length > 0 ? selected.join(', ') : null;
+            return selected.length > 0 ? selected : null;
         }
         case 'true_false':
-            return payload.correctAnswer === true ? 'True' : 'False';
+            return [payload.correctAnswer === true ? 'True' : 'False'];
         case 'identification':
-            return payload.correctAnswer.trim() || null;
+            return payload.correctAnswer.trim() ? [payload.correctAnswer.trim()] : null;
         case 'fill_in_blank': {
             const nonBlank = payload.blanks.flatMap((b) => {
                 const text = b.trim();
                 return text ? [text] : [];
             });
-            return nonBlank.length > 0 ? nonBlank.join(', ') : null;
+            return nonBlank.length > 0 ? [nonBlank.join(', ')] : null;
         }
         default:
             return null;
@@ -117,9 +144,13 @@ const styles = stylex.create({
         fontWeight: 500,
         color: 'var(--color-text-primary)',
         margin: 0,
+        // Two-line clamp — the prompt owns a full row in the collapsed
+        // two-row layout, so it can wrap to 2 lines instead of being
+        // squeezed to nothing by the badge row on narrow cards.
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
         flex: 1,
         minWidth: 0,
     },
@@ -131,49 +162,17 @@ const styles = stylex.create({
     collapsedMeta: {
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 6,
-        marginLeft: 'auto',
-        flexShrink: 0,
     },
+    // Structural chip base only — every badge's colors come from the domain
+    // appearance records (POINTS_APPEARANCE / DIFFICULTY_APPEARANCE /
+    // QUESTION_TYPE_APPEARANCE), so the palette has one owner.
     metaChip: {
         fontSize: 11,
         fontWeight: 600,
-        color: 'var(--color-text-secondary)',
-        backgroundColor: 'var(--color-accent-muted)',
         padding: '2px 8px',
         borderRadius: 5,
-    },
-    typeChip_multiple_choice: {
-        backgroundColor: '#dbeafe',
-        color: '#1d4ed8',
-    },
-    typeChip_multiple_select: {
-        backgroundColor: '#ede9fe',
-        color: '#6d28d9',
-    },
-    typeChip_true_false: {
-        backgroundColor: '#ccfbf1',
-        color: '#0f766e',
-    },
-    typeChip_identification: {
-        backgroundColor: '#fef3c7',
-        color: '#b45309',
-    },
-    typeChip_fill_in_blank: {
-        backgroundColor: '#fce7f3',
-        color: '#be185d',
-    },
-    diffChip_easy: {
-        backgroundColor: '#dcfce7',
-        color: '#166534',
-    },
-    diffChip_medium: {
-        backgroundColor: '#fef3c7',
-        color: '#92400e',
-    },
-    diffChip_hard: {
-        backgroundColor: 'var(--color-error-muted)',
-        color: 'var(--color-error)',
     },
     answerChip: {
         fontSize: 11,
@@ -182,10 +181,22 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-success-muted)',
         padding: '2px 8px',
         borderRadius: 5,
-        maxWidth: 180,
+        // No max width — the chip sizes to its content; if the group can't fit
+        // beside the other chips it wraps onto its own right-aligned line
+        // (and, on a very narrow card, ellipsizes rather than wrapping text).
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
+    },
+    // Right-aligned answer group — its auto margin absorbs the badge row's
+    // free space so the ✓ answer chip (single or +-joined multiple-select)
+    // hugs the right edge. Auto margins on the chips themselves instead
+    // would split the free space between them and scatter them across the row.
+    answerGroup: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        marginLeft: 'auto',
     },
     body: {
         display: 'flex',
@@ -233,8 +244,11 @@ interface QuizCanvasQuestionCardProps {
 /**
  * A single question card on the quiz canvas.
  *
- * Collapsed (inactive) cards show only the prompt summary; the active
- * card expands into full editing with the type-specific editor. Bank-
+ * Collapsed (inactive) cards show a two-row summary — the prompt (2-line
+ * clamp) with the points/difficulty/type chips on a row beneath it and the
+ * ✓ answer chip right-aligned at the end (multiple-select joins its answers
+ * as ✓ A + B + C, truncated with "+N more"); the active card expands into
+ * full editing with the type-specific editor. Bank-
  * linked cards are tagged and lock their type (the Question Bank owns
  * the question's type). While dragged (`isDragging`), an active card
  * renders as a clean collapsed summary (`effectiveIsActive`) instead of
@@ -265,6 +279,8 @@ export function QuizCanvasQuestionCard({
     // Open state lives here (not in the drawer) so the root onClick below can
     // reset it on activation; the toggle button lives in the drawer.
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    // Correct-answer chip content — rendered on the collapsed badge row.
+    const correctAnswers = getCorrectAnswerList(item.payload);
 
     const headerRow: ReactNode = (
         <div {...stylex.props(styles.header)}>
@@ -309,50 +325,66 @@ export function QuizCanvasQuestionCard({
                         style={{ flexShrink: 0 }}
                     />
                 </>
-            ) : (() => {
-                const answerSummary = formatCorrectAnswerSummary(item.payload);
-                return (
-                    <>
-                        <p
-                            {...stylex.props(
-                                styles.collapsedPrompt,
-                                !item.prompt.trim() && styles.collapsedPromptEmpty,
-                            )}
-                        >
-                            {item.prompt.trim() || 'Untitled question'}
-                        </p>
-                        <div {...stylex.props(styles.collapsedMeta)}>
-                            {answerSummary && (
-                                <span
-                                    {...stylex.props(styles.answerChip)}
-                                    title={`Correct answer: ${answerSummary}`}
-                                >
-                                    ✓ {answerSummary}
-                                </span>
-                            )}
-                            <span
-                                {...stylex.props(
-                                    styles.metaChip,
-                                    styles[`diffChip_${item.difficulty}` as keyof typeof styles],
-                                )}
-                            >
-                                {item.difficulty.charAt(0).toUpperCase() + item.difficulty.slice(1)}
-                            </span>
-                            <span
-                                {...stylex.props(
-                                    styles.metaChip,
-                                    styles[`typeChip_${item.type}` as keyof typeof styles],
-                                )}
-                            >
-                                {QUESTION_TYPE_OPTIONS.find((o) => o.value === item.type)?.label ?? item.type}
-                            </span>
-                            <span {...stylex.props(styles.metaChip)}>{item.points} pt</span>
-                        </div>
-                    </>
-                );
-            })()}
+            ) : (
+                <p
+                    {...stylex.props(
+                        styles.collapsedPrompt,
+                        !item.prompt.trim() && styles.collapsedPromptEmpty,
+                    )}
+                >
+                    {item.prompt.trim() || 'Untitled question'}
+                </p>
+            )}
         </div>
     );
+
+    // Collapsed badge row — the points/difficulty/type chips sit left, with
+    // the ✓ answer chip right-aligned at the row's end. Multiple-select stays
+    // ONE chip too (✓ A + B + C, "+N more" when long) — the same grammar as
+    // single-select, and `+` reads as "all of these" (AND), not alternatives.
+    // Two-row collapsed card, so a narrow card never squeezes the question
+    // out of sight.
+    const collapsedMetaRow: ReactNode = !effectiveIsActive ? (
+        <div {...stylex.props(styles.collapsedMeta)}>
+            <span
+                {...stylex.props(styles.metaChip)}
+                style={{
+                    backgroundColor: POINTS_APPEARANCE.bg,
+                    color: POINTS_APPEARANCE.fg,
+                }}
+            >
+                {item.points} pt
+            </span>
+            <span
+                {...stylex.props(styles.metaChip)}
+                style={{
+                    backgroundColor: DIFFICULTY_APPEARANCE[item.difficulty].bg,
+                    color: DIFFICULTY_APPEARANCE[item.difficulty].fg,
+                }}
+            >
+                {item.difficulty.charAt(0).toUpperCase() + item.difficulty.slice(1)}
+            </span>
+            <span
+                {...stylex.props(styles.metaChip)}
+                style={{
+                    backgroundColor: QUESTION_TYPE_APPEARANCE[item.type].bg,
+                    color: QUESTION_TYPE_APPEARANCE[item.type].fg,
+                }}
+            >
+                {QUESTION_TYPE_OPTIONS.find((o) => o.value === item.type)?.label ?? item.type}
+            </span>
+            {correctAnswers && (
+                <div {...stylex.props(styles.answerGroup)}>
+                    <span
+                        {...stylex.props(styles.answerChip)}
+                        title={`Correct answer: ${correctAnswers.join(', ')}`}
+                    >
+                        ✓ {formatAnswerList(correctAnswers)}
+                    </span>
+                </div>
+            )}
+        </div>
+    ) : null;
 
     return (
         <div
@@ -380,6 +412,7 @@ export function QuizCanvasQuestionCard({
             aria-label={`Question ${index + 1}`}
         >
             {headerRow}
+            {collapsedMetaRow}
 
             {effectiveIsActive ? (
                 <div {...stylex.props(styles.body)} onClick={(event) => event.stopPropagation()}>

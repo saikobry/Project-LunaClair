@@ -163,7 +163,7 @@ const styles = stylex.create({
     padding: '6px 16px',
     borderRadius: 6,
     backgroundColor: 'var(--color-accent)',
-    color: '#fff',
+    color: 'var(--color-on-accent)',
     fontWeight: 600,
     fontSize: 14,
     borderStyle: 'none',

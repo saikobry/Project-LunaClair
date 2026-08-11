@@ -43,6 +43,9 @@ export { resolveStrategy } from './strategies/QuestionStrategyResolver';
 // Virtual quiz
 export { buildUnifiedQuestionSetFromQuizzes, createVirtualQuizFromQuizzes } from './virtualQuiz';
 
+// Badge appearance (semantic palette shared by authoring + learner surfaces)
+export { QUESTION_TYPE_APPEARANCE, DIFFICULTY_APPEARANCE, POINTS_APPEARANCE } from './quizBadgeAppearance';
+
 // Quiz editor service contract (atomic authoring saves)
 export type {
     QuizEditorService,

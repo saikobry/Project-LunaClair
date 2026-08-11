@@ -151,6 +151,10 @@ const styles = stylex.create({
     color: 'var(--color-accent)',
     fontWeight: 600,
   },
+  // Deliberate amber treatment for the material-active nav state — alpha-tint
+  // background + amber-600. Distinct from the warning-muted role pair
+  // (--color-on-warning-muted): this is a decorative 2.79:1 highlight on its
+  // own tinted surface, not a badge, so it intentionally stays literal.
   navItemMaterialActive: {
     backgroundColor: 'rgba(217, 119, 6, 0.12)',
     color: '#d97706',

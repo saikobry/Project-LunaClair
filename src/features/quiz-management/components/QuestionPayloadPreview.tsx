@@ -29,7 +29,7 @@ const styles = stylex.create({
     },
     choiceItemCorrect: {
         backgroundColor: 'var(--color-success-muted)',
-        color: '#166534',
+        color: 'var(--color-on-success-muted)',
         fontWeight: 600,
     },
     correctIndicator: {
@@ -45,18 +45,18 @@ const styles = stylex.create({
     },
     correctIndicatorRadio: {
         backgroundColor: 'var(--color-success)',
-        color: '#fff',
+        color: 'var(--color-on-success)',
     },
     correctIndicatorCheck: {
         backgroundColor: 'var(--color-success)',
-        color: '#fff',
+        color: 'var(--color-on-success)',
     },
     answerBlock: {
         fontSize: 13,
         padding: '6px 10px',
         borderRadius: 6,
         backgroundColor: 'var(--color-success-muted)',
-        color: '#166534',
+        color: 'var(--color-on-success-muted)',
         fontWeight: 500,
         display: 'inline-flex',
         alignItems: 'center',
