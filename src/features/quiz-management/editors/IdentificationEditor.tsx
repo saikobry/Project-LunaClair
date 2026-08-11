@@ -90,6 +90,7 @@ export function IdentificationEditor({ value, onChange }: IdentificationEditorPr
                         <div {...stylex.props(styles.altInput)}>
                             <Input
                                 label={`Alternative ${item.index + 1}`}
+                                labelHidden
                                 value={item.text}
                                 onChange={(v) => updateAlternative(item.index, v)}
                                 placeholder={`Alternative ${item.index + 1}`}

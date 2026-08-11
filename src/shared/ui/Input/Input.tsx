@@ -16,6 +16,8 @@ export interface InputProps {
   required?: boolean;
   /** HTML input type. @default 'text' */
   type?: 'text' | 'password' | 'email';
+  /** Maximum number of characters allowed. @default undefined (unlimited) */
+  maxLength?: number;
   /** Description text displayed between label and input. */
   description?: string;
   /** Error or status message. */
@@ -51,6 +53,7 @@ export function Input({
   disabled = false,
   required = false,
   type = 'text',
+  maxLength,
   description,
   statusMessage,
   autoFocus = false,
@@ -71,6 +74,12 @@ export function Input({
       isDisabled={disabled}
       isRequired={required}
       type={type}
+      // Astryx TextInput forwards unknown props to the native <input> via
+      // its `...rest` spread, but `BaseProps` extends `HTMLAttributes`
+      // (no `maxLength` — that's an `InputHTMLAttributes`-only prop), so the
+      // attribute is cast through a single-property object. Runtime
+      // behavior is the native browser limit; only the type needs the cast.
+      {...({ maxLength } as Record<string, unknown>)}
       description={description}
       hasAutoFocus={autoFocus}
       startIcon={startIcon}

@@ -4,9 +4,9 @@ import { GripVertical, Link2 } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import { Input } from '../../../shared/ui/Input';
 import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 import { Selector } from '../../../shared/ui/Selector/Selector';
+import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { getQuestionEditor, QUESTION_TYPE_OPTIONS } from '../editors/QuestionEditorRegistry';
 import { QuizCanvasAnswerMetadataDrawer } from './QuizCanvasAnswerMetadataDrawer';
 
@@ -416,13 +416,18 @@ export function QuizCanvasQuestionCard({
 
             {effectiveIsActive ? (
                 <div {...stylex.props(styles.body)} onClick={(event) => event.stopPropagation()}>
-                    <Input
+                    {/* Fixed 2 rows (no auto-grow): the canvas ResizeObserver
+                        treats any wrapper height change as a layout event and
+                        reflows every card below it, so a per-keystroke growing
+                        textarea would fight the accordion with constant tweens. */}
+                    <TextArea
                         label={`Question ${index + 1} prompt`}
                         labelHidden
                         value={item.prompt}
                         onChange={(value) => onChange({ prompt: value })}
                         placeholder="Type the question prompt…"
                         required
+                        rows={2}
                     />
                     <EditorComponent
                         value={item.payload as never}
