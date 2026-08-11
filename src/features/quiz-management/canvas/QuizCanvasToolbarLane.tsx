@@ -137,6 +137,8 @@ export interface QuizCanvasToolbarLaneProps {
     topInset?: number;
     canvas: QuizCanvas;
     onFocusCard: (tempId: string) => void;
+    /** Scrolls a card into view only when it is mostly off-screen (move/duplicate/delete consequences). */
+    onFocusCardIfOffScreen: (tempId: string) => void;
     onImportFromBank: (index: number) => void;
 }
 
@@ -452,6 +454,18 @@ function useToolbarPinEvaluator(params: {
     activeCardId: string | null;
     pinState: PinState;
     isFocusMode: boolean;
+    /**
+     * Structural-move / geometry-change wake (the component's `wakeTick`,
+     * bumped on `effectiveIndex` slot changes and idle wakes). Re-arms this
+     * evaluator so a move/insert/delete that shifts the resting target WITHOUT
+     * a scroll event re-runs the pin decision against the NEW footprint. The
+     * chase re-arms on the same tick and glides to the shifted resting target;
+     * without this re-arm the evaluator keeps sleeping (no scroll/resize/RO
+     * fires — card wrappers only MOVE via GSAP `y`), so a move-up that pulls
+     * the resting top above the header would let the toolbar glide up PAST the
+     * pin line and clip under the header.
+     */
+    wakeTick: number;
     bottomInset: number;
     topInset: number;
     canvasBodyRef?: RefObject<HTMLDivElement | null>;
@@ -470,6 +484,7 @@ function useToolbarPinEvaluator(params: {
         activeCardId,
         pinState,
         isFocusMode,
+        wakeTick,
         bottomInset,
         topInset,
         canvasBodyRef,
@@ -972,11 +987,16 @@ function useToolbarPinEvaluator(params: {
         // re-arms this effect so `refreshPin` re-reads the lane's `left` after
         // the rail-width animation shifts it. `topInset` re-arms on sticky-
         // header height changes (breakpoints), re-deriving the visible box.
+        // `wakeTick` (trigger-only) re-arms on structural moves and idle wakes:
+        // the resting target shifted without any scroll/resize/RO signal, so
+        // the pin decision must be re-run against the new footprint — a move-up
+        // can pull the resting top above the pin line, and without the re-arm
+        // the toolbar glides up past the header and clips (see the param doc).
         // `toolbarWrapperRef`/`pinnedRef`/`computeRestingTargetYRef`/
         // `velocityRef`/`setPinState` are stable refs + a setter threaded
         // through `params` — listed for react-doctor/exhaustive-deps; they
         // never re-arm the evaluator.
-    }, [isMobile, isDragging, activeCardId, pinState, isFocusMode, bottomInset, topInset, canvasBodyRef, cardWrapperMapRef, titleCardRef, gridRef, toolbarWrapperRef, pinnedRef, computeRestingTargetYRef, velocityRef, setPinState]);
+    }, [isMobile, isDragging, activeCardId, pinState, isFocusMode, wakeTick, bottomInset, topInset, canvasBodyRef, cardWrapperMapRef, titleCardRef, gridRef, toolbarWrapperRef, pinnedRef, computeRestingTargetYRef, velocityRef, setPinState]);
 }
 
 /**
@@ -1060,6 +1080,7 @@ export function QuizCanvasToolbarLane({
     collapsedHeightFallback = 116,
     canvas,
     onFocusCard,
+    onFocusCardIfOffScreen,
     onImportFromBank,
     bottomInset = 0,
     topInset = 0,
@@ -1135,7 +1156,11 @@ export function QuizCanvasToolbarLane({
     // chase — the toolbar would stay frozen at the old spot. Bump the wake
     // tick directly whenever the effective slot changes; the re-armed loop
     // then issues its one-glide to the new resting target in parallel with
-    // the card glide.
+    // the card glide. The PIN EVALUATOR re-arms on the same tick: a move-up
+    // can pull the resting footprint's top above the header, and with no
+    // scroll/resize/RO signal the evaluator would keep sleeping while the
+    // chase glides up — leaving the toolbar clipped under the header instead
+    // of pinned at the edge.
     const prevEffectiveIndexRef = useRef(effectiveIndex);
     useEffect(() => {
         if (prevEffectiveIndexRef.current !== effectiveIndex) {
@@ -1219,6 +1244,7 @@ export function QuizCanvasToolbarLane({
         activeCardId,
         pinState,
         isFocusMode,
+        wakeTick,
         bottomInset,
         topInset,
         canvasBodyRef,
@@ -1244,17 +1270,46 @@ export function QuizCanvasToolbarLane({
                         totalItems={items.length}
                         onAddBelow={() => onFocusCard(canvas.addItemAt(isMetaCard ? 0 : effectiveIndex))}
                         onDuplicate={() => {
-                            if (activeCardId) canvas.duplicateItem(activeCardId);
+                            if (!activeCardId) return;
+                            // The copy is the visible consequence — scroll it
+                            // into view when it lands off-screen (the toolbar
+                            // stays pinned while its target card scrolls away).
+                            const copyTempId = canvas.duplicateItem(activeCardId);
+                            onFocusCardIfOffScreen(copyTempId);
                         }}
                         onMoveUp={() => {
-                            if (!isMetaCard) canvas.reorderItems(effectiveIndex, effectiveIndex - 1);
+                            if (!isMetaCard) {
+                                canvas.reorderItems(effectiveIndex, effectiveIndex - 1);
+                                if (activeCardId) onFocusCardIfOffScreen(activeCardId);
+                            }
                         }}
                         onMoveDown={() => {
-                            if (!isMetaCard) canvas.reorderItems(effectiveIndex, effectiveIndex + 1);
+                            if (!isMetaCard) {
+                                canvas.reorderItems(effectiveIndex, effectiveIndex + 1);
+                                if (activeCardId) onFocusCardIfOffScreen(activeCardId);
+                            }
                         }}
                         onImportFromBank={() => onImportFromBank(isMetaCard ? 0 : effectiveIndex)}
                         onDelete={() => {
-                            if (activeCardId) canvas.deleteItem(activeCardId);
+                            if (!activeCardId) return;
+                            // Delete's consequence is the card that slides into
+                            // the vacated slot (or the title card when the
+                            // quiz becomes empty) — scroll THAT into view,
+                            // still gated on being off-screen: deleting the
+                            // only card usually leaves the meta card already
+                            // visible, so a plain scroll would nudge the
+                            // viewport for no reason.
+                            const deletedIndex = effectiveIndex;
+                            canvas.deleteItem(activeCardId);
+                            const replacement = items[deletedIndex + 1] ?? items[deletedIndex - 1];
+                            if (replacement) {
+                                onFocusCardIfOffScreen(replacement.tempId);
+                            } else if (titleCardRef?.current) {
+                                const rect = titleCardRef.current.getBoundingClientRect();
+                                if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                                    titleCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                            }
                         }}
                     />
                 </div>

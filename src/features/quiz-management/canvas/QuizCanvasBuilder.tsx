@@ -101,6 +101,7 @@ export function QuizCanvasBuilder({ materialId, quizId, onClose, bottomInset = 0
         handleRestore,
         handleDiscard,
         focusCard,
+        focusCardIfOffScreen,
     } = useQuizCanvasEditor({ materialId, quizId, onClose });
 
     const { draft, activeCardId } = canvas;
@@ -182,6 +183,7 @@ export function QuizCanvasBuilder({ materialId, quizId, onClose, bottomInset = 0
                     cardRefs={cardRefs}
                     canvas={canvas}
                     onFocusCard={focusCard}
+                    onFocusCardIfOffScreen={focusCardIfOffScreen}
                     onImportFromBank={openBankImport}
                     bottomInset={bottomInset}
                     topInset={topInset}

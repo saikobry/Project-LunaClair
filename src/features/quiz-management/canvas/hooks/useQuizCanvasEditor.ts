@@ -9,6 +9,14 @@ import type { Question } from '../../../../domain/quiz/Question';
 import { useDraftAutosave, type DraftAutosaveStatus } from '../../../../shared/hooks/useDraftAutosave';
 import { useQuizCanvas, type QuizCanvas } from './useQuizCanvas';
 
+/**
+ * Settle delay (ms) before measuring post-mutation visibility — must outlast
+ * the canvas accordion reflow (`QuizCanvasQuestionList`'s `REFLOW_DURATION` =
+ * 0.35s) plus one frame of margin. The two constants are coupled: if the
+ * reflow duration ever changes, update this to stay above it.
+ */
+const LAYOUT_SETTLE_MS = 400;
+
 export type QuizCanvasSaveState = 'idle' | 'saving' | 'saved';
 
 export interface QuizCanvasEditorOptions {
@@ -43,6 +51,8 @@ export interface QuizCanvasEditorResult {
     handleRestore: () => void;
     handleDiscard: () => Promise<void>;
     focusCard: (tempId: string) => void;
+    /** Scrolls a card into view ONLY when it is mostly off-screen (see AGENTS.md). */
+    focusCardIfOffScreen: (tempId: string) => void;
 }
 
 /**
@@ -149,6 +159,37 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         requestAnimationFrame(() => {
             cardRefs.current.get(tempId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
+    }, []);
+
+    /**
+     * Visibility-conditional scroll (community-validated Option B): after a
+     * structural mutation (move/duplicate/delete) the toolbar may stay pinned
+     * while its target card is scrolled off-screen, so the author clicks an
+     * action and sees nothing happen. Unlike `focusCard` (unconditional — Add
+     * must always reveal the card that just came into existence), this only
+     * scrolls when the card is mostly out of view (>80% of its height clipped);
+     * a fully visible card is left alone so rapid reordering never yanks the
+     * viewport. The canvas accordion reflows over `REFLOW_DURATION` (0.35s) via
+     * GSAP, so visibility is measured AFTER the settle — never on the mutation
+     * frame, where the card is mid-animation.
+     */
+    const focusCardIfOffScreen = useCallback((tempId: string) => {
+        window.setTimeout(() => {
+            const card = cardRefs.current.get(tempId);
+            if (!card) return;
+            const rect = card.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            // NOTE: the visible box is the full viewport, not `topInset` →
+            // `innerHeight` — a card whose top is clipped by the sticky header
+            // counts as visible. Slightly less conservative than "scroll a
+            // little more often" at the top edge; accepted since this hook
+            // doesn't know the header height.
+            const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+            const visibleRatio = rect.height > 0 ? visibleHeight / rect.height : 0;
+            if (visibleRatio < 0.8) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, LAYOUT_SETTLE_MS);
     }, []);
 
     const focusFirstInvalid = useCallback((draftErrors: QuizDraftErrors) => {
@@ -261,5 +302,6 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         handleRestore,
         handleDiscard,
         focusCard,
+        focusCardIfOffScreen,
     };
 }
