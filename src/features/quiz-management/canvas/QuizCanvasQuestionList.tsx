@@ -149,6 +149,8 @@ interface QuizCanvasQuestionListProps {
     canvas: QuizCanvas;
     /** Scrolls a card into view after structural mutations (add/duplicate). */
     onFocusCard: (tempId: string) => void;
+    /** Scrolls a card into view only when it is mostly off-screen (move/duplicate/delete consequences). */
+    onFocusCardIfOffScreen: (tempId: string) => void;
     /** Opens the bank import picker anchored after the given card index. */
     onImportFromBank: (index: number) => void;
     /**
@@ -641,6 +643,7 @@ export function QuizCanvasQuestionList({
     cardRefs,
     canvas,
     onFocusCard,
+    onFocusCardIfOffScreen,
     onImportFromBank,
     bottomInset = 0,
     topInset = 0,
@@ -829,6 +832,7 @@ export function QuizCanvasQuestionList({
                     collapsedHeightFallback={COMPACT_HEIGHT}
                     canvas={canvas}
                     onFocusCard={onFocusCard}
+                    onFocusCardIfOffScreen={onFocusCardIfOffScreen}
                     onImportFromBank={onImportFromBank}
                     bottomInset={bottomInset}
                     topInset={topInset}

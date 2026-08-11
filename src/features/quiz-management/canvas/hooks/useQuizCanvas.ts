@@ -89,15 +89,25 @@ export function useQuizCanvas() {
         });
     }, [updateItems]);
 
-    /** Duplicates a card below its source; the copy detaches from the bank. */
-    const duplicateItem = useCallback((tempId: string) => {
+    /**
+     * Duplicates a card below its source; the copy detaches from the bank.
+     * Returns the copy's `tempId` so callers can scroll it into view — the
+     * copy is the visible consequence of the action. The tempId is
+     * pre-generated BEFORE the state update (the functional updater runs
+     * during render, so a value captured inside it would be stale when
+     * returned); if the source is missing (shouldn't happen — callers guard
+     * with `activeCardId`), the tempId is simply unused.
+     */
+    const duplicateItem = useCallback((tempId: string): string => {
+        const copyTempId = makeDraftTempId();
         updateItems((items) => {
             const sourceIndex = items.findIndex((item) => item.tempId === tempId);
             if (sourceIndex === -1) return items;
             const source = items[sourceIndex];
-            const copy: QuestionDraft = { ...source, tempId: makeDraftTempId(), questionId: undefined };
+            const copy: QuestionDraft = { ...source, tempId: copyTempId, questionId: undefined };
             return [...items.slice(0, sourceIndex + 1), copy, ...items.slice(sourceIndex + 1)];
         });
+        return copyTempId;
     }, [updateItems]);
 
     const deleteItem = useCallback((tempId: string) => {
