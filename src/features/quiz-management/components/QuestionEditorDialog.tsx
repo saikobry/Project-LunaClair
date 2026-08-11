@@ -8,6 +8,7 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { Button } from '../../../shared/ui/Button';
 import { Input } from '../../../shared/ui/Input';
 import { Selector } from '../../../shared/ui/Selector/Selector';
+import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
@@ -179,12 +180,13 @@ export function QuestionEditorDialog({
                         />
                     )}
 
-                    <Input
+                    <TextArea
                         label="Prompt"
                         value={prompt}
                         onChange={setPrompt}
                         placeholder="Enter the question prompt"
                         required
+                        rows={2}
                     />
 
                     <div {...stylex.props(styles.editorSection)}>

@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import type { FillBlankPayload } from '../../../domain/quiz/AnswerPayload';
 import { Input } from '../../../shared/ui/Input';
+import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 
 const styles = stylex.create({
     container: {
@@ -18,19 +19,6 @@ const styles = stylex.create({
         fontWeight: 600,
         color: 'var(--color-text-primary)',
         margin: 0,
-    },
-    textarea: {
-        width: '100%',
-        minHeight: 80,
-        padding: '10px 12px',
-        fontSize: 14,
-        fontFamily: 'inherit',
-        border: '1px solid var(--color-border, #e5e4e7)',
-        borderRadius: 8,
-        resize: 'vertical',
-        color: 'var(--color-text-primary)',
-        backgroundColor: 'var(--color-background-card, #ffffff)',
-        boxSizing: 'border-box',
     },
     blanksList: {
         display: 'flex',
@@ -74,12 +62,13 @@ export function FillBlankEditor({ value, onChange }: FillBlankEditorProps) {
                 <p {...stylex.props(styles.hint)}>
                     Use <code>___</code> (three underscores) to mark each blank position.
                 </p>
-                <textarea
+                <TextArea
+                    label="Fill-in-the-blank template"
+                    labelHidden
                     value={value.template}
-                    onChange={(e) => updateTemplate(e.target.value)}
+                    onChange={(val) => updateTemplate(val)}
                     placeholder="The ___ is the largest organ in the body."
-                    {...stylex.props(styles.textarea)}
-                    aria-label="Fill-in-the-blank template"
+                    rows={3}
                 />
             </div>
 
@@ -93,6 +82,7 @@ export function FillBlankEditor({ value, onChange }: FillBlankEditorProps) {
                             <Input
                                 key={i}
                                 label={`Blank ${i + 1}`}
+                                labelHidden
                                 value={value.blanks[i] ?? ''}
                                 onChange={(v) => updateBlank(i, v)}
                                 placeholder={`Answer for blank ${i + 1}`}

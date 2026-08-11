@@ -646,6 +646,8 @@ export function QuizCanvasQuestionList({
     topInset = 0,
 }: QuizCanvasQuestionListProps) {
     const items = draft.items;
+    /** Sum of every question card's points — feeds the meta card's points-aware pass helper. */
+    const totalPoints = items.reduce((sum, item) => sum + item.points, 0);
     /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const gridRef = useRef<HTMLDivElement | null>(null);
@@ -751,6 +753,7 @@ export function QuizCanvasQuestionList({
                             title={draft.title}
                             description={draft.description ?? ''}
                             passingPercentage={draft.passingPercentage}
+                            totalPoints={totalPoints}
                             titleError={errors?.title}
                             onChange={(patch) => canvas.patchDraft(patch)}
                         />
