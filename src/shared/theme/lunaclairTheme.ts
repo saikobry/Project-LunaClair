@@ -2,6 +2,16 @@ import { defineTheme } from '@astryxdesign/core/theme';
 import { neutralTheme } from '@astryxdesign/theme-neutral';
 
 /**
+ * Custom role tokens beyond the Astryx `TokenName` union (a closed type we
+ * can't augment). They're the on-muted readable-text / border roles of the
+ * sentiment pairs. See `quizBadgeAppearance.ts` for the sourcing rule.
+ */
+type CustomRoleTokens =
+  | '--color-on-success-muted'
+  | '--color-on-warning-muted'
+  | '--color-success-border';
+
+/**
  * LunaClair custom Astryx theme.
  *
  * Preserves the existing LunaClair app appearance by overriding the
@@ -45,6 +55,22 @@ export const lunaclairTheme = defineTheme({
   },
 
   tokens: {
+    // Custom role tokens outside the Astryx `TokenName` union (a closed type)
+    // — spread as a typed object so the rest of `tokens` keeps excess-key
+    // checking (casting the whole literal would disable it). See
+    // `quizBadgeAppearance.ts` for the sourcing rule.
+    ...({
+      // Role token: readable text on `--color-success-muted` (correct-answer
+      // previews, explanation boxes). Resolves the previously hardcoded #166534.
+      '--color-on-success-muted': '#166534',
+      // Role token: readable text on `--color-warning-muted` (draft badges,
+      // medium difficulty). Chosen over #854d0e for higher contrast on #fef3c7
+      // (6.37:1 vs 6.15:1) and canonical amber-800.
+      '--color-on-warning-muted': '#92400e',
+      // Border role of the success-muted surface (explanation box outline).
+      '--color-success-border': '#bbf7d0',
+    } as Record<CustomRoleTokens, string>),
+
     // =========================================================================
     // Accent — indigo (#6366f1)
     // =========================================================================

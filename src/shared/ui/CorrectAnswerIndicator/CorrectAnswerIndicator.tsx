@@ -56,12 +56,12 @@ const styles = stylex.create({
   active: {
     backgroundColor: 'var(--color-success)',
     borderColor: 'var(--color-success)',
-    color: '#ffffff',
+    color: 'var(--color-on-success)',
     boxShadow: '0 1px 3px rgba(16, 185, 129, 0.25)',
     ':hover': {
       backgroundColor: 'var(--color-success)',
       borderColor: 'var(--color-success)',
-      color: '#ffffff',
+      color: 'var(--color-on-success)',
     },
   },
   disabled: {

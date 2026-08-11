@@ -135,11 +135,11 @@ const styles = stylex.create({
     },
     badgePublished: {
         backgroundColor: 'var(--color-success-muted)',
-        color: '#166534',
+        color: 'var(--color-on-success-muted)',
     },
     badgeDraft: {
         backgroundColor: 'var(--color-warning-muted)',
-        color: '#854d0e',
+        color: 'var(--color-on-warning-muted)',
     },
     badgeArchived: {
         backgroundColor: 'var(--color-background-muted)',

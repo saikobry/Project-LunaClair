@@ -110,7 +110,7 @@ const styles = stylex.create({
     boxShadow: 'none',
     ':hover': {
       backgroundColor: 'var(--color-accent)',
-      color: '#ffffff',
+      color: 'var(--color-on-accent)',
       boxShadow: 'none',
     },
     ':focus': {
@@ -187,7 +187,7 @@ const styles = stylex.create({
   checkboxChecked: {
     borderColor: 'var(--color-accent)',
     backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
+    color: 'var(--color-on-accent)',
   },
   quizInfo: {
     display: 'flex',
@@ -221,7 +221,7 @@ const styles = stylex.create({
     textTransform: 'uppercase',
     letterSpacing: '0.3px',
     backgroundColor: 'var(--color-warning-muted)',
-    color: '#854d0e',
+    color: 'var(--color-on-warning-muted)',
     borderRadius: 4,
     lineHeight: 1.4,
   },

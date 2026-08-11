@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search } from 'lucide-react';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
@@ -115,11 +116,11 @@ const styles = stylex.create({
     },
     badgePublished: {
         backgroundColor: 'var(--color-success-muted)',
-        color: '#166534',
+        color: 'var(--color-on-success-muted)',
     },
     badgeDraft: {
         backgroundColor: 'var(--color-warning-muted)',
-        color: '#854d0e',
+        color: 'var(--color-on-warning-muted)',
     },
     badgeArchived: {
         backgroundColor: 'var(--color-background-muted)',
@@ -132,43 +133,6 @@ const styles = stylex.create({
     badgeUnused: {
         backgroundColor: 'var(--color-background-muted)',
         color: 'var(--color-text-disabled)',
-    },
-    badgeHard: {
-        backgroundColor: 'var(--color-error-muted)',
-        color: 'var(--color-error)',
-    },
-    badgeEasy: {
-        backgroundColor: '#dcfce7',
-        color: '#166534',
-    },
-    badgeMedium: {
-        backgroundColor: '#fef3c7',
-        color: '#92400e',
-    },
-    badgePoints: {
-        backgroundColor: '#e0e7ff',
-        color: '#4338ca',
-    },
-    // Type badge colors
-    badgeMC: {
-        backgroundColor: '#dbeafe',
-        color: '#1d4ed8',
-    },
-    badgeMS: {
-        backgroundColor: '#ede9fe',
-        color: '#6d28d9',
-    },
-    badgeTF: {
-        backgroundColor: '#ccfbf1',
-        color: '#0f766e',
-    },
-    badgeID: {
-        backgroundColor: '#fef3c7',
-        color: '#b45309',
-    },
-    badgeFB: {
-        backgroundColor: '#fce7f3',
-        color: '#be185d',
     },
     tag: {
         fontSize: 10.5,
@@ -232,24 +196,6 @@ function statusBorderColor(status: QuestionStatus): string {
             return 'var(--color-warning-muted)';
         case 'archived':
             return 'var(--color-background-muted)';
-    }
-}
-
-function typeBadgeStyle(type: QuestionType) {
-    switch (type) {
-        case 'multiple_choice': return styles.badgeMC;
-        case 'multiple_select': return styles.badgeMS;
-        case 'true_false': return styles.badgeTF;
-        case 'identification': return styles.badgeID;
-        case 'fill_in_blank': return styles.badgeFB;
-    }
-}
-
-function difficultyBadgeStyle(difficulty: QuestionDifficulty) {
-    switch (difficulty) {
-        case 'easy': return styles.badgeEasy;
-        case 'medium': return styles.badgeMedium;
-        case 'hard': return styles.badgeHard;
     }
 }
 
@@ -401,9 +347,33 @@ export function QuestionBankTab({
                                             <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
                                         </div>
                                         <div {...stylex.props(styles.badgesRow)}>
-                                            <span {...stylex.props(styles.badgedot, typeBadgeStyle(q.type))}>{TYPE_LABELS[q.type]}</span>
-                                            <span {...stylex.props(styles.badgedot, difficultyBadgeStyle(q.difficulty))}>{q.difficulty}</span>
-                                            <span {...stylex.props(styles.badgedot, styles.badgePoints)}>{q.points} pt{q.points !== 1 ? 's' : ''}</span>
+                                            <span
+                                                {...stylex.props(styles.badgedot)}
+                                                style={{
+                                                    backgroundColor: QUESTION_TYPE_APPEARANCE[q.type].bg,
+                                                    color: QUESTION_TYPE_APPEARANCE[q.type].fg,
+                                                }}
+                                            >
+                                                {TYPE_LABELS[q.type]}
+                                            </span>
+                                            <span
+                                                {...stylex.props(styles.badgedot)}
+                                                style={{
+                                                    backgroundColor: DIFFICULTY_APPEARANCE[q.difficulty].bg,
+                                                    color: DIFFICULTY_APPEARANCE[q.difficulty].fg,
+                                                }}
+                                            >
+                                                {q.difficulty}
+                                            </span>
+                                            <span
+                                                {...stylex.props(styles.badgedot)}
+                                                style={{
+                                                    backgroundColor: POINTS_APPEARANCE.bg,
+                                                    color: POINTS_APPEARANCE.fg,
+                                                }}
+                                            >
+                                                {q.points} pt{q.points !== 1 ? 's' : ''}
+                                            </span>
                                             <span {...stylex.props(
                                                 styles.badgedot,
                                                 q.status === 'published' && styles.badgePublished,

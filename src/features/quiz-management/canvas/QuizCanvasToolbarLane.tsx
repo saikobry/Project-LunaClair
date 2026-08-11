@@ -102,8 +102,6 @@ export interface QuizCanvasToolbarLaneProps {
     draggingId: string | null;
     titleCardRef?: RefObject<HTMLDivElement | null>;
     gridRef?: RefObject<HTMLDivElement | null>;
-    targetYMap?: Map<string, number>;
-    layoutVersion?: number;
     canvasBodyRef?: RefObject<HTMLDivElement | null>;
     cardWrapperMapRef?: RefObject<Map<string, HTMLDivElement>>;
     /**
@@ -929,8 +927,43 @@ function useToolbarPinEvaluator(params: {
         }
         prevBottomInsetRef.current = bottomInset;
 
+        // Lane-drift poll: the sidebar rail animates its LAYOUT width on Focus
+        // Mode toggles (GSAP, 0.35s) WITHOUT a window `resize` event, and while
+        // the canvas body is width-capped (maxWidth 832) its observed boxes
+        // (wrapper/grid/title) only SHIFT — a ResizeObserver fires on size, not
+        // position — so neither refresh signal fires and the pinned toolbar's
+        // `left` would stay at the pre-animation position (it visually escapes
+        // the lane). On every re-arm while pinned, sample the lane's rect per
+        // frame until it holds still (the rail settle) or the budget expires,
+        // re-applying the pinned geometry each frame so `left` chases the lane
+        // to its resting spot. Re-arms while pinned are rare (focus change,
+        // Focus Mode toggle, pin/unpin) and the poll exits after 3 stable
+        // frames when nothing is moving.
+        let driftRaf = 0;
+        let driftFrames = 0;
+        let driftStableFrames = 0;
+        let lastDriftLeft: number | null = null;
+        const driftBudget = 30; // ~0.5s at 60fps — the 0.35s rail tween + slack
+        if (current !== 'anchored') {
+            const pollLaneDrift = () => {
+                driftFrames += 1;
+                const laneLeft = laneNode.getBoundingClientRect().left;
+                if (lastDriftLeft !== null && Math.abs(laneLeft - lastDriftLeft) < 0.5) {
+                    driftStableFrames += 1;
+                } else {
+                    driftStableFrames = 0;
+                    if (current !== 'anchored') refreshPin();
+                }
+                lastDriftLeft = laneLeft;
+                if (driftStableFrames >= 3 || driftFrames >= driftBudget) return;
+                driftRaf = requestAnimationFrame(pollLaneDrift);
+            };
+            driftRaf = requestAnimationFrame(pollLaneDrift);
+        }
+
         return () => {
             if (rafId !== null) cancelAnimationFrame(rafId);
+            if (driftRaf !== 0) cancelAnimationFrame(driftRaf);
             window.removeEventListener('scroll', onScroll);
             window.removeEventListener('resize', handleWindowResize);
             pinBoxObserver.disconnect();
@@ -1024,7 +1057,7 @@ export function QuizCanvasToolbarLane({
     collapsedHeights,
     errors,
     gutter = 20,
-    collapsedHeightFallback = 76,
+    collapsedHeightFallback = 116,
     canvas,
     onFocusCard,
     onImportFromBank,
@@ -1093,6 +1126,23 @@ export function QuizCanvasToolbarLane({
     // frames.
     const [wakeTick, setWakeTick] = useState(0);
     const wakeFollowLoop = useCallback(() => setWakeTick((tick) => tick + 1), []);
+
+    // Structural-move wake: a toolbar Move up/down (or an insert/delete above
+    // the active card) shifts the active card's SLOT without changing
+    // `activeCardId`, and the card wrappers only MOVE (GSAP `y` — a
+    // ResizeObserver fires on size, not position), so neither the follow-loop
+    // re-arm (`activeCardId` dep) nor the idle wake observers restart the
+    // chase — the toolbar would stay frozen at the old spot. Bump the wake
+    // tick directly whenever the effective slot changes; the re-armed loop
+    // then issues its one-glide to the new resting target in parallel with
+    // the card glide.
+    const prevEffectiveIndexRef = useRef(effectiveIndex);
+    useEffect(() => {
+        if (prevEffectiveIndexRef.current !== effectiveIndex) {
+            prevEffectiveIndexRef.current = effectiveIndex;
+            wakeFollowLoop();
+        }
+    }, [effectiveIndex, wakeFollowLoop]);
 
     // Resting target + its latest-callback ref — shared by the chase (the
     // one-glide endpoint), the pin evaluator (the pin/unpin footprint), and

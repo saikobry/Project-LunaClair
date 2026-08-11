@@ -16,12 +16,27 @@ const GUTTER = 20;
 /** Shared duration for accordion reflow and the physical push height tweens. */
 const REFLOW_DURATION = 0.35;
 /**
- * Baseline collapsed card height (px) — the held card auto-collapses to this
- * during a drag. Sized to fit an unclipped collapsed card: 16px padding ×2 +
- * ~40px header content + 2px accent border (see `cardDragging`), so the
- * compact summary's padding and border are never chopped.
+ * Fallback collapsed card height (px) — the held card's drag-collapse height
+ * when the self-healing `collapsedHeightsRef` hasn't sampled it yet, plus the
+ * toolbar lane's never-sampled resting-target fallback. Sized for an
+ * UNCLIPPED two-row collapsed card: 16px padding ×2 + ~42px header/prompt
+ * row (2-line clamp) + 12px card gap + ~21px metadata badge row + 2px accent
+ * border (see `cardDragging`). Real cards use their MEASURED collapsed
+ * height via `compactHeightFor`; this constant only covers the pre-settle
+ * gap.
  */
-const COMPACT_HEIGHT = 76;
+const COMPACT_HEIGHT = 116;
+
+/**
+ * The drag-collapse height for a card — its MEASURED collapsed height from
+ * the self-healing cache when known, else the `COMPACT_HEIGHT` fallback. All
+ * drag geometry must agree on this one number: the held card's slot height in
+ * `applyPositions`, the forced wrapper height on drag start, and the swap
+ * midpoint center in `onDrag`.
+ */
+function compactHeightFor(cache: RefObject<Map<string, number>>, tempId: string): number {
+    return cache.current.get(tempId) ?? COMPACT_HEIGHT;
+}
 /**
  * Reserved bottom dropzone (px) below the last question card. It gives dragged
  * cards footroom past the bottom card's midpoint so any card — collapsed or
@@ -182,7 +197,6 @@ function useCardPositionLayout(params: {
     gridRef: RefObject<HTMLDivElement | null>;
     collapsedHeightsRef: RefObject<Map<string, number>>;
     heightAnimRef: RefObject<Set<string>>;
-    setLayoutVersion: Dispatch<SetStateAction<number>>;
     prevActiveCardIdRef: RefObject<string | null>;
 }): { applyPositions: (animate: boolean) => void } {
     const {
@@ -199,7 +213,6 @@ function useCardPositionLayout(params: {
         gridRef,
         collapsedHeightsRef,
         heightAnimRef,
-        setLayoutVersion,
         prevActiveCardIdRef,
     } = params;
 
@@ -220,7 +233,7 @@ function useCardPositionLayout(params: {
             if (!wrapper) continue;
 
             const height = draggingIdRef.current === item.tempId
-                ? COMPACT_HEIGHT
+                ? compactHeightFor(collapsedHeightsRef, item.tempId)
                 : wrapper.offsetHeight;
             targetYMap.set(item.tempId, currentY);
 
@@ -262,7 +275,7 @@ function useCardPositionLayout(params: {
         // Deps: all entries are refs threaded through `params` — stable
         // identities, so this callback is still created once; they're listed
         // only so react-doctor/exhaustive-deps sees the captures match.
-    }, [itemsRef, wrapperEls, draggingIdRef, positionedRef, targetYMapRef, gridRef]);
+    }, [itemsRef, wrapperEls, draggingIdRef, positionedRef, targetYMapRef, collapsedHeightsRef, gridRef]);
 
     const settleLayout = useCallback(() => {
         applyPositions(true);
@@ -284,12 +297,11 @@ function useCardPositionLayout(params: {
             const wrapper = wrapperEls.current.get(item.tempId);
             if (wrapper) collapsedHeightsRef.current.set(item.tempId, wrapper.offsetHeight);
         }
-        setLayoutVersion((v) => v + 1);
-        // Deps: `applyPositions` + stable refs/setter threaded through
-        // `params` — listed for react-doctor/exhaustive-deps; they never
-        // change identity, so `settleLayout` is still recreated only when
+        // Deps: `applyPositions` + stable refs threaded through `params` —
+        // listed for react-doctor/exhaustive-deps; they never change
+        // identity, so `settleLayout` is still recreated only when
         // `applyPositions` changes.
-    }, [applyPositions, itemsRef, wrapperEls, activeCardIdRef, errorsRef, collapsedHeightsRef, setLayoutVersion]);
+    }, [applyPositions, itemsRef, wrapperEls, activeCardIdRef, errorsRef, collapsedHeightsRef]);
 
     const startHeightTween = useCallback((tempId: string, wrapper: HTMLDivElement, fromHeight: number, toHeight: number) => {
         heightAnimRef.current.add(tempId);
@@ -372,11 +384,11 @@ function useCardPositionLayout(params: {
             // `heightAnimRef` it shares with the card) — take the cheap
             // frame-synced instant-push branch: read live wrapper heights and snap
             // lower cards along, exactly like the accordion tween's `onUpdate`
-            // repositioning. Settling instead would restart glide tweens AND bump
-            // `layoutVersion` (a full canvas React re-render) every frame for the
-            // whole tween, which is what dropped frames during the drawer
-            // animation. Dragging is excluded: the held card's height snap is
-            // already handled by the drag-collapse `applyPositions(true)` glide.
+            // repositioning. Settling instead would restart glide tweens every
+            // frame for the whole tween, which is what dropped frames during the
+            // drawer animation. Dragging is excluded: the held card's height
+            // snap is already handled by the drag-collapse `applyPositions(true)`
+            // glide.
             if (heightAnimRef.current.size > 0 && draggingIdRef.current === null) {
                 applyPositions(false);
                 return;
@@ -490,8 +502,28 @@ function useCardDragReorder(params: {
                     gsap.killTweensOf(wrapper, 'height');
                     heightAnimRef.current.delete(item.tempId);
                     setDraggingId(item.tempId);
-                    gsap.set(wrapper, { height: COMPACT_HEIGHT, overflow: 'hidden' });
+                    const compactHeight = compactHeightFor(collapsedHeightsRef, item.tempId);
+                    gsap.set(wrapper, { height: compactHeight, overflow: 'hidden' });
                     applyPositions(true);
+                    // Stale-cache guard: the collapsed-height cache is sampled
+                    // while a card is INACTIVE, so an active card whose prompt
+                    // just crossed the 1→2 line boundary has a SHORT stale
+                    // entry — the forced height above would clip the badge row
+                    // for the whole drag. One frame after the collapsed
+                    // re-render commits (React flushes the `setDraggingId`
+                    // update before the next frame), re-measure the natural
+                    // collapsed height and raise the wrapper if the content is
+                    // taller, healing the cache so every consumer (slot
+                    // height, swap midpoint, later drags) agrees.
+                    requestAnimationFrame(() => {
+                        if (draggingIdRef.current !== item.tempId) return;
+                        const natural = wrapper.scrollHeight;
+                        if (natural > compactHeight) {
+                            collapsedHeightsRef.current.set(item.tempId, natural);
+                            gsap.set(wrapper, { height: natural });
+                            applyPositions(false);
+                        }
+                    });
                 },
                 onDrag(this: Draggable) {
                     wasDraggedRef.current = true;
@@ -511,7 +543,7 @@ function useCardDragReorder(params: {
                     const from = indexByTempId.get(item.tempId) ?? -1;
                     if (from === -1) return;
 
-                    const dragCenterY = this.y + COMPACT_HEIGHT / 2;
+                    const dragCenterY = this.y + compactHeightFor(collapsedHeightsRef, item.tempId) / 2;
 
                     for (const [targetId, targetEl] of wrapperEls.current) {
                         if (targetId === item.tempId) continue;
@@ -616,8 +648,6 @@ export function QuizCanvasQuestionList({
     const items = draft.items;
     /** Held card tempId as React state — drives the clean collapsed-summary re-render during a drag. */
     const [draggingId, setDraggingId] = useState<string | null>(null);
-    /** Incrementing layout version counter to signal settled layout updates to the toolbar lane. */
-    const [layoutVersion, setLayoutVersion] = useState(0);
     const gridRef = useRef<HTMLDivElement | null>(null);
     /** Outer bounds container for canvas body flex row. */
     const canvasBodyRef = useRef<HTMLDivElement | null>(null);
@@ -683,7 +713,6 @@ export function QuizCanvasQuestionList({
         gridRef,
         collapsedHeightsRef,
         heightAnimRef,
-        setLayoutVersion,
         prevActiveCardIdRef,
     });
 
@@ -789,8 +818,6 @@ export function QuizCanvasQuestionList({
                     draggingId={draggingId}
                     titleCardRef={titleCardRef}
                     gridRef={gridRef}
-                    targetYMap={targetYMapRef.current}
-                    layoutVersion={layoutVersion}
                     canvasBodyRef={canvasBodyRef}
                     cardWrapperMapRef={wrapperEls}
                     collapsedHeights={collapsedHeightsRef.current}

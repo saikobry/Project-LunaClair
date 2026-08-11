@@ -118,7 +118,7 @@ const styles = stylex.create({
   unlinkBtn: {
     flexShrink: 0,
     ':hover': {
-      color: '#dc2626',
+      color: 'var(--color-error)',
     },
   },
 });

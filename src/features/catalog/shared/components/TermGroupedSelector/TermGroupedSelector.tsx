@@ -94,7 +94,7 @@ const styles = stylex.create({
   checkboxChecked: {
     borderColor: 'var(--color-accent)',
     backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
+    color: 'var(--color-on-accent)',
   },
   materialTextContainer: {
     display: 'flex',
