@@ -4,9 +4,9 @@ import type { Question, QuestionDifficulty, QuestionStatus } from '../../../doma
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
-import { Dialog } from '../../../shared/ui/Dialog';
-import { Button } from '../../../shared/ui/Button';
-import { Input } from '../../../shared/ui/Input';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Button } from '../../../shared/ui/Button/Button';
+import { Input } from '../../../shared/ui/Input/Input';
 import { Selector } from '../../../shared/ui/Selector/Selector';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';

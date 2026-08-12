@@ -5,7 +5,7 @@ import * as stylex from '@stylexjs/stylex';
 import { RotateCcw, CheckCircle2, XCircle, LayoutGrid, Home } from 'lucide-react';
 import type { Question } from '../../../domain/quiz/Question';
 import type { QuizResult } from '../../../domain/quiz/AssessmentService';
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../shared/ui/Button/Button';
 
 const styles = stylex.create({
     container: {

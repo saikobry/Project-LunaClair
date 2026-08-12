@@ -2,15 +2,17 @@ import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList } from 'lucide-react';
 import type { AppRoute } from './AppShell';
-import { useMaterial, useSubject, useTerm } from '../../features/catalog';
-import { Page } from '../../shared/ui/Page';
+import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
+import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
+import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
+import { Page } from '../../shared/ui/Page/Page';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
-import { ReaderScreen } from '../../features/reader';
-import { QuizScreen } from '../../features/quiz';
-import { QuizManagementScreen } from '../../features/quiz-management';
+import ReaderScreen from '../../features/reader/ReaderScreen';
+import QuizScreen from '../../features/quiz/QuizScreen';
+import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
 
 const styles = stylex.create({
   loading: {

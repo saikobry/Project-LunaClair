@@ -28,6 +28,21 @@
 
 ---
 
+## Offline Readiness (Implemented — Aug 2026)
+
+The delivery layer previously had zero PWA infrastructure (audit: no service worker, no manifest, no content caching, no offline UI). All four gaps are now closed:
+
+- ✅ **Phase A — PWA foundation:** `vite-plugin-pwa` (v1.3, Vite 8-compatible). Service worker precaches the app shell — 47 entries ≈ 7.4 MB first install. Web manifest (`display: standalone`, white theme/background, portrait) + PNG icon set (`pwa-64/192/512`, `maskable-icon-512`, `apple-touch-icon-180`) generated from `public/app-icon.svg` (a square, white-background derivation of `favicon.svg`; `icons.svg` is a social sprite and was never usable). Regenerate with `npm run generate:pwa-assets`. SW registration + manifest link are auto-injected at build.
+- ✅ **Phase B — Content caching:** precache glob `materials/**` covers documents and figure images. The SW answers `LocalDocumentRepository` fetches with zero repository changes (Dexie = app data, Cache Storage = delivery).
+- ✅ **Offline UX:** `OfflineBanner` in the app shell (persistent "You're offline" warning chip + transient "You're back online" recovery chip; `aria-live`). Plus one hidden prerequisite: TanStack Query now runs `networkMode: 'offlineFirst'` — the default `'online'` mode pauses not-yet-cached queries when offline, which surfaced as "Material not found" on fresh material lookups.
+- ✅ **Install discovery (community-reviewed):** quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time **iOS-only** card shown from the second distinct visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively; iOS had zero native path (see `src/app/AGENTS.md`).
+
+**Asset audit:** `public/materials/` = 28 files, **6.1 MB** (7 markdown ≈ 40 KB + 21 PNG figures, all under `anatomy-physiology/images/`). **Precache everything** is the right call at this size; switch to a `/materials/**` runtime cache if content grows. Verified: offline cold boot from cache, library from IndexedDB, documents render with all 22 anatomy figures served by the SW.
+
+Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution) stays **Phase 9 — Cloud Synchronization** scope.
+
+---
+
 ## Planned Phases
 
 - 🔒 **Phase 6 — Flashcards & Spaced Repetition**

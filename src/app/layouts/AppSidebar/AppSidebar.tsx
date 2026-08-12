@@ -1,10 +1,11 @@
 import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag, Focus, Download } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
+import { isIOS, isStandalone } from '../installDetection';
 import logoSvg from '../../../assets/logo.svg';
 
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
@@ -332,7 +333,21 @@ const styles = stylex.create({
     paddingRight: 6,
     whiteSpace: 'nowrap',
   },
-
+  // Install row hides on mobile — the bottom dock is a cramped icon strip
+  // and mobile iOS is served by the one-time InstallPrompt card instead.
+  installRow: {
+    [mobile]: {
+      display: 'none',
+    },
+  },
+  // Mobile: hide the divider alongside the button so no lone separator
+  // appears in the bottom dock (the divider's own mobile style is a
+  // vertical 1×24 line).
+  installRowDivider: {
+    [mobile]: {
+      display: 'none',
+    },
+  },
 });
 
 export interface AppSidebarProps {
@@ -343,6 +358,8 @@ export interface AppSidebarProps {
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
   onNavigate: (route: AppRoute) => void;
+  /** Opens the install instructions dialog (PWA opt-in entry). */
+  onOpenInstallInfo?: () => void;
 }
 
 export function AppSidebar({
@@ -353,6 +370,7 @@ export function AppSidebar({
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
+  onOpenInstallInfo,
 }: AppSidebarProps) {
   const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
@@ -578,6 +596,9 @@ export function AppSidebar({
             </>
           )}
 
+          {/* PWA install entry (desktop/tablet) — quiet opt-in; see InstallRow */}
+          {onOpenInstallInfo && <InstallRow onClick={onOpenInstallInfo} />}
+
           {/* Mobile-only Focus Mode entry */}
           <button
             type="button"
@@ -620,5 +641,33 @@ export function AppSidebar({
         </div>
       </button>
     </nav>
+  );
+}
+
+/**
+ * Quiet opt-in PWA install row (desktop/tablet). Hidden on mobile — the
+ * iOS one-time card serves mobile iOS and Android uses its native menu —
+ * and hidden when the app already runs installed (standalone). Copy
+ * branches by platform: iOS users need the A2HS instructions; everyone
+ * else uses the browser's native install affordance.
+ */
+function InstallRow({ onClick }: { onClick: () => void }) {
+  const label = isIOS() ? 'Add to Home Screen' : 'Install app';
+  if (isStandalone()) return null;
+  return (
+    <>
+      {/* The divider must hide on mobile too — otherwise a lone vertical
+          separator shows in the bottom dock above the hidden button. */}
+      <div {...stylex.props(styles.divider, styles.installRowDivider)} aria-hidden="true" />
+      <button
+        type="button"
+        {...stylex.props(styles.navItem, styles.installRow)}
+        onClick={onClick}
+        title={label}
+      >
+        <Download size={18} />
+        <span {...stylex.props(styles.navLabel)}>{label}</span>
+      </button>
+    </>
   );
 }

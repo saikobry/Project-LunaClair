@@ -2,7 +2,7 @@ import { useEffect, useId } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { AlertTriangle } from 'lucide-react';
 import { Dialog } from './Dialog';
-import { Button } from '../Button';
+import { Button } from '../Button/Button';
 
 const styles = stylex.create({
   content: {

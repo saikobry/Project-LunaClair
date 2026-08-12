@@ -4,7 +4,7 @@ import type { Question } from '../../../domain/quiz/Question';
 import type { QuizMode } from '../../../domain/quiz/QuizMode';
 import type { AnswerValue } from './QuestionRenderer';
 import { QuestionRenderer } from './QuestionRenderer';
-import { Button } from '../../../shared/ui/Button';
+import { Button } from '../../../shared/ui/Button/Button';
 
 const styles = stylex.create({
     container: {
