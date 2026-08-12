@@ -5,7 +5,7 @@ const styles = stylex.create({
   chip: {
     fontSize: 9.5,
     fontWeight: 700,
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
     letterSpacing: 0.4,
     padding: '2px 8px',
     borderRadius: 'var(--radius-full, 9999px)',

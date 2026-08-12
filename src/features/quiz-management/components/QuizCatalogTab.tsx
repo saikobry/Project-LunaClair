@@ -65,14 +65,20 @@ const styles = stylex.create({
     },
     titleRow: {
         display: 'flex',
-        alignItems: 'center',
-        gap: 8,
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 12,
     },
     title: {
         fontSize: 14,
         fontWeight: 600,
         color: 'var(--color-text-primary)',
         margin: 0,
+        flex: 1,
+        minWidth: 0,
+    },
+    topRightStatusBadge: {
+        flexShrink: 0,
     },
     description: {
         fontSize: 13,
@@ -104,13 +110,18 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-accent-muted)',
         color: 'var(--color-accent)',
     },
-    badges: {
+    cardFooter: {
         display: 'flex',
-        gap: 6,
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingTop: 10,
+        marginTop: 6,
+        borderTop: '1px solid var(--color-border)',
     },
     cardActions: {
         display: 'flex',
-        gap: 6,
+        alignItems: 'center',
+        gap: 8,
         flexShrink: 0,
     },
     empty: {
@@ -128,7 +139,7 @@ const styles = stylex.create({
         padding: '2px 8px',
         fontSize: 11,
         fontWeight: 600,
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
         letterSpacing: 0.4,
         border: 'none',
         borderRadius: 5,
@@ -263,64 +274,67 @@ export function QuizCatalogTab({
                             key={quiz.id}
                             {...stylex.props(styles.catalogCard, statusAccentStyle(quiz.status))}
                         >
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                                <div {...stylex.props(styles.cardContent)}>
-                                    <div {...stylex.props(styles.titleRow)}>
-                                        <p {...stylex.props(styles.title)}>{quiz.title}</p>
-                                    </div>
-                                    {quiz.description && (
-                                        <p {...stylex.props(styles.description)}>{quiz.description}</p>
+                            <div {...stylex.props(styles.cardContent)}>
+                                <div {...stylex.props(styles.titleRow)}>
+                                    <p {...stylex.props(styles.title)}>{quiz.title}</p>
+                                    <span {...stylex.props(
+                                        styles.statusBadge,
+                                        styles.topRightStatusBadge,
+                                        statusBadgeStyle(quiz.status),
+                                    )}>{quiz.status}</span>
+                                </div>
+                                {quiz.description && (
+                                    <p {...stylex.props(styles.description)}>{quiz.description}</p>
+                                )}
+                                <div {...stylex.props(styles.meta)}>
+                                    <span {...stylex.props(styles.metaChip)}>
+                                        {quiz.questionIds.length} question{quiz.questionIds.length !== 1 ? 's' : ''}
+                                    </span>
+                                    {quiz.passingPercentage != null && (
+                                        <span {...stylex.props(styles.passTag)}>Pass: {quiz.passingPercentage}%</span>
                                     )}
-                                    <div {...stylex.props(styles.meta)}>
-                                        <span {...stylex.props(styles.metaChip)}>
-                                            {quiz.questionIds.length} question{quiz.questionIds.length !== 1 ? 's' : ''}
-                                        </span>
-                                        {quiz.passingPercentage != null && (
-                                            <span {...stylex.props(styles.passTag)}>Pass: {quiz.passingPercentage}%</span>
+                                </div>
+
+                                <div {...stylex.props(styles.cardFooter)}>
+                                    <div {...stylex.props(styles.cardActions)}>
+                                        {quiz.status === 'draft' && (
+                                            <Button
+                                                label={`Publish quiz: ${quiz.title}`}
+                                                variant="secondary"
+                                                icon={<CheckCircle size={14} />}
+                                                isIconOnly
+                                                tooltip="Publish"
+                                                onClick={() => { onPublish(quiz.id); showToast('Quiz published to catalog', { intent: 'success' }); }}
+                                            />
+                                        )}
+                                        <Button
+                                            label={`Edit quiz: ${quiz.title}`}
+                                            variant="secondary"
+                                            icon={<Pencil size={14} />}
+                                            isIconOnly
+                                            tooltip="Edit"
+                                            onClick={() => onNavigate({ kind: 'quiz-canvas', materialId, quizId: quiz.id })}
+                                        />
+                                        {quiz.status === 'archived' && onUnarchive ? (
+                                            <Button
+                                                label={`Restore quiz: ${quiz.title}`}
+                                                variant="secondary"
+                                                icon={<ArchiveRestore size={14} />}
+                                                isIconOnly
+                                                tooltip="Restore"
+                                                onClick={() => { onUnarchive(quiz.id); showToast('Quiz restored to draft', { intent: 'success' }); }}
+                                            />
+                                        ) : (
+                                            <Button
+                                                label={`Archive quiz: ${quiz.title}`}
+                                                variant="danger"
+                                                icon={<Archive size={14} />}
+                                                isIconOnly
+                                                tooltip="Archive"
+                                                onClick={() => setArchiveTargetQuiz(quiz)}
+                                            />
                                         )}
                                     </div>
-                                    <div {...stylex.props(styles.badges)}>
-                                        <span {...stylex.props(styles.statusBadge, statusBadgeStyle(quiz.status))}>{quiz.status}</span>
-                                    </div>
-                                </div>
-                                <div {...stylex.props(styles.cardActions)}>
-                                    {quiz.status === 'draft' && (
-                                        <Button
-                                            label={`Publish quiz: ${quiz.title}`}
-                                            variant="secondary"
-                                            icon={<CheckCircle size={14} />}
-                                            isIconOnly
-                                            tooltip="Publish"
-                                            onClick={() => { onPublish(quiz.id); showToast('Quiz published to catalog', { intent: 'success' }); }}
-                                        />
-                                    )}
-                                    <Button
-                                        label={`Edit quiz: ${quiz.title}`}
-                                        variant="secondary"
-                                        icon={<Pencil size={14} />}
-                                        isIconOnly
-                                        tooltip="Edit"
-                                        onClick={() => onNavigate({ kind: 'quiz-canvas', materialId, quizId: quiz.id })}
-                                    />
-                                    {quiz.status === 'archived' && onUnarchive ? (
-                                        <Button
-                                            label={`Restore quiz: ${quiz.title}`}
-                                            variant="secondary"
-                                            icon={<ArchiveRestore size={14} />}
-                                            isIconOnly
-                                            tooltip="Restore"
-                                            onClick={() => { onUnarchive(quiz.id); showToast('Quiz restored to draft', { intent: 'success' }); }}
-                                        />
-                                    ) : (
-                                        <Button
-                                            label={`Archive quiz: ${quiz.title}`}
-                                            variant="danger"
-                                            icon={<Archive size={14} />}
-                                            isIconOnly
-                                            tooltip="Archive"
-                                            onClick={() => setArchiveTargetQuiz(quiz)}
-                                        />
-                                    )}
                                 </div>
                             </div>
                         </div>

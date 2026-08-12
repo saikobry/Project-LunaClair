@@ -22,9 +22,12 @@ const styles = stylex.create({
     row: {
         display: 'flex',
         gap: 12,
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
     },
     field: {
         flex: 1,
+        minWidth: 140,
     },
     editorSection: {
         paddingTop: 8,
@@ -215,11 +218,12 @@ export function QuestionEditorDialog({
                         </div>
                     </div>
 
-                    <Input
+                    <TextArea
                         label="Explanation (optional)"
                         value={explanation}
                         onChange={setExplanation}
                         placeholder="Shown to learners after answering"
+                        rows={3}
                     />
 
                     <Input

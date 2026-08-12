@@ -86,11 +86,19 @@ function rehypeFigure() {
   };
 }
 
+const mobileQuery = '@media (max-width: 768px)';
+
 const styles = stylex.create({
   root: {
     flex: 1,
     maxWidth: 800,
+    width: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
     padding: '40px 32px',
+    [mobileQuery]: {
+      padding: '20px 12px',
+    },
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
     lineHeight: 1.6,

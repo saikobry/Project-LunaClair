@@ -2,28 +2,52 @@ import { useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Wifi, WifiOff } from 'lucide-react';
 
+const STORAGE_KEY = 'lunaclair:settings:offline-banner-pos';
+
+interface BannerPosition {
+  side: 'left' | 'right';
+  y: number;
+}
+
 /**
  * Global connectivity status indicator (app-shell chrome).
  *
- * Follows `navigator.onLine` and communicates state only — no mutation
- * queueing, retry logic, or sync machinery (that is Phase 9 scope):
- * - while offline → a persistent COMPACT "Offline" pill in the top-right
- *   corner (subtle surface styling so it stays out of the way; the full
- *   reassurance copy lives in its `aria-label`)
- * - on recovery  → transient "You're back online" chip, auto-hides after
- *   a short delay
- *
- * Fixed top-right chrome: zIndex 200 stays above page content and the
- * Focus Mode FAB (150) but below the toast stack (9999). Purely
- * informational — pointer-events: none.
+ * Follows `navigator.onLine` and communicates state only:
+ * - while offline → a persistent, draggable "Offline" pill that magnetically
+ *   anchors to the left or right screen border when released, auto-collapsing
+ *   to an icon-only badge after 4s (expands on hover)
+ * - on recovery  → transient "You're back online" chip, auto-hides after ~3s
  */
 export default function OfflineBanner() {
   const [isOnline, setIsOnline] = useState<boolean>(() => navigator.onLine);
   const [showRecovered, setShowRecovered] = useState(false);
   const wasOffline = useRef(false);
 
-  // Subscribe to connectivity changes. `navigator.onLine` is the initial
-  // value; the events keep it fresh for the app's lifetime.
+  const [savedPosition, setSavedPosition] = useState<BannerPosition>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && (parsed.side === 'left' || parsed.side === 'right') && typeof parsed.y === 'number') {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return { side: 'right', y: 16 };
+  });
+
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const collapseTimerRef = useRef<number | null>(null);
+
+  // Connectivity events
   useEffect(() => {
     const handleOffline = () => setIsOnline(false);
     const handleOnline = () => setIsOnline(true);
@@ -35,8 +59,7 @@ export default function OfflineBanner() {
     };
   }, []);
 
-  // Recovery flash: announce an offline → online transition once, then hide.
-  // The cleanup clears the pending timer so a re-drop hides the chip early.
+  // Recovery flash
   useEffect(() => {
     if (isOnline) {
       if (wasOffline.current) {
@@ -51,26 +74,182 @@ export default function OfflineBanner() {
     }
   }, [isOnline]);
 
+  // Auto-collapse timer when offline
+  useEffect(() => {
+    if (!isOnline) {
+      setIsCollapsed(false);
+      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = window.setTimeout(() => {
+        setIsCollapsed(true);
+      }, 4000);
+    }
+    return () => {
+      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+    };
+  }, [isOnline]);
+
   const showOffline = !isOnline;
   const visible = showOffline || showRecovered;
 
+  // Don't expand when moving — stay in current collapsed/expanded state during drag
+  const expanded = isHovered || !isCollapsed;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const banner = bannerRef.current;
+    if (!banner) return;
+
+    try {
+      banner.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const rect = banner.getBoundingClientRect();
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: rect.left,
+      startY: rect.top,
+    };
+    setDragOffset({ x: rect.left, y: rect.top });
+    setIsDragging(true);
+    if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !dragStartRef.current) return;
+
+    const deltaX = e.clientX - dragStartRef.current.mouseX;
+    const deltaY = e.clientY - dragStartRef.current.mouseY;
+
+    const newX = dragStartRef.current.startX + deltaX;
+    const newY = dragStartRef.current.startY + deltaY;
+
+    setDragOffset({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !dragStartRef.current) return;
+    setIsDragging(false);
+
+    try {
+      bannerRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const banner = bannerRef.current;
+    const currentX = dragOffset?.x ?? dragStartRef.current.startX;
+    const currentY = dragOffset?.y ?? dragStartRef.current.startY;
+    const bannerWidth = banner?.offsetWidth ?? 110;
+    const bannerHeight = banner?.offsetHeight ?? 32;
+
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    const centerX = currentX + bannerWidth / 2;
+    const side: 'left' | 'right' = centerX < windowWidth / 2 ? 'left' : 'right';
+
+    const minY = 16;
+    const maxY = Math.max(minY, windowHeight - bannerHeight - 16);
+    const clampedY = Math.max(minY, Math.min(maxY, currentY));
+    const bottomDist = windowHeight - clampedY - bannerHeight;
+
+    const newPos: BannerPosition = { side, y: Math.max(16, bottomDist) };
+    setSavedPosition(newPos);
+    setDragOffset(null);
+    dragStartRef.current = null;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newPos));
+    } catch {
+      // ignore
+    }
+
+    if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = window.setTimeout(() => {
+      setIsCollapsed(true);
+    }, 3000);
+  };
+
+  const handlePointerEnter = () => {
+    setIsHovered(true);
+    setIsCollapsed(false);
+    if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+  };
+
+  const handlePointerLeave = () => {
+    setIsHovered(false);
+    if (!isOnline && !isDragging) {
+      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = window.setTimeout(() => {
+        setIsCollapsed(true);
+      }, 3000);
+    }
+  };
+
+  const getPositionStyles = (): React.CSSProperties => {
+    if (isDragging && dragOffset) {
+      return {
+        left: `${dragOffset.x}px`,
+        top: `${dragOffset.y}px`,
+        right: 'auto',
+        bottom: 'auto',
+        transition: 'none',
+        cursor: 'grabbing',
+      };
+    }
+
+    const isLeft = savedPosition.side === 'left';
+    return {
+      left: isLeft ? 16 : 'auto',
+      right: isLeft ? 'auto' : 16,
+      bottom: `${savedPosition.y}px`,
+      top: 'auto',
+      transition:
+        'left 0.35s cubic-bezier(0.16, 1, 0.3, 1), right 0.35s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, transform 0.3s ease',
+      cursor: 'grab',
+    };
+  };
+
   return (
     <div
+      ref={bannerRef}
       role="status"
       aria-live="polite"
       aria-hidden={!visible}
-      {...stylex.props(styles.wrapper, visible && styles.wrapperVisible)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      style={getPositionStyles()}
+      {...stylex.props(
+        styles.wrapper,
+        visible && styles.wrapperVisible,
+      )}
     >
       {showOffline ? (
-        <div
-          aria-label="You're offline. Your changes are saved locally."
-          {...stylex.props(styles.pill)}
-        >
-          <WifiOff size={13} aria-hidden="true" {...stylex.props(styles.pillIcon)} />
-          <span>Offline</span>
-        </div>
+        expanded ? (
+          <div
+            aria-label="You're offline. Your changes are saved locally. Drag to reposition."
+            {...stylex.props(styles.pill, isDragging && styles.pillDragging)}
+          >
+            <WifiOff size={13} aria-hidden="true" {...stylex.props(styles.pillIcon)} />
+            <span>Offline</span>
+          </div>
+        ) : (
+          <div
+            aria-label="You're offline. Hover or drag to expand."
+            {...stylex.props(styles.pillCollapsed, isDragging && styles.pillDragging)}
+            title="Offline (drag or hover to expand)"
+          >
+            <WifiOff size={13} aria-hidden="true" {...stylex.props(styles.pillIcon)} />
+          </div>
+        )
       ) : (
-        <div {...stylex.props(styles.chip, styles.chipRecovered)}>
+        <div {...stylex.props(styles.chip, styles.chipRecovered, isDragging && styles.pillDragging)}>
           <Wifi size={16} aria-hidden="true" />
           <span>You're back online</span>
         </div>
@@ -82,32 +261,20 @@ export default function OfflineBanner() {
 const styles = stylex.create({
   wrapper: {
     position: 'fixed',
-    top: 12,
-    right: 16,
-    transform: 'translateY(-8px)',
-    opacity: 0,
-    visibility: 'hidden',
-    pointerEvents: 'none',
+    pointerEvents: 'auto',
+    touchAction: 'none',
+    userSelect: 'none',
     zIndex: 200,
     display: 'flex',
-    justifyContent: 'flex-end',
-    // Toasts (top-right, 9999) may overlap briefly; they are transient, so
-    // the indicator stays beneath them.
-    // Hiding (visible → base): visibility flips to hidden AFTER the opacity
-    // fade-out (0.3s delay) so the exit animation is visible instead of the
-    // chip popping out instantly. Showing (base → visible) uses the visible
-    // state's transition below, which flips visibility immediately.
-    transition:
-      'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, visibility 0s linear 0.3s',
+    opacity: 0,
+    visibility: 'hidden',
+    transform: 'scale(0.92)',
   },
   wrapperVisible: {
-    transform: 'translateY(0)',
     opacity: 1,
     visibility: 'visible',
-    transition:
-      'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, visibility 0s linear 0s',
+    transform: 'scale(1)',
   },
-  // Compact persistent offline indicator — small, quiet, corner-anchored.
   pill: {
     display: 'flex',
     alignItems: 'center',
@@ -115,18 +282,37 @@ const styles = stylex.create({
     paddingTop: 5,
     paddingBottom: 5,
     paddingLeft: 10,
-    paddingRight: 10,
+    paddingRight: 12,
     borderRadius: 9999,
-    backgroundColor: 'var(--color-background-surface)',
+    backgroundColor: 'var(--color-background-surface, #ffffff)',
     borderStyle: 'solid',
     borderWidth: 1,
     borderColor: 'var(--color-border)',
-    boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.12)',
-    fontSize: 12,
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+    fontSize: 11.5,
     fontWeight: 500,
     lineHeight: 1.4,
     color: 'var(--color-text-secondary)',
     whiteSpace: 'nowrap',
+    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+  },
+  pillCollapsed: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 9999,
+    backgroundColor: 'var(--color-background-surface, #ffffff)',
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'var(--color-warning-muted, var(--color-border))',
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.14)',
+    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+  },
+  pillDragging: {
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+    transform: 'scale(1.05)',
   },
   pillIcon: {
     color: 'var(--color-warning)',
@@ -134,23 +320,19 @@ const styles = stylex.create({
   chip: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 16,
-    paddingRight: 16,
+    gap: 6,
+    paddingTop: 6,
+    paddingBottom: 6,
+    paddingLeft: 10,
+    paddingRight: 14,
     borderRadius: 9999,
     borderStyle: 'solid',
     borderWidth: 1,
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 500,
     lineHeight: 1.4,
     boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.18)',
     whiteSpace: 'nowrap',
-    '@media (max-width: 480px)': {
-      whiteSpace: 'normal',
-      textAlign: 'center',
-    },
   },
   chipRecovered: {
     backgroundColor: 'var(--color-success-muted)',

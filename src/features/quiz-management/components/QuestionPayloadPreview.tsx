@@ -5,7 +5,7 @@ const styles = stylex.create({
     detailLabel: {
         fontSize: 11,
         fontWeight: 600,
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
         letterSpacing: 0.4,
         color: 'var(--color-text-disabled)',
     },
