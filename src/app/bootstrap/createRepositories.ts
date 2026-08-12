@@ -8,6 +8,7 @@ import { dexieQuizSessionRepository } from '../../infrastructure/database/reposi
 import { dexieSubjectRepository } from '../../infrastructure/database/repositories/DexieSubjectRepository';
 import { dexieSubjectTermRepository } from '../../infrastructure/database/repositories/DexieSubjectTermRepository';
 import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
+import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
 
@@ -25,7 +26,9 @@ export function createRepositories() {
         termService: dexieTermService,
         quizDraftRepository: dexieQuizDraftRepository,
         quizEditorService: dexieQuizEditorService,
+        flashcardReviewRepository: dexieFlashcardReviewRepository,
     };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;
+

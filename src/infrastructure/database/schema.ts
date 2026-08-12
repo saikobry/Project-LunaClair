@@ -50,5 +50,11 @@ export const SCHEMA_V4 = {
     quizEditingDrafts: 'draftId, quizId, materialId, updatedAt',
 } as const;
 
+export const SCHEMA_V5 = {
+    ...SCHEMA_V4,
+    flashcardReviews: 'key, materialId, dueAt, lastReviewedAt',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
+

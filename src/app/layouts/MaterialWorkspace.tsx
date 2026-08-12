@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, ClipboardList } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, ClipboardList } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
@@ -13,6 +13,7 @@ import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import ReaderScreen from '../../features/reader/ReaderScreen';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
+import { FlashcardScreen } from '../../features/flashcards/FlashcardScreen';
 
 const styles = stylex.create({
   loading: {
@@ -25,12 +26,13 @@ const styles = stylex.create({
   },
 });
 
-export type MaterialTab = 'read' | 'quiz' | 'manage';
+export type MaterialTab = 'read' | 'quiz' | 'flashcards' | 'manage';
 
 // Hoisted to module scope for a stable reference across renders
 const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[] = [
   { key: 'read', label: 'Read', icon: BookOpen },
   { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
+  { key: 'flashcards', label: 'Flashcards', icon: Layers },
   { key: 'manage', label: 'Manage', icon: ClipboardList },
 ];
 
@@ -121,6 +123,11 @@ export default function MaterialWorkspace({
             embedded
           />
         )}
+        {activeTab === 'flashcards' && (
+          <FlashcardScreen
+            materialId={materialId}
+          />
+        )}
         {activeTab === 'manage' && (
           <QuizManagementScreen
             materialId={materialId}
@@ -131,3 +138,4 @@ export default function MaterialWorkspace({
     </Page>
   );
 }
+

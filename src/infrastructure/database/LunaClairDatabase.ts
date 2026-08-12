@@ -8,7 +8,8 @@ import type { Term } from '../../domain/library/Term';
 import type { SubjectTerm } from '../../domain/library/SubjectTerm';
 import type { HighlightItem, DrawingPath } from '../../domain/reader';
 import type { QuizDraft } from '../../application/quiz-management/drafts/QuizDraft';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4 } from './schema';
+import type { ReviewState } from '../../domain/flashcards/scheduler';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -42,6 +43,7 @@ export interface MetadataRecord {
  *            removes subjectId and order from terms (terms become global).
  * Version 4: Adds quizEditingDrafts — local crash-recovery store for the
  *            quiz canvas authoring session (autosaved QuizDraft DTOs).
+ * Version 5: Adds flashcardReviews — spaced-repetition review states per card.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -56,6 +58,7 @@ export class LunaClairDatabase extends Dexie {
     terms!: Table<Term, string>;
     subjectTerms!: Table<SubjectTerm, [string, string]>;
     quizEditingDrafts!: Table<QuizDraft, string>;
+    flashcardReviews!: Table<ReviewState, string>;
 
     constructor() {
         super(DB_NAME);
@@ -91,6 +94,7 @@ export class LunaClairDatabase extends Dexie {
             ]);
         });
         this.version(4).stores(SCHEMA_V4);
+        this.version(5).stores(SCHEMA_V5);
     }
 }
 

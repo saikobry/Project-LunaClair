@@ -25,6 +25,8 @@
   - Dedicated authoring feature module (`src/features/quiz-management/`), full-screen management interface (`QuizManagementScreen`), Question Bank tab, Quiz Catalog tab, dynamic `QuestionEditorRegistry` for 5 question types, `QuizBuilderDialog` with version pinning, publishing status workflows (`draft` / `published` / `archived`), and soft-deletion archiving.
 - ✅ **Phase 6 — Application Layer & Domain Boundary Refinement**
   - Added framework-agnostic application use cases, a composition root, direct use-case mutation adapters, atomic quiz session submission, and application-owned material/subject-term validation.
+- ✅ **Phase 6.1 — Flashcards & Spaced Repetition**
+  - Spaced-repetition flashcards derived dynamically from existing question bank via `questionToCard`, pure SM-2 scheduler (`review`, `isDue`), `FlashcardReviewRepository` with v5 IndexedDB schema (`flashcardReviews`), 3D flip card player, rating flow, and embedded Flashcards tab in `MaterialWorkspace`.
 
 ---
 
@@ -39,19 +41,20 @@ The delivery layer previously had zero PWA infrastructure (audit: no service wor
 
 **Asset audit:** `public/materials/` = 28 files, **6.1 MB** (7 markdown ≈ 40 KB + 21 PNG figures, all under `anatomy-physiology/images/`). **Precache everything** is the right call at this size; switch to a `/materials/**` runtime cache if content grows. Verified: offline cold boot from cache, library from IndexedDB, documents render with all 22 anatomy figures served by the SW.
 
-Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution) stays **Phase 9 — Cloud Synchronization** scope.
+Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution) stays **Phase 10 — Cloud Synchronization** scope.
 
 ---
 
 ## Planned Phases
 
-- 🔒 **Phase 6 — Flashcards & Spaced Repetition**
-  - Flashcard domain entities, Leitner / SM-2 spaced repetition scheduler, review session history.
-- 🔒 **Phase 7 — AI Content Generation**
+- 🔒 **Phase 7 — Analytics & Learning Insights**
+  - Performance dashboards, spaced repetition retention curves, mastery tracking across subjects.
+- 🔒 **Phase 8 — AI Content Generation**
   - AI-generated question banks, automated material summaries, flashcard set generation.
-- 🔒 **Phase 8 — Content Importer**
+- 🔒 **Phase 9 — Content Importer**
   - PDF importing, OCR text extraction, custom material import pipelines.
-- 🔒 **Phase 9 — Cloud Synchronization**
+- 🔒 **Phase 10 — Cloud Synchronization**
   - Cloud database adapter, offline-first sync pipelines, multi-device state synchronization.
-- 🔒 **Phase 10 — Search & Discovery**
-  - Full-text material search, tag/difficulty indexes, assessment discovery engine.
+- 🔒 **Phase 11 — Collaboration & Sharing**
+  - Shared question decks, peer study sessions, exported quiz bundles.
+
