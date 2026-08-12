@@ -199,6 +199,15 @@ const styles = stylex.create({
         borderRadius: 4,
         backgroundColor: 'var(--color-background-muted)',
         color: 'var(--color-text-secondary)',
+        cursor: 'pointer',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
+        ':hover': {
+            backgroundColor: 'var(--color-accent-muted)',
+            color: 'var(--color-accent)',
+        },
+        ':active': {
+            opacity: 0.8,
+        },
     },
 });
 
@@ -257,7 +266,153 @@ function statusBorderColor(status: QuestionStatus): string {
     }
 }
 
+interface QuestionBankCardProps {
+    question: Question;
+    usageCount: number;
+    /** Live search query (lowercased, leading '#' stripped) — drives tag-chip pressed state. */
+    activeTagQuery: string;
+    onEdit: (question: Question) => void;
+    onPublish: (question: Question) => void;
+    onArchiveRequest: (question: Question, usageCount: number) => void;
+    onUnarchive: ((question: Question) => void) | undefined;
+    onTagClick: (tag: string) => void;
+}
 
+function QuestionBankCard({
+    question: q,
+    usageCount,
+    activeTagQuery,
+    onEdit,
+    onPublish,
+    onArchiveRequest,
+    onUnarchive,
+    onTagClick,
+}: QuestionBankCardProps) {
+    return (
+        <Card style={{ padding: 16, border: `2px solid ${statusBorderColor(q.status)}` }}>
+            <div {...stylex.props(styles.cardContent)}>
+                <div {...stylex.props(styles.promptRow)}>
+                    <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
+                    <span {...stylex.props(
+                        styles.badgedot,
+                        styles.topRightStatusBadge,
+                        q.status === 'published' && styles.badgePublished,
+                        q.status === 'draft' && styles.badgeDraft,
+                        q.status === 'archived' && styles.badgeArchived,
+                    )}>{q.status}</span>
+                </div>
+                <div {...stylex.props(styles.badgesRow)}>
+                    <span
+                        {...stylex.props(styles.badgedot)}
+                        style={{
+                            backgroundColor: POINTS_APPEARANCE.bg,
+                            color: POINTS_APPEARANCE.fg,
+                        }}
+                    >
+                        {q.points} pt{q.points !== 1 ? 's' : ''}
+                    </span>
+                    <span
+                        {...stylex.props(styles.badgedot)}
+                        style={{
+                            backgroundColor: DIFFICULTY_APPEARANCE[q.difficulty].bg,
+                            color: DIFFICULTY_APPEARANCE[q.difficulty].fg,
+                        }}
+                    >
+                        {q.difficulty}
+                    </span>
+                    <span
+                        {...stylex.props(styles.badgedot)}
+                        style={{
+                            backgroundColor: QUESTION_TYPE_APPEARANCE[q.type].bg,
+                            color: QUESTION_TYPE_APPEARANCE[q.type].fg,
+                        }}
+                    >
+                        {TYPE_LABELS[q.type]}
+                    </span>
+                </div>
+
+                {q.payload && (
+                    <div {...stylex.props(styles.detailSection)}>
+                        <QuestionPayloadPreview payload={q.payload} />
+                    </div>
+                )}
+
+                {q.explanation && (
+                    <div {...stylex.props(styles.detailSection)}>
+                        <div {...stylex.props(styles.detailLabel)}>Explanation</div>
+                        <p {...stylex.props(styles.explanationPreview)}>{q.explanation}</p>
+                    </div>
+                )}
+
+                {q.tags && q.tags.length > 0 && (
+                    <div {...stylex.props(styles.tagsRow)}>
+                        {q.tags.map((tag) => (
+                            <button
+                                key={tag}
+                                type="button"
+                                title={`Filter by tag: ${tag}`}
+                                aria-pressed={activeTagQuery === tag.toLowerCase()}
+                                onClick={() => onTagClick(tag)}
+                                {...stylex.props(styles.tag)}
+                            >
+                                #{tag}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                <div {...stylex.props(styles.cardFooter)}>
+                    <div {...stylex.props(styles.cardFooterMeta)}>
+                        <span {...stylex.props(styles.versionTag)}>v{q.version}</span>
+                        <span {...stylex.props(
+                            styles.badgedot,
+                            usageCount > 0 ? styles.badgeUsed : styles.badgeUnused,
+                        )}>{usageCount > 0 ? `Used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'}` : 'Not used in any quiz'}</span>
+                    </div>
+                    <div {...stylex.props(styles.cardActions)}>
+                        {q.status === 'draft' && (
+                            <Button
+                                label={`Publish question: ${q.prompt}`}
+                                variant="secondary"
+                                icon={<CheckCircle size={14} />}
+                                isIconOnly
+                                tooltip="Publish"
+                                onClick={() => onPublish(q)}
+                            />
+                        )}
+                        <Button
+                            label={`Edit question: ${q.prompt}`}
+                            variant="secondary"
+                            icon={<Pencil size={14} />}
+                            isIconOnly
+                            tooltip="Edit"
+                            onClick={() => onEdit(q)}
+                        />
+                        {q.status === 'archived' && onUnarchive ? (
+                            <Button
+                                label={`Restore question: ${q.prompt}`}
+                                variant="secondary"
+                                icon={<ArchiveRestore size={14} />}
+                                isIconOnly
+                                tooltip="Restore"
+                                onClick={() => onUnarchive(q)}
+                            />
+                        ) : (
+                            <Button
+                                label={`Archive question: ${q.prompt}`}
+                                variant="danger"
+                                icon={<Archive size={14} />}
+                                isIconOnly
+                                tooltip="Archive"
+                                onClick={() => onArchiveRequest(q, usageCount)}
+                            />
+                        )}
+                    </div>
+                </div>
+            </div>
+        </Card>
+    );
+}
 
 export function QuestionBankTab({
     questions,
@@ -282,17 +437,27 @@ export function QuestionBankTab({
 
     const activeFilterCount = [typeFilter, difficultyFilter, statusFilter].filter(Boolean).length;
 
+    // Leading '#' is stripped so typing '#skin' or 'skin' both find tag 'skin'.
+    const searchQuery = debouncedSearch.trim().toLowerCase().replace(/^#/, '');
+    // Live (non-debounced) query — chip toggles and pressed state must respond
+    // immediately, not after the 300ms debounce window.
+    const activeTagQuery = search.trim().toLowerCase().replace(/^#/, '');
+
     const filtered = useMemo(() => {
         return questions
             .filter((q) => {
-                if (debouncedSearch && !q.prompt.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+                if (searchQuery) {
+                    const matchesPrompt = q.prompt.toLowerCase().includes(searchQuery);
+                    const matchesTags = (q.tags ?? []).some((t) => t.toLowerCase().includes(searchQuery));
+                    if (!matchesPrompt && !matchesTags) return false;
+                }
                 if (typeFilter && q.type !== typeFilter) return false;
                 if (difficultyFilter && q.difficulty !== difficultyFilter) return false;
                 if (statusFilter && q.status !== statusFilter) return false;
                 return true;
             })
             .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[a.status] ?? 0) || a.prompt.localeCompare(b.prompt));
-    }, [questions, debouncedSearch, typeFilter, difficultyFilter, statusFilter]);
+    }, [questions, searchQuery, typeFilter, difficultyFilter, statusFilter]);
 
     const handleSave = (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => {
         if (id) {
@@ -312,6 +477,33 @@ export function QuestionBankTab({
         setEditorOpen(true);
     };
 
+    const handleTagClick = (tag: string) => {
+        // Clicking the already-active tag clears the filter; any other tag filters by it.
+        const isActive = activeTagQuery === tag.toLowerCase();
+        setSearch(isActive ? '' : `#${tag}`);
+    };
+
+    const handlePublish = (question: Question) => {
+        onPublish(question.id);
+        showToast('Question published', { intent: 'success' });
+    };
+
+    const handleUnarchive = onUnarchive
+        ? (question: Question) => {
+              onUnarchive(question.id);
+              showToast('Question restored to draft', { intent: 'success' });
+          }
+        : undefined;
+
+    const handleArchiveRequest = (question: Question, usageCount: number) => {
+        if (usageCount > 0) {
+            setPendingArchiveId(question.id);
+        } else {
+            onArchive(question.id);
+            showToast('Question moved to archive', { intent: 'info' });
+        }
+    };
+
     return (
         <div {...stylex.props(styles.container)}>
             <div {...stylex.props(styles.filterBar)}>
@@ -320,7 +512,7 @@ export function QuestionBankTab({
                         label="Search questions"
                         labelHidden
                         startIcon={<Search size={16} />}
-                        placeholder="Search questions…"
+                        placeholder="Search prompts and tags…"
                         value={search}
                         onChange={setSearch}
                         clearable
@@ -428,130 +620,18 @@ export function QuestionBankTab({
                 <div {...stylex.props(styles.list)}>
                     {filtered.map((q) => {
                         const usageCount = quizzes.filter((quiz) => quiz.questionIds.includes(q.id)).length;
-
-                        const handleArchiveClick = () => {
-                            if (usageCount > 0) {
-                                setPendingArchiveId(q.id);
-                            } else {
-                                onArchive(q.id);
-                                showToast('Question moved to archive', { intent: 'info' });
-                            }
-                        };
-
                         return (
-                            <Card key={q.id} style={{ padding: 16, border: `2px solid ${statusBorderColor(q.status)}` }}>
-                                <div {...stylex.props(styles.cardContent)}>
-                                    <div {...stylex.props(styles.promptRow)}>
-                                        <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
-                                        <span {...stylex.props(
-                                            styles.badgedot,
-                                            styles.topRightStatusBadge,
-                                            q.status === 'published' && styles.badgePublished,
-                                            q.status === 'draft' && styles.badgeDraft,
-                                            q.status === 'archived' && styles.badgeArchived,
-                                        )}>{q.status}</span>
-                                    </div>
-                                    <div {...stylex.props(styles.badgesRow)}>
-                                        <span
-                                            {...stylex.props(styles.badgedot)}
-                                            style={{
-                                                backgroundColor: POINTS_APPEARANCE.bg,
-                                                color: POINTS_APPEARANCE.fg,
-                                            }}
-                                        >
-                                            {q.points} pt{q.points !== 1 ? 's' : ''}
-                                        </span>
-                                        <span
-                                            {...stylex.props(styles.badgedot)}
-                                            style={{
-                                                backgroundColor: DIFFICULTY_APPEARANCE[q.difficulty].bg,
-                                                color: DIFFICULTY_APPEARANCE[q.difficulty].fg,
-                                            }}
-                                        >
-                                            {q.difficulty}
-                                        </span>
-                                        <span
-                                            {...stylex.props(styles.badgedot)}
-                                            style={{
-                                                backgroundColor: QUESTION_TYPE_APPEARANCE[q.type].bg,
-                                                color: QUESTION_TYPE_APPEARANCE[q.type].fg,
-                                            }}
-                                        >
-                                            {TYPE_LABELS[q.type]}
-                                        </span>
-                                    </div>
-
-                                    {q.payload && (
-                                        <div {...stylex.props(styles.detailSection)}>
-                                            <QuestionPayloadPreview payload={q.payload} />
-                                        </div>
-                                    )}
-
-                                    {q.explanation && (
-                                        <div {...stylex.props(styles.detailSection)}>
-                                            <div {...stylex.props(styles.detailLabel)}>Explanation</div>
-                                            <p {...stylex.props(styles.explanationPreview)}>{q.explanation}</p>
-                                        </div>
-                                    )}
-
-                                    {q.tags && q.tags.length > 0 && (
-                                        <div {...stylex.props(styles.tagsRow)}>
-                                            {q.tags.map((tag) => (
-                                                <span key={tag} {...stylex.props(styles.tag)}>#{tag}</span>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div {...stylex.props(styles.cardFooter)}>
-                                        <div {...stylex.props(styles.cardFooterMeta)}>
-                                            <span {...stylex.props(styles.versionTag)}>v{q.version}</span>
-                                            <span {...stylex.props(
-                                                styles.badgedot,
-                                                usageCount > 0 ? styles.badgeUsed : styles.badgeUnused,
-                                            )}>{usageCount > 0 ? `Used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'}` : 'Not used in any quiz'}</span>
-                                        </div>
-                                        <div {...stylex.props(styles.cardActions)}>
-                                            {q.status === 'draft' && (
-                                                <Button
-                                                    label={`Publish question: ${q.prompt}`}
-                                                    variant="secondary"
-                                                    icon={<CheckCircle size={14} />}
-                                                    isIconOnly
-                                                    tooltip="Publish"
-                                                    onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
-                                                />
-                                            )}
-                                            <Button
-                                                label={`Edit question: ${q.prompt}`}
-                                                variant="secondary"
-                                                icon={<Pencil size={14} />}
-                                                isIconOnly
-                                                tooltip="Edit"
-                                                onClick={() => openEdit(q)}
-                                            />
-                                            {q.status === 'archived' && onUnarchive ? (
-                                                <Button
-                                                    label={`Restore question: ${q.prompt}`}
-                                                    variant="secondary"
-                                                    icon={<ArchiveRestore size={14} />}
-                                                    isIconOnly
-                                                    tooltip="Restore"
-                                                    onClick={() => { onUnarchive(q.id); showToast('Question restored to draft', { intent: 'success' }); }}
-                                                />
-                                            ) : (
-                                                <Button
-                                                    label={`Archive question: ${q.prompt}`}
-                                                    variant="danger"
-                                                    icon={<Archive size={14} />}
-                                                    isIconOnly
-                                                    tooltip="Archive"
-                                                    onClick={handleArchiveClick}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </Card>
+                            <QuestionBankCard
+                                key={q.id}
+                                question={q}
+                                usageCount={usageCount}
+                                activeTagQuery={activeTagQuery}
+                                onEdit={openEdit}
+                                onPublish={handlePublish}
+                                onArchiveRequest={handleArchiveRequest}
+                                onUnarchive={handleUnarchive}
+                                onTagClick={handleTagClick}
+                            />
                         );
                     })}
                 </div>

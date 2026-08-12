@@ -10,7 +10,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 |---|---|
 | `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
-| `ui/` | Design system primitive adapters and low-level container primitives |
+| `ui/` | Design system primitive adapters and low-level container primitives — includes `TagInput` (tag/chip input: type+Enter or comma/paste bulk entry, removable `#tag` tokens, output normalized through the domain `tags.ts` helpers) |
 | `components/` | Domain-neutral composites such as `ActionMenu` and `SelectableRow` |
 | `hooks/` | Domain-agnostic UI and infrastructure hooks: `useTabKeyboardNavigation`, `useDragReorder` (generic HTML5 drag-and-drop list reordering with keyboard fallbacks), `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
 

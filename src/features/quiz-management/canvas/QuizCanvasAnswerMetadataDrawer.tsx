@@ -1,14 +1,13 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { ChevronRight } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuestionDifficulty } from '../../../domain/quiz/Question';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Input } from '../../../shared/ui/Input';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
-import { Token } from '../../../shared/ui/Token/Token';
+import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 
 const styles = stylex.create({
     drawerContainer: {
@@ -48,32 +47,6 @@ const styles = stylex.create({
         fontSize: 12,
         fontWeight: 600,
         color: 'var(--color-text-secondary)',
-    },
-    tagsRow: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 6,
-        alignItems: 'center',
-    },
-    tagChip: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        color: 'var(--color-accent)',
-        backgroundColor: 'var(--color-accent-muted)',
-        padding: '2px 8px',
-        borderRadius: 5,
-    },
-    tagInputForm: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        width: '100%',
-    },
-    tagInputField: {
-        flex: 1,
     },
 });
 
@@ -115,7 +88,6 @@ export function QuizCanvasAnswerMetadataDrawer({
     onToggle,
     heightAnimRef,
 }: QuizCanvasAnswerMetadataDrawerProps) {
-    const [tagInput, setTagInput] = useState('');
     const drawerRef = useRef<HTMLDivElement>(null);
     /** Last drawer node + open state the animation ran against — detects toggles and re-mounts (card collapsed mid-open). */
     const prevDrawerRef = useRef<{ el: HTMLDivElement | null; open: boolean }>({ el: null, open: false });
@@ -208,21 +180,6 @@ export function QuizCanvasAnswerMetadataDrawer({
         };
     }, [heightAnimRef, item.tempId]);
 
-    const handleAddTag = () => {
-        const trimmed = tagInput.trim().toLowerCase().replace(/^#/, '');
-        if (!trimmed) return;
-        const current = item.tags ?? [];
-        if (!current.some((t) => t.toLowerCase() === trimmed)) {
-            onChange({ tags: [...current, trimmed] });
-        }
-        setTagInput('');
-    };
-
-    const handleRemoveTag = (tagToRemove: string) => {
-        const current = item.tags ?? [];
-        onChange({ tags: current.filter((t) => t !== tagToRemove) });
-    };
-
     return (
         <div {...stylex.props(styles.drawerContainer)}>
             <Button
@@ -279,38 +236,13 @@ export function QuizCanvasAnswerMetadataDrawer({
                     </div>
 
                     <div {...stylex.props(styles.fieldGroup)}>
-                        <span {...stylex.props(styles.fieldLabel)}>Tags</span>
-                        {(item.tags ?? []).length > 0 && (
-                            <div {...stylex.props(styles.tagsRow)}>
-                                {(item.tags ?? []).map((tag) => (
-                                    <Token
-                                        key={tag}
-                                        label={`#${tag}`}
-                                        size="sm"
-                                        color="purple"
-                                        onRemove={() => handleRemoveTag(tag)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                handleAddTag();
-                            }}
-                            {...stylex.props(styles.tagInputForm)}
-                        >
-                            <div {...stylex.props(styles.tagInputField)}>
-                                <Input
-                                    label="Add tag"
-                                    labelHidden
-                                    value={tagInput}
-                                    onChange={setTagInput}
-                                    placeholder="Type a tag and press Enter…"
-                                    size="sm"
-                                />
-                            </div>
-                        </form>
+                        <TagInput
+                            label="Tags"
+                            tags={item.tags ?? []}
+                            onChange={(tags) => onChange({ tags })}
+                            size="sm"
+                            placeholder="Type a tag and press Enter…"
+                        />
                     </div>
                 </div>
             </div>

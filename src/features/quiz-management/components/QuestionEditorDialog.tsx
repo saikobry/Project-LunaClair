@@ -9,9 +9,11 @@ import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input/Input';
 import { Selector } from '../../../shared/ui/Selector/Selector';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
+import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
+import { normalizeTags } from '../../../domain/quiz/tags';
 
 const styles = stylex.create({
     form: {
@@ -88,7 +90,7 @@ export function QuestionEditorDialog({
     const [difficulty, setDifficulty] = useState<QuestionDifficulty>(question?.difficulty ?? 'medium');
     const [points, setPoints] = useState(String(question?.points ?? 1));
     const [explanation, setExplanation] = useState(question?.explanation ?? '');
-    const [tags, setTags] = useState(() => (question?.tags ?? []).join(', '));
+    const [tags, setTags] = useState<string[]>(question?.tags ?? []);
 
     const [pendingTypeChange, setPendingTypeChange] = useState<QuestionType | null>(null);
 
@@ -114,7 +116,7 @@ export function QuestionEditorDialog({
     }, []);
 
     const handleSave = () => {
-        const parsedTags = tags.split(',').map((t) => t.trim()).filter(Boolean);
+        const parsedTags = normalizeTags(tags);
         const parsedPoints = Math.max(1, parseInt(points, 10) || 1);
 
         if (isEditing && question) {
@@ -124,7 +126,7 @@ export function QuestionEditorDialog({
                 difficulty,
                 points: parsedPoints,
                 explanation: explanation || undefined,
-                tags: parsedTags.length > 0 ? parsedTags : undefined,
+                tags: parsedTags,
             };
             onSave(input, question.id);
             showToast('Question updated', { intent: 'success' });
@@ -137,7 +139,7 @@ export function QuestionEditorDialog({
                 difficulty,
                 points: parsedPoints,
                 explanation: explanation || undefined,
-                tags: parsedTags.length > 0 ? parsedTags : undefined,
+                tags: parsedTags,
                 status: 'draft' as QuestionStatus,
             };
             onSave(input);
@@ -226,11 +228,11 @@ export function QuestionEditorDialog({
                         rows={3}
                     />
 
-                    <Input
-                        label="Tags (comma-separated)"
-                        value={tags}
+                    <TagInput
+                        label="Tags"
+                        tags={tags}
                         onChange={setTags}
-                        placeholder="e.g. skin, layers, anatomy"
+                        placeholder="Type a tag and press Enter…"
                     />
                 </div>
             </Dialog>

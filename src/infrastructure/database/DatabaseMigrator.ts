@@ -1,15 +1,21 @@
 import type { LunaClairDatabase, HighlightRecord, DrawingRecord } from './LunaClairDatabase';
 import type { StudyMaterial } from '../../domain/library/StudyMaterial';
+import type { Question } from '../../domain/quiz/Question';
 import type { HighlightItem, DrawingPath } from '../../domain/reader';
+import { normalizeTags } from '../../domain/quiz/tags';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 
 const MIGRATION_KEY = 'lunaclair.migration.v1.complete';
 const V2_MIGRATION_KEY = 'lunaclair.migration.v2.complete';
+const V3_MIGRATION_KEY = 'lunaclair.migration.v3.complete';
 
 /**
  * Handles one-time migration of legacy localStorage data into IndexedDB.
  * v1: Migrates materials, highlights, drawings from localStorage.
  * v2: Sets default subjectId/termId on legacy materials.
+ * v3: Normalizes stored question tags (strip '#', dedup case-insensitively,
+ *     preserve first-seen casing) — the write-boundary normalization that now
+ *     guards every new tag write cannot repair tags created before it existed.
  */
 export class DatabaseMigrator {
     private readonly database: LunaClairDatabase;
@@ -21,6 +27,7 @@ export class DatabaseMigrator {
     async migrateIfNeeded(): Promise<void> {
         await this.migrateV1IfNeeded();
         await this.migrateV2IfNeeded();
+        await this.migrateV3IfNeeded();
     }
 
     // ── Version 1 ──────────────────────────────────────────────
@@ -129,4 +136,37 @@ export class DatabaseMigrator {
 
         localStorage.setItem(V2_MIGRATION_KEY, new Date().toISOString());
     }
+
+    // ── Version 3 — Question tag normalization ───────────────────
+
+    private async migrateV3IfNeeded(): Promise<void> {
+        const flag = localStorage.getItem(V3_MIGRATION_KEY);
+        if (flag) return;
+
+        await this.database.transaction(
+            'rw',
+            [this.database.questions, this.database.metadata],
+            async () => {
+                const questions = await this.database.questions.toArray();
+                const changed: Question[] = [];
+                for (const question of questions) {
+                    const normalized = normalizeTags(question.tags);
+                    if (!sameTags(normalized, question.tags)) {
+                        changed.push({ ...question, tags: normalized });
+                    }
+                }
+                if (changed.length > 0) {
+                    await this.database.questions.bulkPut(changed);
+                }
+                await this.database.metadata.put({ key: 'databaseVersion', value: 3 });
+                await this.database.metadata.put({ key: 'v3Migration', value: new Date().toISOString() });
+            },
+        );
+
+        localStorage.setItem(V3_MIGRATION_KEY, new Date().toISOString());
+    }
+}
+
+function sameTags(a: string[] | undefined, b: string[] | undefined): boolean {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }

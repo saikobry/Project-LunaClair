@@ -4,6 +4,7 @@ import type {
     CreateQuestionInput,
     UpdateQuestionInput,
 } from '../../../domain/quiz/QuestionRepository';
+import { normalizeTags } from '../../../domain/quiz/tags';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {
@@ -38,7 +39,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             difficulty: input.difficulty ?? 'medium',
             points: input.points ?? 1,
             explanation: input.explanation,
-            tags: input.tags,
+            tags: normalizeTags(input.tags),
             status: input.status ?? 'draft',
             version: 1,
             createdAt: now,
@@ -55,6 +56,7 @@ export class DexieQuestionRepository implements QuestionRepository {
         const updated: Question = {
             ...existing,
             ...input,
+            tags: normalizeTags(input.tags ?? existing.tags),
             version: existing.version + 1,
             updatedAt: new Date().toISOString(),
         };

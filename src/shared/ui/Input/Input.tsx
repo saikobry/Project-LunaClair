@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode } from 'react';
+import { type ChangeEvent, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
 export interface InputProps {
@@ -36,6 +36,10 @@ export interface InputProps {
   clearable?: boolean;
   /** Input size. @default 'md' */
   size?: 'sm' | 'md' | 'lg';
+  /** Keydown handler (Astryx TextInput forwards it to the native input). */
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+  /** Paste handler (Astryx TextInput forwards it to the native input). */
+  onPaste?: (e: ClipboardEvent<HTMLInputElement>) => void;
 }
 
 /**
@@ -63,6 +67,8 @@ export function Input({
   startIcon,
   clearable = false,
   size = 'md',
+  onKeyDown,
+  onPaste,
 }: InputProps) {
   return (
     <TextInput
@@ -87,6 +93,8 @@ export function Input({
       size={size}
       className={className}
       style={style}
+      onKeyDown={onKeyDown}
+      onPaste={onPaste}
       {...(statusMessage
         ? { status: { type: 'error' as const, message: statusMessage } }
         : undefined)}

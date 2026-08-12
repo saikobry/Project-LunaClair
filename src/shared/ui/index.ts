@@ -57,5 +57,8 @@ export { parseOutlineFromMarkdown } from './Outline/parseOutlineFromMarkdown';
 export { Token } from './Token/Token';
 export type { TokenProps, TokenColor, TokenSize } from './Token/Token';
 
+export { TagInput } from './TagInput/TagInput';
+export type { TagInputProps } from './TagInput/TagInput';
+
 export { CorrectAnswerIndicator } from './CorrectAnswerIndicator/CorrectAnswerIndicator';
 export type { CorrectAnswerIndicatorProps } from './CorrectAnswerIndicator/CorrectAnswerIndicator';

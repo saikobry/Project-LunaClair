@@ -5,6 +5,7 @@ import type {
     SaveQuizToRepositoryInput,
     SaveQuizToRepositoryResult,
 } from '../../../domain/quiz/QuizEditorService';
+import { normalizeTags } from '../../../domain/quiz/tags';
 import { db } from '../LunaClairDatabase';
 
 function generateQuestionId(): string {
@@ -46,7 +47,7 @@ export class DexieQuizEditorService implements QuizEditorService {
                             difficulty: change.difficulty ?? 'medium',
                             points: change.points,
                             explanation: change.explanation,
-                            tags: change.tags,
+                            tags: normalizeTags(change.tags),
                             status: 'draft',
                             version: 1,
                             createdAt: now,
@@ -66,7 +67,7 @@ export class DexieQuizEditorService implements QuizEditorService {
                         payload: change.payload,
                         difficulty: change.difficulty ?? existing.difficulty,
                         explanation: change.explanation,
-                        tags: change.tags,
+                        tags: normalizeTags(change.tags ?? existing.tags),
                         version: change.bumpVersion ? existing.version + 1 : existing.version,
                         updatedAt: now,
                     };

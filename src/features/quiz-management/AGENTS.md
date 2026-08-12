@@ -9,9 +9,9 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | File / Module | Responsibility |
 |---|---|
 | `QuizManagementScreen.tsx` | Feature orchestrator — tab navigation (Question Bank / Quiz Catalog), data fetching, wires management hooks. Rendered embedded inside MaterialWorkspace (no self-owned Page shell or back button) |
-| `components/QuestionBankTab.tsx` | Question list with search, type/difficulty/status filters, quiz usage tags ("Used in X quizzes" / "Not used in any quiz"), archive confirmation safeguards for shared questions, and empty state CTAs |
+| `components/QuestionBankTab.tsx` | Question list with search (matches prompt OR tags — leading `#` stripped; tag chips clickable to filter/toggle), type/difficulty/status filters, quiz usage tags ("Used in X quizzes" / "Not used in any quiz"), archive confirmation safeguards for shared questions, and empty state CTAs |
 | `components/QuestionPayloadPreview.tsx` | Read-only presentation preview of authored question payload structures (choices with correct ticks, True/False blocks, fill-in-blank templates) |
-| `components/QuestionEditorDialog.tsx` | Modal form for creating/editing questions — metadata inputs + type-specific editor |
+| `components/QuestionEditorDialog.tsx` | Modal form for creating/editing questions — metadata inputs (tags via shared `TagInput` chip entry, case-preserving) + type-specific editor |
 | `components/QuizCatalogTab.tsx` | Quiz list with visible card containers (1px border, radius 10, status accent strip on the left edge, hover accent border + subtle lift), status badges, chip-styled question-count / pass-rate metadata, publish/archive controls (archive requires confirmation dialog), Create/Edit buttons navigate to the dedicated `quiz-canvas` route (`onNavigate({ kind: 'quiz-canvas', materialId, quizId? })`) |
 | `canvas/` | Quiz canvas authoring sub-feature — self-contained subsystem (state `useQuizCanvas`, lifecycle `useQuizCanvasEditor`, motion engine, debug tooling). Public contract: exports `QuizCanvasBuilder` only, re-exported by this barrel for `AppShell`. Full contracts in `canvas/AGENTS.md` |
 | `components/QuizBuilderDialog.tsx` | `@deprecated` — superseded by `QuizCanvasBuilder`, kept during transition |
