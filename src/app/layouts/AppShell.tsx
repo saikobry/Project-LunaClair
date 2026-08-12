@@ -1,23 +1,24 @@
 import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-// Named import: a combined `import QuizScreen, { type QuizLaunchRequest }`
-// against the quiz barrel fails with TS2613 (no default export).
-import { QuizScreen } from '../../features/quiz';
-import type { QuizLaunchRequest } from '../../features/quiz';
-import {
-  LibraryScreen,
-  SubjectWorkspace,
-  TermManagerScreen,
-  useTouchMaterial,
-} from '../../features/catalog';
-import { QuizCanvasBuilder } from '../../features/quiz-management';
-import { STORAGE_KEYS } from '../../shared/constants';
-import { FocusModeProvider } from '../providers';
+// Direct-path imports (react-doctor/no-barrel-import, user-directed):
+// QuizScreen is the feature's default export and QuizLaunchRequest lives in
+// the feature's types module.
+import QuizScreen from '../../features/quiz/QuizScreen';
+import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
+import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
+import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
+import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
+import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
+import { QuizCanvasBuilder } from '../../features/quiz-management/canvas/QuizCanvasBuilder';
+import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
+import { FocusModeProvider } from '../providers/FocusModeContext';
 import logoSvg from '../../assets/logo.svg';
 import { routeToUrl, urlToRoute, type AppRoute } from './routing';
 import MaterialWorkspace from './MaterialWorkspace';
 import { AppSidebar } from './AppSidebar/AppSidebar';
+import OfflineBanner from './OfflineBanner';
+import { InstallPrompt, InstallInstructionsDialog } from './InstallPrompt';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };
@@ -204,6 +205,11 @@ export default function AppShell() {
     () => localStorage.getItem(STORAGE_KEYS.settings.focusMode) === 'true',
   );
 
+  // PWA install surfaces. The sidebar entry and iOS card only exist in
+  // production builds (dev has no SW/manifest, so install is meaningless).
+  const [installInfoOpen, setInstallInfoOpen] = useState(false);
+  const canOfferInstall = !import.meta.env.DEV;
+
   const touchMutation = useTouchMaterial();
 
   // Bottom-bar clearance (px): the shell's OWN declared `main` bottom padding
@@ -380,6 +386,7 @@ export default function AppShell() {
             isFocusMode={isFocusMode}
             onToggleFocusMode={toggleFocusMode}
             onNavigate={navigate}
+            onOpenInstallInfo={canOfferInstall ? () => setInstallInfoOpen(true) : undefined}
           />
         </div>
       <main
@@ -457,6 +464,21 @@ export default function AppShell() {
             {...stylex.props(styles.focusRestoreLogo)}
           />
         </button>
+
+      {/* Global connectivity status — app-shell chrome */}
+      <OfflineBanner />
+
+      {/* PWA install surfaces — one-time iOS card + opt-in instructions */}
+      <InstallPrompt
+        suppressed={
+          currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
+        }
+        onShowInstructions={() => setInstallInfoOpen(true)}
+      />
+      <InstallInstructionsDialog
+        isOpen={installInfoOpen}
+        onClose={() => setInstallInfoOpen(false)}
+      />
       </div>
     </FocusModeProvider>
   );

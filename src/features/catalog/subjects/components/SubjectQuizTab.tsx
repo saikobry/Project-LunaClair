@@ -1,7 +1,7 @@
-import { SubjectQuizExplorer } from '../../../quiz';
-import { useSubjectQuizTree } from '../../../quiz';
-import { useQuizTreeSelection } from '../../../quiz';
-import type { QuizLaunchRequest } from '../../../quiz';
+import { SubjectQuizExplorer } from '../../../quiz/components/SubjectQuizExplorer/SubjectQuizExplorer';
+import { useSubjectQuizTree } from '../../../quiz/hooks/queries/useSubjectQuizTree';
+import { useQuizTreeSelection } from '../../../quiz/hooks/queries/useQuizTreeSelection';
+import type { QuizLaunchRequest } from '../../../quiz/types/quizFeature.types';
 
 interface SubjectQuizTabProps {
   subjectId: string;

@@ -1,19 +1,19 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search } from 'lucide-react';
-import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz/quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
-import { Button } from '../../../shared/ui/Button';
-import { Input } from '../../../shared/ui/Input';
-import { Card } from '../../../shared/ui/Card';
+import { Button } from '../../../shared/ui/Button/Button';
+import { Input } from '../../../shared/ui/Input/Input';
+import { Card } from '../../../shared/ui/Card/Card';
 import { Selector, type SelectorOption } from '../../../shared/ui/Selector/Selector';
 import { useToast } from '../../../app/providers/ToastContext';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { QuestionEditorDialog } from './QuestionEditorDialog';
 import { QuestionPayloadPreview } from './QuestionPayloadPreview';
-import { useDebounce } from '../../../shared/hooks';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const styles = stylex.create({
     container: {

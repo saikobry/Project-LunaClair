@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Dialog } from '../../../../shared/ui/Dialog';
+import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { styles } from '../../shared/styles/library.stylex';

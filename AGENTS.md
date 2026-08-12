@@ -92,6 +92,7 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 | Dev server | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
+| Regenerate PWA icons | `npm run generate:pwa-assets` |
 
 **Build process**: `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
@@ -132,12 +133,21 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 ## Import Rules
 
 1. **Curated feature contracts** — features may consume another feature only through its root `index.ts` public contract.
-2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. Scoped exception: the app shell (`src/app/layouts/`) may import specific catalog query hooks directly (see `src/features/AGENTS.md`); all other cross-feature imports use feature root barrels.
+2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. User-directed exception (Aug 2026): `react-doctor/no-barrel-import` is resolved project-wide, and the specific cross-feature direct-path imports that replaced feature barrels are listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). Because the doctor rule flags every barrel import, new cross-feature consumption follows the documented direct-path pattern; feature root barrels are retained as curated ADR-009 public contracts, but importing them re-triggers the rule.
 3. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
 5. **Services** import from `shared/` (types/utilities) but not from features.
 6. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features.
 7. **Barrel exports** (`index.ts`) are curated public APIs — avoid deep import chains and giant export dumps.
+
+## PWA / Offline
+
+- LunaClair is an installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the app shell **and** `public/materials/**` (documents + figure images), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
+- Offline behavior: the shell boots from cache; material documents render offline via the SW with **zero** `LocalDocumentRepository` changes (Dexie = app data, Cache Storage = delivery).
+- TanStack Query runs with `networkMode: 'offlineFirst'` for **queries and mutations** (see `AppProviders`) so IndexedDB-backed operations execute — not pause — when `navigator.onLine` is false. Do not revert to the default `'online'` mode (it freezes fresh lookups and defers Dexie writes while offline).
+- Offline synchronization (sync queue, conflict resolution) is **Phase 9** scope; offline-readiness is shipped.
+- Icon pipeline: `npm run generate:pwa-assets` regenerates `pwa-*`/maskable/apple-touch PNGs in `public/` from `public/app-icon.svg` (a square derivation of `favicon.svg`).
+- Install discovery (community-reviewed, Aug 2026): quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time iOS-only card from the second visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively, iOS has none. Details in `src/app/AGENTS.md`.
 
 ## Conventions
 

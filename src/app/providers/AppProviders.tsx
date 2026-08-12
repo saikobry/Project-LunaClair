@@ -16,6 +16,19 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60,       // 1 minute
       gcTime: 1000 * 60 * 10,     // 10 minutes
       refetchOnWindowFocus: false,
+      // Offline-first: the app's data layer is local (IndexedDB) and its
+      // documents are served by the service worker's cache, so queries must
+      // run — not pause — when `navigator.onLine` is false. TanStack's
+      // default `networkMode: 'online'` freezes not-yet-cached queries
+      // offline (a fresh material lookup would show "Material not found").
+      networkMode: 'offlineFirst',
+    },
+    mutations: {
+      // Mutations are local Dexie writes too — TanStack's default 'online'
+      // mode defers them (in-memory) until reconnect, which would drop
+      // changes if the tab closes while offline and contradict the offline
+      // banner's "changes are saved locally" promise.
+      networkMode: 'offlineFirst',
     },
   },
 });

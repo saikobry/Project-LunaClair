@@ -4,7 +4,7 @@ import { Plus, SquarePen, Trash2, Tag } from 'lucide-react';
 import { Page } from '../../../../shared/ui/Page';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { IconButton } from '../../../../shared/ui/IconButton/IconButton';
-import { Dialog } from '../../../../shared/ui/Dialog';
+import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { ConfirmationDialog } from '../../../../shared/ui/Dialog/ConfirmationDialog';
 import { useTerms } from '../hooks/queries/useTerms';
