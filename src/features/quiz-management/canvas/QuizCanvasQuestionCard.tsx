@@ -12,18 +12,30 @@ import { QuizCanvasAnswerMetadataDrawer } from './QuizCanvasAnswerMetadataDrawer
 
 /** Answers shown in the collapsed answer chip before the "+N more" suffix. */
 const MAX_VISIBLE_ANSWERS = 3;
+/** Maximum character budget for joined answers before collapsing remaining choices. */
+const MAX_JOINED_ANSWER_CHARS = 35;
 
 /**
  * Joins the correct answers for the collapsed chip. Multi-answer questions
  * (multiple-select) render as ONE chip — `✓ A + B + C` — keeping the
  * single-select "one chip = one verdict" grammar, with `+` reading as "all
  * of these" (AND) rather than alternatives. Long sets truncate with a
- * "+N more" suffix; the full list stays available on hover (title tooltip)
- * and by opening the card.
+ * "+N more" suffix when character count or item count exceeds bounds;
+ * the full list stays available on hover (title tooltip) and by opening the card.
  */
 function formatAnswerList(answers: string[]): string {
     if (answers.length <= 1) return answers[0] ?? '';
-    const visible = answers.slice(0, MAX_VISIBLE_ANSWERS);
+    let visibleCount = 0;
+    let totalLen = 0;
+    for (const ans of answers) {
+        if (visibleCount > 0 && (totalLen + ans.length > MAX_JOINED_ANSWER_CHARS || visibleCount >= MAX_VISIBLE_ANSWERS)) {
+            break;
+        }
+        totalLen += ans.length;
+        visibleCount++;
+    }
+    const count = Math.max(1, visibleCount);
+    const visible = answers.slice(0, count);
     const joined = visible.join(' + ');
     const hidden = answers.length - visible.length;
     return hidden > 0 ? `${joined} +${hidden} more` : joined;
@@ -181,12 +193,11 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-success-muted)',
         padding: '2px 8px',
         borderRadius: 5,
-        // No max width — the chip sizes to its content; if the group can't fit
-        // beside the other chips it wraps onto its own right-aligned line
-        // (and, on a very narrow card, ellipsizes rather than wrapping text).
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
     },
     // Right-aligned answer group — its auto margin absorbs the badge row's
     // free space so the ✓ answer chip (single or +-joined multiple-select)
@@ -197,6 +208,8 @@ const styles = stylex.create({
         alignItems: 'center',
         gap: 6,
         marginLeft: 'auto',
+        maxWidth: '100%',
+        minWidth: 0,
     },
     body: {
         display: 'flex',

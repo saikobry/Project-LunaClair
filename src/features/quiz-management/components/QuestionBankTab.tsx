@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search } from 'lucide-react';
+import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter } from 'lucide-react';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz/quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
@@ -15,6 +15,8 @@ import { QuestionEditorDialog } from './QuestionEditorDialog';
 import { QuestionPayloadPreview } from './QuestionPayloadPreview';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 
+const desktopQuery = '@media (min-width: 769px)';
+
 const styles = stylex.create({
     container: {
         display: 'flex',
@@ -25,11 +27,39 @@ const styles = stylex.create({
         display: 'flex',
         gap: 10,
         flexWrap: 'wrap',
-        alignItems: 'flex-end',
+        alignItems: 'center',
     },
     searchField: {
         flex: 1,
         minWidth: 180,
+    },
+    desktopSelectors: {
+        display: 'none',
+        [desktopQuery]: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+        },
+    },
+    mobileFilterTrigger: {
+        display: 'flex',
+        [desktopQuery]: {
+            display: 'none',
+        },
+    },
+    mobileFilterPanel: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        width: '100%',
+        padding: 12,
+        backgroundColor: 'var(--color-background-surface, #ffffff)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 8,
+        boxSizing: 'border-box',
+        [desktopQuery]: {
+            display: 'none',
+        },
     },
     newQuestionButton: {
         marginLeft: 'auto',
@@ -47,7 +77,8 @@ const styles = stylex.create({
     promptRow: {
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 8,
+        justifyContent: 'space-between',
+        gap: 12,
     },
     prompt: {
         fontSize: 14,
@@ -56,6 +87,10 @@ const styles = stylex.create({
         margin: 0,
         lineHeight: 1.5,
         flex: 1,
+        minWidth: 0,
+    },
+    topRightStatusBadge: {
+        flexShrink: 0,
     },
     badgesRow: {
         display: 'flex',
@@ -73,7 +108,7 @@ const styles = stylex.create({
     detailLabel: {
         fontSize: 11,
         fontWeight: 600,
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
         letterSpacing: 0.4,
         color: 'var(--color-text-disabled)',
     },
@@ -89,10 +124,33 @@ const styles = stylex.create({
         flexWrap: 'wrap',
         gap: 4,
     },
+    cardFooter: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingTop: 10,
+        marginTop: 6,
+        borderTop: '1px solid var(--color-border)',
+    },
+    cardFooterMeta: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    versionTag: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: 'var(--color-text-disabled)',
+    },
     cardActions: {
         display: 'flex',
-        gap: 6,
+        alignItems: 'center',
+        gap: 8,
         flexShrink: 0,
+        marginLeft: 'auto',
     },
     empty: {
         display: 'flex',
@@ -110,7 +168,7 @@ const styles = stylex.create({
         padding: '2px 8px',
         fontSize: 11,
         fontWeight: 600,
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
         border: 'none',
         borderRadius: 5,
     },
@@ -217,9 +275,12 @@ export function QuestionBankTab({
     const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
     const [difficultyFilter, setDifficultyFilter] = useState<QuestionDifficulty | ''>('');
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | ''>('');
+    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Question | null>(null);
     const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
+
+    const activeFilterCount = [typeFilter, difficultyFilter, statusFilter].filter(Boolean).length;
 
     const filtered = useMemo(() => {
         return questions
@@ -230,7 +291,7 @@ export function QuestionBankTab({
                 if (statusFilter && q.status !== statusFilter) return false;
                 return true;
             })
-            .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0) || a.prompt.localeCompare(b.prompt));
+            .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[a.status] ?? 0) || a.prompt.localeCompare(b.prompt));
     }, [questions, debouncedSearch, typeFilter, difficultyFilter, statusFilter]);
 
     const handleSave = (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => {
@@ -266,33 +327,45 @@ export function QuestionBankTab({
                         size="sm"
                     />
                 </div>
-                <Selector
-                    label="Filter by type"
-                    isLabelHidden
-                    options={TYPE_OPTIONS}
-                    value={typeFilter}
-                    onChange={(v) => setTypeFilter(v as QuestionType | '')}
-                    size="sm"
-                    width={160}
-                />
-                <Selector
-                    label="Filter by difficulty"
-                    isLabelHidden
-                    options={DIFFICULTY_OPTIONS}
-                    value={difficultyFilter}
-                    onChange={(v) => setDifficultyFilter(v as QuestionDifficulty | '')}
-                    size="sm"
-                    width={150}
-                />
-                <Selector
-                    label="Filter by status"
-                    isLabelHidden
-                    options={STATUS_OPTIONS}
-                    value={statusFilter}
-                    onChange={(v) => setStatusFilter(v as QuestionStatus | '')}
-                    size="sm"
-                    width={150}
-                />
+                <div {...stylex.props(styles.desktopSelectors)}>
+                    <Selector
+                        label="Filter by type"
+                        isLabelHidden
+                        options={TYPE_OPTIONS}
+                        value={typeFilter}
+                        onChange={(v) => setTypeFilter(v as QuestionType | '')}
+                        size="sm"
+                        width={160}
+                    />
+                    <Selector
+                        label="Filter by difficulty"
+                        isLabelHidden
+                        options={DIFFICULTY_OPTIONS}
+                        value={difficultyFilter}
+                        onChange={(v) => setDifficultyFilter(v as QuestionDifficulty | '')}
+                        size="sm"
+                        width={150}
+                    />
+                    <Selector
+                        label="Filter by status"
+                        isLabelHidden
+                        options={STATUS_OPTIONS}
+                        value={statusFilter}
+                        onChange={(v) => setStatusFilter(v as QuestionStatus | '')}
+                        size="sm"
+                        width={150}
+                    />
+                </div>
+                <div {...stylex.props(styles.mobileFilterTrigger)}>
+                    <Button
+                        label="Toggle filters"
+                        variant={activeFilterCount > 0 ? 'primary' : 'secondary'}
+                        icon={<Filter size={14} />}
+                        onClick={() => setMobileFilterOpen((prev) => !prev)}
+                    >
+                        Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                    </Button>
+                </div>
                 <Button
                     label="New question"
                     variant="primary"
@@ -303,6 +376,32 @@ export function QuestionBankTab({
                     New Question
                 </Button>
             </div>
+
+            {mobileFilterOpen && (
+                <div {...stylex.props(styles.mobileFilterPanel)}>
+                    <Selector
+                        label="Filter by type"
+                        options={TYPE_OPTIONS}
+                        value={typeFilter}
+                        onChange={(v) => setTypeFilter(v as QuestionType | '')}
+                        size="sm"
+                    />
+                    <Selector
+                        label="Filter by difficulty"
+                        options={DIFFICULTY_OPTIONS}
+                        value={difficultyFilter}
+                        onChange={(v) => setDifficultyFilter(v as QuestionDifficulty | '')}
+                        size="sm"
+                    />
+                    <Selector
+                        label="Filter by status"
+                        options={STATUS_OPTIONS}
+                        value={statusFilter}
+                        onChange={(v) => setStatusFilter(v as QuestionStatus | '')}
+                        size="sm"
+                    />
+                </div>
+            )}
 
             {questions.length === 0 ? (
                 <div {...stylex.props(styles.empty)}>
@@ -341,111 +440,115 @@ export function QuestionBankTab({
 
                         return (
                             <Card key={q.id} style={{ padding: 16, border: `2px solid ${statusBorderColor(q.status)}` }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                                    <div {...stylex.props(styles.cardContent)}>
-                                        <div {...stylex.props(styles.promptRow)}>
-                                            <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
+                                <div {...stylex.props(styles.cardContent)}>
+                                    <div {...stylex.props(styles.promptRow)}>
+                                        <p {...stylex.props(styles.prompt)}>{q.prompt}</p>
+                                        <span {...stylex.props(
+                                            styles.badgedot,
+                                            styles.topRightStatusBadge,
+                                            q.status === 'published' && styles.badgePublished,
+                                            q.status === 'draft' && styles.badgeDraft,
+                                            q.status === 'archived' && styles.badgeArchived,
+                                        )}>{q.status}</span>
+                                    </div>
+                                    <div {...stylex.props(styles.badgesRow)}>
+                                        <span
+                                            {...stylex.props(styles.badgedot)}
+                                            style={{
+                                                backgroundColor: POINTS_APPEARANCE.bg,
+                                                color: POINTS_APPEARANCE.fg,
+                                            }}
+                                        >
+                                            {q.points} pt{q.points !== 1 ? 's' : ''}
+                                        </span>
+                                        <span
+                                            {...stylex.props(styles.badgedot)}
+                                            style={{
+                                                backgroundColor: DIFFICULTY_APPEARANCE[q.difficulty].bg,
+                                                color: DIFFICULTY_APPEARANCE[q.difficulty].fg,
+                                            }}
+                                        >
+                                            {q.difficulty}
+                                        </span>
+                                        <span
+                                            {...stylex.props(styles.badgedot)}
+                                            style={{
+                                                backgroundColor: QUESTION_TYPE_APPEARANCE[q.type].bg,
+                                                color: QUESTION_TYPE_APPEARANCE[q.type].fg,
+                                            }}
+                                        >
+                                            {TYPE_LABELS[q.type]}
+                                        </span>
+                                    </div>
+
+                                    {q.payload && (
+                                        <div {...stylex.props(styles.detailSection)}>
+                                            <QuestionPayloadPreview payload={q.payload} />
                                         </div>
-                                        <div {...stylex.props(styles.badgesRow)}>
-                                            <span
-                                                {...stylex.props(styles.badgedot)}
-                                                style={{
-                                                    backgroundColor: QUESTION_TYPE_APPEARANCE[q.type].bg,
-                                                    color: QUESTION_TYPE_APPEARANCE[q.type].fg,
-                                                }}
-                                            >
-                                                {TYPE_LABELS[q.type]}
-                                            </span>
-                                            <span
-                                                {...stylex.props(styles.badgedot)}
-                                                style={{
-                                                    backgroundColor: DIFFICULTY_APPEARANCE[q.difficulty].bg,
-                                                    color: DIFFICULTY_APPEARANCE[q.difficulty].fg,
-                                                }}
-                                            >
-                                                {q.difficulty}
-                                            </span>
-                                            <span
-                                                {...stylex.props(styles.badgedot)}
-                                                style={{
-                                                    backgroundColor: POINTS_APPEARANCE.bg,
-                                                    color: POINTS_APPEARANCE.fg,
-                                                }}
-                                            >
-                                                {q.points} pt{q.points !== 1 ? 's' : ''}
-                                            </span>
-                                            <span {...stylex.props(
-                                                styles.badgedot,
-                                                q.status === 'published' && styles.badgePublished,
-                                                q.status === 'draft' && styles.badgeDraft,
-                                                q.status === 'archived' && styles.badgeArchived,
-                                            )}>{q.status}</span>
+                                    )}
+
+                                    {q.explanation && (
+                                        <div {...stylex.props(styles.detailSection)}>
+                                            <div {...stylex.props(styles.detailLabel)}>Explanation</div>
+                                            <p {...stylex.props(styles.explanationPreview)}>{q.explanation}</p>
+                                        </div>
+                                    )}
+
+                                    {q.tags && q.tags.length > 0 && (
+                                        <div {...stylex.props(styles.tagsRow)}>
+                                            {q.tags.map((tag) => (
+                                                <span key={tag} {...stylex.props(styles.tag)}>#{tag}</span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div {...stylex.props(styles.cardFooter)}>
+                                        <div {...stylex.props(styles.cardFooterMeta)}>
+                                            <span {...stylex.props(styles.versionTag)}>v{q.version}</span>
                                             <span {...stylex.props(
                                                 styles.badgedot,
                                                 usageCount > 0 ? styles.badgeUsed : styles.badgeUnused,
                                             )}>{usageCount > 0 ? `Used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'}` : 'Not used in any quiz'}</span>
-                                            <span style={{ fontSize: 11, color: 'var(--color-text-disabled)' }}>v{q.version}</span>
                                         </div>
-
-                                        {q.payload && (
-                                            <div {...stylex.props(styles.detailSection)}>
-                                                <QuestionPayloadPreview payload={q.payload} />
-                                            </div>
-                                        )}
-
-                                        {q.explanation && (
-                                            <div {...stylex.props(styles.detailSection)}>
-                                                <div {...stylex.props(styles.detailLabel)}>Explanation</div>
-                                                <p {...stylex.props(styles.explanationPreview)}>{q.explanation}</p>
-                                            </div>
-                                        )}
-
-                                        {q.tags && q.tags.length > 0 && (
-                                            <div {...stylex.props(styles.tagsRow)}>
-                                                {q.tags.map((tag) => (
-                                                    <span key={tag} {...stylex.props(styles.tag)}>#{tag}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div {...stylex.props(styles.cardActions)}>
-                                        {q.status === 'draft' && (
+                                        <div {...stylex.props(styles.cardActions)}>
+                                            {q.status === 'draft' && (
+                                                <Button
+                                                    label={`Publish question: ${q.prompt}`}
+                                                    variant="secondary"
+                                                    icon={<CheckCircle size={14} />}
+                                                    isIconOnly
+                                                    tooltip="Publish"
+                                                    onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
+                                                />
+                                            )}
                                             <Button
-                                                label={`Publish question: ${q.prompt}`}
+                                                label={`Edit question: ${q.prompt}`}
                                                 variant="secondary"
-                                                icon={<CheckCircle size={14} />}
+                                                icon={<Pencil size={14} />}
                                                 isIconOnly
-                                                tooltip="Publish"
-                                                onClick={() => { onPublish(q.id); showToast('Question published', { intent: 'success' }); }}
+                                                tooltip="Edit"
+                                                onClick={() => openEdit(q)}
                                             />
-                                        )}
-                                        <Button
-                                            label={`Edit question: ${q.prompt}`}
-                                            variant="secondary"
-                                            icon={<Pencil size={14} />}
-                                            isIconOnly
-                                            tooltip="Edit"
-                                            onClick={() => openEdit(q)}
-                                        />
-                                        {q.status === 'archived' && onUnarchive ? (
-                                            <Button
-                                                label={`Restore question: ${q.prompt}`}
-                                                variant="secondary"
-                                                icon={<ArchiveRestore size={14} />}
-                                                isIconOnly
-                                                tooltip="Restore"
-                                                onClick={() => { onUnarchive(q.id); showToast('Question restored to draft', { intent: 'success' }); }}
-                                            />
-                                        ) : (
-                                            <Button
-                                                label={`Archive question: ${q.prompt}`}
-                                                variant="danger"
-                                                icon={<Archive size={14} />}
-                                                isIconOnly
-                                                tooltip="Archive"
-                                                onClick={handleArchiveClick}
-                                            />
-                                        )}
+                                            {q.status === 'archived' && onUnarchive ? (
+                                                <Button
+                                                    label={`Restore question: ${q.prompt}`}
+                                                    variant="secondary"
+                                                    icon={<ArchiveRestore size={14} />}
+                                                    isIconOnly
+                                                    tooltip="Restore"
+                                                    onClick={() => { onUnarchive(q.id); showToast('Question restored to draft', { intent: 'success' }); }}
+                                                />
+                                            ) : (
+                                                <Button
+                                                    label={`Archive question: ${q.prompt}`}
+                                                    variant="danger"
+                                                    icon={<Archive size={14} />}
+                                                    isIconOnly
+                                                    tooltip="Archive"
+                                                    onClick={handleArchiveClick}
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </Card>

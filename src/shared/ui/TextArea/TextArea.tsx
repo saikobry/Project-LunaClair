@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import { useEffect, useRef, type ChangeEvent } from 'react';
 import { TextArea as AstryxTextArea } from '@astryxdesign/core/TextArea';
 
 export interface TextAreaProps {
@@ -22,6 +22,8 @@ export interface TextAreaProps {
   statusMessage?: string;
   /** Input size. @default 'md' */
   size?: 'sm' | 'md' | 'lg';
+  /** Whether the textarea dynamically resizes height based on content. @default true */
+  autoGrow?: boolean;
   /** Additional class name. */
   className?: string;
   /** Inline styles. */
@@ -29,10 +31,10 @@ export interface TextAreaProps {
 }
 
 /**
- * LunaClair TextArea — thin adapter over @astryxdesign/core TextArea.
+ * LunaClair TextArea — thin adapter over @astryxdesign/core TextArea with dynamic autogrowing height.
  *
  * Provides a themed multi-line text input with label, validation state,
- * and accessibility built-in.
+ * dynamic content auto-expansion, and accessibility built-in.
  */
 export function TextArea({
   label,
@@ -45,26 +47,44 @@ export function TextArea({
   labelHidden = false,
   statusMessage,
   size = 'md',
+  autoGrow = true,
   className,
   style,
 }: TextAreaProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!autoGrow) return;
+    const textarea = containerRef.current?.querySelector('textarea');
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.resize = 'none';
+      const lineHeight = 20;
+      const minHeight = Math.max(rows * lineHeight + 16, 40);
+      const newHeight = Math.max(minHeight, textarea.scrollHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  }, [value, autoGrow, rows]);
+
   return (
-    <AstryxTextArea
-      label={label}
-      isLabelHidden={labelHidden}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      isDisabled={disabled}
-      isRequired={required}
-      rows={rows}
-      size={size}
-      className={className}
-      style={style}
-      {...(statusMessage
-        ? { status: { type: 'error' as const, message: statusMessage } }
-        : undefined)}
-    />
+    <div ref={containerRef} style={{ width: '100%' }}>
+      <AstryxTextArea
+        label={label}
+        isLabelHidden={labelHidden}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        isDisabled={disabled}
+        isRequired={required}
+        rows={rows}
+        size={size}
+        className={className}
+        style={style}
+        {...(statusMessage
+          ? { status: { type: 'error' as const, message: statusMessage } }
+          : undefined)}
+      />
+    </div>
   );
 }
 

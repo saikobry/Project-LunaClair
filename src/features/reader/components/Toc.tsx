@@ -25,8 +25,8 @@ const styles = stylex.create({
       borderBottomColor: 'var(--color-border)',
       paddingTop: 10,
       paddingBottom: 10,
-      paddingLeft: 16,
-      paddingRight: 16,
+      paddingLeft: 12,
+      paddingRight: 12,
       width: '100%',
       boxSizing: 'border-box',
     },
@@ -47,19 +47,31 @@ const styles = stylex.create({
     color: 'var(--color-text-primary)',
     cursor: 'pointer',
     width: '100%',
+    minWidth: 0,
     justifyContent: 'space-between',
   },
   mobileTriggerLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    minWidth: 0,
+    flex: 1,
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+  },
+  staticLabelText: {
+    flexShrink: 0,
   },
   activeTitleText: {
     color: 'var(--color-accent)',
     fontWeight: 600,
+    minWidth: 0,
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  chevronIcon: {
+    flexShrink: 0,
   },
   mobileDropdown: {
     position: 'absolute',
@@ -78,6 +90,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     paddingTop: 8,
     paddingBottom: 8,
+    boxSizing: 'border-box',
   },
   mobileItem: {
     display: 'block',
@@ -93,12 +106,19 @@ const styles = stylex.create({
     paddingLeft: 16,
     paddingRight: 16,
     fontSize: 13.5,
+    lineHeight: 1.4,
+    minHeight: 38,
+    flexShrink: 0,
     color: 'var(--color-text-secondary)',
     textDecoration: 'none',
     borderLeftWidth: 3,
     borderLeftStyle: 'solid',
     borderLeftColor: 'transparent',
     transition: 'all 0.15s ease',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    boxSizing: 'border-box',
     ':hover': {
       backgroundColor: 'var(--color-accent-muted)',
       color: 'var(--color-accent)',
@@ -169,13 +189,17 @@ export function TocMobile({ content }: TocProps) {
         aria-label="Table of contents menu"
       >
         <span {...stylex.props(styles.mobileTriggerLabel)}>
-          <List size={16} />
-          <span>On this page:</span>
+          <List size={16} style={{ flexShrink: 0 }} />
+          <span {...stylex.props(styles.staticLabelText)}>On this page:</span>
           <span {...stylex.props(styles.activeTitleText)}>
             {activeItem?.label ?? 'Contents'}
           </span>
         </span>
-        {dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {dropdownOpen ? (
+          <ChevronUp size={16} style={{ flexShrink: 0 }} />
+        ) : (
+          <ChevronDown size={16} style={{ flexShrink: 0 }} />
+        )}
       </button>
 
       {dropdownOpen && (

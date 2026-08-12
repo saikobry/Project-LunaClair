@@ -16,6 +16,8 @@ const styles = stylex.create({
     alignItems: 'flex-start',
     gap: 32,
     width: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
   mainContent: {
     display: 'flex',
@@ -23,6 +25,8 @@ const styles = stylex.create({
     gap: 32,
     flex: 1,
     minWidth: 0,
+    width: '100%',
+    boxSizing: 'border-box',
     [dockQuery]: {
       gap: 0,
     },
@@ -30,7 +34,10 @@ const styles = stylex.create({
   viewer: {
     position: 'relative',
     flex: 1,
+    minWidth: 0,
+    width: '100%',
     maxWidth: 800,
+    boxSizing: 'border-box',
   },
 });
 
