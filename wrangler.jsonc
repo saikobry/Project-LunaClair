@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lunaclair-api",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2026-07-30",
+
+  // Comma-separated allowlist of browser origins; empty = local dev defaults.
+  "vars": {
+    "CORS_ORIGINS": ""
+  },
+
+  // Cloudflare D1 (serverless SQLite) — the cloud sync layer for LunaClair.
+  // The browser can never reach D1 directly; this Worker is the only bridge.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lunaclair",
+      "database_id": "c3548105-43de-46f0-9f87-9480d774b808",
+      "migrations_dir": "worker/migrations",
+      // Drizzle v1 writes each migration as its own subdirectory (e.g. 0001_init/migration.sql).
+      "migrations_pattern": "worker/migrations/*/migration.sql"
+    }
+  ]
+}

@@ -55,6 +55,12 @@ Active features include `catalog/` (materials, subjects, and terms — consolida
 
 Reusable domain-agnostic types, constants, utility functions, design tokens, and UI/infrastructure primitives. Business capability code remains in its owning feature.
 
+## Cloud Sync Layer (Cloudflare D1)
+
+- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) is the cloud sync layer, targeted for Phase 9 offline synchronization.
+- D1 is only reachable through the `lunaclair-api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
+- Schema lives as versioned migrations in `worker/migrations/`; the Worker's `GET /health` endpoint verifies D1 connectivity.
+
 ## Application Workflow Boundary
 
 `StartQuizSessionUseCase → SubmitQuizSessionUseCase` is the quiz lifecycle. Submission grades immutable session snapshots through `AssessmentService`, persists the result, and completes the session as one application operation. Material association checks and subject-term orchestration likewise live in application use cases, while repositories perform persistence only.

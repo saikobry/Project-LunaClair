@@ -93,6 +93,11 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 | Build | `npm run build` |
 | Lint | `npm run lint` |
 | Regenerate PWA icons | `npm run generate:pwa-assets` |
+| Dev API Worker | `npm run dev:api` |
+| Deploy API Worker | `npm run deploy:api` |
+| Regenerate Worker types | `npm run types:worker` |
+| Generate D1 migration (Drizzle) | `npm run db:generate` |
+| Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:remote` |
 
 **Build process**: `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
@@ -124,9 +129,10 @@ See `docs/architecture/architecture.md` and `docs/architecture/adr/` for full de
 
 ## TypeScript
 
-Two tsconfig files:
+Three tsconfig files:
 - `tsconfig.app.json` — covers `src/` (app code)
 - `tsconfig.node.json` — covers `vite.config.ts` (tooling)
+- `tsconfig.worker.json` — covers `worker/` (Cloudflare Worker)
 
 Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noFallthroughCasesInSwitch`.
 
@@ -148,6 +154,15 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - Offline synchronization (sync queue, conflict resolution) is **Phase 9** scope; offline-readiness is shipped.
 - Icon pipeline: `npm run generate:pwa-assets` regenerates `pwa-*`/maskable/apple-touch PNGs in `public/` from `public/app-icon.svg` (a square derivation of `favicon.svg`).
 - Install discovery (community-reviewed, Aug 2026): quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time iOS-only card from the second visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively, iOS has none. Details in `src/app/AGENTS.md`.
+
+## Cloudflare / D1
+
+- LunaClair runs a Cloudflare backend: a D1 database (`lunaclair`, serverless SQLite) as the **cloud sync layer** for the local-first Dexie store.
+- D1 is never called from the browser — all cloud data flows through the **`lunaclair-api` Cloudflare Worker** (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
+- Schema is authored with Drizzle ORM (`worker/src/schema.ts` → `npm run db:generate` → versioned migrations in `worker/migrations/`); `GET /health` on the Worker verifies D1 connectivity.
+- Remote SQL: `npx wrangler d1 execute lunaclair --remote --command "<sql>"`.
+- Offline synchronization (Dexie ⇄ D1 sync queue, conflict resolution) remains **Phase 9** scope — the plumbing is deployed, the sync feature is not.
+- See `worker/AGENTS.md` for Worker-specific contracts.
 
 ## Conventions
 
@@ -176,3 +191,4 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, seeding |
 | `src/services/AGENTS.md` | `src/services/` | Legacy infrastructure services (localStorage, content fetch) |
 | `src/shared/AGENTS.md` | `src/shared/` | Shared types, constants, utilities, hooks, components |
+| `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — D1 bridge, schema migrations, deploy workflow |
