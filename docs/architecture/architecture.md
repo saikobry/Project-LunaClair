@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 6 (Application Layer & Domain Boundary Refinement)
+**Version:** Phase 6.1 (Application Layer, Domain Boundary Refinement & Flashcards)
 
 ## Documentation Structure
 
@@ -49,7 +49,7 @@ Database persistence infrastructure (`src/infrastructure/database/`): Dexie data
 
 Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through curated root `index.ts` contracts; internal feature paths remain private.
 
-Active features include `reader/`, `library/`, `quiz/`, `quiz-management/`, and `subject/`. Reserved boundaries include `importer/`, `generator/`, and `settings/`.
+Active features include `catalog/` (materials, subjects, and terms — consolidating the former `library/`, `subject/`, and `settings/` features), `reader/`, `quiz/`, `quiz-management/`, and `flashcards/`. Reserved boundaries include `importer/` and `generator/`.
 
 ### `src/shared/`
 
@@ -72,7 +72,7 @@ Key decisions are documented in [`docs/architecture/adr/`](adr/README.md).
 | [ADR-005](adr/ADR-005-strategy-pattern.md) | Strategy Pattern for Question Behavior | Phase 5 |
 | [ADR-006](adr/ADR-006-immutable-quiz-history.md) | Immutable Quiz History via Question Snapshots | Phase 5 |
 | [ADR-007](adr/ADR-007-feature-first-architecture.md) | Feature-First Module Organization | Phase 1 |
-| [ADR-009](adr/adr-009-feature-ownership-and-public-contracts.md) | Feature Ownership & Public Contracts | Phase 6 |
+| [ADR-009](adr/ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership & Public Contracts | Phase 6 |
 
 ## Import Rules
 

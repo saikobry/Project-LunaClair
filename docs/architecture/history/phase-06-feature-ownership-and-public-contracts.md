@@ -12,7 +12,7 @@ The implementation also moved unused term constants into the subject feature, sp
 
 ### Added
 
-- `docs/architecture/adr/adr-009-feature-ownership-and-public-contracts.md` — accepted ADR defining ownership, domain-agnostic shared code, public contracts, internal privacy, curated APIs, and feature-owned cache keys.
+- `docs/architecture/adr/ADR-009-feature-ownership-and-public-contracts.md` — accepted ADR defining ownership, domain-agnostic shared code, public contracts, internal privacy, curated APIs, and feature-owned cache keys.
 - `src/features/subject/queries/subjectQueryKeys.ts` and its barrel — owns `['subject', ...]` keys for subjects and terms.
 - `src/features/library/hooks/queries/index.ts` — public query-hook grouping for material data.
 - `src/features/subject/hooks/index.ts`, `hooks/queries/index.ts`, and `hooks/mutations/index.ts` — feature-local public hook groupings.
