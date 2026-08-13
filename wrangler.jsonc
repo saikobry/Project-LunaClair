@@ -1,8 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "lunaclair-api",
+  "name": "api",
   "main": "worker/src/index.ts",
   "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["nodejs_compat"],
 
   // Comma-separated allowlist of browser origins; empty = local dev defaults.
   "vars": {

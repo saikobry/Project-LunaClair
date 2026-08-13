@@ -1,4 +1,4 @@
-import { localDocumentRepository } from '../../services/content/LocalDocumentRepository';
+import { apiDocumentRepository } from '../../services/content/ApiDocumentRepository';
 import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
 import { dexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';
 import { dexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
@@ -14,7 +14,7 @@ import { dexieTermService } from '../../infrastructure/database/services/DexieTe
 
 export function createRepositories() {
     return {
-        documentRepository: localDocumentRepository,
+        documentRepository: apiDocumentRepository,
         annotationRepository: dexieAnnotationRepository,
         libraryRepository: dexieLibraryRepository,
         questionRepository: dexieQuestionRepository,

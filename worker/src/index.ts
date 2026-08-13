@@ -1,17 +1,31 @@
 /**
  * LunaClair API Worker — the only bridge between the LunaClair PWA and Cloudflare D1.
- * The browser cannot reach D1 directly; all cloud data flows through this Worker.
- * See `wrangler.jsonc` for the D1 binding and `worker/migrations/` for schema.
+ *
+ * Public endpoints (no auth):
+ *   GET  /api/documents/:sourceId                       → { id, title, content }
+ *   GET  /api/documents/:sourceId/figures/:filename     → figure bytes
+ *
+ * Ingest endpoints (require `Authorization: Bearer <SEED_TOKEN>`):
+ *   PUT  /api/documents/:sourceId                       → body { title, content }
+ *   PUT  /api/documents/:sourceId/figures/:filename     → body: raw figure bytes
+ *
+ * `updatedAt` is always stamped by the server — clients never send timestamps.
+ * Path segments are decoded exactly and validated: no `/`, `\`, or `..` in
+ * `sourceId`/`filename`, and lookups are always by the composite key, so one
+ * document can never reach another document's figure.
  */
+import { and, eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
+import { documents, figures } from './schema';
 
 export interface Env {
   /** Cloudflare D1 binding (see wrangler.jsonc → d1_databases). */
   DB: D1Database;
-  /** Optional comma-separated allowlist of origins; defaults to local dev. */
+  /** Comma-separated allowlist of browser origins; empty = local dev defaults. */
   CORS_ORIGINS?: string;
+  /** Write-gate secret for the PUT ingest endpoints. Set via .dev.vars / `wrangler secret put`. */
+  SEED_TOKEN?: string;
 }
-
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 const json = (
   body: unknown,
@@ -23,24 +37,61 @@ const json = (
     headers: { "content-type": "application/json; charset=utf-8", ...headers },
   });
 
+/** Constant-time token comparison (hash both sides, then timing-safe compare). */
+async function tokensMatch(a: string | undefined, b: string | undefined): Promise<boolean> {
+  if (!a || !b) return false;
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  return ha.byteLength === hb.byteLength && crypto.subtle.timingSafeEqual(ha, hb);
+}
+
+function toUint8Array(data: unknown): Uint8Array {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (Array.isArray(data)) return new Uint8Array(data);
+  if (
+    data &&
+    typeof data === "object" &&
+    "buffer" in data &&
+    (data as { buffer: unknown }).buffer instanceof ArrayBuffer
+  ) {
+    const b = data as { buffer: ArrayBuffer; byteOffset?: number; byteLength?: number };
+    return new Uint8Array(b.buffer, b.byteOffset ?? 0, b.byteLength ?? b.buffer.byteLength);
+  }
+  return new Uint8Array();
+}
+
+/** Decode one path segment and reject anything that could traverse or escape. */
+function decodeSegment(raw: string): string | null {
+  const decoded = decodeURIComponent(raw);
+  if (decoded.includes("/") || decoded.includes("\\") || decoded === "..") return null;
+  return decoded;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
 
-    const allowedOrigins = (env.CORS_ORIGINS ?? DEFAULT_ALLOWED_ORIGINS.join(","))
-      .split(",")
-      .map((o) => o.trim())
-      .filter(Boolean);
-    const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : undefined;
-    const corsHeaders: Record<string, string> = corsOrigin
-      ? {
-          "access-control-allow-origin": corsOrigin,
-          "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "access-control-allow-headers": "content-type, authorization",
-          "access-control-max-age": "86400",
-        }
-      : {};
+    const rawOrigins = env.CORS_ORIGINS?.trim();
+    const allowedOrigins = rawOrigins
+      ? rawOrigins.split(",").map((o) => o.trim()).filter(Boolean)
+      : [];
+
+    const corsOrigin =
+      allowedOrigins.length > 0
+        ? (origin && allowedOrigins.includes(origin) ? origin : undefined)
+        : (origin || "*");
+
+    const corsHeaders: Record<string, string> = {
+      "access-control-allow-origin": corsOrigin ?? "*",
+      "access-control-allow-methods": "GET, HEAD, PUT, DELETE, OPTIONS",
+      "access-control-allow-headers": "content-type, authorization",
+      "access-control-max-age": "86400",
+    };
 
     // CORS preflight.
     if (request.method === "OPTIONS") {
@@ -48,13 +99,101 @@ export default {
     }
 
     // Liveness + D1 connectivity probe.
-    if (request.method === "GET" && url.pathname === "/health") {
+    if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/health") {
       try {
         await env.DB.prepare("SELECT 1").first();
         return json({ status: "ok", database: "connected" }, 200, corsHeaders);
       } catch {
         return json({ status: "error", database: "unreachable" }, 503, corsHeaders);
       }
+    }
+
+    const db = drizzle(env.DB);
+    const parts = url.pathname.split("/").filter(Boolean); // e.g. ["api","documents","cell-structure"]
+
+    // /api/documents/:sourceId
+    if (parts[0] === "api" && parts[1] === "documents" && parts.length === 3) {
+      const sourceId = decodeSegment(parts[2]);
+      if (sourceId === null) return json({ error: "Bad request" }, 400, corsHeaders);
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const doc = await db
+          .select({ title: documents.title, content: documents.content })
+          .from(documents)
+          .where(eq(documents.sourceId, sourceId))
+          .get();
+        if (!doc) return json({ error: "Document not found" }, 404, corsHeaders);
+        return json(
+          { id: sourceId, title: doc.title, content: doc.content },
+          200,
+          { ...corsHeaders, "cache-control": "public, max-age=3600" },
+        );
+      }
+
+      if (request.method === "PUT") {
+        if (!(await tokensMatch(request.headers.get("authorization")?.replace(/^Bearer\s+/i, ""), env.SEED_TOKEN))) {
+          return json({ error: "Unauthorized" }, 401, corsHeaders);
+        }
+        const body = (await request.json().catch(() => null)) as { title?: unknown; content?: unknown } | null;
+        const title = typeof body?.title === "string" ? body.title : "";
+        const content = typeof body?.content === "string" ? body.content : "";
+        if (!content) return json({ error: "Missing content" }, 400, corsHeaders);
+        const updatedAt = new Date();
+        await db
+          .insert(documents)
+          .values({ sourceId, title, content, updatedAt })
+          .onConflictDoUpdate({
+            target: documents.sourceId,
+            set: { title, content, updatedAt },
+          });
+        return json({ id: sourceId, updatedAt }, 200, corsHeaders);
+      }
+
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/documents/:sourceId/figures/:filename
+    if (parts[0] === "api" && parts[1] === "documents" && parts.length === 5 && parts[3] === "figures") {
+      const sourceId = decodeSegment(parts[2]);
+      const filename = decodeSegment(parts[4]);
+      if (sourceId === null || filename === null) return json({ error: "Bad request" }, 400, corsHeaders);
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const fig = await db
+          .select({ data: figures.data, contentType: figures.contentType })
+          .from(figures)
+          .where(and(eq(figures.sourceId, sourceId), eq(figures.filename, filename)))
+          .get();
+        if (!fig) return json({ error: "Figure not found" }, 404, corsHeaders);
+        const body = request.method === "HEAD" ? null : (toUint8Array(fig.data) as unknown as BodyInit);
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "content-type": fig.contentType,
+            "cache-control": "public, max-age=86400",
+            ...corsHeaders,
+          },
+        });
+      }
+
+      if (request.method === "PUT") {
+        if (!(await tokensMatch(request.headers.get("authorization")?.replace(/^Bearer\s+/i, ""), env.SEED_TOKEN))) {
+          return json({ error: "Unauthorized" }, 401, corsHeaders);
+        }
+        const data = new Uint8Array(await request.arrayBuffer());
+        const contentType = request.headers.get("content-type") || "application/octet-stream";
+        const updatedAt = new Date();
+        await db
+          .insert(figures)
+          .values({ sourceId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, updatedAt })
+          .onConflictDoUpdate({
+            target: [figures.sourceId, figures.filename],
+            set: { data, contentType, updatedAt },
+          });
+        return json({ sourceId, filename, updatedAt }, 200, corsHeaders);
+      }
+
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
     }
 
     return json({ error: "Not found" }, 404, corsHeaders);

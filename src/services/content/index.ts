@@ -1,2 +1,4 @@
-export { LocalDocumentRepository, localDocumentRepository } from './LocalDocumentRepository';
+export { ApiDocumentRepository, apiDocumentRepository } from './ApiDocumentRepository';
 export { preprocessMarkdown } from './markdownPreprocessor';
+
+

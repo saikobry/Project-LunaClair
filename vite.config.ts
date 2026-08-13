@@ -33,6 +33,22 @@ function fixStylexWindows(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://api.project-lunaclair.workers.dev',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     imageBase64(),
     unplugin.vite(),
@@ -65,14 +81,30 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the app shell AND the bundled study content
-        // (`public/materials/**` is copied verbatim into `dist/`). The SW then
-        // answers `LocalDocumentRepository` fetches from cache — documents and
-        // figure images work offline with zero repository changes.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,md,webmanifest,woff2}'],
+        // Precache the app shell only (~1.5 MB). Study materials (documents and
+        // figure images) live in Cloudflare D1 and are fetched on demand via the
+        // Worker API, then cached by the service worker via runtimeCaching.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,woff2}'],
         // SPA: deep links (pushState routes) fall back to the shell offline.
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            // Cache material documents and figure images served from the Worker API
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/documents/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lunaclair-materials-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
     }),
   ],

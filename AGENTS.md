@@ -148,8 +148,9 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 ## PWA / Offline
 
-- LunaClair is an installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the app shell **and** `public/materials/**` (documents + figure images), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
-- Offline behavior: the shell boots from cache; material documents render offline via the SW with **zero** `LocalDocumentRepository` changes (Dexie = app data, Cache Storage = delivery).
+- LunaClair is an installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the lightweight app shell (~1.5 MB), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
+- Study materials (documents & figures) live in Cloudflare D1, served on-demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`) and cached by the service worker via Workbox `CacheFirst` runtime caching (materials work offline after their first open).
+- Canonical study materials live at `content/materials/` (Git-versioned, never shipped to `dist/`). Ingest into D1 is performed via `npm run seed:materials:local` / `npm run seed:materials:remote` (`scripts/seed-materials.mjs`).
 - TanStack Query runs with `networkMode: 'offlineFirst'` for **queries and mutations** (see `AppProviders`) so IndexedDB-backed operations execute — not pause — when `navigator.onLine` is false. Do not revert to the default `'online'` mode (it freezes fresh lookups and defers Dexie writes while offline).
 - Offline synchronization (sync queue, conflict resolution) is **Phase 9** scope; offline-readiness is shipped.
 - Icon pipeline: `npm run generate:pwa-assets` regenerates `pwa-*`/maskable/apple-touch PNGs in `public/` from `public/app-icon.svg` (a square derivation of `favicon.svg`).
@@ -157,8 +158,8 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 ## Cloudflare / D1
 
-- LunaClair runs a Cloudflare backend: a D1 database (`lunaclair`, serverless SQLite) as the **cloud sync layer** for the local-first Dexie store.
-- D1 is never called from the browser — all cloud data flows through the **`lunaclair-api` Cloudflare Worker** (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
+- LunaClair runs a Cloudflare backend: a D1 database (`lunaclair`, serverless SQLite) as the **cloud sync and content distribution layer** for the local-first Dexie store.
+- D1 is never called directly from the browser — all cloud data flows through the **`api` Cloudflare Worker** (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema is authored with Drizzle ORM (`worker/src/schema.ts` → `npm run db:generate` → versioned migrations in `worker/migrations/`); `GET /health` on the Worker verifies D1 connectivity.
 - Remote SQL: `npx wrangler d1 execute lunaclair --remote --command "<sql>"`.
 - Offline synchronization (Dexie ⇄ D1 sync queue, conflict resolution) remains **Phase 9** scope — the plumbing is deployed, the sync feature is not.

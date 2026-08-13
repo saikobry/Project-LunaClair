@@ -18,7 +18,7 @@ Reserved domains:
 - Importable by any feature or service layer.
 - Domain logic must be testable without a browser environment.
 - `LibraryRepository` is the async contract (interface) that infrastructure implementations (e.g., `DexieLibraryRepository`) must satisfy.
-- `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `LocalDocumentRepository`).
+- `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `ApiDocumentRepository`).
 - `AnnotationRepository` is the async contract for highlight/drawing persistence keyed by `documentId` (implemented by `DexieAnnotationRepository`).
 - `QuestionRepository`, `QuizRepository`, `QuizSessionRepository`, `FlashcardReviewRepository` are async contracts for persistence (implemented by Dexie repositories in `src/infrastructure/database/repositories/`).
 

@@ -55,11 +55,13 @@ Active features include `catalog/` (materials, subjects, and terms — consolida
 
 Reusable domain-agnostic types, constants, utility functions, design tokens, and UI/infrastructure primitives. Business capability code remains in its owning feature.
 
-## Cloud Sync Layer (Cloudflare D1)
+## Cloud Sync & Content Layer (Cloudflare D1)
 
-- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) is the cloud sync layer, targeted for Phase 9 offline synchronization.
-- D1 is only reachable through the `lunaclair-api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
-- Schema lives as versioned migrations in `worker/migrations/`; the Worker's `GET /health` endpoint verifies D1 connectivity.
+- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as both the **study content store** (materials & figures) and the future **cloud sync layer** (Phase 9).
+- Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~1.5 MB.
+- D1 is only reachable through the `api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
+- Schema lives as versioned migrations in `worker/migrations/`; canonical markdown files live in `content/materials/` and are seeded via `scripts/seed-materials.mjs`.
+- The Worker's `GET /health` endpoint verifies D1 connectivity.
 
 ## Application Workflow Boundary
 

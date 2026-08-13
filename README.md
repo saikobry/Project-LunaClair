@@ -70,8 +70,9 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 
 ## PWA / Offline
 
-- Installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the app shell **and** `public/materials/**` (documents + figure images), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
-- Offline behavior: the shell boots from cache; material documents render offline with **zero** `LocalDocumentRepository` changes (Dexie = app data, Cache Storage = delivery).
+- Installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the lightweight app shell (~1.5 MB), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
+- Study materials (documents & figures) live in Cloudflare D1, served on-demand by the `api` Worker and cached by the service worker via Workbox `CacheFirst` runtime caching (materials work offline after their first open).
+- Canonical study materials live at `content/materials/` and are seeded to D1 via `npm run seed:materials:local` / `npm run seed:materials:remote`.
 - Install discovery: quiet opt-in `Install app` / `Add to Home Screen` sidebar entry plus a one-time iOS-only card from the second visit. Deliberately no `beforeinstallprompt` machinery.
 - Offline synchronization (sync queue, conflict resolution) is **Phase 10** scope; offline-readiness is shipped.
 - Icons regenerate from `public/app-icon.svg` via `npm run generate:pwa-assets`.

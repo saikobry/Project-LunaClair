@@ -4,12 +4,25 @@ import type { DocumentRepository } from '../../domain/reader/DocumentRepository'
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import { preprocessMarkdown } from './markdownPreprocessor';
 
-export class LocalDocumentRepository implements DocumentRepository {
+interface DocumentApiResponse {
+    id: string;
+    title: string;
+    content: string;
+}
+
+/**
+ * Concrete implementation of `DocumentRepository` that resolves study materials
+ * from the LunaClair API (`/api/documents/{sourceId}`).
+ *
+ * Requests are proxied in dev (Vite proxy) and production (Cloudflare Pages `_redirects`),
+ * and cached offline by the service worker via Workbox `CacheFirst`.
+ */
+export class ApiDocumentRepository implements DocumentRepository {
     async getDocumentByMaterial(
         material: StudyMaterial,
         signal?: AbortSignal,
     ): Promise<Document> {
-        const url = `/materials/${material.sourceId}/index.md`;
+        const url = `/api/documents/${encodeURIComponent(material.sourceId)}`;
 
         let response: Response;
         try {
@@ -23,28 +36,21 @@ export class LocalDocumentRepository implements DocumentRepository {
             throw new DocumentNotFoundError(material.sourceId);
         }
 
-        const raw = await response.text();
-
-        // Detect Vite SPA fallback — if the dev server returned its index.html
-        // instead of the markdown file, treat it as a missing document.
-        const contentType = response.headers.get('content-type') ?? '';
-        const trimmed = raw.trimStart().toLowerCase();
-        if (
-            contentType.startsWith('text/html') ||
-            trimmed.startsWith('<!doctype html') ||
-            trimmed.startsWith('<html')
-        ) {
+        let data: DocumentApiResponse;
+        try {
+            data = (await response.json()) as DocumentApiResponse;
+        } catch {
             throw new DocumentNotFoundError(material.sourceId);
         }
 
         return {
             id: material.id,
-            title: material.title,
-            content: preprocessMarkdown(raw, material.sourceId),
+            title: data.title || material.title,
+            content: preprocessMarkdown(data.content, material.sourceId),
             format: 'markdown',
         };
     }
 }
 
-/** Singleton instance shared across the application. */
-export const localDocumentRepository = new LocalDocumentRepository();
+/** Singleton instance shared across the application composition root. */
+export const apiDocumentRepository = new ApiDocumentRepository();

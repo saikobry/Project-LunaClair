@@ -14,7 +14,9 @@
     "types:worker": "wrangler types worker/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "db:apply:local": "wrangler d1 migrations apply lunaclair --local",
-    "db:apply:remote": "wrangler d1 migrations apply lunaclair --remote"
+    "db:apply:remote": "wrangler d1 migrations apply lunaclair --remote",
+    "seed:materials:local": "node scripts/seed-materials.mjs --local",
+    "seed:materials:remote": "node scripts/seed-materials.mjs --remote"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.1.8",
