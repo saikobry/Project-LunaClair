@@ -17,11 +17,13 @@
   - `GET /api/documents/:sourceId` — public document fetch (`{ id, title, content }`), cached with `Cache-Control: public, max-age=3600`.
   - `GET /api/documents/:sourceId/figures/:filename` — public figure image fetch (binary bytes + `Content-Type`), cached with `Cache-Control: public, max-age=86400`.
   - `GET /api/catalog` — public library catalog snapshot (`{ subjects, terms, subjectTerms, materials }`), cached with `Cache-Control: public, max-age=3600`. This is a **snapshot delivery endpoint, not a CRUD API** — the app hydrates Dexie from it once; no per-row write path.
+  - `GET /api/quiz` — public quiz content snapshot (`{ questions, quizzes }` in **assembled shapes**: each quiz carries `questionIds` + `items` rebuilt from the `quiz_questions` junction), cached with `Cache-Control: public, max-age=3600`. Also a snapshot delivery endpoint, not CRUD.
   - `PUT /api/documents/:sourceId` — protected idempotent document ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
   - `PUT /api/documents/:sourceId/figures/:filename` — protected idempotent figure ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
   - `PUT /api/catalog` — protected idempotent whole-catalog upsert (requires `Authorization: Bearer <SEED_TOKEN>`); rows applied in dependency order (subjects → terms → subjectTerms → materials) so FKs hold; `createdAt`/`updatedAt` server-stamped.
+  - `PUT /api/quiz` — protected idempotent quiz upsert (requires `Authorization: Bearer <SEED_TOKEN>`); accepts assembled `{ questions, quizzes }`, splits quizzes into `quizzes` + `quiz_questions` rows (junction rows replaced per quiz — `items` are authoritative), applies in FK-safe order (questions → quizzes → junction).
 - CORS: allowlist via the `CORS_ORIGINS` var (comma-separated). Empty or unset allows any requesting origin (`*`) with credentials-safe origin reflection for dev (5173/4173) and production; specified origins enforce an exact allowlist match.
-- Timestamps: `updatedAt` is always stamped server-side; clients never send timestamps.
+- Timestamps: `createdAt`/`updatedAt` are always stamped server-side; clients never send timestamps. `createdAt` is set on first insert and preserved on re-upsert (only `updatedAt` changes); the `created_at` column on `documents`/`figures` was backfilled from `updated_at` at migration time.
 - Routing: plain `fetch` handler, no framework. Add routes in `worker/src/index.ts`.
 - Types: run `npm run types:worker` (`wrangler types`) after any change to `wrangler.jsonc`; the generated `worker/worker-configuration.d.ts` is committed.
 - Migrations: schema is authored in `worker/src/schema.ts` (Drizzle ORM; config at root `drizzle.config.ts`). New migrations are generated with `npm run db:generate` (drizzle-kit) into `worker/migrations/` using the nested `NNNN_name/migration.sql` layout, matched via `migrations_pattern` in `wrangler.jsonc` — `wrangler d1 migrations create` is not used.

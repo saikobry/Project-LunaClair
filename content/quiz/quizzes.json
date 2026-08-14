@@ -1,0 +1,495 @@
+[
+  {
+    "id": "quiz-cell-master-50",
+    "materialId": "cell-structure",
+    "title": "Cell Biology & Biochemistry — 50 Question Master Quiz",
+    "description": "Comprehensive 50-question master assessment covering cell structure, organelles, membranes, active/passive transport, glycolysis, Krebs cycle, and cellular respiration.",
+    "questionIds": [
+      "q-50-mc-001",
+      "q-50-mc-002",
+      "q-50-mc-003",
+      "q-50-mc-004",
+      "q-50-mc-005",
+      "q-50-mc-006",
+      "q-50-mc-007",
+      "q-50-mc-008",
+      "q-50-mc-009",
+      "q-50-mc-010",
+      "q-50-mc-011",
+      "q-50-mc-012",
+      "q-50-mc-013",
+      "q-50-mc-014",
+      "q-50-mc-015",
+      "q-50-mc-016",
+      "q-50-mc-017",
+      "q-50-mc-018",
+      "q-50-mc-019",
+      "q-50-mc-020",
+      "q-50-tf-021",
+      "q-50-tf-022",
+      "q-50-tf-023",
+      "q-50-tf-024",
+      "q-50-tf-025",
+      "q-50-tf-026",
+      "q-50-tf-027",
+      "q-50-tf-028",
+      "q-50-tf-029",
+      "q-50-tf-030",
+      "q-50-id-031",
+      "q-50-id-032",
+      "q-50-id-033",
+      "q-50-id-034",
+      "q-50-id-035",
+      "q-50-id-036",
+      "q-50-id-037",
+      "q-50-id-038",
+      "q-50-id-039",
+      "q-50-id-040",
+      "q-50-ms-041",
+      "q-50-ms-042",
+      "q-50-ms-043",
+      "q-50-ms-044",
+      "q-50-ms-045",
+      "q-50-fb-046",
+      "q-50-fb-047",
+      "q-50-fb-048",
+      "q-50-fb-049",
+      "q-50-fb-050"
+    ],
+    "items": [
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-001",
+        "questionVersion": 1,
+        "order": 1,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-002",
+        "questionVersion": 1,
+        "order": 2,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-003",
+        "questionVersion": 1,
+        "order": 3,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-004",
+        "questionVersion": 1,
+        "order": 4,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-005",
+        "questionVersion": 1,
+        "order": 5,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-006",
+        "questionVersion": 1,
+        "order": 6,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-007",
+        "questionVersion": 1,
+        "order": 7,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-008",
+        "questionVersion": 1,
+        "order": 8,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-009",
+        "questionVersion": 1,
+        "order": 9,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-010",
+        "questionVersion": 1,
+        "order": 10,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-011",
+        "questionVersion": 1,
+        "order": 11,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-012",
+        "questionVersion": 1,
+        "order": 12,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-013",
+        "questionVersion": 1,
+        "order": 13,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-014",
+        "questionVersion": 1,
+        "order": 14,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-015",
+        "questionVersion": 1,
+        "order": 15,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-016",
+        "questionVersion": 1,
+        "order": 16,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-017",
+        "questionVersion": 1,
+        "order": 17,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-018",
+        "questionVersion": 1,
+        "order": 18,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-019",
+        "questionVersion": 1,
+        "order": 19,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-mc-020",
+        "questionVersion": 1,
+        "order": 20,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-021",
+        "questionVersion": 1,
+        "order": 21,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-022",
+        "questionVersion": 1,
+        "order": 22,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-023",
+        "questionVersion": 1,
+        "order": 23,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-024",
+        "questionVersion": 1,
+        "order": 24,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-025",
+        "questionVersion": 1,
+        "order": 25,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-026",
+        "questionVersion": 1,
+        "order": 26,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-027",
+        "questionVersion": 1,
+        "order": 27,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-028",
+        "questionVersion": 1,
+        "order": 28,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-029",
+        "questionVersion": 1,
+        "order": 29,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-tf-030",
+        "questionVersion": 1,
+        "order": 30,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-031",
+        "questionVersion": 1,
+        "order": 31,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-032",
+        "questionVersion": 1,
+        "order": 32,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-033",
+        "questionVersion": 1,
+        "order": 33,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-034",
+        "questionVersion": 1,
+        "order": 34,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-035",
+        "questionVersion": 1,
+        "order": 35,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-036",
+        "questionVersion": 1,
+        "order": 36,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-037",
+        "questionVersion": 1,
+        "order": 37,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-038",
+        "questionVersion": 1,
+        "order": 38,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-039",
+        "questionVersion": 1,
+        "order": 39,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-id-040",
+        "questionVersion": 1,
+        "order": 40,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-ms-041",
+        "questionVersion": 1,
+        "order": 41,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-ms-042",
+        "questionVersion": 1,
+        "order": 42,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-ms-043",
+        "questionVersion": 1,
+        "order": 43,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-ms-044",
+        "questionVersion": 1,
+        "order": 44,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-ms-045",
+        "questionVersion": 1,
+        "order": 45,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-fb-046",
+        "questionVersion": 1,
+        "order": 46,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-fb-047",
+        "questionVersion": 1,
+        "order": 47,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-fb-048",
+        "questionVersion": 1,
+        "order": 48,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-fb-049",
+        "questionVersion": 1,
+        "order": 49,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-master-50",
+        "questionId": "q-50-fb-050",
+        "questionVersion": 1,
+        "order": 50,
+        "points": 1
+      }
+    ],
+    "status": "published",
+    "timeLimitSeconds": 3600,
+    "passingPercentage": 75
+  },
+  {
+    "id": "quiz-cell-001",
+    "materialId": "cell-structure",
+    "title": "Cell Structure Quiz",
+    "description": "A mixed-format practice quiz for this material.",
+    "questionIds": [
+      "q-cell-mc-001",
+      "q-cell-tf-001"
+    ],
+    "items": [
+      {
+        "quizId": "quiz-cell-001",
+        "questionId": "q-cell-mc-001",
+        "questionVersion": 1,
+        "order": 1,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-001",
+        "questionId": "q-cell-tf-001",
+        "questionVersion": 1,
+        "order": 2,
+        "points": 1
+      }
+    ],
+    "status": "published",
+    "passingPercentage": 70
+  },
+  {
+    "id": "quiz-anatomy-001",
+    "materialId": "anatomy-physiology",
+    "title": "Body Membranes — Practice Quiz",
+    "description": "A mixed-format practice quiz for this material.",
+    "questionIds": [
+      "q-mc-001",
+      "q-ms-001",
+      "q-tf-001",
+      "q-id-001",
+      "q-fb-001"
+    ],
+    "items": [
+      {
+        "quizId": "quiz-anatomy-001",
+        "questionId": "q-mc-001",
+        "questionVersion": 1,
+        "order": 1,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-anatomy-001",
+        "questionId": "q-ms-001",
+        "questionVersion": 1,
+        "order": 2,
+        "points": 2
+      },
+      {
+        "quizId": "quiz-anatomy-001",
+        "questionId": "q-tf-001",
+        "questionVersion": 1,
+        "order": 3,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-anatomy-001",
+        "questionId": "q-id-001",
+        "questionVersion": 1,
+        "order": 4,
+        "points": 2
+      },
+      {
+        "quizId": "quiz-anatomy-001",
+        "questionId": "q-fb-001",
+        "questionVersion": 1,
+        "order": 5,
+        "points": 3
+      }
+    ],
+    "status": "published",
+    "passingPercentage": 70
+  }
+]

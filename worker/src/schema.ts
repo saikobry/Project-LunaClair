@@ -20,6 +20,7 @@ export const documents = sqliteTable('documents', {
   sourceId: text('source_id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
@@ -32,6 +33,7 @@ export const figures = sqliteTable(
     filename: text('filename').notNull(),
     data: blob('data', { mode: 'buffer' }).notNull(),
     contentType: text('content_type').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => [
@@ -91,3 +93,59 @@ export const materials = sqliteTable('materials', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+/**
+ * Quiz content — the starter question bank and quizzes. Same read-only snapshot
+ * delivery as the catalog: `GET /api/quiz` returns assembled `{ questions, quizzes }`
+ * where each quiz carries `questionIds` + `items` (the `quiz_questions` junction is
+ * an internal detail). Timestamps are ISO-8601 text, server-stamped on ingest.
+ */
+export const questions = sqliteTable('questions', {
+  id: text('id').primaryKey(),
+  materialId: text('material_id')
+    .notNull()
+    .references(() => materials.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(),
+  prompt: text('prompt').notNull(),
+  payload: text('payload', { mode: 'json' }).notNull(),
+  difficulty: text('difficulty').notNull(),
+  points: integer('points').notNull(),
+  explanation: text('explanation'),
+  tags: text('tags', { mode: 'json' }),
+  status: text('status').notNull(),
+  version: integer('version').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const quizzes = sqliteTable('quizzes', {
+  id: text('id').primaryKey(),
+  materialId: text('material_id')
+    .notNull()
+    .references(() => materials.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull(),
+  timeLimitSeconds: integer('time_limit_seconds'),
+  passingPercentage: integer('passing_percentage'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const quizQuestions = sqliteTable(
+  'quiz_questions',
+  {
+    quizId: text('quiz_id')
+      .notNull()
+      .references(() => quizzes.id, { onDelete: 'cascade' }),
+    questionId: text('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    questionVersion: integer('question_version').notNull(),
+    order: integer('order').notNull(),
+    points: integer('points'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.quizId, table.questionId] }),
+  ],
+);

@@ -1,0 +1,1327 @@
+[
+  {
+    "id": "q-50-mc-001",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which organelle is responsible for generating ATP through aerobic cellular respiration?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Ribosome",
+        "Mitochondria",
+        "Golgi apparatus",
+        "Lysosome"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Mitochondria produce the majority of cellular ATP via the Krebs cycle and oxidative phosphorylation.",
+    "tags": [
+      "organelles",
+      "energy",
+      "mitochondria"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-002",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "According to the Fluid Mosaic Model, what forms the structural matrix of the plasma membrane?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Glycoprotein mesh",
+        "Phospholipid bilayer",
+        "Cellulose wall",
+        "Microtubule network"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Amphipathic phospholipids arrange in a bilayer with hydrophilic heads facing outward and hydrophobic tails inward.",
+    "tags": [
+      "membrane",
+      "lipids"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-003",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Where does protein translation primarily take place in eukaryotic cells?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Nucleolus",
+        "Smooth ER",
+        "Ribosomes",
+        "Peroxisomes"
+      ],
+      "correctIndex": 2
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Ribosomes decode mRNA sequences to synthesize polypeptide chains.",
+    "tags": [
+      "translation",
+      "ribosomes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-004",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which organelle synthesizes lipids, phospholipids, and steroid hormones, and detoxifies drugs?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Rough Endoplasmic Reticulum",
+        "Smooth Endoplasmic Reticulum",
+        "Golgi Apparatus",
+        "Lysosome"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Smooth ER lacks ribosomes and specializes in lipid synthesis, carbohydrate metabolism, and drug detoxification.",
+    "tags": [
+      "organelles",
+      "smooth-er"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-005",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What organelle modifies, sorts, and packages proteins received from the rough ER into secretory vesicles?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Golgi apparatus",
+        "Nucleolus",
+        "Mitochondrion",
+        "Centrosome"
+      ],
+      "correctIndex": 0
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "The Golgi apparatus adds carbohydrate tags (glycosylation) and routes proteins to their destinations.",
+    "tags": [
+      "organelles",
+      "golgi"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-006",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which cellular compartment contains hydrolytic enzymes that digest worn-out organelles and cellular waste?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Peroxisome",
+        "Lysosome",
+        "Vacuole",
+        "Ribosome"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Lysosomes maintain an acidic pH (~4.5–5.0) containing acid hydrolases for intracellular digestion.",
+    "tags": [
+      "digestion",
+      "lysosomes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-007",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What happens to a human red blood cell placed in a hypertonic solution?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "It swells and lyses",
+        "It undergoes crenation (shrinks)",
+        "It experiences no net water movement",
+        "It divides by binary fission"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Water moves out of the cell toward higher solute concentration, causing the cell to shrivel (crenate).",
+    "tags": [
+      "osmosis",
+      "solutions"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-008",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "The sodium-potassium pump (Na+/K+ ATPase) pumps how many ions per cycle?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "2 Na+ out and 3 K+ in",
+        "3 Na+ out and 2 K+ in",
+        "3 Na+ in and 2 K+ out",
+        "1 Na+ out and 1 K+ in"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "hard",
+    "points": 1,
+    "explanation": "Using 1 ATP, the pump moves 3 Na+ ions out of the cell and 2 K+ ions into the cell against their gradients.",
+    "tags": [
+      "active-transport",
+      "pumps"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-009",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Where does glycolysis take place within a eukaryotic cell?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Mitochondrial matrix",
+        "Inner mitochondrial membrane",
+        "Cytosol",
+        "Stroma"
+      ],
+      "correctIndex": 2
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Glycolysis is an anaerobic pathway occurring entirely in the cytoplasm (cytosol).",
+    "tags": [
+      "respiration",
+      "glycolysis"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-010",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What is the net gain of ATP molecules produced during glycolysis per molecule of glucose?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "1 ATP",
+        "2 ATP",
+        "4 ATP",
+        "32 ATP"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Glycolysis consumes 2 ATP during investment and produces 4 ATP during payoff, giving a net yield of 2 ATP.",
+    "tags": [
+      "glycolysis",
+      "atp"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-011",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What molecule serves as the final electron acceptor in the electron transport chain during aerobic respiration?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Carbon dioxide",
+        "Water",
+        "Molecular oxygen (O2)",
+        "NAD+"
+      ],
+      "correctIndex": 2
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Oxygen accepts electrons and protons at Complex IV to form H2O.",
+    "tags": [
+      "etc",
+      "respiration"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-012",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which cytoskeletal element forms cilia, flagella, and the mitotic spindle?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Microfilaments (Actin)",
+        "Intermediate filaments",
+        "Microtubules (Tubulin)",
+        "Myosin filaments"
+      ],
+      "correctIndex": 2
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Microtubules are hollow tubes composed of alpha- and beta-tubulin dimers.",
+    "tags": [
+      "cytoskeleton",
+      "microtubules"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-013",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which junction type creates a leak-proof seal between adjacent epithelial cells?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Gap junctions",
+        "Tight junctions (occluding junctions)",
+        "Desmosomes",
+        "Plasmodesmata"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Tight junctions seal intercellular space to prevent fluid passage across epithelial sheets.",
+    "tags": [
+      "junctions",
+      "tissues"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-014",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What cellular process is referred to as \"cellular drinking\", where small fluid droplets are ingested?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Phagocytosis",
+        "Pinocytosis",
+        "Exocytosis",
+        "Receptor-mediated endocytosis"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Pinocytosis involves non-specific uptake of extracellular fluid into small endocytic vesicles.",
+    "tags": [
+      "transport",
+      "endocytosis"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-015",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Where does the Krebs Cycle (Citric Acid Cycle) take place?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Mitochondrial matrix",
+        "Cristae membrane",
+        "Intermembrane space",
+        "Cytoplasm"
+      ],
+      "correctIndex": 0
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Enzymes of the Krebs cycle reside in the fluid mitochondrial matrix.",
+    "tags": [
+      "krebs-cycle",
+      "mitochondria"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-016",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "During which phase of the cell cycle is nuclear DNA replicated?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "G1 phase",
+        "S phase",
+        "G2 phase",
+        "M phase"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "S (Synthesis) phase is dedicated to exact duplication of the genome.",
+    "tags": [
+      "cell-cycle",
+      "dna"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-017",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What organelle produces hydrogen peroxide (H2O2) while breaking down fatty acids and toxic compounds?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Peroxisome",
+        "Lysosome",
+        "Nucleolus",
+        "Centriole"
+      ],
+      "correctIndex": 0
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Peroxisomes contain oxidative enzymes and catalase to degrade toxic H2O2 into water and oxygen.",
+    "tags": [
+      "peroxisome",
+      "organelles"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-018",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What role does cholesterol play in the plasma membrane at low temperatures?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Increases membrane fluidity",
+        "Decreases membrane fluidity",
+        "Completely solidifies lipids",
+        "Triggers cell division"
+      ],
+      "correctIndex": 0
+    },
+    "difficulty": "hard",
+    "points": 1,
+    "explanation": "Cholesterol acts as a temperature buffer, preventing fatty acid tails from packing tightly at cold temperatures.",
+    "tags": [
+      "membrane",
+      "cholesterol"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-019",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "What structural term describes programmed cell death (clean, gene-guided cellular dismantling)?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Necrosis",
+        "Apoptosis",
+        "Autolysis",
+        "Phagocytosis"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Apoptosis is regulated cell death that prevents inflammatory damage to surrounding tissues.",
+    "tags": [
+      "apoptosis",
+      "cell-death"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-mc-020",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which organelle is unique to photosynthetic eukaryotic cells like plants and green algae?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Chloroplast",
+        "Mitochondrion",
+        "Endoplasmic reticulum",
+        "Golgi apparatus"
+      ],
+      "correctIndex": 0
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Chloroplasts contain chlorophyll pigments and thylakoid membranes to harvest sunlight energy.",
+    "tags": [
+      "plant-biology",
+      "chloroplast"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-021",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Passive transport mechanisms require ATP energy input from the cell.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Passive transport relies solely on thermal kinetic energy and concentration gradients.",
+    "tags": [
+      "transport",
+      "passive"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-022",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Plant cells contain both mitochondria and chloroplasts.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Plant cells make glucose in chloroplasts and break it down into ATP in mitochondria.",
+    "tags": [
+      "plants",
+      "organelles"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-023",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Prokaryotic cells lack a membrane-bound nucleus.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Prokaryotes (bacteria and archaea) keep their genetic material in an un-enclosed nucleoid region.",
+    "tags": [
+      "prokaryotes",
+      "nucleus"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-024",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Facilitated diffusion moves solute molecules against their concentration gradient.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Facilitated diffusion uses channel/carrier proteins to move solutes down their concentration gradient.",
+    "tags": [
+      "diffusion",
+      "transport"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-025",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Lysosomes operate optimally at an acidic pH around 4.5 to 5.0.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Proton pumps maintain acidic pH in lysosomes to activate acid hydrolases.",
+    "tags": [
+      "lysosomes",
+      "ph"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-026",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Animal cells possess a rigid cell wall made of cellulose.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Animal cells lack cell walls; cellulose walls are characteristic of plant cells.",
+    "tags": [
+      "cell-wall",
+      "animals"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-027",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Chemiosmosis generates an electrochemical proton gradient across the inner mitochondrial membrane.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "hard",
+    "points": 1,
+    "explanation": "Protons pumped into the intermembrane space flow back through ATP Synthase to generate ATP.",
+    "tags": [
+      "chemiosmosis",
+      "atp"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-028",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Eukaryotic ribosomes are 70S while prokaryotic ribosomes are 80S.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Prokaryotes have 70S ribosomes (30S + 50S), whereas eukaryotes have larger 80S ribosomes (40S + 60S).",
+    "tags": [
+      "ribosomes",
+      "sedimentation"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-029",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Microfilaments are made predominantly of actin protein subunit polymers.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Actin microfilaments facilitate cell motility, cleavage furrow formation, and muscle contraction.",
+    "tags": [
+      "actin",
+      "cytoskeleton"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-tf-030",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Lactic acid fermentation occurs in human muscle cells during intense anaerobic exertion.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": true
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "When oxygen supply is insufficient, pyruvate is reduced to lactate to regenerate NAD+ for glycolysis.",
+    "tags": [
+      "fermentation",
+      "muscles"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-031",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "What organelle is commonly nicknamed the \"powerhouse of the cell\"?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Mitochondria",
+      "acceptedAlternatives": [
+        "Mitochondrion"
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Mitochondria supply energy in the form of ATP to drive metabolic work.",
+    "tags": [
+      "mitochondria"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-032",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "Name the primary chemical energy currency molecule utilized by living cells.",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "ATP",
+      "acceptedAlternatives": [
+        "Adenosine Triphosphate",
+        "Adenosine triphosphate"
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Adenosine Triphosphate stores chemical potential energy in high-energy phosphate bonds.",
+    "tags": [
+      "atp",
+      "energy"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-033",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "What is the specific term for the diffusion of water across a selectively permeable membrane?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Osmosis"
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Osmosis is water movement from low solute concentration to high solute concentration.",
+    "tags": [
+      "osmosis"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-034",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "Which enzyme complex synthesizes ATP using the electrochemical hydrogen ion gradient?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "ATP Synthase",
+      "acceptedAlternatives": [
+        "ATP synthase"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "ATP Synthase acts as a molecular rotary motor driven by proton translocation.",
+    "tags": [
+      "atp-synthase",
+      "enzymes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-035",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "Identify the dense region inside the eukaryotic nucleus where ribosomal RNA (rRNA) is synthesized.",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Nucleolus"
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "The nucleolus assemblies ribosome subunits from rRNA transcripts and ribosomal proteins.",
+    "tags": [
+      "nucleus",
+      "nucleolus"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-036",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "Name the green photosynthetic pigment found in chloroplast thylakoid membranes.",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Chlorophyll",
+      "acceptedAlternatives": [
+        "Chlorophyll a",
+        "Chlorophyll b"
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Chlorophyll absorbs blue and red light wavelengths while reflecting green light.",
+    "tags": [
+      "chlorophyll",
+      "photosynthesis"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-037",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "What process involves cell eating, where a cell engulfs large solid particles or whole microbes?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Phagocytosis"
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Phagocytes (like macrophages) use pseudopodia to internalize large pathogens into phagosomes.",
+    "tags": [
+      "phagocytosis",
+      "endocytosis"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-038",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "What model describes the plasma membrane as a flexible layer of lipid molecules interspersed with mobile proteins?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Fluid Mosaic Model",
+      "acceptedAlternatives": [
+        "Fluid mosaic model",
+        "Fluid Mosaic"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Proposed by Singer and Nicolson in 1972, describing membrane dynamics.",
+    "tags": [
+      "membrane",
+      "fluid-mosaic"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-039",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "Name the 3-carbon compound produced at the end of glycolysis from one glucose molecule.",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Pyruvate",
+      "acceptedAlternatives": [
+        "Pyruvic acid"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "One 6-carbon glucose is cleaved into two 3-carbon pyruvate molecules.",
+    "tags": [
+      "glycolysis",
+      "pyruvate"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-id-040",
+    "materialId": "cell-structure",
+    "type": "identification",
+    "prompt": "What intercellular channels connect adjacent plant cells, permitting transport and communication?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "Plasmodesmata",
+      "acceptedAlternatives": [
+        "Plasmodesma"
+      ]
+    },
+    "difficulty": "hard",
+    "points": 1,
+    "explanation": "Plasmodesmata penetrate cell walls to connect cytoplasm between neighbouring plant cells.",
+    "tags": [
+      "plants",
+      "plasmodesmata"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-ms-041",
+    "materialId": "cell-structure",
+    "type": "multiple_select",
+    "prompt": "Which of the following organelles are surrounded by a double membrane system? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "Mitochondria",
+        "Nucleus",
+        "Chloroplasts",
+        "Lysosomes",
+        "Ribosomes"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Mitochondria, nucleus, and chloroplasts possess inner and outer envelope membranes.",
+    "tags": [
+      "organelles",
+      "membranes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-ms-042",
+    "materialId": "cell-structure",
+    "type": "multiple_select",
+    "prompt": "Which of the following are main components of the eukaryotic cytoskeleton? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "Microfilaments (Actin)",
+        "Intermediate filaments",
+        "Microtubules",
+        "Myosin thick filaments only",
+        "Cellulose fibrils"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "The eukaryotic cytoskeleton consists of actin microfilaments, intermediate filaments, and tubulin microtubules.",
+    "tags": [
+      "cytoskeleton",
+      "filaments"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-ms-043",
+    "materialId": "cell-structure",
+    "type": "multiple_select",
+    "prompt": "Which of the following processes are classified under passive transport? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "Simple diffusion",
+        "Osmosis",
+        "Facilitated diffusion",
+        "Sodium-potassium pump",
+        "Phagocytosis"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Simple diffusion, osmosis, and facilitated diffusion require no cellular metabolic energy (ATP).",
+    "tags": [
+      "transport",
+      "passive"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-ms-044",
+    "materialId": "cell-structure",
+    "type": "multiple_select",
+    "prompt": "Which of the following are direct net products of glycolysis? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "2 Pyruvate molecules",
+        "2 Net ATP",
+        "2 NADH",
+        "6 CO2 molecules",
+        "Oxaloacetate"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Glycolysis yields 2 pyruvate, 2 net ATP, and 2 NADH per glucose molecule oxidized.",
+    "tags": [
+      "glycolysis",
+      "respiration"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-ms-045",
+    "materialId": "cell-structure",
+    "type": "multiple_select",
+    "prompt": "Which of the following structures are found in plant cells but NOT in human animal cells? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "Cellulose cell wall",
+        "Chloroplasts",
+        "Large central vacuole",
+        "Mitochondria",
+        "Golgi body"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Cellulose cell walls, chloroplasts, and large central vacuoles are distinct plant characteristics.",
+    "tags": [
+      "plant-cells",
+      "organelles"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-fb-046",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "The site of ribosomal RNA (rRNA) synthesis within the nucleus is the ___.",
+      "blanks": [
+        "nucleolus"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "The nucleolus is the distinct nuclear sub-region where rRNA is transcribed.",
+    "tags": [
+      "nucleus",
+      "nucleolus"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-fb-047",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "Cellular respiration produces a theoretical maximum of ___ molecules of ATP per glucose molecule.",
+      "blanks": [
+        "36"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "Complete aerobic respiration yields ~36 to 38 ATP per glucose depending on the shuttle mechanism.",
+    "tags": [
+      "respiration",
+      "atp"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-fb-048",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "Movement of solute molecules against their concentration gradient requiring ATP is called ___ transport.",
+      "blanks": [
+        "active"
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Active transport requires ATP hydrolysis to move molecules uphill against a gradient.",
+    "tags": [
+      "active-transport"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-fb-049",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "The fluid substance filling the inside of the cell surrounding organelles is the ___.",
+      "blanks": [
+        "cytosol"
+      ]
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "The cytosol is the aqueous component of the cytoplasm.",
+    "tags": [
+      "cytosol",
+      "cytoplasm"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-50-fb-050",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "During eukaryotic mitosis, sister chromatids separate and move to opposite poles during ___.",
+      "blanks": [
+        "anaphase"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "During anaphase, kinetochore microtubules shorten, pulling sister chromatids apart.",
+    "tags": [
+      "mitosis",
+      "anaphase"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-cell-mc-001",
+    "materialId": "cell-structure",
+    "type": "multiple_choice",
+    "prompt": "Which organelle is responsible for producing ATP?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Ribosome",
+        "Mitochondria",
+        "Golgi apparatus",
+        "Endoplasmic reticulum"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Mitochondria are the powerhouse of the cell, generating ATP through cellular respiration.",
+    "tags": [
+      "organelles",
+      "mitochondria"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-cell-tf-001",
+    "materialId": "cell-structure",
+    "type": "true_false",
+    "prompt": "Prokaryotic cells have a membrane-bound nucleus.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "Prokaryotic cells lack a membrane-bound nucleus; their DNA is in the nucleoid region.",
+    "tags": [
+      "cell-types",
+      "prokaryotes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-mc-001",
+    "materialId": "anatomy-physiology",
+    "type": "multiple_choice",
+    "prompt": "Which layer of the skin contains blood vessels and nerves?",
+    "payload": {
+      "type": "multiple_choice",
+      "choices": [
+        "Epidermis",
+        "Dermis",
+        "Hypodermis",
+        "Stratum corneum"
+      ],
+      "correctIndex": 1
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "The dermis is the vascular layer containing blood vessels, nerves, and hair follicles.",
+    "tags": [
+      "skin",
+      "layers"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-ms-001",
+    "materialId": "anatomy-physiology",
+    "type": "multiple_select",
+    "prompt": "Which of the following are functions of the integumentary system? (Select all that apply)",
+    "payload": {
+      "type": "multiple_select",
+      "choices": [
+        "Protection against pathogens",
+        "Vitamin D synthesis",
+        "Oxygen transport",
+        "Thermoregulation"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        3
+      ]
+    },
+    "difficulty": "medium",
+    "points": 2,
+    "explanation": "The integumentary system protects, synthesizes vitamin D, and regulates temperature. Oxygen transport is a cardiovascular function.",
+    "tags": [
+      "integumentary",
+      "functions"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-tf-001",
+    "materialId": "anatomy-physiology",
+    "type": "true_false",
+    "prompt": "The epidermis is the deepest layer of the skin.",
+    "payload": {
+      "type": "true_false",
+      "correctAnswer": false
+    },
+    "difficulty": "easy",
+    "points": 1,
+    "explanation": "The hypodermis (subcutaneous layer) is the deepest. The epidermis is the outermost layer.",
+    "tags": [
+      "skin",
+      "layers"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-id-001",
+    "materialId": "anatomy-physiology",
+    "type": "identification",
+    "prompt": "What is the protein that provides waterproofing to the outer layer of skin?",
+    "payload": {
+      "type": "identification",
+      "correctAnswer": "keratin",
+      "acceptedAlternatives": [
+        "keratin protein"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 2,
+    "explanation": "Keratin is the fibrous protein that waterproofs and strengthens skin cells.",
+    "tags": [
+      "proteins",
+      "skin"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
+    "id": "q-fb-001",
+    "materialId": "anatomy-physiology",
+    "type": "fill_in_blank",
+    "prompt": "Complete the statement about skin layers.",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "The skin consists of three primary layers: the ___, the ___, and the ___.",
+      "blanks": [
+        "epidermis",
+        "dermis",
+        "hypodermis"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 3,
+    "explanation": "From superficial to deep: epidermis, dermis, and hypodermis (subcutaneous tissue).",
+    "tags": [
+      "skin",
+      "layers"
+    ],
+    "status": "published",
+    "version": 1
+  }
+]

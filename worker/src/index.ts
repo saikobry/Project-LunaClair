@@ -5,11 +5,13 @@
  *   GET  /api/documents/:sourceId                       → { id, title, content }
  *   GET  /api/documents/:sourceId/figures/:filename     → figure bytes
  *   GET  /api/catalog                                   → { subjects, terms, subjectTerms, materials }
+ *   GET  /api/quiz                                      → { questions, quizzes } (assembled)
  *
  * Ingest endpoints (require `Authorization: Bearer <SEED_TOKEN>`):
  *   PUT  /api/documents/:sourceId                       → body { title, content }
  *   PUT  /api/documents/:sourceId/figures/:filename     → body: raw figure bytes
  *   PUT  /api/catalog                                   → body { subjects, terms, subjectTerms, materials }
+ *   PUT  /api/quiz                                      → body { questions, quizzes } (assembled)
  *
  * `/api/catalog` is a **snapshot delivery endpoint**, not a CRUD API — the
  * app hydrates its local database from one snapshot and owns the working copy.
@@ -21,7 +23,17 @@
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import type { IndexColumn } from 'drizzle-orm/sqlite-core';
-import { documents, figures, materials, subjects, subjectTerms, terms } from './schema';
+import {
+  documents,
+  figures,
+  materials,
+  questions,
+  quizQuestions,
+  quizzes,
+  subjects,
+  subjectTerms,
+  terms,
+} from './schema';
 
 export interface Env {
   /** Cloudflare D1 binding (see wrangler.jsonc → d1_databases). */
@@ -143,15 +155,16 @@ export default {
         const title = typeof body?.title === "string" ? body.title : "";
         const content = typeof body?.content === "string" ? body.content : "";
         if (!content) return json({ error: "Missing content" }, 400, corsHeaders);
+        const createdAt = new Date();
         const updatedAt = new Date();
         await db
           .insert(documents)
-          .values({ sourceId, title, content, updatedAt })
+          .values({ sourceId, title, content, createdAt, updatedAt })
           .onConflictDoUpdate({
             target: documents.sourceId,
             set: { title, content, updatedAt },
           });
-        return json({ id: sourceId, updatedAt }, 200, corsHeaders);
+        return json({ id: sourceId, createdAt, updatedAt }, 200, corsHeaders);
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);
@@ -187,15 +200,16 @@ export default {
         }
         const data = new Uint8Array(await request.arrayBuffer());
         const contentType = request.headers.get("content-type") || "application/octet-stream";
+        const createdAt = new Date();
         const updatedAt = new Date();
         await db
           .insert(figures)
-          .values({ sourceId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, updatedAt })
+          .values({ sourceId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, createdAt, updatedAt })
           .onConflictDoUpdate({
             target: [figures.sourceId, figures.filename],
             set: { data, contentType, updatedAt },
           });
-        return json({ sourceId, filename, updatedAt }, 200, corsHeaders);
+        return json({ sourceId, filename, createdAt, updatedAt }, 200, corsHeaders);
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);
@@ -256,6 +270,95 @@ export default {
         }
         if (Array.isArray(body?.materials)) {
           await upsert(body.materials, db.insert(materials), materials.id);
+        }
+        return json({ ok: true, updatedAt: now }, 200, corsHeaders);
+      }
+
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/quiz — snapshot delivery of the quiz content (public GET).
+    if (parts[0] === "api" && parts[1] === "quiz" && parts.length === 2) {
+      if (request.method === "GET" || request.method === "HEAD") {
+        const [questionRows, quizRows, junctionRows] = await Promise.all([
+          db.select().from(questions).all(),
+          db.select().from(quizzes).all(),
+          db.select().from(quizQuestions).all(),
+        ]);
+        // Assemble each quiz's questionIds + items from the junction, ordered.
+        const byQuiz = new Map<string, typeof junctionRows>();
+        for (const j of junctionRows) {
+          const list = byQuiz.get(j.quizId) ?? [];
+          list.push(j);
+          byQuiz.set(j.quizId, list);
+        }
+        const assembledQuizzes = quizRows.map((q) => {
+          const items = (byQuiz.get(q.id) ?? [])
+            .toSorted((a, b) => a.order - b.order)
+            .map((j) => ({
+              quizId: j.quizId,
+              questionId: j.questionId,
+              questionVersion: j.questionVersion,
+              order: j.order,
+              points: j.points ?? undefined,
+            }));
+          return {
+            ...q,
+            questionIds: items.map((i) => i.questionId),
+            items,
+          };
+        });
+        return json(
+          { questions: questionRows, quizzes: assembledQuizzes },
+          200,
+          { ...corsHeaders, "cache-control": "public, max-age=3600" },
+        );
+      }
+
+      if (request.method === "PUT") {
+        if (!(await tokensMatch(request.headers.get("authorization")?.replace(/^Bearer\s+/i, ""), env.SEED_TOKEN))) {
+          return json({ error: "Unauthorized" }, 401, corsHeaders);
+        }
+        const body = (await request.json().catch(() => null)) as {
+          questions?: unknown;
+          quizzes?: unknown;
+        } | null;
+        const now = new Date().toISOString();
+        // Loose-typed upsert helper (same pattern as the catalog route): the
+        // concrete table builder rejects spread `Record<string, unknown>` rows.
+        const upsertRow = async (
+          insert: ReturnType<typeof db.insert>,
+          row: Record<string, unknown>,
+          target: IndexColumn | IndexColumn[],
+        ) => {
+          await insert
+            .values({ ...row, createdAt: now, updatedAt: now })
+            .onConflictDoUpdate({ target, set: { ...row, updatedAt: now } });
+        };
+        // Apply in FK-safe order: questions → quizzes → junction rows.
+        if (Array.isArray(body?.questions)) {
+          for (const row of body.questions as Array<Record<string, unknown>>) {
+            await upsertRow(db.insert(questions), row, questions.id);
+          }
+        }
+        if (Array.isArray(body?.quizzes)) {
+          for (const row of body.quizzes as Array<Record<string, unknown>>) {
+            const { questionIds: _questionIds, items, ...quizFields } = row;
+            await upsertRow(db.insert(quizzes), quizFields, quizzes.id);
+            // Replace the junction rows for this quiz (items are authoritative).
+            if (Array.isArray(items)) {
+              await db.delete(quizQuestions).where(eq(quizQuestions.quizId, row.id as string));
+              for (const item of items as Array<Record<string, unknown>>) {
+                await db.insert(quizQuestions).values({
+                  quizId: row.id as string,
+                  questionId: item.questionId as string,
+                  questionVersion: item.questionVersion as number,
+                  order: item.order as number,
+                  points: (item.points as number | undefined) ?? null,
+                });
+              }
+            }
+          }
         }
         return json({ ok: true, updatedAt: now }, 200, corsHeaders);
       }
