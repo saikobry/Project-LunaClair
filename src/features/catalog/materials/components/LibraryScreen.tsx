@@ -19,9 +19,10 @@ interface LibraryScreenProps {
   onOpenSubject: (subjectId: string) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
   onManage: (materialId: string, subjectId?: string) => void;
+  onBrowseAvailable: () => void;
 }
 
-export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage }: LibraryScreenProps) {
+export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQuiz, onManage, onBrowseAvailable }: LibraryScreenProps) {
   const { materials, isLoading: materialsLoading } = useLibrary();
   const { subjects, isLoading: subjectsLoading } = useSubjects();
   const isLibraryLoading = materialsLoading || subjectsLoading;
@@ -181,6 +182,7 @@ export default function LibraryScreen({ onOpenMaterial, onOpenSubject, onStartQu
         onDelete={handleDeleteTrigger}
         onStartQuiz={handleStartQuiz}
         onManage={(m) => onManage(m.id, m.subjectId)}
+        onBrowseAvailable={onBrowseAvailable}
         isSavingReorder={reorderSubjectsMutation.isPending}
         onSubjectEdit={handleSubjectEdit}
         onSubjectDelete={handleSubjectDelete}

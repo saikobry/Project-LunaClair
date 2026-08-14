@@ -7,3 +7,5 @@ export type { TermRepository, CreateTermInput, UpdateTermInput } from './TermRep
 export type { SubjectTerm, SubjectTermView } from './SubjectTerm';
 export type { SubjectTermRepository } from './SubjectTermRepository';
 export type { TermService, CreateAndAssignTermResult } from './TermService';
+export type { CatalogSnapshot, CatalogRepository } from './CatalogRepository';
+export type { LibraryImportService, ImportMaterialInput } from './LibraryImportService';

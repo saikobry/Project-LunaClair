@@ -44,12 +44,13 @@ export const figures = sqliteTable(
 );
 
 /**
- * Library catalog — the starter subjects/terms/materials delivered to the app
- * as one snapshot (`GET /api/catalog`). Read-only delivery: the app hydrates
- * Dexie from this and owns the local working copy. No write path from the browser.
+ * Library catalog — the canonical subjects/terms/materials delivered to the app
+ * as one snapshot (`GET /api/catalog`). Read-only delivery: the app surfaces it
+ * as Available Materials and imports individual materials into Dexie on user
+ * action. No write path from the browser.
  *
  * `createdAt`/`updatedAt` are ISO-8601 text strings stamped server-side on
- * ingest, matching the domain types the app hydrates into Dexie.
+ * ingest, matching the domain types the app persists into Dexie.
  */
 export const subjects = sqliteTable('subjects', {
   id: text('id').primaryKey(),

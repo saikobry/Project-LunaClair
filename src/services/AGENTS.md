@@ -11,8 +11,11 @@ Legacy infrastructure adapters: localStorage wrappers and content fetch helpers.
 - `storage/LocalStorageAnnotationRepository.ts` — Class implementing `AnnotationRepository` async contract with `AbortSignal` support. Module-level singleton `localStorageAnnotationRepository`.
 - `storage/index.ts` — Barrel re-export of localStorage helpers + repository implementations
 - `content/ApiDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: resolves `StudyMaterial` → `Document` via HTTP `fetch('/api/documents/{sourceId}')`. Throws `DocumentNotFoundError` on non-200 or network failure. Delegates transformation to `markdownPreprocessor`. Singleton `apiDocumentRepository`.
+- `content/ApiCatalogRepository.ts` — Class implementing `CatalogRepository` async contract: fetches the D1 catalog snapshot (`GET /api/catalog`). Singleton `apiCatalogRepository`.
+- `content/ApiQuizContentRepository.ts` — Class implementing `QuizContentRepository` async contract: fetches the D1 quiz snapshot (`GET /api/quiz`, assembled shapes). Singleton `apiQuizContentRepository`.
+- `content/HybridDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: serves locally imported document content from Dexie (`DocumentContentRepository`) first, falling back to the API-backed repository. Imported materials read fully offline; unimported materials hit the API (SW-cached).
 - `content/markdownPreprocessor.ts` — Pure utility: resolves relative image URLs (`images/…` → `/api/documents/{sourceId}/figures/…`).
-- `content/index.ts` — Barrel re-export of `ApiDocumentRepository`, `apiDocumentRepository`, `preprocessMarkdown`
+- `content/index.ts` — Barrel re-export of `ApiDocumentRepository`, `ApiCatalogRepository`, `ApiQuizContentRepository`, `HybridDocumentRepository`, `preprocessMarkdown`
 - `indexeddb/` — Deprecated placeholder (superseded by `src/infrastructure/database/`)
 - `index.ts` — Barrel export of all service-layer modules
 

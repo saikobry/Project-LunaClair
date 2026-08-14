@@ -7,6 +7,8 @@
  */
 export const catalogQueryKeys = {
   root: ['catalog'] as const,
+  // Remote catalog snapshot (GET /api/catalog) — server state, not local library
+  catalog: () => ['catalog', 'remote'] as const,
   // Material cache namespace (formerly libraryQueryKeys)
   materials: () => ['library', 'materials'] as const,
   material: (id: string) => ['library', 'material', id] as const,

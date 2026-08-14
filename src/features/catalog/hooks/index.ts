@@ -9,6 +9,9 @@ export {
   useDeleteMaterial,
   useEditMaterial,
   useTouchMaterial,
+  useAvailableCatalog,
+  useImportMaterial,
+  useRemoveImportedMaterial,
 } from '../materials/hooks';
 export {
   useSubject,

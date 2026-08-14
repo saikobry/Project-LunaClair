@@ -7,6 +7,7 @@
  */
 export type AppRoute =
   | { kind: 'library' }
+  | { kind: 'available' }
   | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
@@ -20,6 +21,8 @@ export function routeToUrl(route: AppRoute): string {
   switch (route.kind) {
     case 'library':
       return '/';
+    case 'available':
+      return '/available';
     case 'terms':
       return '/terms';
     case 'subject':
@@ -71,6 +74,11 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /terms
   if (url.pathname === '/terms') {
     return { kind: 'terms' };
+  }
+
+  // /available
+  if (url.pathname === '/available') {
+    return { kind: 'available' };
   }
 
   // / (library)

@@ -55,6 +55,16 @@ export const SCHEMA_V5 = {
     flashcardReviews: 'key, materialId, dueAt, lastReviewedAt',
 } as const;
 
+/**
+ * Version 6: Adds documentContents — locally imported document markdown,
+ * keyed by sourceId. The explicit local representation of an imported
+ * material's content (the SW runtime cache is not the source of truth).
+ */
+export const SCHEMA_V6 = {
+    ...SCHEMA_V5,
+    documentContents: 'sourceId',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 

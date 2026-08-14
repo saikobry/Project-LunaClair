@@ -15,6 +15,8 @@ export type { SaveQuizResult } from './use-cases/quiz-management/SaveQuizUseCase
 export { CreateMaterialUseCase } from './use-cases/library/CreateMaterialUseCase';
 export { UpdateMaterialUseCase } from './use-cases/library/UpdateMaterialUseCase';
 export { DeleteMaterialUseCase } from './use-cases/library/DeleteMaterialUseCase';
+export { ImportMaterialUseCase } from './use-cases/library/ImportMaterialUseCase';
+export { RemoveImportedMaterialUseCase } from './use-cases/library/RemoveImportedMaterialUseCase';
 export { TouchMaterialUseCase } from './use-cases/library/TouchMaterialUseCase';
 export { CreateAndAssignTermUseCase } from './use-cases/subject/CreateAndAssignTermUseCase';
 export { SyncSubjectTermsUseCase } from './use-cases/subject/SyncSubjectTermsUseCase';

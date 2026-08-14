@@ -2,6 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import {
   Plus,
   BookHeart,
+  LibraryBig,
 } from 'lucide-react';
 import type { StudyMaterial } from '../../../../domain/library';
 import type { Subject } from '../../../../domain/library';
@@ -47,6 +48,7 @@ interface LibraryViewProps {
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
+  onBrowseAvailable: () => void;
   isSavingReorder?: boolean;
   onSubjectEdit: (subject: Subject) => void;
   onSubjectDelete: (subject: Subject) => void;
@@ -66,6 +68,7 @@ export default function LibraryView({
   onDelete,
   onStartQuiz,
   onManage,
+  onBrowseAvailable,
   isSavingReorder,
   onSubjectEdit,
   onSubjectDelete,
@@ -152,16 +155,16 @@ export default function LibraryView({
           </div>
           <h2 {...stylex.props(styles.emptyTitle)}>Your library is empty</h2>
           <p {...stylex.props(styles.emptyText)}>
-            Create your first study material to get started. You can add content
-            from markdown files, PDFs, or generate quizzes and flashcards.
+            Browse the platform catalog and add materials to your library.
+            Imported materials are available offline, including their quizzes.
           </p>
           <Button
-            label="Create Material"
+            label="Browse Available Materials"
             variant="primary"
-            icon={<Plus size={18} />}
-            onClick={onNewMaterial}
+            icon={<LibraryBig size={18} />}
+            onClick={onBrowseAvailable}
           >
-            Create Material
+            Browse Available Materials
           </Button>
         </div>
       )}

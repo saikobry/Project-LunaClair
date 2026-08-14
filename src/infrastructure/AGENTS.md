@@ -6,11 +6,10 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 
 ## Ownership
 
-- `database/schema.ts` — Version 1/2/3/4/5 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state)
-- `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`.
+- `database/schema.ts` — Version 1/2/3/4/5/6 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state; v6 adds `documentContents` `'sourceId'` — locally imported document markdown, the explicit local representation of an imported material's content)
+- `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`. v6 adds `documentContents`.
 - `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 schema migration is handled natively by Dexie `version(3).upgrade()`; the v3 data pass (`lunaclair.migration.v3.complete`) normalizes stored question tags via domain `normalizeTags` (strip `#`, dedup case-insensitively, preserve first-seen casing).
-- `database/DatabaseSeeder.ts` — Seed-once hydration: fetches the starter catalog (subjects, terms, subject-term links, materials) from `GET /api/catalog` and the quiz content (questions, quizzes, assembled shapes) from `GET /api/quiz` (both D1 snapshots) and bulk-writes into Dexie if empty. Catalog and quiz fetch independently — a quiz-endpoint failure skips only quiz content, so the library still hydrates; a catalog failure skips seeding entirely (next boot retries).
-- `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()` → `seedIfEmpty()`.
+- `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()`. Deliberately **no seeding** — the canonical catalog lives in D1 and is surfaced via the API as "Available Materials"; users explicitly import materials into the local library (catalog-first, user-selected library model).
 - `database/repositories/` — Concrete repository implementations. `DexieLibraryRepository` performs raw material persistence; material association validation belongs to application use cases.
   - `DexieQuestionRepository` → `QuestionRepository` (normalizes `tags` through domain `normalizeTags` on create/update)
   - `DexieQuizRepository` → `QuizRepository`
@@ -22,9 +21,11 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
   - `DexieSubjectTermRepository` → `SubjectTermRepository` (manages many-to-many Subject ↔ Term associations with composite key `[subjectId+termId]`)
   - `DexieQuizDraftRepository` → application `QuizDraftRepository` (crash-recovery drafts in `quizEditingDrafts`; latest-draft lookups by quiz or material)
   - `DexieFlashcardReviewRepository` → `FlashcardReviewRepository` (spaced repetition per-card review states stored in `flashcardReviews`)
+  - `DexieDocumentContentRepository` → `DocumentContentRepository` (locally imported document markdown keyed by `sourceId` in `documentContents`)
 - `database/services/` — Concrete application service implementations:
   - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
   - `DexieQuizEditorService` → `QuizEditorService` (atomic quiz authoring save across `questions` + `quizzes` stores; conditional `questionVersion` bumps; re-snapshots `questionVersion` into quiz items; normalizes `tags` through domain `normalizeTags` on question create/update)
+  - `DexieLibraryImportService` → `LibraryImportService` (atomic import/removal across `subjects`, `terms`, `subjectTerms`, `materials`, `questions`, `quizzes`, `documentContents` stores)
 - `database/index.ts` — Barrel re-export of database core, startup services, schema versions, and repository singletons
 
 ## Local Contracts
@@ -33,11 +34,11 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 - All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`).
 - `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
 - `DexieQuizEditorService.saveQuiz()` runs a single `db.transaction('rw', [questions, quizzes])`: applies all question changes (create or update with conditional version bump), resolves canvas `tempId`s to question ids, rewrites the quiz's `questionIds`/`items`, and re-snapshots `questionVersion` per item — the operation is atomic.
-- Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global), v4 (quizEditingDrafts crash-recovery store), v5 (flashcardReviews spaced repetition store).
+- Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global), v4 (quizEditingDrafts crash-recovery store), v5 (flashcardReviews spaced repetition store), v6 (documentContents imported-content store).
 
 - Database name: `lunaclair-db`.
 - Migration is idempotent — guarded by localStorage flags for v1/v2/v3 data passes, native Dexie upgrade for schema v3.
-- Seeding is idempotent — skipped if `subjects` store is non-empty (seed-once: Dexie owns the local catalog after first hydration; D1 is never re-applied).
+- **No auto-hydration.** The app boots with an empty local library; the D1 catalog is surfaced through the API and materials are imported on user action via `LibraryImportService`. Dexie is the user's local selection/working state; D1 is the canonical platform catalog; Service Worker Cache Storage is a network-resource cache and is never the source of truth for library membership.
 - `DexieSubjectTermRepository.addTerm()` validates subject and term existence, prevents duplicate associations, and auto-computes `max(order) + 1`.
 - `DexieTermService.createAndAssignTerm()` runs a single `db.transaction('rw', [terms, subjectTerms, subjects])` that creates the global `Term`, validates the subject, and inserts the `SubjectTerm` junction with `max(order) + 1` — the operation is atomic.
 - `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.

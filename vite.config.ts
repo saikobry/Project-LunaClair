@@ -91,9 +91,11 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Cache material documents, figure images, and the library catalog
-            // snapshot served from the Worker API
+            // + quiz snapshots served from the Worker API
             urlPattern: ({ url }) =>
-              url.pathname.startsWith('/api/documents/') || url.pathname === '/api/catalog',
+              url.pathname.startsWith('/api/documents/') ||
+              url.pathname === '/api/catalog' ||
+              url.pathname === '/api/quiz',
             handler: 'CacheFirst',
             options: {
               cacheName: 'lunaclair-materials-cache',

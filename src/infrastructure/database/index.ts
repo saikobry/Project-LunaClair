@@ -1,12 +1,11 @@
 // Database core
 export { LunaClairDatabase, db } from './LunaClairDatabase';
 export type { HighlightRecord, DrawingRecord, PreferenceRecord, MetadataRecord } from './LunaClairDatabase';
-export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from './schema';
+export { DB_NAME, DB_VERSION, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6 } from './schema';
 
 // Startup services
 export { DatabaseInitializer } from './DatabaseInitializer';
 export { DatabaseMigrator } from './DatabaseMigrator';
-export { DatabaseSeeder } from './DatabaseSeeder';
 
 // Dexie repository singletons
 export { DexieQuestionRepository, dexieQuestionRepository } from './repositories/DexieQuestionRepository';
@@ -19,8 +18,10 @@ export { DexieTermRepository, dexieTermRepository } from './repositories/DexieTe
 export { DexieSubjectTermRepository, dexieSubjectTermRepository } from './repositories/DexieSubjectTermRepository';
 export { DexieQuizDraftRepository, dexieQuizDraftRepository } from './repositories/DexieQuizDraftRepository';
 export { DexieFlashcardReviewRepository, dexieFlashcardReviewRepository } from './repositories/DexieFlashcardReviewRepository';
+export { DexieDocumentContentRepository, dexieDocumentContentRepository } from './repositories/DexieDocumentContentRepository';
 
 // Dexie application service implementations
 export { DexieTermService, dexieTermService } from './services/DexieTermService';
 export { DexieQuizEditorService, dexieQuizEditorService } from './services/DexieQuizEditorService';
+export { DexieLibraryImportService, dexieLibraryImportService } from './services/DexieLibraryImportService';
 

@@ -33,7 +33,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 
 ## Local Contracts
 
-- Markdown content is fetched from `public/materials/{sourceId}/index.md` and preprocessed by `services/content/markdownPreprocessor` (not in this feature)
+- Markdown content is resolved through `DocumentRepository` (`HybridDocumentRepository` in the composition root): locally imported content is served from the Dexie `documentContents` store (fully offline), otherwise fetched from `GET /api/documents/{sourceId}` (SW runtime-cached). Content is preprocessed by `services/content/markdownPreprocessor` (not in this feature)
 - `ReaderScreen` handles `DocumentNotFoundError` with a friendly UI notice and unexpected errors separately
 - Highlights persist via `AnnotationRepository` under `STORAGE_KEYS.reader.highlights` (`lunaclair.reader.highlights`)
 - Drawings persist via `AnnotationRepository` under `STORAGE_KEYS.reader.drawings` (`lunaclair.reader.drawings`)

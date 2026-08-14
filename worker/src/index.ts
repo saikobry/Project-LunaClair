@@ -14,7 +14,8 @@
  *   PUT  /api/quiz                                      → body { questions, quizzes } (assembled)
  *
  * `/api/catalog` is a **snapshot delivery endpoint**, not a CRUD API — the
- * app hydrates its local database from one snapshot and owns the working copy.
+ * app surfaces it as Available Materials and imports individual materials on
+ * user action; no per-row write path.
  * `updatedAt`/`createdAt` are always stamped by the server — clients never send timestamps.
  * Path segments are decoded exactly and validated: no `/`, `\`, or `..` in
  * `sourceId`/`filename`, and lookups are always by the composite key, so one

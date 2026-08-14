@@ -1,6 +1,7 @@
 // ── Catalog feature public contract ────────────────────────────────
 // Screens
 export { default as LibraryScreen } from './materials/components/LibraryScreen';
+export { default as AvailableMaterialsScreen } from './materials/components/AvailableMaterialsScreen';
 export { default as SubjectWorkspace } from './subjects/components/SubjectWorkspace';
 export type { SubjectTab } from './subjects/components/SubjectWorkspace';
 export { TermManagerScreen } from './terms/components/TermManagerScreen';
@@ -14,8 +15,8 @@ export { MaterialCard } from './materials/components/MaterialCard/MaterialCard';
 export type { MaterialCardProps } from './materials/components/MaterialCard/MaterialCard';
 
 // Public hooks
-export { useLibrary, useMaterial } from './hooks';
-export { useCreateMaterial, useDeleteMaterial, useEditMaterial, useTouchMaterial } from './hooks';
+export { useLibrary, useMaterial, useAvailableCatalog } from './hooks';
+export { useCreateMaterial, useDeleteMaterial, useEditMaterial, useTouchMaterial, useImportMaterial, useRemoveImportedMaterial } from './hooks';
 export { useSubject, useSubjects } from './hooks';
 export { useCreateSubject, useEditSubject, useDeleteSubject, useReorderSubjects } from './hooks';
 export { useTerms, useTerm, useTermUsageCounts } from './hooks';

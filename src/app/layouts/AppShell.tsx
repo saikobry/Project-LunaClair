@@ -7,6 +7,7 @@ import * as stylex from '@stylexjs/stylex';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
+import AvailableMaterialsScreen from '../../features/catalog/materials/components/AvailableMaterialsScreen';
 import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
 import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
@@ -382,6 +383,7 @@ export default function AppShell() {
             subjectId={routeSubjectId}
             materialId={routeMaterialId}
             isLibrary={currentRoute.kind === 'library'}
+            isAvailable={currentRoute.kind === 'available'}
             isTerms={currentRoute.kind === 'terms'}
             isFocusMode={isFocusMode}
             onToggleFocusMode={toggleFocusMode}
@@ -399,7 +401,11 @@ export default function AppShell() {
             onOpenSubject={handleOpenSubject}
             onStartQuiz={handleStartQuiz}
             onManage={handleManageQuiz}
+            onBrowseAvailable={() => navigate({ kind: 'available' })}
           />
+        )}
+        {currentRoute.kind === 'available' && (
+          <AvailableMaterialsScreen onOpenMaterial={handleOpenMaterial} />
         )}
         {currentRoute.kind === 'terms' && (
           <TermManagerScreen />

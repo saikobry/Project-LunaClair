@@ -1,7 +1,7 @@
 import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus, Download } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
@@ -354,6 +354,7 @@ export interface AppSidebarProps {
   subjectId?: string;
   materialId?: string;
   isLibrary: boolean;
+  isAvailable?: boolean;
   isTerms?: boolean;
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
@@ -366,6 +367,7 @@ export function AppSidebar({
   subjectId,
   materialId,
   isLibrary,
+  isAvailable = false,
   isTerms = false,
   isFocusMode,
   onToggleFocusMode,
@@ -379,8 +381,8 @@ export function AppSidebar({
   const pillRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef<HTMLDivElement>(null);
 
-  const isSubjectActive = !isLibrary && !isTerms && Boolean(subject) && !material;
-  const isMaterialActive = !isLibrary && !isTerms && Boolean(material);
+  const isSubjectActive = !isLibrary && !isAvailable && !isTerms && Boolean(subject) && !material;
+  const isMaterialActive = !isLibrary && !isAvailable && !isTerms && Boolean(material);
 
   // ── Helper: reposition the sliding pill to match the active nav button ──
   const repositionPill = (animate = false) => {
@@ -466,7 +468,7 @@ export function AppSidebar({
   // ── Reposition whenever active route changes ───────────────────
   useEffect(() => {
     requestAnimationFrame(() => repositionPill(true));
-  }, [isLibrary, isTerms, isSubjectActive, isMaterialActive, isFocusMode]);
+  }, [isLibrary, isAvailable, isTerms, isSubjectActive, isMaterialActive, isFocusMode]);
 
   // ── Reposition on viewport resize (desktop ↔ tablet etc.) ──────
   useEffect(() => {
@@ -536,6 +538,17 @@ export function AppSidebar({
 
           <button
             type="button"
+            {...stylex.props(styles.navItem, isAvailable && styles.navItemActive)}
+            onClick={() => onNavigate({ kind: 'available' })}
+            aria-current={isAvailable ? 'page' : undefined}
+            title="Available Materials"
+          >
+            <LibraryBig size={18} />
+            <span {...stylex.props(styles.navLabel)}>Available</span>
+          </button>
+
+          <button
+            type="button"
             {...stylex.props(styles.navItem, isTerms && styles.navItemActive)}
             onClick={() => onNavigate({ kind: 'terms' })}
             aria-current={isTerms ? 'page' : undefined}
@@ -545,7 +558,7 @@ export function AppSidebar({
             <span {...stylex.props(styles.navLabel)}>Terms</span>
           </button>
 
-          {!isLibrary && !isTerms && (
+          {!isLibrary && !isAvailable && !isTerms && (
             <>
               <div {...stylex.props(styles.divider)} aria-hidden="true" />
 
