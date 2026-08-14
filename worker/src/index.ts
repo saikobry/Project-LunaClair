@@ -155,8 +155,8 @@ export default {
         const title = typeof body?.title === "string" ? body.title : "";
         const content = typeof body?.content === "string" ? body.content : "";
         if (!content) return json({ error: "Missing content" }, 400, corsHeaders);
-        const createdAt = new Date();
-        const updatedAt = new Date();
+        const createdAt = new Date().toISOString();
+        const updatedAt = new Date().toISOString();
         await db
           .insert(documents)
           .values({ sourceId, title, content, createdAt, updatedAt })
@@ -200,8 +200,8 @@ export default {
         }
         const data = new Uint8Array(await request.arrayBuffer());
         const contentType = request.headers.get("content-type") || "application/octet-stream";
-        const createdAt = new Date();
-        const updatedAt = new Date();
+        const createdAt = new Date().toISOString();
+        const updatedAt = new Date().toISOString();
         await db
           .insert(figures)
           .values({ sourceId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, createdAt, updatedAt })

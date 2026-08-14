@@ -5,8 +5,10 @@
  * images) that used to ship inside the PWA bundle. Content is ingested via the
  * Worker's PUT endpoints (seed script) and served publicly via GET.
  *
- * Timestamps are always set by the Worker (server time) — clients never send
- * `updatedAt`.
+ * Timestamp convention: all persisted timestamps are ISO-8601 UTC text strings
+ * (`YYYY-MM-DDTHH:mm:ss.sssZ`), matching the domain/Dexie representation, so
+ * nothing converts formats across the API boundary. Set by the Worker (server
+ * time) — clients never send timestamps.
  */
 import {
   blob,
@@ -20,8 +22,8 @@ export const documents = sqliteTable('documents', {
   sourceId: text('source_id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const figures = sqliteTable(
@@ -33,8 +35,8 @@ export const figures = sqliteTable(
     filename: text('filename').notNull(),
     data: blob('data', { mode: 'buffer' }).notNull(),
     contentType: text('content_type').notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.sourceId, table.filename] }),
