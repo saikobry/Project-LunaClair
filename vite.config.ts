@@ -90,8 +90,10 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
-            // Cache material documents and figure images served from the Worker API
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/documents/'),
+            // Cache material documents, figure images, and the library catalog
+            // snapshot served from the Worker API
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/documents/') || url.pathname === '/api/catalog',
             handler: 'CacheFirst',
             options: {
               cacheName: 'lunaclair-materials-cache',

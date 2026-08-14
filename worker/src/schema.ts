@@ -38,3 +38,56 @@ export const figures = sqliteTable(
     primaryKey({ columns: [table.sourceId, table.filename] }),
   ],
 );
+
+/**
+ * Library catalog — the starter subjects/terms/materials delivered to the app
+ * as one snapshot (`GET /api/catalog`). Read-only delivery: the app hydrates
+ * Dexie from this and owns the local working copy. No write path from the browser.
+ *
+ * `createdAt`/`updatedAt` are ISO-8601 text strings stamped server-side on
+ * ingest, matching the domain types the app hydrates into Dexie.
+ */
+export const subjects = sqliteTable('subjects', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  order: integer('order'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const terms = sqliteTable('terms', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const subjectTerms = sqliteTable(
+  'subject_terms',
+  {
+    subjectId: text('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    termId: text('term_id')
+      .notNull()
+      .references(() => terms.id, { onDelete: 'cascade' }),
+    order: integer('order').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.subjectId, table.termId] }),
+  ],
+);
+
+export const materials = sqliteTable('materials', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  sourceType: text('source_type').notNull(),
+  sourceId: text('source_id').notNull(),
+  subjectId: text('subject_id').references(() => subjects.id, { onDelete: 'set null' }),
+  termId: text('term_id').references(() => terms.id, { onDelete: 'set null' }),
+  order: integer('order'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});

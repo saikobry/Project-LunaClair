@@ -4,19 +4,24 @@
  * Public endpoints (no auth):
  *   GET  /api/documents/:sourceId                       → { id, title, content }
  *   GET  /api/documents/:sourceId/figures/:filename     → figure bytes
+ *   GET  /api/catalog                                   → { subjects, terms, subjectTerms, materials }
  *
  * Ingest endpoints (require `Authorization: Bearer <SEED_TOKEN>`):
  *   PUT  /api/documents/:sourceId                       → body { title, content }
  *   PUT  /api/documents/:sourceId/figures/:filename     → body: raw figure bytes
+ *   PUT  /api/catalog                                   → body { subjects, terms, subjectTerms, materials }
  *
- * `updatedAt` is always stamped by the server — clients never send timestamps.
+ * `/api/catalog` is a **snapshot delivery endpoint**, not a CRUD API — the
+ * app hydrates its local database from one snapshot and owns the working copy.
+ * `updatedAt`/`createdAt` are always stamped by the server — clients never send timestamps.
  * Path segments are decoded exactly and validated: no `/`, `\`, or `..` in
  * `sourceId`/`filename`, and lookups are always by the composite key, so one
  * document can never reach another document's figure.
  */
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import { documents, figures } from './schema';
+import type { IndexColumn } from 'drizzle-orm/sqlite-core';
+import { documents, figures, materials, subjects, subjectTerms, terms } from './schema';
 
 export interface Env {
   /** Cloudflare D1 binding (see wrangler.jsonc → d1_databases). */
@@ -191,6 +196,68 @@ export default {
             set: { data, contentType, updatedAt },
           });
         return json({ sourceId, filename, updatedAt }, 200, corsHeaders);
+      }
+
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/catalog — snapshot delivery of the library catalog (public GET).
+    if (parts[0] === "api" && parts[1] === "catalog" && parts.length === 2) {
+      if (request.method === "GET" || request.method === "HEAD") {
+        const [subjectsRows, termsRows, subjectTermRows, materialRows] = await Promise.all([
+          db.select().from(subjects).all(),
+          db.select().from(terms).all(),
+          db.select().from(subjectTerms).all(),
+          db.select().from(materials).all(),
+        ]);
+        return json(
+          {
+            subjects: subjectsRows,
+            terms: termsRows,
+            subjectTerms: subjectTermRows,
+            materials: materialRows,
+          },
+          200,
+          { ...corsHeaders, "cache-control": "public, max-age=3600" },
+        );
+      }
+
+      if (request.method === "PUT") {
+        if (!(await tokensMatch(request.headers.get("authorization")?.replace(/^Bearer\s+/i, ""), env.SEED_TOKEN))) {
+          return json({ error: "Unauthorized" }, 401, corsHeaders);
+        }
+        const body = (await request.json().catch(() => null)) as {
+          subjects?: unknown;
+          terms?: unknown;
+          subjectTerms?: unknown;
+          materials?: unknown;
+        } | null;
+        const now = new Date().toISOString();
+        // Apply in dependency order so FKs hold: subjects → terms → subjectTerms → materials.
+        const upsert = async (
+          rows: unknown[],
+          insert: ReturnType<typeof db.insert>,
+          target: IndexColumn | IndexColumn[],
+        ) => {
+          for (const row of rows as Array<Record<string, unknown>>) {
+            await insert
+              .values({ ...row, createdAt: now, updatedAt: now })
+              .onConflictDoUpdate({ target, set: { ...row, updatedAt: now } });
+          }
+        };
+        if (Array.isArray(body?.subjects)) {
+          await upsert(body.subjects, db.insert(subjects), subjects.id);
+        }
+        if (Array.isArray(body?.terms)) {
+          await upsert(body.terms, db.insert(terms), terms.id);
+        }
+        if (Array.isArray(body?.subjectTerms)) {
+          await upsert(body.subjectTerms, db.insert(subjectTerms), [subjectTerms.subjectId, subjectTerms.termId]);
+        }
+        if (Array.isArray(body?.materials)) {
+          await upsert(body.materials, db.insert(materials), materials.id);
+        }
+        return json({ ok: true, updatedAt: now }, 200, corsHeaders);
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);

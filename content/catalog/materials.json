@@ -1,0 +1,66 @@
+[
+  {
+    "id": "cell-structure",
+    "title": "Cell Structure & Function",
+    "description": "Cell theory, organelles, and membrane transport.",
+    "sourceType": "bundled",
+    "sourceId": "cell-structure",
+    "subjectId": "subject-bio-101",
+    "termId": "term-prelim",
+    "order": 1
+  },
+  {
+    "id": "cellular-respiration",
+    "title": "Cellular Respiration",
+    "description": "Glycolysis, Krebs cycle, electron transport chain.",
+    "sourceType": "bundled",
+    "sourceId": "cellular-respiration",
+    "subjectId": "subject-bio-101",
+    "termId": "term-midterm",
+    "order": 1
+  },
+  {
+    "id": "photosynthesis",
+    "title": "Photosynthesis",
+    "description": "Light-dependent reactions, Calvin cycle, photorespiration.",
+    "sourceType": "bundled",
+    "sourceId": "photosynthesis",
+    "subjectId": "subject-bio-101",
+    "termId": "term-midterm",
+    "order": 2
+  },
+  {
+    "id": "genetics",
+    "title": "Genetics & Heredity",
+    "description": "Mendelian genetics, DNA replication, protein synthesis, mutations.",
+    "sourceType": "bundled",
+    "sourceId": "genetics",
+    "subjectId": "subject-bio-101",
+    "termId": "term-finals",
+    "order": 1
+  },
+  {
+    "id": "ancient-civilizations",
+    "title": "Ancient Civilizations",
+    "description": "Mesopotamia, Egypt, Indus Valley, and early Chinese dynasties.",
+    "sourceType": "bundled",
+    "sourceId": "ancient-civilizations",
+    "subjectId": "subject-world-history",
+    "termId": "term-prelim",
+    "order": 1
+  },
+  {
+    "id": "spanish-verbs",
+    "title": "Spanish Verb Conjugation",
+    "description": "Present tense conjugations for regular -ar, -er, and -ir verbs.",
+    "sourceType": "bundled",
+    "sourceId": "spanish-verbs"
+  },
+  {
+    "id": "anatomy-physiology",
+    "title": "Anatomy & Physiology: Body Membranes",
+    "description": "Covering the integumentary system, skin structure, membranes, and common pathologies.",
+    "sourceType": "bundled",
+    "sourceId": "anatomy-physiology"
+  }
+]

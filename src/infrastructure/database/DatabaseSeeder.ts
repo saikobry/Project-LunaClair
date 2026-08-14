@@ -7,10 +7,19 @@ import type { Question } from '../../domain/quiz/Question';
 import type { Quiz, QuizQuestion } from '../../domain/quiz/Quiz';
 import { build50CellBiologyQuestions, build50QuestionQuizObj } from './seeds/build50QuestionQuiz';
 
+/** Shape of the D1 catalog snapshot served by `GET /api/catalog`. */
+interface CatalogSnapshot {
+    subjects: Subject[];
+    terms: Term[];
+    subjectTerms: SubjectTerm[];
+    materials: StudyMaterial[];
+}
+
 /**
  * Seeds the database with demo content if empty.
- * Creates subjects, global terms, subject-term links, categorized materials,
- * uncategorized material, sample questions for all 5 question types, and starter quizzes.
+ * Hydrates the catalog (subjects, terms, subject-term links, materials) from the
+ * D1 snapshot endpoint, then seeds sample questions for all 5 question types and
+ * starter quizzes locally (quiz content still ships in the bundle this phase).
  */
 export class DatabaseSeeder {
     private readonly database: LunaClairDatabase;
@@ -25,134 +34,18 @@ export class DatabaseSeeder {
 
         const now = new Date().toISOString();
 
-        // ── Subjects ──────────────────────────────────────────
-        const bioSubject: Subject = {
-            id: 'subject-bio-101',
-            title: 'Biology 101',
-            description: 'Introduction to biology — cells, respiration, photosynthesis, and genetics.',
-            order: 1,
-            createdAt: now,
-            updatedAt: now,
-        };
-
-        const historySubject: Subject = {
-            id: 'subject-world-history',
-            title: 'World History',
-            description: 'Ancient civilizations, world wars, and modern global history.',
-            order: 2,
-            createdAt: now,
-            updatedAt: now,
-        };
-
-        // ── Global Terms (standalone, no subjectId) ──────────
-        const terms: Term[] = [
-            { id: 'term-prelim', title: 'Prelim', createdAt: now, updatedAt: now },
-            { id: 'term-midterm', title: 'Midterm', createdAt: now, updatedAt: now },
-            { id: 'term-finals', title: 'Finals', createdAt: now, updatedAt: now },
-        ];
-
-        // ── SubjectTerm Links ────────────────────────────────
-        const subjectTerms: SubjectTerm[] = [
-            // Biology: Prelim, Midterm, Finals
-            { subjectId: 'subject-bio-101', termId: 'term-prelim', order: 1 },
-            { subjectId: 'subject-bio-101', termId: 'term-midterm', order: 2 },
-            { subjectId: 'subject-bio-101', termId: 'term-finals', order: 3 },
-            // World History: Prelim, Midterm, Finals
-            { subjectId: 'subject-world-history', termId: 'term-prelim', order: 1 },
-            { subjectId: 'subject-world-history', termId: 'term-midterm', order: 2 },
-            { subjectId: 'subject-world-history', termId: 'term-finals', order: 3 },
-        ];
-
-        // ── Materials (categorized + uncategorized) ───────────
-        const materials: StudyMaterial[] = [
-            // Biology — Prelim
-            {
-                id: 'cell-structure',
-                title: 'Cell Structure & Function',
-                description: 'Cell theory, organelles, and membrane transport.',
-                sourceType: 'bundled',
-                sourceId: 'cell-structure',
-                subjectId: 'subject-bio-101',
-                termId: 'term-prelim',
-                order: 1,
-                createdAt: now,
-                updatedAt: now,
-            },
-            // Biology — Midterm
-            {
-                id: 'cellular-respiration',
-                title: 'Cellular Respiration',
-                description: 'Glycolysis, Krebs cycle, electron transport chain.',
-                sourceType: 'bundled',
-                sourceId: 'cellular-respiration',
-                subjectId: 'subject-bio-101',
-                termId: 'term-midterm',
-                order: 1,
-                createdAt: now,
-                updatedAt: now,
-            },
-            {
-                id: 'photosynthesis',
-                title: 'Photosynthesis',
-                description: 'Light-dependent reactions, Calvin cycle, photorespiration.',
-                sourceType: 'bundled',
-                sourceId: 'photosynthesis',
-                subjectId: 'subject-bio-101',
-                termId: 'term-midterm',
-                order: 2,
-                createdAt: now,
-                updatedAt: now,
-            },
-            // Biology — Finals
-            {
-                id: 'genetics',
-                title: 'Genetics & Heredity',
-                description: 'Mendelian genetics, DNA replication, protein synthesis, mutations.',
-                sourceType: 'bundled',
-                sourceId: 'genetics',
-                subjectId: 'subject-bio-101',
-                termId: 'term-finals',
-                order: 1,
-                createdAt: now,
-                updatedAt: now,
-            },
-            // World History — Prelim
-            {
-                id: 'ancient-civilizations',
-                title: 'Ancient Civilizations',
-                description: 'Mesopotamia, Egypt, Indus Valley, and early Chinese dynasties.',
-                sourceType: 'bundled',
-                sourceId: 'ancient-civilizations',
-                subjectId: 'subject-world-history',
-                termId: 'term-prelim',
-                order: 1,
-                createdAt: now,
-                updatedAt: now,
-            },
-            // Uncategorized
-            {
-                id: 'spanish-verbs',
-                title: 'Spanish Verb Conjugation',
-                description: 'Present tense conjugations for regular -ar, -er, and -ir verbs.',
-                sourceType: 'bundled',
-                sourceId: 'spanish-verbs',
-                createdAt: now,
-                updatedAt: now,
-            },
-        ];
-
-        // ── Legacy anatomy material (kept for backward compatibility) ──
-        const legacyMaterial: StudyMaterial = {
-            id: 'anatomy-physiology',
-            title: 'Anatomy & Physiology: Body Membranes',
-            description: 'Covering the integumentary system, skin structure, membranes, and common pathologies.',
-            sourceType: 'bundled',
-            sourceId: 'anatomy-physiology',
-            createdAt: now,
-            updatedAt: now,
-        };
-
-        const allMaterials = [...materials, legacyMaterial];
+        // ── Catalog (subjects/terms/materials) — hydrated from the D1 snapshot ──
+        // Seed-once semantics: fetch the canonical catalog from `/api/catalog` and
+        // bulk-write it into Dexie. After the first successful hydration, Dexie owns
+        // the local working copy and is never re-seeded from D1 (the guard above
+        // returns when subjects already exist). If the fetch fails — e.g. a fresh
+        // install with no network — skip seeding entirely; the library stays empty
+        // and the next boot retries.
+        const catalog = await this.fetchCatalog();
+        if (!catalog) {
+            console.warn('[DatabaseSeeder] Catalog hydration skipped — /api/catalog unavailable');
+            return;
+        }
 
         // ── Questions for each material ────────────────────────
         const master50Questions = build50CellBiologyQuestions(now);
@@ -176,14 +69,29 @@ export class DatabaseSeeder {
                 this.database.quizzes,
             ],
             async () => {
-                await this.database.subjects.bulkPut([bioSubject, historySubject]);
-                await this.database.terms.bulkPut(terms);
-                await this.database.subjectTerms.bulkPut(subjectTerms);
-                await this.database.materials.bulkPut(allMaterials);
+                await this.database.subjects.bulkPut(catalog.subjects);
+                await this.database.terms.bulkPut(catalog.terms);
+                await this.database.subjectTerms.bulkPut(catalog.subjectTerms);
+                await this.database.materials.bulkPut(catalog.materials);
                 await this.database.questions.bulkPut(allQuestions);
                 await this.database.quizzes.bulkPut([master50Quiz, cellQuiz, legacyQuiz]);
             },
         );
+    }
+
+    /**
+     * Fetches the canonical catalog snapshot from the API Worker.
+     * Returns null when the endpoint is unreachable or returns an error
+     * (e.g. first-ever offline boot) — the caller skips seeding in that case.
+     */
+    private async fetchCatalog(): Promise<CatalogSnapshot | null> {
+        try {
+            const response = await fetch('/api/catalog', { signal: AbortSignal.timeout(10_000) });
+            if (!response.ok) return null;
+            return (await response.json()) as CatalogSnapshot;
+        } catch {
+            return null;
+        }
     }
 
     private buildCellStructureQuestions(now: string): Question[] {

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "subject-bio-101",
+    "title": "Biology 101",
+    "description": "Introduction to biology — cells, respiration, photosynthesis, and genetics.",
+    "order": 1
+  },
+  {
+    "id": "subject-world-history",
+    "title": "World History",
+    "description": "Ancient civilizations, world wars, and modern global history.",
+    "order": 2
+  }
+]

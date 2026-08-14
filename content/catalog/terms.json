@@ -1,0 +1,14 @@
+[
+  {
+    "id": "term-prelim",
+    "title": "Prelim"
+  },
+  {
+    "id": "term-midterm",
+    "title": "Midterm"
+  },
+  {
+    "id": "term-finals",
+    "title": "Finals"
+  }
+]

@@ -9,7 +9,7 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 - `database/schema.ts` — Version 1/2/3/4/5 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state)
 - `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`.
 - `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 schema migration is handled natively by Dexie `version(3).upgrade()`; the v3 data pass (`lunaclair.migration.v3.complete`) normalizes stored question tags via domain `normalizeTags` (strip `#`, dedup case-insensitively, preserve first-seen casing).
-- `database/DatabaseSeeder.ts` — Seeds demo subjects, global terms, subject-term links, categorized/uncategorized materials, 5 sample questions (one per type), and starter quizzes if database is empty.
+- `database/DatabaseSeeder.ts` — Seed-once hydration: fetches the starter catalog (subjects, terms, subject-term links, materials) from `GET /api/catalog` (D1 snapshot) and bulk-writes into Dexie if empty; seeds 5 sample questions (one per type) and starter quizzes locally (quiz content still bundled). Skips seeding entirely when the catalog fetch fails (e.g. fresh offline boot) — the next boot retries.
 - `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()` → `seedIfEmpty()`.
 - `database/repositories/` — Concrete repository implementations. `DexieLibraryRepository` performs raw material persistence; material association validation belongs to application use cases.
   - `DexieQuestionRepository` → `QuestionRepository` (normalizes `tags` through domain `normalizeTags` on create/update)
@@ -37,7 +37,7 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 
 - Database name: `lunaclair-db`.
 - Migration is idempotent — guarded by localStorage flags for v1/v2/v3 data passes, native Dexie upgrade for schema v3.
-- Seeding is idempotent — skipped if `materials` store is non-empty.
+- Seeding is idempotent — skipped if `subjects` store is non-empty (seed-once: Dexie owns the local catalog after first hydration; D1 is never re-applied).
 - `DexieSubjectTermRepository.addTerm()` validates subject and term existence, prevents duplicate associations, and auto-computes `max(order) + 1`.
 - `DexieTermService.createAndAssignTerm()` runs a single `db.transaction('rw', [terms, subjectTerms, subjects])` that creates the global `Term`, validates the subject, and inserts the `SubjectTerm` junction with `max(order) + 1` — the operation is atomic.
 - `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.

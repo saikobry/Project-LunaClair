@@ -4,7 +4,7 @@
  *
  * Walks `content/materials/**`, extracts titles and content from `index.md`,
  * detects figures in `images/`, and idempotently upserts them to D1 via the
- * `lunaclair-api` Worker PUT endpoints using the bearer `SEED_TOKEN`.
+ * `api` Worker PUT endpoints using the bearer `SEED_TOKEN`.
  *
  * Usage:
  *   node scripts/seed-materials.mjs --local

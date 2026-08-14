@@ -16,8 +16,10 @@
   - `GET /health` — liveness + D1 connectivity probe (503 when D1 is unreachable).
   - `GET /api/documents/:sourceId` — public document fetch (`{ id, title, content }`), cached with `Cache-Control: public, max-age=3600`.
   - `GET /api/documents/:sourceId/figures/:filename` — public figure image fetch (binary bytes + `Content-Type`), cached with `Cache-Control: public, max-age=86400`.
+  - `GET /api/catalog` — public library catalog snapshot (`{ subjects, terms, subjectTerms, materials }`), cached with `Cache-Control: public, max-age=3600`. This is a **snapshot delivery endpoint, not a CRUD API** — the app hydrates Dexie from it once; no per-row write path.
   - `PUT /api/documents/:sourceId` — protected idempotent document ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
   - `PUT /api/documents/:sourceId/figures/:filename` — protected idempotent figure ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
+  - `PUT /api/catalog` — protected idempotent whole-catalog upsert (requires `Authorization: Bearer <SEED_TOKEN>`); rows applied in dependency order (subjects → terms → subjectTerms → materials) so FKs hold; `createdAt`/`updatedAt` server-stamped.
 - CORS: allowlist via the `CORS_ORIGINS` var (comma-separated). Empty or unset allows any requesting origin (`*`) with credentials-safe origin reflection for dev (5173/4173) and production; specified origins enforce an exact allowlist match.
 - Timestamps: `updatedAt` is always stamped server-side; clients never send timestamps.
 - Routing: plain `fetch` handler, no framework. Add routes in `worker/src/index.ts`.

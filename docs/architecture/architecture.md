@@ -61,6 +61,7 @@ Reusable domain-agnostic types, constants, utility functions, design tokens, and
 - Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~1.5 MB.
 - D1 is only reachable through the `api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema lives as versioned migrations in `worker/migrations/`; canonical markdown files live in `content/materials/` and are seeded via `scripts/seed-materials.mjs`.
+- The starter library catalog (subjects, terms, subject-term links, materials metadata) is also D1-delivered: canonical JSON at `content/catalog/` seeded via `scripts/seed-catalog.mjs`, served as one public snapshot at `GET /api/catalog`. `DatabaseSeeder` hydrates Dexie from it once on first boot (seed-once); quiz seed content remains bundled until its own delivery phase.
 - The Worker's `GET /health` endpoint verifies D1 connectivity.
 
 ## Application Workflow Boundary
