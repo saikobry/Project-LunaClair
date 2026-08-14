@@ -11,7 +11,7 @@ Legacy infrastructure adapters: localStorage wrappers and content fetch helpers.
 - `storage/LocalStorageAnnotationRepository.ts` — Class implementing `AnnotationRepository` async contract with `AbortSignal` support. Module-level singleton `localStorageAnnotationRepository`.
 - `storage/index.ts` — Barrel re-export of localStorage helpers + repository implementations
 - `content/ApiDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: resolves `StudyMaterial` → `Document` via HTTP `fetch('/api/documents/{sourceId}')`. Throws `DocumentNotFoundError` on non-200 or network failure. Delegates transformation to `markdownPreprocessor`. Singleton `apiDocumentRepository`.
-- `content/ApiCatalogRepository.ts` — Class implementing `CatalogRepository` async contract: fetches the D1 catalog snapshot (`GET /api/catalog`). Singleton `apiCatalogRepository`.
+- `content/ApiCatalogRepository.ts` — Class implementing `CatalogRepository` async contract: fetches the D1 catalog snapshot (`GET /api/catalog`, SW-cached) and resolves single materials authoritatively for import (`GET /api/catalog/materials/:id`, uncached). Singleton `apiCatalogRepository`.
 - `content/ApiQuizContentRepository.ts` — Class implementing `QuizContentRepository` async contract: fetches the D1 quiz snapshot (`GET /api/quiz`, assembled shapes). Singleton `apiQuizContentRepository`.
 - `content/HybridDocumentRepository.ts` — Class implementing `DocumentRepository` async contract: serves locally imported document content from Dexie (`DocumentContentRepository`) first, falling back to the API-backed repository. Imported materials read fully offline; unimported materials hit the API (SW-cached).
 - `content/markdownPreprocessor.ts` — Pure utility: resolves relative image URLs (`images/…` → `/api/documents/{sourceId}/figures/…`).
@@ -26,6 +26,7 @@ Legacy infrastructure adapters: localStorage wrappers and content fetch helpers.
 - `getFromStorage` accepts a fallback value returned when key is missing or parsing fails.
 - Features call storage via repository contract interfaces, never `localStorage` directly.
 - `ApiDocumentRepository` resolves content via HTTP fetch from `/api/documents/{sourceId}` (proxied in dev/prod), which is cached offline by the service worker via Workbox `CacheFirst`.
+- `ApiCatalogRepository.getMaterial` hits the uncached per-material endpoint (Worker sends `Cache-Control: no-store`) so imports resolve against current server state, never the cached snapshot.
 - `markdownPreprocessor` is a pure function — receives raw markdown + `sourceId`, rewrites figure image URLs to `/api/documents/{sourceId}/figures/...`, returns transformed markdown.
 - Storage keys are namespaced under `lunaclair.{domain}.{entity}` (see `shared/constants/storageKeys.ts`).
 

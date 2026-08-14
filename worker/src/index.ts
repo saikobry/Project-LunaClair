@@ -5,6 +5,7 @@
  *   GET  /api/documents/:sourceId                       → { id, title, content }
  *   GET  /api/documents/:sourceId/figures/:filename     → figure bytes
  *   GET  /api/catalog                                   → { subjects, terms, subjectTerms, materials }
+ *   GET  /api/catalog/materials/:id                     → { material, subject?, term?, subjectTerm? }
  *   GET  /api/quiz                                      → { questions, quizzes } (assembled)
  *
  * Ingest endpoints (require `Authorization: Bearer <SEED_TOKEN>`):
@@ -16,6 +17,10 @@
  * `/api/catalog` is a **snapshot delivery endpoint**, not a CRUD API — the
  * app surfaces it as Available Materials and imports individual materials on
  * user action; no per-row write path.
+ * `/api/catalog/materials/:id` is the **authoritative per-material resolution**
+ * used by import (uncached `no-store`): import must never depend on the full
+ * snapshot being present in memory, and must resolve against current server
+ * state — never the 30-day-cached snapshot.
  * `updatedAt`/`createdAt` are always stamped by the server — clients never send timestamps.
  * Path segments are decoded exactly and validated: no `/`, `\`, or `..` in
  * `sourceId`/`filename`, and lookups are always by the composite key, so one
@@ -273,6 +278,63 @@ export default {
           await upsert(body.materials, db.insert(materials), materials.id);
         }
         return json({ ok: true, updatedAt: now }, 200, corsHeaders);
+      }
+
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/catalog/materials/:id — authoritative resolution of ONE material plus
+    // the relationships ImportMaterialUseCase needs ({ material, subject?, term?,
+    // subjectTerm? }). Uncached (`no-store`): imports must resolve against current
+    // server state, never the 30-day-cached snapshot.
+    if (
+      parts[0] === "api" &&
+      parts[1] === "catalog" &&
+      parts[2] === "materials" &&
+      parts.length === 4
+    ) {
+      if (request.method === "GET" || request.method === "HEAD") {
+        const materialId = decodeSegment(parts[3]);
+        if (materialId === null) return json({ error: "Bad request" }, 400, corsHeaders);
+
+        const material = await db
+          .select()
+          .from(materials)
+          .where(eq(materials.id, materialId))
+          .get();
+        if (!material) return json({ error: "Material not found" }, 404, corsHeaders);
+
+        const [subject, term, subjectTerm] = await Promise.all([
+          material.subjectId
+            ? db.select().from(subjects).where(eq(subjects.id, material.subjectId)).get()
+            : Promise.resolve(undefined),
+          material.termId
+            ? db.select().from(terms).where(eq(terms.id, material.termId)).get()
+            : Promise.resolve(undefined),
+          material.subjectId && material.termId
+            ? db
+                .select()
+                .from(subjectTerms)
+                .where(
+                  and(
+                    eq(subjectTerms.subjectId, material.subjectId),
+                    eq(subjectTerms.termId, material.termId),
+                  ),
+                )
+                .get()
+            : Promise.resolve(undefined),
+        ]);
+
+        return json(
+          {
+            material,
+            subject: subject ?? undefined,
+            term: term ?? undefined,
+            subjectTerm: subjectTerm ?? undefined,
+          },
+          200,
+          { ...corsHeaders, "cache-control": "no-store" },
+        );
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);

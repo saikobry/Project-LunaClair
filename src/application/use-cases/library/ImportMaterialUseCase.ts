@@ -3,9 +3,6 @@ import type { LibraryImportService } from '../../../domain/library/LibraryImport
 import type { QuizContentRepository } from '../../../domain/quiz/QuizContentRepository';
 import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
 import type { DocumentRepository } from '../../../domain/reader/DocumentRepository';
-import type { Subject } from '../../../domain/library/Subject';
-import type { Term } from '../../../domain/library/Term';
-import type { SubjectTerm } from '../../../domain/library/SubjectTerm';
 
 /**
  * Imports one material from the remote catalog into the local library.
@@ -39,23 +36,14 @@ export class ImportMaterialUseCase {
     }
 
     async execute(materialId: string, signal?: AbortSignal): Promise<void> {
-        // 1. Resolve the material from the canonical catalog.
-        const catalog = await this.catalog.getCatalog(signal);
-        const material = catalog.materials.find((m) => m.id === materialId);
-        if (!material) throw new Error(`Material not found in catalog: ${materialId}`);
-
-        const subject: Subject | undefined = material.subjectId
-            ? catalog.subjects.find((s) => s.id === material.subjectId)
-            : undefined;
-        const term: Term | undefined = material.termId
-            ? catalog.terms.find((t) => t.id === material.termId)
-            : undefined;
-        const subjectTerm: SubjectTerm | undefined =
-            material.subjectId && material.termId
-                ? catalog.subjectTerms.find(
-                      (st) => st.subjectId === material.subjectId && st.termId === material.termId,
-                  )
-                : undefined;
+        // 1. Resolve the material + its relationships authoritatively from the
+        //    server (`GET /api/catalog/materials/:id`). Import never requires
+        //    the full catalog snapshot to be present in memory. Throws when the
+        //    material is not in the canonical catalog.
+        const { material, subject, term, subjectTerm } = await this.catalog.getMaterial(
+            materialId,
+            signal,
+        );
 
         // 2. Fetch document content (markdown) — figures stay SW-cached.
         let documentContent: ImportedDocumentContent | undefined;
