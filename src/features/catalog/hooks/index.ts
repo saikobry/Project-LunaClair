@@ -9,10 +9,12 @@ export {
   useDeleteMaterial,
   useEditMaterial,
   useTouchMaterial,
+} from '../materials/hooks';
+export {
   useAvailableCatalog,
   useImportMaterial,
   useRemoveImportedMaterial,
-} from '../materials/hooks';
+} from '../available/hooks';
 export {
   useSubject,
   useSubjects,

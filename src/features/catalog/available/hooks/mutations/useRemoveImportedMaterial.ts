@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { useToast } from '../../../../../app/providers/ToastContext';
-import { useLibraryRepository } from '../useLibraryRepository';
+import { useLibraryRepository } from '../../../materials/hooks/useLibraryRepository';
 
 /**
  * Removes one material from the local library (local-only — the canonical D1

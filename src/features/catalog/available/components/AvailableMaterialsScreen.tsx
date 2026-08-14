@@ -9,7 +9,7 @@ import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import { useAvailableCatalog } from '../hooks/queries/useAvailableCatalog';
 import { useImportMaterial } from '../hooks/mutations/useImportMaterial';
 import { useRemoveImportedMaterial } from '../hooks/mutations/useRemoveImportedMaterial';
-import { useLibrary } from '../hooks/queries/useLibrary';
+import { useLibrary } from '../../materials/hooks/queries/useLibrary';
 import { styles } from '../../shared/styles/library.stylex';
 
 const localStyles = stylex.create({

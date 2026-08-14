@@ -1,7 +1,7 @@
 // ── Catalog feature public contract ────────────────────────────────
 // Screens
 export { default as LibraryScreen } from './materials/components/LibraryScreen';
-export { default as AvailableMaterialsScreen } from './materials/components/AvailableMaterialsScreen';
+export { default as AvailableMaterialsScreen } from './available/components/AvailableMaterialsScreen';
 export { default as SubjectWorkspace } from './subjects/components/SubjectWorkspace';
 export type { SubjectTab } from './subjects/components/SubjectWorkspace';
 export { TermManagerScreen } from './terms/components/TermManagerScreen';

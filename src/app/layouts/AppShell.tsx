@@ -7,7 +7,7 @@ import * as stylex from '@stylexjs/stylex';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
-import AvailableMaterialsScreen from '../../features/catalog/materials/components/AvailableMaterialsScreen';
+import AvailableMaterialsScreen from '../../features/catalog/available/components/AvailableMaterialsScreen';
 import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
 import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { useToast } from '../../../../../app/providers/ToastContext';
-import { useLibraryRepository } from '../useLibraryRepository';
+import { useLibraryRepository } from '../../../materials/hooks/useLibraryRepository';
 
 /**
  * Imports one material from the remote catalog into the local library.
