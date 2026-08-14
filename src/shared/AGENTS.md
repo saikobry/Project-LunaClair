@@ -8,7 +8,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 
 | Module | Contents |
 |---|---|
-| `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) |
+| `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) |
 | `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
 | `ui/` | Design system primitive adapters and low-level container primitives — includes `TagInput` (tag/chip input: type+Enter or comma/paste bulk entry, removable `#tag` tokens, output normalized through the domain `tags.ts` helpers) |
 | `components/` | Domain-neutral composites such as `ActionMenu` and `SelectableRow` |

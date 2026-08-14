@@ -31,6 +31,7 @@ Reserved domains:
 - `SubjectTermRepository` enforces: validated subject/term existence, automatic `max(order) + 1` on add, atomic sync/replace, and input uniqueness checks for `syncTerms`.
 - `TermService` is the domain application service contract (`createAndAssignTerm(subjectId, title)`) for workflows spanning multiple aggregates — implemented by `DexieTermService` in infrastructure, supplied to features via `ApplicationContext`. Domain/feature code never imports Dexie directly.
 - `TermRepository.deleteTerm(id)` atomically cascades: removes all `SubjectTerm` junction rows referencing `id` and clears `termId` on `StudyMaterial`.
+- `TermRepository.upsertTerms(terms)` is the idempotent bulk upsert by id (insert-or-overwrite) used to sync canonical catalog terms into local state — e.g. `SyncDefaultTermsUseCase` writing the default academic terms after onboarding.
 - `SubjectRepository.deleteSubject(id)` atomically cascades: removes `SubjectTerm` rows and clears `subjectId`/`termId` on associated `StudyMaterial`.
 
 ## Work Guidance

@@ -8,7 +8,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 
 - `use-cases/quiz/` owns quiz session start and atomic submission.
 - `use-cases/quiz-management/` owns question and quiz authoring workflows, including `SaveQuizUseCase` (concurrency guard → draft validation → version increment rules → atomic commit via `QuizEditorService`, returns the `SaveQuizResult` discriminated union).
-- `use-cases/library/` owns material association validation, CRUD workflows, and the material import/removal workflows (`ImportMaterialUseCase` — resolves the material authoritatively per-id via `CatalogRepository.getMaterial` (never the full snapshot), fetches document/quiz content, and persists atomically via `LibraryImportService`; `RemoveImportedMaterialUseCase` — local-only removal that leaves the canonical D1 catalog entry untouched).
+- `use-cases/library/` owns material association validation, CRUD workflows, and the material import/removal workflows (`ImportMaterialUseCase` — resolves the material authoritatively per-id via `CatalogRepository.getMaterial` (never the full snapshot), fetches document/quiz content, and persists atomically via `LibraryImportService`; `RemoveImportedMaterialUseCase` — local-only removal that leaves the canonical D1 catalog entry untouched; `SyncDefaultTermsUseCase` — syncs the canonical academic terms (Prelim/Midterm/Finals) from `CatalogRepository.getCatalog()` into the local terms store, invoked at first-run onboarding completion).
 - `use-cases/subject/` owns subject-term and cascade workflows.
 - `use-cases/reader/` owns annotation persistence workflows.
 - `quiz-management/drafts/` owns the quiz canvas Application Session DTOs (`QuizDraft`/`QuestionDraft`), draft validation (`quizDraftValidation`), the `QuizDraftRepository` crash-recovery contract, and draft seeding helpers. Drafts carry UI session concerns (`tempId`, `isDirty`) and are never persisted to the Question Bank or Quiz Catalog.
@@ -17,7 +17,8 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 
 - Use cases never import React, TanStack Query, Dexie, browser APIs, or UI components.
 - Dependencies are domain repository/service contracts, domain models/services, and application input/output types.
-- Import must never require the full catalog snapshot in memory — `ImportMaterialUseCase` resolves via `CatalogRepository.getMaterial`.
+- Import must never require the full catalog snapshot in memory — `ImportMaterialUseCase` resolves via `CatalogRepository.getMaterial`. (The snapshot read in `SyncDefaultTermsUseCase` is onboarding-scoped default-term sync, not import.)
+- Default-term sync is insert-if-missing by id, idempotent, and never overwrites local term edits; fetch failures return `{ synced: false }` (terms still arrive later via import) while persistence failures surface as real errors.
 - React hooks remain thin adapters for cache behavior and presentation concerns.
 - `SaveQuizUseCase` never touches IndexedDB draft storage or query caches — draft deletion and cache invalidation belong to the UI editor layer.
 - Version increment rule: `questionVersion` bumps only when question prompt or answer payload content changes; points, order, and quiz-specific metadata never bump.

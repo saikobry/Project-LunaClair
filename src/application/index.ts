@@ -17,6 +17,8 @@ export { UpdateMaterialUseCase } from './use-cases/library/UpdateMaterialUseCase
 export { DeleteMaterialUseCase } from './use-cases/library/DeleteMaterialUseCase';
 export { ImportMaterialUseCase } from './use-cases/library/ImportMaterialUseCase';
 export { RemoveImportedMaterialUseCase } from './use-cases/library/RemoveImportedMaterialUseCase';
+export { SyncDefaultTermsUseCase } from './use-cases/library/SyncDefaultTermsUseCase';
+export type { SyncDefaultTermsResult } from './use-cases/library/SyncDefaultTermsUseCase';
 export { TouchMaterialUseCase } from './use-cases/library/TouchMaterialUseCase';
 export { CreateAndAssignTermUseCase } from './use-cases/subject/CreateAndAssignTermUseCase';
 export { SyncSubjectTermsUseCase } from './use-cases/subject/SyncSubjectTermsUseCase';

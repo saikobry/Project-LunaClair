@@ -46,6 +46,11 @@ export class DexieTermRepository implements TermRepository {
         return updated;
     }
 
+    async upsertTerms(terms: Term[]): Promise<void> {
+        if (terms.length === 0) return;
+        await db.terms.bulkPut(terms);
+    }
+
     async deleteTerm(id: string): Promise<void> {
         await db.transaction('rw', [db.terms, db.subjectTerms, db.materials], async () => {
             // Remove all SubjectTerm junction rows referencing this term

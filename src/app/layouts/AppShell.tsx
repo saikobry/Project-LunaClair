@@ -20,6 +20,7 @@ import MaterialWorkspace from './MaterialWorkspace';
 import { AppSidebar } from './AppSidebar/AppSidebar';
 import OfflineBanner from './OfflineBanner';
 import { InstallPrompt, InstallInstructionsDialog } from './InstallPrompt';
+import { OnboardingTutorial } from './OnboardingTutorial';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };
@@ -484,6 +485,13 @@ export default function AppShell() {
       <InstallInstructionsDialog
         isOpen={installInfoOpen}
         onClose={() => setInstallInfoOpen(false)}
+      />
+
+      {/* First-run onboarding — one-time welcome flow; Finish syncs default terms */}
+      <OnboardingTutorial
+        suppressed={
+          currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
+        }
       />
       </div>
     </FocusModeProvider>
