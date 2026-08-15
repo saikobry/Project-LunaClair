@@ -1,4 +1,4 @@
-import { AddTermToSubjectUseCase, ArchiveQuestionUseCase, ArchiveQuizUseCase, ClearAnnotationsUseCase, CreateAndAssignTermUseCase, CreateMaterialUseCase, CreateQuestionUseCase, CreateQuizUseCase, DeleteMaterialUseCase, DeleteSubjectUseCase, DeleteTermUseCase, ImportMaterialUseCase, PublishQuestionUseCase, PublishQuizUseCase, RemoveImportedMaterialUseCase, RemoveTermFromSubjectUseCase, ReorderSubjectTermsUseCase, SaveDrawingUseCase, SaveHighlightUseCase, SaveQuizUseCase, StartQuizSessionUseCase, SubmitQuizSessionUseCase, SyncDefaultTermsUseCase, SyncSubjectTermsUseCase, TouchMaterialUseCase, UnarchiveQuestionUseCase, UnarchiveQuizUseCase, UpdateMaterialUseCase, UpdateQuestionUseCase, UpdateQuizUseCase } from '../../application';
+import { AddTermToSubjectUseCase, ArchiveQuestionUseCase, ArchiveQuizUseCase, ClearAnnotationsUseCase, CreateAndAssignTermUseCase, CreateMaterialUseCase, CreateQuestionUseCase, CreateQuizUseCase, DeleteMaterialUseCase, DeleteSubjectUseCase, DeleteTermUseCase, ImportMaterialUseCase, ImportSubjectUseCase, PublishQuestionUseCase, PublishQuizUseCase, RemoveImportedMaterialUseCase, RemoveTermFromSubjectUseCase, ReorderSubjectTermsUseCase, SaveDrawingUseCase, SaveHighlightUseCase, SaveQuizUseCase, StartQuizSessionUseCase, SubmitQuizSessionUseCase, SyncDefaultTermsUseCase, SyncSubjectTermsUseCase, TouchMaterialUseCase, UnarchiveQuestionUseCase, UnarchiveQuizUseCase, UpdateMaterialUseCase, UpdateQuestionUseCase, UpdateQuizUseCase } from '../../application';
 import type { Repositories } from './createRepositories';
 
 export function createUseCases(repositories: Repositories) {
@@ -15,6 +15,7 @@ export function createUseCases(repositories: Repositories) {
             deleteMaterial: new DeleteMaterialUseCase(repositories.libraryRepository),
             touchMaterial: new TouchMaterialUseCase(repositories.libraryRepository),
             importMaterial: new ImportMaterialUseCase(repositories.catalogRepository, repositories.quizContentRepository, repositories.documentRepository, repositories.libraryImportService),
+            importSubject: new ImportSubjectUseCase(repositories.catalogRepository, repositories.libraryRepository, repositories.quizContentRepository, repositories.documentRepository, repositories.libraryImportService),
             removeImportedMaterial: new RemoveImportedMaterialUseCase(repositories.libraryImportService),
             syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.catalogRepository, repositories.termRepository),
         },

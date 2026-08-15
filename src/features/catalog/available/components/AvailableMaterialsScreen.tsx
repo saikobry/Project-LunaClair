@@ -10,6 +10,7 @@ import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
 import { useAvailableCatalog } from '../hooks/queries/useAvailableCatalog';
 import { useImportMaterial } from '../hooks/mutations/useImportMaterial';
+import { useImportSubject } from '../hooks/mutations/useImportSubject';
 import { useRemoveImportedMaterial } from '../hooks/mutations/useRemoveImportedMaterial';
 import { useLibrary } from '../../materials/hooks/queries/useLibrary';
 import { styles } from '../../shared/styles/library.stylex';
@@ -23,6 +24,14 @@ const localStyles = stylex.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  sectionTitleGroup: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   sectionTitle: {
     fontSize: 18,
@@ -33,6 +42,11 @@ const localStyles = stylex.create({
   sectionCount: {
     fontSize: 13,
     color: 'var(--color-text-disabled)',
+  },
+  sectionHeaderActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   },
   // Single-column card list (this screen renders one card per row)
   list: {
@@ -116,14 +130,16 @@ interface AvailableMaterialsScreenProps {
  *
  * Nothing here is auto-imported into Dexie. Each material shows its import
  * status (available remotely / in the local library) and an explicit
- * [ Add to Library ] / [ Remove from Library ] action. Imported materials open
- * via the normal workspace route. Clicking an available material opens its
- * read-only preview surface.
+ * [ Add to Library ] / [ Remove from Library ] action. Subject section headers
+ * provide an [ Add All to Library ] action to import all missing materials in a subject.
+ * Imported materials open via the normal workspace route. Clicking an available
+ * material opens its read-only preview surface.
  */
 export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: AvailableMaterialsScreenProps) {
   const { catalog, isLoading, isError } = useAvailableCatalog();
   const { materials: localMaterials } = useLibrary();
   const importMutation = useImportMaterial();
+  const importSubjectMutation = useImportSubject();
   const removeMutation = useRemoveImportedMaterial();
 
   const localIds = new Set(localMaterials.map((m) => m.id));
@@ -166,7 +182,7 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
 
   const renderMaterialCard = (material: StudyMaterial) => {
     const imported = localIds.has(material.id);
-    const busy = importMutation.isPending || removeMutation.isPending;
+    const busy = importMutation.isPending || removeMutation.isPending || importSubjectMutation.isPending;
 
     return (
       <Card key={material.id}>
@@ -260,13 +276,37 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
       {!isLoading && catalog && subjects.map((subject) => {
         const group = materialsBySubject.get(subject.id) ?? [];
         if (group.length === 0) return null;
+
+        const unimportedCount = group.filter((m) => !localIds.has(m.id)).length;
+        const allImported = unimportedCount === 0 && group.length > 0;
+        const isSubjectPending = importSubjectMutation.isPending && importSubjectMutation.variables === subject.id;
+        const busy = importMutation.isPending || removeMutation.isPending || importSubjectMutation.isPending;
+
         return (
           <div key={subject.id} {...stylex.props(localStyles.section)}>
             <div {...stylex.props(localStyles.sectionHeader)}>
-              <h2 {...stylex.props(localStyles.sectionTitle)}>{subject.title}</h2>
-              <span {...stylex.props(localStyles.sectionCount)}>
-                {group.length} {group.length === 1 ? 'material' : 'materials'}
-              </span>
+              <div {...stylex.props(localStyles.sectionTitleGroup)}>
+                <h2 {...stylex.props(localStyles.sectionTitle)}>{subject.title}</h2>
+                <span {...stylex.props(localStyles.sectionCount)}>
+                  {group.length} {group.length === 1 ? 'material' : 'materials'}
+                </span>
+              </div>
+              <div {...stylex.props(localStyles.sectionHeaderActions)}>
+                {allImported ? (
+                  <Chip variant="accent">All in Library</Chip>
+                ) : (
+                  <Button
+                    label={`Add all ${unimportedCount} materials from ${subject.title} to your library`}
+                    variant="secondary"
+                    icon={<Download size={14} />}
+                    isDisabled={busy}
+                    isLoading={isSubjectPending}
+                    onClick={() => importSubjectMutation.mutate(subject.id)}
+                  >
+                    Add All to Library ({unimportedCount})
+                  </Button>
+                )}
+              </div>
             </div>
             <div {...stylex.props(localStyles.list)}>
               {group.map(renderMaterialCard)}

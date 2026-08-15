@@ -36,6 +36,13 @@ export interface LibraryImportService {
   importMaterial(input: ImportMaterialInput): Promise<void>;
 
   /**
+   * Persists multiple imported materials atomically in a single transaction:
+   * deduplicates subject/term/subjectTerm rows across inputs, and bulk-inserts
+   * materials, questions, quizzes, and document contents.
+   */
+  importMaterialBatch(inputs: ImportMaterialInput[]): Promise<void>;
+
+  /**
    * Removes one imported material from the local library: the material row,
    * its questions and quizzes, and its locally imported document content.
    * Canonical D1 catalog entries are untouched (this is local-only removal).
