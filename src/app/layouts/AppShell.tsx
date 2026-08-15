@@ -257,7 +257,7 @@ export default function AppShell() {
             active={
               currentRoute.kind === 'library'
                 ? 'library'
-                : currentRoute.kind === 'available'
+                : currentRoute.kind === 'available' || currentRoute.kind === 'preview'
                   ? 'available'
                   : currentRoute.kind === 'terms'
                     ? 'terms'

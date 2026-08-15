@@ -8,6 +8,7 @@
 export type AppRoute =
   | { kind: 'library' }
   | { kind: 'available' }
+  | { kind: 'preview'; materialId: string }
   | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
@@ -23,6 +24,8 @@ export function routeToUrl(route: AppRoute): string {
       return '/';
     case 'available':
       return '/available';
+    case 'preview':
+      return `/available/${route.materialId}/preview`;
     case 'terms':
       return '/terms';
     case 'subject':
@@ -42,6 +45,12 @@ export function routeToUrl(route: AppRoute): string {
  */
 export function urlToRoute(path: string, search: string): AppRoute | null {
   const url = new URL(path + search, window.location.origin);
+
+  // /available/:materialId/preview — read-only preview of a not-yet-imported material
+  const previewMatch = url.pathname.match(/^\/available\/([^/]+)\/preview$/);
+  if (previewMatch) {
+    return { kind: 'preview', materialId: previewMatch[1] };
+  }
 
   // /materials/:materialId/builder[/:quizId] — dedicated quiz canvas route
   const builderMatch = url.pathname.match(/^\/materials\/([^/]+)\/builder(?:\/([^/]+))?$/);

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Download, Plus } from 'lucide-react';
 import type { StudyMaterial } from '../../../../domain/library';
 import type { Term } from '../../../../domain/library';
 import { MaterialCard } from '../../materials/components/MaterialCard/MaterialCard';
@@ -50,8 +50,16 @@ const styles = stylex.create({
     fontSize: 14,
     color: 'var(--color-text-secondary)',
     margin: 0,
-    maxWidth: 360,
+    maxWidth: 380,
     lineHeight: 1.5,
+  },
+  emptyActions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4,
   },
 });
 
@@ -65,6 +73,7 @@ interface MaterialsTabProps {
   onDelete?: (material: StudyMaterial) => void;
   onAddMaterial?: () => void;
   isAddingMaterial?: boolean;
+  onBrowseAvailable?: () => void;
 }
 
 export default function MaterialsTab({
@@ -77,6 +86,7 @@ export default function MaterialsTab({
   onDelete,
   onAddMaterial,
   isAddingMaterial = false,
+  onBrowseAvailable,
 }: MaterialsTabProps) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
@@ -135,20 +145,32 @@ export default function MaterialsTab({
           </div>
           <h3 {...stylex.props(styles.emptyTitle)}>No materials yet</h3>
           <p {...stylex.props(styles.emptyText)}>
-            This subject doesn't have any study materials yet.
-            Create your first material to start studying.
+            This subject doesn't have any study materials in your library yet.
+            Browse available materials from the catalog or create a custom one.
           </p>
-          {onAddMaterial && (
-            <Button
-              label="Create your first material"
-              variant="primary"
-              icon={<Plus size={18} />}
-              onClick={onAddMaterial}
-              isLoading={isAddingMaterial}
-            >
-              Create your first material
-            </Button>
-          )}
+          <div {...stylex.props(styles.emptyActions)}>
+            {onBrowseAvailable && (
+              <Button
+                label="Browse Available Materials"
+                variant="primary"
+                icon={<Download size={16} />}
+                onClick={onBrowseAvailable}
+              >
+                Browse Available Materials
+              </Button>
+            )}
+            {onAddMaterial && (
+              <Button
+                label="Create Custom Material"
+                variant={onBrowseAvailable ? 'secondary' : 'primary'}
+                icon={<Plus size={16} />}
+                onClick={onAddMaterial}
+                isLoading={isAddingMaterial}
+              >
+                Create Custom Material
+              </Button>
+            )}
+          </div>
         </div>
       ) : filteredMaterials.length === 0 ? (
         /* Filtered empty state — materials exist but none match the filter */

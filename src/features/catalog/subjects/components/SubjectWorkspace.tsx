@@ -263,6 +263,7 @@ export default function SubjectWorkspace({
             onDelete={handleDeleteTrigger}
             onAddMaterial={handleAddMaterial}
             isAddingMaterial={createMaterialMutation.isPending}
+            onBrowseAvailable={() => onNavigate({ kind: 'available' })}
           />
         )}
 

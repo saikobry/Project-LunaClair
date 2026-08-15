@@ -98,11 +98,27 @@ const gridStyles = stylex.create({
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     gap: 16,
   },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
 });
 
-export function CardGridSkeleton({ count = 6 }: { count?: number }) {
+export function CardGridSkeleton({
+  count = 6,
+  variant = 'grid',
+}: {
+  count?: number;
+  /** 'grid' (multi-column) or 'list' (single column per row). */
+  variant?: 'grid' | 'list';
+}) {
   return (
-    <div {...stylex.props(gridStyles.grid)} role="status" aria-label="Loading cards">
+    <div
+      {...stylex.props(variant === 'list' ? gridStyles.list : gridStyles.grid)}
+      role="status"
+      aria-label="Loading cards"
+    >
       {Array.from({ length: count }, (_, i) => (
         <CardSkeleton key={i} />
       ))}

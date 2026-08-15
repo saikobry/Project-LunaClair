@@ -6,6 +6,7 @@ import QuizScreen from '../../features/quiz/QuizScreen';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
 import AvailableMaterialsScreen from '../../features/catalog/available/components/AvailableMaterialsScreen';
+import PreviewMaterialScreen from '../../features/catalog/available/components/PreviewMaterialScreen';
 import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
 import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
@@ -111,7 +112,17 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
         />
       )}
       {currentRoute.kind === 'available' && (
-        <AvailableMaterialsScreen onOpenMaterial={handleOpenMaterial} />
+        <AvailableMaterialsScreen
+          onOpenMaterial={handleOpenMaterial}
+          onPreview={(materialId) => navigate({ kind: 'preview', materialId })}
+        />
+      )}
+      {currentRoute.kind === 'preview' && (
+        <PreviewMaterialScreen
+          materialId={currentRoute.materialId}
+          onBack={() => navigate({ kind: 'available' })}
+          onOpenMaterial={handleOpenMaterial}
+        />
       )}
       {currentRoute.kind === 'terms' && (
         <TermManagerScreen />
