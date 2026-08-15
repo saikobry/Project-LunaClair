@@ -1,11 +1,16 @@
-import { type KeyboardEvent } from 'react';
+import { useState, useMemo, type KeyboardEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, Download, Trash2, WifiOff } from 'lucide-react';
+import { BookOpen, Download, Search, Trash2, WifiOff } from 'lucide-react';
 import type { StudyMaterial } from '../../../../domain/library';
 import { Page } from '../../../../shared/ui/Page';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { Card } from '../../../../shared/ui/Card';
 import { Chip } from '../../../../shared/ui/Chip/Chip';
+import { Input } from '../../../../shared/ui/Input/Input';
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from '../../../../shared/ui/SegmentedControl/SegmentedControl';
 import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
 import { useAvailableCatalog } from '../hooks/queries/useAvailableCatalog';
@@ -15,7 +20,39 @@ import { useRemoveImportedMaterial } from '../hooks/mutations/useRemoveImportedM
 import { useLibrary } from '../../materials/hooks/queries/useLibrary';
 import { styles } from '../../shared/styles/library.stylex';
 
+type AvailabilityFilter = 'all' | 'available' | 'imported';
+
+const mobile = '@media (max-width: 640px)';
+
 const localStyles = stylex.create({
+  filterBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+    flexWrap: 'wrap',
+    [mobile]: {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: 10,
+    },
+  },
+  searchField: {
+    flex: 1,
+    minWidth: 240,
+    [mobile]: {
+      width: '100%',
+      minWidth: 0,
+    },
+  },
+  segmentedFilter: {
+    flexShrink: 0,
+    minWidth: 280,
+    [mobile]: {
+      width: '100%',
+      minWidth: 0,
+    },
+  },
   section: {
     marginBottom: 32,
   },
@@ -117,6 +154,38 @@ const localStyles = stylex.create({
     gap: 8,
     marginTop: 4,
   },
+  emptyResults: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
+    textAlign: 'center',
+    gap: 12,
+  },
+  emptyResultsIcon: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'var(--color-background-muted)',
+    color: 'var(--color-text-disabled)',
+  },
+  emptyResultsTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
+    margin: 0,
+  },
+  emptyResultsText: {
+    fontSize: 13,
+    color: 'var(--color-text-secondary)',
+    margin: 0,
+    maxWidth: 320,
+    lineHeight: 1.5,
+  },
 });
 
 interface AvailableMaterialsScreenProps {
@@ -134,35 +203,79 @@ interface AvailableMaterialsScreenProps {
  * provide an [ Add All to Library ] action to import all missing materials in a subject.
  * Imported materials open via the normal workspace route. Clicking an available
  * material opens its read-only preview surface.
+ *
+ * Includes client-side title/description search and availability status filtering.
  */
 export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: AvailableMaterialsScreenProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<AvailabilityFilter>('all');
+
   const { catalog, isLoading, isError } = useAvailableCatalog();
   const { materials: localMaterials } = useLibrary();
   const importMutation = useImportMaterial();
   const importSubjectMutation = useImportSubject();
   const removeMutation = useRemoveImportedMaterial();
 
-  const localIds = new Set(localMaterials.map((m) => m.id));
-  const materialsBySubject = new Map<string, StudyMaterial[]>();
-  const ungrouped: StudyMaterial[] = [];
+  const localIds = useMemo(() => new Set(localMaterials.map((m) => m.id)), [localMaterials]);
 
-  for (const material of catalog?.materials ?? []) {
-    if (material.subjectId) {
-      const list = materialsBySubject.get(material.subjectId) ?? [];
-      list.push(material);
-      materialsBySubject.set(material.subjectId, list);
-    } else {
-      ungrouped.push(material);
+  // Step 1: Filter materials by search query & status filter
+  const filteredMaterials = useMemo(() => {
+    const rawList = catalog?.materials ?? [];
+    const query = searchQuery.trim().toLowerCase();
+
+    return rawList.filter((material) => {
+      // 1. Search text filter (title or description)
+      if (query) {
+        const titleMatch = material.title.toLowerCase().includes(query);
+        const descMatch = (material.description ?? '').toLowerCase().includes(query);
+        if (!titleMatch && !descMatch) {
+          return false;
+        }
+      }
+
+      // 2. Status filter
+      const isImported = localIds.has(material.id);
+      if (statusFilter === 'available' && isImported) {
+        return false;
+      }
+      if (statusFilter === 'imported' && !isImported) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [catalog?.materials, searchQuery, statusFilter, localIds]);
+
+  // Step 2: Group filtered materials by subject and ungrouped
+  const { materialsBySubject, ungrouped } = useMemo(() => {
+    const bySubject = new Map<string, StudyMaterial[]>();
+    const withoutSubject: StudyMaterial[] = [];
+
+    for (const material of filteredMaterials) {
+      if (material.subjectId) {
+        const list = bySubject.get(material.subjectId) ?? [];
+        list.push(material);
+        bySubject.set(material.subjectId, list);
+      } else {
+        withoutSubject.push(material);
+      }
     }
-  }
+
+    return { materialsBySubject: bySubject, ungrouped: withoutSubject };
+  }, [filteredMaterials]);
 
   const subjects = catalog?.subjects ?? [];
   const termsById = new Map((catalog?.terms ?? []).map((t) => [t.id, t]));
 
+  const totalCatalogMaterials = catalog?.materials.length ?? 0;
+  const isFiltered = Boolean(searchQuery.trim() || statusFilter !== 'all');
+
   const description = isLoading
     ? undefined
     : catalog
-      ? `${catalog.materials.length} ${catalog.materials.length === 1 ? 'material' : 'materials'} available from the platform`
+      ? isFiltered
+        ? `Showing ${filteredMaterials.length} of ${totalCatalogMaterials} ${totalCatalogMaterials === 1 ? 'material' : 'materials'}`
+        : `${totalCatalogMaterials} ${totalCatalogMaterials === 1 ? 'material' : 'materials'} available from the platform`
       : undefined;
 
   const handleCardClick = (material: StudyMaterial) => {
@@ -272,6 +385,62 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
         </div>
       )}
 
+      {/* Filter and Search Bar */}
+      {!isLoading && catalog && totalCatalogMaterials > 0 && (
+        <div {...stylex.props(localStyles.filterBar)}>
+          <div {...stylex.props(localStyles.searchField)}>
+            <Input
+              label="Search available materials"
+              labelHidden
+              value={searchQuery}
+              onChange={(val) => setSearchQuery(val)}
+              placeholder="Search materials by title or description..."
+              startIcon={<Search size={16} />}
+              clearable
+              size="md"
+            />
+          </div>
+          <div {...stylex.props(localStyles.segmentedFilter)}>
+            <SegmentedControl
+              value={statusFilter}
+              onChange={(v: string) => setStatusFilter(v as AvailabilityFilter)}
+              label="Availability filter"
+              size="md"
+              layout="fill"
+            >
+              <SegmentedControlItem value="all" label="All" />
+              <SegmentedControlItem value="available" label="Available" />
+              <SegmentedControlItem value="imported" label="In Library" />
+            </SegmentedControl>
+          </div>
+        </div>
+      )}
+
+      {/* Filtered Empty Results State */}
+      {!isLoading && catalog && totalCatalogMaterials > 0 && filteredMaterials.length === 0 && (
+        <div {...stylex.props(localStyles.emptyResults)}>
+          <div {...stylex.props(localStyles.emptyResultsIcon)}>
+            <Search size={24} />
+          </div>
+          <h3 {...stylex.props(localStyles.emptyResultsTitle)}>No materials found</h3>
+          <p {...stylex.props(localStyles.emptyResultsText)}>
+            {searchQuery.trim()
+              ? `No materials matched "${searchQuery.trim()}".`
+              : 'No materials match the selected availability filter.'}
+          </p>
+          <Button
+            label="Clear filters"
+            variant="secondary"
+            onClick={() => {
+              setSearchQuery('');
+              setStatusFilter('all');
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+      )}
+
       {/* Subject groups */}
       {!isLoading && catalog && subjects.map((subject) => {
         const group = materialsBySubject.get(subject.id) ?? [];
@@ -330,8 +499,8 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
         </div>
       )}
 
-      {/* Empty catalog */}
-      {!isLoading && catalog && catalog.materials.length === 0 && (
+      {/* Empty catalog (when platform catalog itself has 0 items) */}
+      {!isLoading && catalog && totalCatalogMaterials === 0 && (
         <div {...stylex.props(styles.emptyState)}>
           <div {...stylex.props(styles.emptyIcon)}>
             <BookOpen size={64} />

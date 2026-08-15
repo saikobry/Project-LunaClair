@@ -9,8 +9,8 @@ const mobile = '@media (max-width: 768px)';
 
 const styles = stylex.create({
   scrollableContainer: {
-    width: '100%',
     boxSizing: 'border-box',
+    whiteSpace: 'nowrap',
     [mobile]: {
       display: 'flex',
       maxWidth: '100%',
@@ -25,16 +25,21 @@ const styles = stylex.create({
       },
     },
   },
+  fillWidth: {
+    width: '100%',
+  },
 });
 
 export function SegmentedControl({
   xstyle,
-  layout = 'fill',
+  layout = 'hug',
   ...props
 }: AstryxSegmentedControlProps) {
-  const combinedXstyle = xstyle
-    ? ([styles.scrollableContainer, xstyle] as unknown as AstryxSegmentedControlProps['xstyle'])
-    : (styles.scrollableContainer as unknown as AstryxSegmentedControlProps['xstyle']);
+  const combinedXstyle = [
+    styles.scrollableContainer,
+    layout === 'fill' && styles.fillWidth,
+    xstyle,
+  ].filter(Boolean) as unknown as AstryxSegmentedControlProps['xstyle'];
 
   return (
     <AstryxSegmentedControl
