@@ -26,7 +26,6 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
   - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
   - `DexieQuizEditorService` → `QuizEditorService` (atomic quiz authoring save across `questions` + `quizzes` stores; conditional `questionVersion` bumps; re-snapshots `questionVersion` into quiz items; normalizes `tags` through domain `normalizeTags` on question create/update)
   - `DexieLibraryImportService` → `LibraryImportService` (atomic import/removal across `subjects`, `terms`, `subjectTerms`, `materials`, `questions`, `quizzes`, `documentContents` stores)
-- `database/index.ts` — Barrel re-export of database core, startup services, schema versions, and repository singletons
 
 ## Local Contracts
 

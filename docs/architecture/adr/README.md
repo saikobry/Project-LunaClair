@@ -23,7 +23,8 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-006](ADR-006-immutable-quiz-history.md) | Immutable Quiz Session History via Embedded Question Snapshots | Accepted | Phase 5 |
 | [ADR-007](ADR-007-feature-first-architecture.md) | Feature-First Project Module Organization | Accepted | Phase 1 |
 | [ADR-008](ADR-008-shared-ui-vs-components-layering.md) | Shared UI Primitives vs. Composite Components Layering | Accepted | Phase 5 |
-| [ADR-009](ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership and Public Contracts | Accepted | Phase 6 |
+| [ADR-009](ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership and Public Contracts | Superseded by [ADR-010](ADR-010-replace-barrel-based-feature-boundaries.md) | Phase 6 |
+| [ADR-010](ADR-010-replace-barrel-based-feature-boundaries.md) | Replace Barrel-Based Feature Boundaries | Accepted | Phase 6 |
 
 ---
 

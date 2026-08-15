@@ -17,7 +17,7 @@ export class MultipleSelectStrategy implements QuestionStrategy {
         const selected = Array.isArray(value)
             ? value.map(Number).sort((a, b) => a - b)
             : [];
-        const correct = [...payload.correctIndices].sort((a, b) => a - b);
+        const correct = payload.correctIndices.toSorted((a, b) => a - b);
 
         const isCorrect =
             selected.length === correct.length &&

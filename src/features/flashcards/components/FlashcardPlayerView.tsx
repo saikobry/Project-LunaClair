@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import { RotateCw, X, Check, HelpCircle, AlertCircle, Award } from 'lucide-react';
 import type { Flashcard, FlashcardType } from '../../../domain/flashcards/Card';
 import type { Rating } from '../../../domain/flashcards/scheduler';
@@ -254,61 +254,11 @@ export function FlashcardPlayerView({
     onRating,
     onExit,
 }: FlashcardPlayerViewProps) {
-    const [isFlipped, setIsFlipped] = useState(false);
     const card = deck[currentIndex];
-
-    // Reset flip state when card index changes
-    useEffect(() => {
-        setIsFlipped(false);
-    }, [currentIndex]);
-
-    const handleFlip = useCallback(() => {
-        setIsFlipped((prev) => !prev);
-    }, []);
-
-    const handleRate = useCallback(
-        (rating: Rating) => {
-            if (!card) return;
-            onRating(card, rating);
-        },
-        [card, onRating]
-    );
-
-    // Keyboard navigation
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-                return;
-            }
-
-            if (e.code === 'Space' || e.code === 'Enter') {
-                e.preventDefault();
-                if (!isFlipped) {
-                    handleFlip();
-                }
-            } else if (isFlipped) {
-                if (e.key === '1') handleRate('again');
-                if (e.key === '2') handleRate('hard');
-                if (e.key === '3') handleRate('good');
-                if (e.key === '4') handleRate('easy');
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isFlipped, handleFlip, handleRate]);
-
     if (!card) return null;
 
     const total = deck.length;
     const progressPct = ((currentIndex + 1) / total) * 100;
-
-    const difficultyStyle =
-        card.difficulty === 'easy'
-            ? styles.difficultyEasy
-            : card.difficulty === 'hard'
-            ? styles.difficultyHard
-            : styles.difficultyMedium;
 
     return (
         <div {...stylex.props(styles.container)}>
@@ -334,8 +284,90 @@ export function FlashcardPlayerView({
                 />
             </div>
 
-            {/* 3D Flip Card */}
-            <div {...stylex.props(styles.cardWrapper)} onClick={handleFlip}>
+            {/* 3D Flip Card — keyed by card identity so the flip state resets
+                naturally when the card changes: React remounts the subtree, no
+                reset-on-prop-change effect and no stale-state flash. */}
+            <FlashcardCard key={card.key} card={card} onRating={onRating} />
+        </div>
+    );
+}
+
+/**
+ * One flip card (front/back faces + rating controls). Owns its own flip
+ * state; the parent keys it by card identity so advancing to the next card
+ * remounts it fresh.
+ */
+function FlashcardCard({
+    card,
+    onRating,
+}: {
+    card: Flashcard;
+    onRating: (card: Flashcard, rating: Rating) => void;
+}) {
+    const [isFlipped, setIsFlipped] = useState(false);
+
+    const handleFlip = useCallback(() => {
+        setIsFlipped((prev) => !prev);
+    }, []);
+
+    // Keyboard activation for the card itself (role="button"). The window
+    // handler below also listens for Space/Enter, so stop propagation here to
+    // avoid a double flip when the card has focus.
+    const handleCardKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleFlip();
+            }
+        },
+        [handleFlip]
+    );
+
+    // Keyboard navigation — an Effect Event keeps the window listener
+    // subscribed once while still reading the freshest state/callbacks
+    // (flip state, rating handler) on every keypress.
+    const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+            return;
+        }
+
+        if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault();
+            if (!isFlipped) {
+                handleFlip();
+            }
+        } else if (isFlipped) {
+            if (e.key === '1') onRating(card, 'again');
+            if (e.key === '2') onRating(card, 'hard');
+            if (e.key === '3') onRating(card, 'good');
+            if (e.key === '4') onRating(card, 'easy');
+        }
+    });
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => onKeyDown(e);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    const difficultyStyle =
+        card.difficulty === 'easy'
+            ? styles.difficultyEasy
+            : card.difficulty === 'hard'
+            ? styles.difficultyHard
+            : styles.difficultyMedium;
+
+    return (
+        <>
+            <div
+                {...stylex.props(styles.cardWrapper)}
+                onClick={handleFlip}
+                role="button"
+                tabIndex={0}
+                aria-label={isFlipped ? 'Show question' : 'Show answer'}
+                onKeyDown={handleCardKeyDown}
+            >
                 <div
                     {...stylex.props(
                         styles.cardInner,
@@ -357,7 +389,6 @@ export function FlashcardPlayerView({
                                 </span>
                             ))}
                         </div>
-
 
                         <div {...stylex.props(styles.contentBox)}>
                             <p {...stylex.props(styles.promptText)}>{card.front}</p>
@@ -399,7 +430,7 @@ export function FlashcardPlayerView({
                 <div {...stylex.props(styles.ratingBar)}>
                     <button
                         {...stylex.props(styles.ratingButton, styles.ratingBtnAgain)}
-                        onClick={() => handleRate('again')}
+                        onClick={() => onRating(card, 'again')}
                     >
                         <AlertCircle size={18} />
                         <span {...stylex.props(styles.ratingLabel)}>Again</span>
@@ -408,7 +439,7 @@ export function FlashcardPlayerView({
 
                     <button
                         {...stylex.props(styles.ratingButton, styles.ratingBtnHard)}
-                        onClick={() => handleRate('hard')}
+                        onClick={() => onRating(card, 'hard')}
                     >
                         <RotateCw size={18} />
                         <span {...stylex.props(styles.ratingLabel)}>Hard</span>
@@ -417,7 +448,7 @@ export function FlashcardPlayerView({
 
                     <button
                         {...stylex.props(styles.ratingButton, styles.ratingBtnGood)}
-                        onClick={() => handleRate('good')}
+                        onClick={() => onRating(card, 'good')}
                     >
                         <Check size={18} />
                         <span {...stylex.props(styles.ratingLabel)}>Good</span>
@@ -426,7 +457,7 @@ export function FlashcardPlayerView({
 
                     <button
                         {...stylex.props(styles.ratingButton, styles.ratingBtnEasy)}
-                        onClick={() => handleRate('easy')}
+                        onClick={() => onRating(card, 'easy')}
                     >
                         <Award size={18} />
                         <span {...stylex.props(styles.ratingLabel)}>Easy</span>
@@ -445,6 +476,6 @@ export function FlashcardPlayerView({
                     </Button>
                 </div>
             )}
-        </div>
+        </>
     );
 }

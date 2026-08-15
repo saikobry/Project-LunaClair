@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Wifi, WifiOff } from 'lucide-react';
 
-const STORAGE_KEY = 'lunaclair:settings:offline-banner-pos';
+// Versioned key: bump the suffix if the stored `BannerPosition` shape ever
+// changes — reads of older keys fall back to the default position (the
+// shape-checking parse below ignores anything it can't validate).
+const STORAGE_KEY = 'lunaclair:settings:offline-banner-pos:v1';
 
 interface BannerPosition {
   side: 'left' | 'right';

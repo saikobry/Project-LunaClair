@@ -22,14 +22,8 @@ export interface NumberInputProps {
   units?: string | null;
   /** Width. Numbers = pixels, strings = CSS value. */
   width?: string | number;
-  /** Disabled state. @default false */
-  isDisabled?: boolean;
-  /** Whether the field is required. @default false */
-  isRequired?: boolean;
   /** Placeholder text shown when the input is empty. */
   placeholder?: string;
-  /** Whether to only allow integer values. @default false */
-  isIntegerOnly?: boolean;
   /** Additional class name. */
   className?: string;
   /** Inline styles. */
@@ -58,10 +52,7 @@ export function NumberInput({
   size = 'md',
   units,
   width,
-  isDisabled = false,
-  isRequired = false,
   placeholder,
-  isIntegerOnly = false,
   className,
   style,
   onClick,
@@ -79,10 +70,7 @@ export function NumberInput({
       size={size}
       units={units}
       width={width}
-      isDisabled={isDisabled}
-      isRequired={isRequired}
       placeholder={placeholder}
-      isIntegerOnly={isIntegerOnly}
       className={className}
       style={style}
       onClick={onClick}

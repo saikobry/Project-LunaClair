@@ -16,7 +16,7 @@ export function MultipleChoiceQuestion({ question, value, onChange, disabled }: 
         <fieldset disabled={disabled} style={{ border: 'none', padding: 0, margin: 0 }}>
             <legend style={{ fontWeight: 600, marginBottom: 8 }}>{question.prompt}</legend>
             {payload.choices.map((choice, index) => (
-                <label key={index} style={{ display: 'block', marginBottom: 6, cursor: disabled ? 'default' : 'pointer' }}>
+                <label key={choice} style={{ display: 'block', marginBottom: 6, cursor: disabled ? 'default' : 'pointer' }}>
                     <input
                         type="radio"
                         name={`question-${question.id}`}

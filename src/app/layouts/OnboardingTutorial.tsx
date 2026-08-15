@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, GraduationCap, Sparkles, X } from 'lucide-react';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
@@ -10,10 +10,12 @@ import { useToast } from '../providers/ToastContext';
 /**
  * First-run onboarding tutorial (app-shell chrome).
  *
- * A FULL-SCREEN takeover (not a dialog card) — the entire viewport becomes
- * the onboarding screen: brand header with Skip, centered hero slide, and a
- * bottom action bar with progress dots + a full-width CTA. One-time and
- * skippable, persisted via `STORAGE_KEYS.settings.onboardingDone`.
+ * A FULL-SCREEN takeover rendered as a native `<dialog>` opened with
+ * `showModal()` — the entire viewport becomes the onboarding screen (brand
+ * header with Skip, centered hero slide, bottom action bar with progress dots
+ * + full-width CTA), and the modal gives focus trapping, Escape-to-close, and
+ * focus restoration for free. One-time and skippable, persisted via
+ * `STORAGE_KEYS.settings.onboardingDone`.
  *
  * The tutorial is bundled app chrome — it never depends on the network — but
  * its Finish AND Skip actions call `SyncDefaultTermsUseCase`, which syncs the
@@ -67,6 +69,8 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
   const show = !suppressed && !done;
   const isLastStep = step === SLIDES.length - 1;
 
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
   const markDone = useCallback(() => {
     localStorage.setItem(STORAGE_KEYS.settings.onboardingDone, '1');
     setDone(true);
@@ -97,18 +101,14 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
     markDone();
   }, [syncDefaultTerms, markDone]);
 
-  // Escape dismisses the tutorial (same semantics as Skip).
+  // Open as a modal when shown — native <dialog> provides focus trapping,
+  // Escape (via the `cancel` event), and the backdrop. Escape is handled in
+  // onCancel below (Skip semantics), so no manual keydown listener needed.
   useEffect(() => {
-    if (!show) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isFinishing) {
-        event.preventDefault();
-        handleSkip();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [show, isFinishing, handleSkip]);
+    if (show && dialogRef.current && !dialogRef.current.open) {
+      dialogRef.current.showModal();
+    }
+  }, [show]);
 
   // Lock background scroll while the takeover owns the viewport.
   useEffect(() => {
@@ -126,9 +126,15 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
   const SlideIcon = slide.icon;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={(event) => {
+        // Escape inside a modal fires `cancel` — treat it as Skip (same as
+        // the Skip button), never a plain close. Prevent default so the
+        // dialog cannot close during the finishing state.
+        event.preventDefault();
+        if (!isFinishing) handleSkip();
+      }}
       aria-label={slide.title}
       {...stylex.props(styles.overlay)}
     >
@@ -207,7 +213,7 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
           )}
         </div>
       </footer>
-    </div>
+    </dialog>
   );
 }
 
@@ -226,14 +232,27 @@ const styles = stylex.create({
   // Full-screen takeover above all app chrome (1000) but below toasts (9999).
   // Uses --color-background-body (the app page background) — NOT the legacy
   // undefined --color-background token.
+  // Native <dialog> full-viewport takeover: reset the UA dialog styles
+  // (centering margins, max-width/height, padding, border) so the element
+  // fills the screen. `::backdrop` matches the page background.
   overlay: {
     position: 'fixed',
     inset: 0,
     zIndex: 1000,
+    margin: 0,
+    width: '100vw',
+    height: '100svh',
+    maxWidth: 'none',
+    maxHeight: 'none',
+    padding: 0,
+    border: 'none',
     display: 'flex',
     flexDirection: 'column',
     overflowY: 'auto',
     backgroundColor: 'var(--color-background-body)',
+    '::backdrop': {
+      backgroundColor: 'var(--color-background-body)',
+    },
   },
   header: {
     display: 'flex',

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Question } from '../../../domain/quiz/Question';
 
 interface IdentificationQuestionProps {
@@ -9,10 +10,14 @@ interface IdentificationQuestionProps {
 
 /** Text entry UI for identification questions. */
 export function IdentificationQuestion({ question, value, onChange, disabled }: IdentificationQuestionProps) {
+    const inputId = useId();
     return (
         <div>
-            <p style={{ fontWeight: 600, marginBottom: 8 }}>{question.prompt}</p>
+            <label htmlFor={inputId} style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>
+                {question.prompt}
+            </label>
             <input
+                id={inputId}
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}

@@ -254,16 +254,21 @@ export default {
         } | null;
         const now = new Date().toISOString();
         // Apply in dependency order so FKs hold: subjects → terms → subjectTerms → materials.
+        // Rows WITHIN one table are independent (distinct primary keys), so they are
+        // upserted concurrently — the table-level order above still holds. Drizzle's
+        // `.values()` returns a fresh builder each call, so the shared `insert` is safe.
         const upsert = async (
           rows: unknown[],
           insert: ReturnType<typeof db.insert>,
           target: IndexColumn | IndexColumn[],
         ) => {
-          for (const row of rows as Array<Record<string, unknown>>) {
-            await insert
-              .values({ ...row, createdAt: now, updatedAt: now })
-              .onConflictDoUpdate({ target, set: { ...row, updatedAt: now } });
-          }
+          await Promise.all(
+            (rows as Array<Record<string, unknown>>).map((row) =>
+              insert
+                .values({ ...row, createdAt: now, updatedAt: now })
+                .onConflictDoUpdate({ target, set: { ...row, updatedAt: now } }),
+            ),
+          );
         };
         if (Array.isArray(body?.subjects)) {
           await upsert(body.subjects, db.insert(subjects), subjects.id);
@@ -399,29 +404,38 @@ export default {
             .onConflictDoUpdate({ target, set: { ...row, updatedAt: now } });
         };
         // Apply in FK-safe order: questions → quizzes → junction rows.
+        // Rows/quizzes are independent of each other (distinct keys), so they run
+        // concurrently; within one quiz the delete must finish before its inserts
+        // (same composite-key space), so that ordering is preserved.
         if (Array.isArray(body?.questions)) {
-          for (const row of body.questions as Array<Record<string, unknown>>) {
-            await upsertRow(db.insert(questions), row, questions.id);
-          }
+          await Promise.all(
+            (body.questions as Array<Record<string, unknown>>).map((row) =>
+              upsertRow(db.insert(questions), row, questions.id),
+            ),
+          );
         }
         if (Array.isArray(body?.quizzes)) {
-          for (const row of body.quizzes as Array<Record<string, unknown>>) {
-            const { questionIds: _questionIds, items, ...quizFields } = row;
-            await upsertRow(db.insert(quizzes), quizFields, quizzes.id);
-            // Replace the junction rows for this quiz (items are authoritative).
-            if (Array.isArray(items)) {
-              await db.delete(quizQuestions).where(eq(quizQuestions.quizId, row.id as string));
-              for (const item of items as Array<Record<string, unknown>>) {
-                await db.insert(quizQuestions).values({
-                  quizId: row.id as string,
-                  questionId: item.questionId as string,
-                  questionVersion: item.questionVersion as number,
-                  order: item.order as number,
-                  points: (item.points as number | undefined) ?? null,
-                });
+          await Promise.all(
+            (body.quizzes as Array<Record<string, unknown>>).map(async (row) => {
+              const { questionIds: _questionIds, items, ...quizFields } = row;
+              await upsertRow(db.insert(quizzes), quizFields, quizzes.id);
+              // Replace the junction rows for this quiz (items are authoritative).
+              if (Array.isArray(items)) {
+                await db.delete(quizQuestions).where(eq(quizQuestions.quizId, row.id as string));
+                await Promise.all(
+                  (items as Array<Record<string, unknown>>).map((item) =>
+                    db.insert(quizQuestions).values({
+                      quizId: row.id as string,
+                      questionId: item.questionId as string,
+                      questionVersion: item.questionVersion as number,
+                      order: item.order as number,
+                      points: (item.points as number | undefined) ?? null,
+                    }),
+                  ),
+                );
               }
-            }
-          }
+            }),
+          );
         }
         return json({ ok: true, updatedAt: now }, 200, corsHeaders);
       }

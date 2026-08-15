@@ -249,11 +249,3 @@ export function TocDesktop({ content }: TocProps) {
   );
 }
 
-export default function Toc({ content }: TocProps) {
-  return (
-    <>
-      <TocMobile content={content} />
-      <TocDesktop content={content} />
-    </>
-  );
-}

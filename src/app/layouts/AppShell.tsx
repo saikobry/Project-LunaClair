@@ -1,26 +1,16 @@
-import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-// Direct-path imports (react-doctor/no-barrel-import, user-directed):
-// QuizScreen is the feature's default export and QuizLaunchRequest lives in
-// the feature's types module.
-import QuizScreen from '../../features/quiz/QuizScreen';
-import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
-import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
-import AvailableMaterialsScreen from '../../features/catalog/available/components/AvailableMaterialsScreen';
-import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
-import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
-import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
-import { QuizCanvasBuilder } from '../../features/quiz-management/canvas/QuizCanvasBuilder';
-import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 import { FocusModeProvider } from '../providers/FocusModeContext';
 import logoSvg from '../../assets/logo.svg';
-import { routeToUrl, urlToRoute, type AppRoute } from './routing';
-import MaterialWorkspace from './MaterialWorkspace';
+import type { AppRoute } from './routing';
 import { AppSidebar } from './AppSidebar/AppSidebar';
 import OfflineBanner from './OfflineBanner';
 import { InstallPrompt, InstallInstructionsDialog } from './InstallPrompt';
 import { OnboardingTutorial } from './OnboardingTutorial';
+import { ShellRoutes } from './ShellRoutes';
+import { useAppRoute } from './useAppRoute';
+import { useShellFocusMode } from './useShellFocusMode';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };
@@ -197,22 +187,20 @@ const styles = stylex.create({
   },
 });
 
+/**
+ * Root application shell: composes the rail, main route content, Focus Mode
+ * chrome, and the global overlay surfaces (offline, install, onboarding).
+ * Route state and navigation live in `useAppRoute`, Focus Mode in
+ * `useShellFocusMode`, and per-route screens in `ShellRoutes`.
+ */
 export default function AppShell() {
-  const [currentRoute, setCurrentRoute] = useState<AppRoute>(() => {
-    const parsed = urlToRoute(window.location.pathname, window.location.search);
-    return parsed ?? { kind: 'library' };
-  });
-
-  const [isFocusMode, setIsFocusMode] = useState<boolean>(
-    () => localStorage.getItem(STORAGE_KEYS.settings.focusMode) === 'true',
-  );
+  const { currentRoute, navigate } = useAppRoute();
+  const { isFocusMode, toggleFocusMode } = useShellFocusMode();
 
   // PWA install surfaces. The sidebar entry and iOS card only exist in
   // production builds (dev has no SW/manifest, so install is meaningless).
   const [installInfoOpen, setInstallInfoOpen] = useState(false);
   const canOfferInstall = !import.meta.env.DEV;
-
-  const touchMutation = useTouchMaterial();
 
   // Bottom-bar clearance (px): the shell's OWN declared `main` bottom padding
   // (`calc(88px + env(safe-area-inset-bottom))` at ≤768px; 0 at >768px and in
@@ -240,124 +228,7 @@ export default function AppShell() {
     return () => window.removeEventListener('resize', measure);
   }, [isFocusMode]);
 
-  // Toggle Focus Mode. Persistence happens in the effect below so the
-  // updater stays pure (StrictMode-safe) and rapid toggles never read
-  // stale state.
-  const toggleFocusMode = useCallback(() => {
-    setIsFocusMode((prev) => !prev);
-  }, []);
-
-  // Persist Focus Mode whenever it changes (idempotent on mount)
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.settings.focusMode, String(isFocusMode));
-  }, [isFocusMode]);
-
-  // Global keyboard shortcut: Cmd+B (macOS) / Ctrl+B (Windows/Linux)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b' && !event.repeat) {
-        event.preventDefault();
-        toggleFocusMode();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleFocusMode]);
-
   const { railRef, fabRef } = useFocusModeMotion(isFocusMode);
-
-  // Sync URL when route changes
-  useEffect(() => {
-    const url = routeToUrl(currentRoute);
-    window.history.pushState({ route: currentRoute }, '', url);
-  }, [currentRoute]);
-
-  // Handle browser back/forward
-  useEffect(() => {
-    const handlePopState = (_e: PopStateEvent) => {
-      const parsed = urlToRoute(window.location.pathname, window.location.search);
-      if (parsed) {
-        setCurrentRoute(parsed);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const navigate = useCallback((route: AppRoute) => {
-    setCurrentRoute(route);
-  }, []);
-
-  const handleOpenMaterial = useCallback(
-    (materialId: string, subjectId?: string) => {
-      touchMutation.mutate(materialId);
-      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'read' });
-    },
-    [navigate, touchMutation],
-  );
-
-  const handleOpenSubject = useCallback(
-    (subjectId: string) => {
-      navigate({ kind: 'subject', subjectId, activeTab: 'materials' });
-    },
-    [navigate],
-  );
-
-  const handleStartQuiz = useCallback(
-    (request: QuizLaunchRequest) => {
-      if (request.type === 'quiz') {
-        if (request.materialId) {
-          // Navigate to Material Workspace on the Quiz tab (from Library/Materials cards)
-          navigate({
-            kind: 'workspace',
-            workspace: 'material',
-            materialId: request.materialId,
-            subjectId: request.subjectId,
-            activeTab: 'quiz',
-          });
-        } else {
-          // Launch a single-quiz session directly
-          navigate({
-            kind: 'quiz-session',
-            quizId: request.quizId ?? '',
-            materialIds: [],
-            subjectId: request.subjectId,
-            returnTo: request.subjectId
-              ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
-              : { kind: 'library' },
-          });
-        }
-      } else {
-        // Multi-quiz (unified) → navigate to quiz session
-        navigate({
-          kind: 'quiz-session',
-          quizId: `unified-${Date.now()}`,
-          materialIds: [],
-          quizIds: request.quizIds,
-          subjectId: request.subjectId,
-          returnTo: request.subjectId
-            ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
-            : { kind: 'library' },
-        });
-      }
-    },
-    [navigate],
-  );
-
-  const handleManageQuiz = useCallback(
-    (materialId: string, subjectId?: string) => {
-      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
-    },
-    [navigate],
-  );
-
-  const handleExitQuiz = useCallback(() => {
-    if (currentRoute.kind === 'quiz-session') {
-      navigate(currentRoute.returnTo);
-    } else {
-      navigate({ kind: 'library' });
-    }
-  }, [currentRoute, navigate]);
 
   // Extract route context for the WorkspaceRail
   const routeSubjectId =
@@ -383,78 +254,33 @@ export default function AppShell() {
           <AppSidebar
             subjectId={routeSubjectId}
             materialId={routeMaterialId}
-            isLibrary={currentRoute.kind === 'library'}
-            isAvailable={currentRoute.kind === 'available'}
-            isTerms={currentRoute.kind === 'terms'}
+            active={
+              currentRoute.kind === 'library'
+                ? 'library'
+                : currentRoute.kind === 'available'
+                  ? 'available'
+                  : currentRoute.kind === 'terms'
+                    ? 'terms'
+                    : 'none'
+            }
             isFocusMode={isFocusMode}
             onToggleFocusMode={toggleFocusMode}
             onNavigate={navigate}
             onOpenInstallInfo={canOfferInstall ? () => setInstallInfoOpen(true) : undefined}
           />
         </div>
-      <main
-        ref={mainRef}
-        {...stylex.props(styles.main, isFocusMode && styles.mainFocus)}
-      >
-        {currentRoute.kind === 'library' && (
-          <LibraryScreen
-            onOpenMaterial={handleOpenMaterial}
-            onOpenSubject={handleOpenSubject}
-            onStartQuiz={handleStartQuiz}
-            onManage={handleManageQuiz}
-            onBrowseAvailable={() => navigate({ kind: 'available' })}
-          />
-        )}
-        {currentRoute.kind === 'available' && (
-          <AvailableMaterialsScreen onOpenMaterial={handleOpenMaterial} />
-        )}
-        {currentRoute.kind === 'terms' && (
-          <TermManagerScreen />
-        )}
-        {currentRoute.kind === 'subject' && (
-          <SubjectWorkspace
-            subjectId={currentRoute.subjectId}
-            activeTab={currentRoute.activeTab}
-            onNavigate={navigate}
-            onOpenMaterial={handleOpenMaterial}
-            onStartQuiz={handleStartQuiz}
-          />
-        )}
-        {currentRoute.kind === 'workspace' && currentRoute.workspace === 'material' && (
-          <MaterialWorkspace
-            materialId={currentRoute.materialId}
-            activeTab={currentRoute.activeTab}
-            subjectId={currentRoute.subjectId}
-            onNavigate={navigate}
-          />
-        )}
-        {currentRoute.kind === 'quiz-canvas' && (
-          <QuizCanvasBuilder
-            key={currentRoute.quizId ?? 'new-quiz'}
-            materialId={currentRoute.materialId}
-            quizId={currentRoute.quizId}
+        <main
+          ref={mainRef}
+          {...stylex.props(styles.main, isFocusMode && styles.mainFocus)}
+        >
+          <ShellRoutes
+            currentRoute={currentRoute}
+            navigate={navigate}
             bottomInset={bottomInset}
-            onClose={() =>
-              navigate({
-                kind: 'workspace',
-                workspace: 'material',
-                materialId: currentRoute.materialId,
-                activeTab: 'manage',
-              })
-            }
           />
-        )}
-        {currentRoute.kind === 'quiz-session' && (
-          <QuizScreen
-            quizId={currentRoute.quizId}
-            materialIds={currentRoute.materialIds}
-            quizIds={currentRoute.quizIds}
-            onExit={handleExitQuiz}
-          />
-        )}
-      </main>
+        </main>
 
-      {/* Floating logo restore button — GSAP-visible only in Focus Mode */}
+        {/* Floating logo restore button — GSAP-visible only in Focus Mode */}
         <button
           ref={fabRef}
           type="button"
@@ -472,27 +298,27 @@ export default function AppShell() {
           />
         </button>
 
-      {/* Global connectivity status — app-shell chrome */}
-      <OfflineBanner />
+        {/* Global connectivity status — app-shell chrome */}
+        <OfflineBanner />
 
-      {/* PWA install surfaces — one-time iOS card + opt-in instructions */}
-      <InstallPrompt
-        suppressed={
-          currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
-        }
-        onShowInstructions={() => setInstallInfoOpen(true)}
-      />
-      <InstallInstructionsDialog
-        isOpen={installInfoOpen}
-        onClose={() => setInstallInfoOpen(false)}
-      />
+        {/* PWA install surfaces — one-time iOS card + opt-in instructions */}
+        <InstallPrompt
+          suppressed={
+            currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
+          }
+          onShowInstructions={() => setInstallInfoOpen(true)}
+        />
+        <InstallInstructionsDialog
+          isOpen={installInfoOpen}
+          onClose={() => setInstallInfoOpen(false)}
+        />
 
-      {/* First-run onboarding — one-time welcome flow; Finish syncs default terms */}
-      <OnboardingTutorial
-        suppressed={
-          currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
-        }
-      />
+        {/* First-run onboarding — one-time welcome flow; Finish syncs default terms */}
+        <OnboardingTutorial
+          suppressed={
+            currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas'
+          }
+        />
       </div>
     </FocusModeProvider>
   );

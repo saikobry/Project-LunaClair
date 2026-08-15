@@ -45,7 +45,7 @@ export function Breadcrumbs({
 
         return (
           <AstryxBreadcrumbItem
-            key={index}
+            key={item.label}
             isCurrent={isLast}
             onClick={isLast ? undefined : item.onClick}
           >

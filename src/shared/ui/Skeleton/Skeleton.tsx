@@ -67,7 +67,7 @@ const cardStyles = stylex.create({
   },
 });
 
-export function CardSkeleton() {
+function CardSkeleton() {
   return (
     <div {...stylex.props(cardStyles.card)} aria-label="Loading card">
       <div {...stylex.props(cardStyles.row)}>
@@ -221,29 +221,3 @@ export function QuestionSkeleton() {
   );
 }
 
-// ── Result Skeleton ───────────────────────────────────────
-
-const resultStyles = stylex.create({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 16,
-    padding: 40,
-    textAlign: 'center',
-  },
-  circle: {
-    borderRadius: '50%',
-  },
-});
-
-export function ResultSkeleton() {
-  return (
-    <div {...stylex.props(resultStyles.container)} role="status" aria-label="Loading results">
-      <SkeletonBlock width={96} height={96} borderRadius={48} />
-      <SkeletonBlock width={160} height={24} borderRadius={6} />
-      <SkeletonBlock width={240} height={14} borderRadius={6} />
-      <SkeletonBlock width={120} height={36} borderRadius={8} />
-    </div>
-  );
-}

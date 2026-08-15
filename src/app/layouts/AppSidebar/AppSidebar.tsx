@@ -353,9 +353,9 @@ const styles = stylex.create({
 export interface AppSidebarProps {
   subjectId?: string;
   materialId?: string;
-  isLibrary: boolean;
-  isAvailable?: boolean;
-  isTerms?: boolean;
+  /** Which of the three main nav sections is current. `'none'` when a
+   *  subject/material/quiz route owns the screen (context links take over). */
+  active: 'library' | 'available' | 'terms' | 'none';
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
   onNavigate: (route: AppRoute) => void;
@@ -366,9 +366,7 @@ export interface AppSidebarProps {
 export function AppSidebar({
   subjectId,
   materialId,
-  isLibrary,
-  isAvailable = false,
-  isTerms = false,
+  active,
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
@@ -381,8 +379,8 @@ export function AppSidebar({
   const pillRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef<HTMLDivElement>(null);
 
-  const isSubjectActive = !isLibrary && !isAvailable && !isTerms && Boolean(subject) && !material;
-  const isMaterialActive = !isLibrary && !isAvailable && !isTerms && Boolean(material);
+  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+  const isMaterialActive = active === 'none' && Boolean(material);
 
   // ── Helper: reposition the sliding pill to match the active nav button ──
   const repositionPill = (animate = false) => {
@@ -468,7 +466,7 @@ export function AppSidebar({
   // ── Reposition whenever active route changes ───────────────────
   useEffect(() => {
     requestAnimationFrame(() => repositionPill(true));
-  }, [isLibrary, isAvailable, isTerms, isSubjectActive, isMaterialActive, isFocusMode]);
+  }, [active, isSubjectActive, isMaterialActive, isFocusMode]);
 
   // ── Reposition on viewport resize (desktop ↔ tablet etc.) ──────
   useEffect(() => {
@@ -527,9 +525,9 @@ export function AppSidebar({
 
           <button
             type="button"
-            {...stylex.props(styles.navItem, isLibrary && styles.navItemActive)}
+            {...stylex.props(styles.navItem, active === 'library' && styles.navItemActive)}
             onClick={() => onNavigate({ kind: 'library' })}
-            aria-current={isLibrary ? 'page' : undefined}
+            aria-current={active === 'library' ? 'page' : undefined}
             title="Library"
           >
             <Home size={18} />
@@ -538,9 +536,9 @@ export function AppSidebar({
 
           <button
             type="button"
-            {...stylex.props(styles.navItem, isAvailable && styles.navItemActive)}
+            {...stylex.props(styles.navItem, active === 'available' && styles.navItemActive)}
             onClick={() => onNavigate({ kind: 'available' })}
-            aria-current={isAvailable ? 'page' : undefined}
+            aria-current={active === 'available' ? 'page' : undefined}
             title="Available Materials"
           >
             <LibraryBig size={18} />
@@ -549,16 +547,16 @@ export function AppSidebar({
 
           <button
             type="button"
-            {...stylex.props(styles.navItem, isTerms && styles.navItemActive)}
+            {...stylex.props(styles.navItem, active === 'terms' && styles.navItemActive)}
             onClick={() => onNavigate({ kind: 'terms' })}
-            aria-current={isTerms ? 'page' : undefined}
+            aria-current={active === 'terms' ? 'page' : undefined}
             title="Manage Terms"
           >
             <Tag size={18} />
             <span {...stylex.props(styles.navLabel)}>Terms</span>
           </button>
 
-          {!isLibrary && !isAvailable && !isTerms && (
+          {active === 'none' && (
             <>
               <div {...stylex.props(styles.divider)} aria-hidden="true" />
 

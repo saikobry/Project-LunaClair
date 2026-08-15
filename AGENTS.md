@@ -138,13 +138,13 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 ## Import Rules
 
-1. **Curated feature contracts** — features may consume another feature only through its root `index.ts` public contract.
-2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. User-directed exception (Aug 2026): `react-doctor/no-barrel-import` is resolved project-wide, and the specific cross-feature direct-path imports that replaced feature barrels are listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). Because the doctor rule flags every barrel import, new cross-feature consumption follows the documented direct-path pattern; feature root barrels are retained as curated ADR-009 public contracts, but importing them re-triggers the rule.
+1. **Direct-path feature contracts (ADR-010)** — feature-root barrels were removed; features consume another feature only through the approved direct module paths listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import).
+2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. User-directed exception (Aug 2026): `react-doctor/no-barrel-import` is resolved project-wide, and the specific cross-feature direct-path imports that replaced feature barrels are listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). New cross-feature consumption follows the documented direct-path pattern and must extend that allow-list.
 3. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
 5. **Services** import from `shared/` (types/utilities) but not from features.
 6. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features.
-7. **Barrel exports** (`index.ts`) are curated public APIs — avoid deep import chains and giant export dumps.
+7. **No barrel boundaries (ADR-010)** — barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.
 
 ## PWA / Offline
 

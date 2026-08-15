@@ -66,5 +66,4 @@ export const SCHEMA_V6 = {
 } as const;
 
 export const DB_NAME = 'lunaclair-db';
-export const DB_VERSION = 6;
 

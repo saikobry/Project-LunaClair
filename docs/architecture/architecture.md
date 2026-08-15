@@ -82,13 +82,14 @@ Key decisions are documented in [`docs/architecture/adr/`](adr/README.md).
 | [ADR-005](adr/ADR-005-strategy-pattern.md) | Strategy Pattern for Question Behavior | Phase 5 |
 | [ADR-006](adr/ADR-006-immutable-quiz-history.md) | Immutable Quiz History via Question Snapshots | Phase 5 |
 | [ADR-007](adr/ADR-007-feature-first-architecture.md) | Feature-First Module Organization | Phase 1 |
-| [ADR-009](adr/ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership & Public Contracts | Phase 6 |
+| [ADR-009](adr/ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership & Public Contracts | Phase 6 (superseded by ADR-010) |
+| [ADR-010](adr/ADR-010-replace-barrel-based-feature-boundaries.md) | Replace Barrel-Based Feature Boundaries | Phase 6 |
 
 ## Import Rules
 
-1. **Curated feature contracts.** Cross-feature consumers import only from the owning feature root `index.ts`.
+1. **Direct-path feature contracts (ADR-010).** Feature-root barrels are removed; cross-feature consumers import only the approved direct module paths listed in `src/features/AGENTS.md` (no-barrel-import allow-list).
 2. **Internal feature privacy.** Deep imports into another feature's implementation paths are prohibited.
 3. **Domain modules import only from other domains or pure libraries** — never from React, features, or services.
 4. **Shared code is domain-agnostic** — extract only reusable neutral types and utilities to `shared/`.
 5. **Infrastructure and services import from `domain/` contracts and `shared/` types/utilities, but never from features.**
-6. **Barrel exports** (`index.ts`) are curated stable public APIs.
+6. **No barrel boundaries (ADR-010).** Barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.

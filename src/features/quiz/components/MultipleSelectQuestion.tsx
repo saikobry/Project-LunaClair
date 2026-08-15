@@ -11,6 +11,7 @@ interface MultipleSelectQuestionProps {
 /** Multi-select checkbox UI for multiple select questions. */
 export function MultipleSelectQuestion({ question, value, onChange, disabled }: MultipleSelectQuestionProps) {
     const payload = question.payload as MultipleSelectPayload;
+    const selected = new Set(value);
 
     const toggle = (index: number) => {
         const key = String(index);
@@ -25,10 +26,10 @@ export function MultipleSelectQuestion({ question, value, onChange, disabled }: 
         <fieldset disabled={disabled} style={{ border: 'none', padding: 0, margin: 0 }}>
             <legend style={{ fontWeight: 600, marginBottom: 8 }}>{question.prompt}</legend>
             {payload.choices.map((choice, index) => (
-                <label key={index} style={{ display: 'block', marginBottom: 6, cursor: disabled ? 'default' : 'pointer' }}>
+                <label key={choice} style={{ display: 'block', marginBottom: 6, cursor: disabled ? 'default' : 'pointer' }}>
                     <input
                         type="checkbox"
-                        checked={value.includes(String(index))}
+                        checked={selected.has(String(index))}
                         onChange={() => toggle(index)}
                         style={{ marginRight: 8 }}
                     />

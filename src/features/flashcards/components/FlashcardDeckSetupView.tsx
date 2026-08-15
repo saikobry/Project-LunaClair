@@ -114,6 +114,9 @@ const styles = stylex.create({
         cursor: 'pointer',
         transition: 'all 0.15s ease',
         textAlign: 'left',
+        // <button> elements don't inherit font styles by default
+        fontFamily: 'inherit',
+        fontSize: 'inherit',
     },
     modeOptionActive: {
         borderColor: 'var(--color-accent)',
@@ -237,31 +240,35 @@ export function FlashcardDeckSetupView({
                             <Clock size={14} /> Study Mode
                         </label>
                         <div {...stylex.props(styles.modeSelector)}>
-                            <div
+                            <button
+                                type="button"
                                 {...stylex.props(
                                     styles.modeOption,
                                     studyMode === 'due_only' && styles.modeOptionActive
                                 )}
                                 onClick={() => setStudyMode('due_only')}
+                                aria-pressed={studyMode === 'due_only'}
                             >
                                 <span {...stylex.props(styles.modeTitle)}>Due Cards Only</span>
                                 <span {...stylex.props(styles.modeDesc)}>
                                     Focus on {dueCount} cards due for scheduled review today
                                 </span>
-                            </div>
+                            </button>
 
-                            <div
+                            <button
+                                type="button"
                                 {...stylex.props(
                                     styles.modeOption,
                                     studyMode === 'all' && styles.modeOptionActive
                                 )}
                                 onClick={() => setStudyMode('all')}
+                                aria-pressed={studyMode === 'all'}
                             >
                                 <span {...stylex.props(styles.modeTitle)}>All Cards</span>
                                 <span {...stylex.props(styles.modeDesc)}>
                                     Review entire deck ({totalQuestions} cards; due cards first)
                                 </span>
-                            </div>
+                            </button>
                         </div>
                     </div>
 

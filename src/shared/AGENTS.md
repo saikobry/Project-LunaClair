@@ -9,10 +9,9 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 | Module | Contents |
 |---|---|
 | `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) |
-| `styles/tokens.stylex.ts` | Minimal StyleX design tokens (spacing, radius, shadow, transition) |
 | `ui/` | Design system primitive adapters and low-level container primitives — includes `TagInput` (tag/chip input: type+Enter or comma/paste bulk entry, removable `#tag` tokens, output normalized through the domain `tags.ts` helpers) |
-| `components/` | Domain-neutral composites such as `ActionMenu` and `SelectableRow` |
-| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useTabKeyboardNavigation`, `useDragReorder` (generic HTML5 drag-and-drop list reordering with keyboard fallbacks), `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
+| `components/` | Domain-neutral composites such as `ActionMenu` |
+| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
 
 ## Local Contracts
 
@@ -20,7 +19,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 - Nothing in `shared/` may own or reference business capabilities such as Subjects, Materials, Terms, or Quizzes.
 - Query and mutation hooks, cache key factories, dialogs, and domain-specific composites belong to their owning feature.
 - Shared composites must accept domain-neutral props and render without business workflows.
-- Barrel exports via `index.ts` — re-export selectively.
+- No barrel boundaries (ADR-010): `shared/` has no root barrel; consumers import direct module paths (e.g. `shared/ui/Button/Button`).
 - When two features need the same domain-agnostic type/constant/utility, extract it here.
 
 ## Work Guidance

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-010](ADR-010-replace-barrel-based-feature-boundaries.md)
 
 ## Introduced
 

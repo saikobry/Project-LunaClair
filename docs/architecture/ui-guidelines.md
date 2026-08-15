@@ -81,8 +81,7 @@ Features own their specific page content (search, filtering, breadcrumbs) — do
 ## Design Tokens
 
 - **Astryx theme tokens** provide color, spacing, radius, shadow, and typography via CSS custom properties.
-- **`shared/styles/tokens.stylex.ts`** contains minimal LunaClair supplement tokens not covered by Astryx.
-- Feature styles should use Astryx CSS variables and StyleX. Avoid hardcoded values.
+- LunaClair has no separate supplement-token file — use Astryx CSS variables for color, spacing, radius, shadow, and typography, and StyleX for layout. Avoid hardcoded values.
 
 ## Third-Party Package Boundaries
 

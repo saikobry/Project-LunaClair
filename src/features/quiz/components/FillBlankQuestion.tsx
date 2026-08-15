@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { Question } from '../../../domain/quiz/Question';
 import type { FillBlankPayload } from '../../../domain/quiz/AnswerPayload';
 
@@ -11,7 +12,16 @@ interface FillBlankQuestionProps {
 /** Template with inline text inputs for fill-in-the-blank questions. */
 export function FillBlankQuestion({ question, value, onChange, disabled }: FillBlankQuestionProps) {
     const payload = question.payload as FillBlankPayload;
-    const parts = payload.template.split('___');
+
+    /** Template segments keyed by content, never by index (list is static per question). */
+    const parts = useMemo(() => {
+        const seen = new Map<string, number>();
+        return payload.template.split('___').map((text) => {
+            const occurrence = seen.get(text) ?? 0;
+            seen.set(text, occurrence + 1);
+            return { text, key: `${text}:${occurrence}` };
+        });
+    }, [payload.template]);
 
     const handleBlankChange = (index: number, text: string) => {
         const next = [...value];
@@ -24,8 +34,8 @@ export function FillBlankQuestion({ question, value, onChange, disabled }: FillB
             <p style={{ fontWeight: 600, marginBottom: 8 }}>{question.prompt}</p>
             <p style={{ lineHeight: 2 }}>
                 {parts.map((part, i) => (
-                    <span key={i}>
-                        {part}
+                    <span key={part.key}>
+                        {part.text}
                         {i < parts.length - 1 && (
                             <input
                                 type="text"
