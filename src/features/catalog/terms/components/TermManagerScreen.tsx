@@ -7,6 +7,7 @@ import { IconButton } from '../../../../shared/ui/IconButton/IconButton';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { ConfirmationDialog } from '../../../../shared/ui/Dialog/ConfirmationDialog';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import { useTerms } from '../hooks/queries/useTerms';
 import { useCreateTerm } from '../hooks/mutations/useCreateTerm';
 import { useEditTerm } from '../hooks/mutations/useEditTerm';
@@ -18,6 +19,14 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
+  },
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
+    color: 'var(--color-text-secondary)',
+    fontSize: 14,
   },
   termRow: {
     display: 'flex',
@@ -66,39 +75,6 @@ const styles = stylex.create({
     display: 'flex',
     gap: 4,
     flexShrink: 0,
-  },
-  empty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '64px 32px',
-    textAlign: 'center',
-    gap: 12,
-  },
-  emptyIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-accent)',
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    maxWidth: 360,
-    lineHeight: 1.5,
   },
   form: {
     display: 'flex',
@@ -172,28 +148,23 @@ export function TermManagerScreen() {
       }
     >
       {isLoading ? (
-        <div {...stylex.props(styles.empty)}>
-          <p {...stylex.props(styles.emptyText)}>Loading terms...</p>
-        </div>
+        <div {...stylex.props(styles.loading)}>Loading terms...</div>
       ) : terms.length === 0 ? (
-        <div {...stylex.props(styles.empty)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <Tag size={28} />
-          </div>
-          <h3 {...stylex.props(styles.emptyTitle)}>No terms yet</h3>
-          <p {...stylex.props(styles.emptyText)}>
-            Global terms like "Prelim", "Midterm", or "Finals" can be created
-            here and then assigned to subjects.
-          </p>
-          <Button
-            label="Create your first term"
-            variant="primary"
-            icon={<Plus size={18} />}
-            onClick={() => setShowCreate(true)}
-          >
-            Create your first term
-          </Button>
-        </div>
+        <EmptyState
+          icon={<Tag size={28} />}
+          title="No terms yet"
+          description="Global terms like 'Prelim', 'Midterm', or 'Finals' can be created here and then assigned to subjects."
+          action={
+            <Button
+              label="Create your first term"
+              variant="primary"
+              icon={<Plus size={18} />}
+              onClick={() => setShowCreate(true)}
+            >
+              Create your first term
+            </Button>
+          }
+        />
       ) : (
         <div {...stylex.props(styles.list)}>
           {terms.map((term) => {

@@ -1,15 +1,17 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, Layers, ClipboardList } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
 import { Page } from '../../shared/ui/Page/Page';
+import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
+import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import ReaderScreen from '../../features/reader/ReaderScreen';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
@@ -92,7 +94,20 @@ export default function MaterialWorkspace({
   if (!material) {
     return (
       <Page title="Material not found">
-        <div {...stylex.props(styles.loading)}>This material could not be found.</div>
+        <ErrorState
+          icon={<FileQuestion size={28} />}
+          title="Material could not be found"
+          description="This material does not exist or may have been removed from your library."
+          action={
+            <Button
+              label="Back to Library"
+              variant="primary"
+              onClick={() => onNavigate({ kind: 'library' })}
+            >
+              Back to Library
+            </Button>
+          }
+        />
       </Page>
     );
   }

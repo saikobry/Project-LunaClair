@@ -5,6 +5,7 @@ import { Button } from '../../../../shared/ui/Button/Button';
 import { Chip } from '../../../../shared/ui/Chip/Chip';
 import { Breadcrumbs, type BreadcrumbItem } from '../../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { WorkspaceSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
+import { ErrorState } from '../../../../shared/ui/ErrorState/ErrorState';
 import MarkdownViewer from '../../../../features/reader/components/MarkdownViewer';
 import { useAvailableMaterial } from '../hooks/queries/useAvailableMaterial';
 import { usePreviewDocument } from '../hooks/queries/usePreviewDocument';
@@ -72,30 +73,6 @@ const styles = stylex.create({
     color: 'var(--color-text-secondary)',
     fontSize: 14,
   },
-  errorContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    padding: '64px 24px',
-    textAlign: 'center',
-    color: 'var(--color-text-secondary)',
-  },
-  errorIcon: {
-    color: 'var(--color-text-disabled)',
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  errorSubtext: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-  },
 });
 
 interface PreviewMaterialScreenProps {
@@ -152,18 +129,16 @@ export function PreviewMaterialScreen({ materialId, onBack, onOpenMaterial }: Pr
   if (isError || !material) {
     return (
       <Page title="Preview" breadcrumb={<Breadcrumbs items={breadcrumbItems} />}>
-        <div {...stylex.props(styles.errorContainer)}>
-          <div {...stylex.props(styles.errorIcon)}>
-            <FileQuestion size={48} />
-          </div>
-          <h2 {...stylex.props(styles.errorTitle)}>Material could not be found.</h2>
-          <p {...stylex.props(styles.errorSubtext)}>
-            This material may have been removed from the catalog.
-          </p>
-          <Button label="Back to Available Materials" variant="secondary" onClick={onBack}>
-            Back to Available Materials
-          </Button>
-        </div>
+        <ErrorState
+          icon={<FileQuestion size={48} />}
+          title="Material could not be found."
+          description="This material may have been removed from the catalog."
+          action={
+            <Button label="Back to Available Materials" variant="secondary" onClick={onBack}>
+              Back to Available Materials
+            </Button>
+          }
+        />
       </Page>
     );
   }
@@ -221,13 +196,10 @@ export function PreviewMaterialScreen({ materialId, onBack, onOpenMaterial }: Pr
 
       {/* Document content */}
       {error ? (
-        <div {...stylex.props(styles.errorContainer)}>
-          <h2 {...stylex.props(styles.errorTitle)}>Document could not be loaded.</h2>
-          <p {...stylex.props(styles.errorSubtext)}>
-            The document content could not be fetched right now. Try again when
-            you're back online.
-          </p>
-        </div>
+        <ErrorState
+          title="Document could not be loaded."
+          description="The document content could not be fetched right now. Try again when you're back online."
+        />
       ) : (
         <MarkdownViewer text={document?.content ?? ''} />
       )}

@@ -4,6 +4,7 @@ import { Plus, Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, EyeOff, Eye 
 import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { Button } from '../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 import { useToast } from '../../../app/providers/ToastContext';
@@ -244,29 +245,30 @@ export function QuizCatalogTab({
             </div>
 
             {quizzes.length === 0 ? (
-                <div {...stylex.props(styles.empty)}>
-                    <Inbox size={40} />
-                    <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Start building your quiz catalog</p>
-                    <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
-                        Add questions on the canvas or import them from the question bank.
-                    </p>
-                    <Button
-                        label="Create first quiz"
-                        variant="primary"
-                        icon={<Plus size={14} />}
-                        onClick={() => onNavigate({ kind: 'quiz-canvas', materialId })}
-                    >
-                        Create First Quiz
-                    </Button>
-                </div>
+                <EmptyState
+                    icon={<Inbox size={28} />}
+                    title="Start building your quiz catalog"
+                    description="Add questions on the canvas or import them from the question bank."
+                    headingLevel="h3"
+                    action={
+                        <Button
+                            label="Create first quiz"
+                            variant="primary"
+                            icon={<Plus size={14} />}
+                            onClick={() => onNavigate({ kind: 'quiz-canvas', materialId })}
+                        >
+                            Create First Quiz
+                        </Button>
+                    }
+                />
             ) : visibleQuizzes.length === 0 ? (
-                <div {...stylex.props(styles.empty)}>
-                    <ArchiveRestore size={40} />
-                    <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>All quizzes are archived</p>
-                    <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
-                        Click the eye icon above to show archived quizzes and restore them.
-                    </p>
-                </div>
+                <EmptyState
+                    icon={<ArchiveRestore size={28} />}
+                    iconVariant="muted"
+                    title="All quizzes are archived"
+                    description="Click the eye icon above to show archived quizzes and restore them."
+                    headingLevel="h3"
+                />
             ) : (
                 <div {...stylex.props(styles.list)}>
                     {visibleQuizzes.toSorted((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0) || a.title.localeCompare(b.title)).map((quiz) => (

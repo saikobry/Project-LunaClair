@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, Layers, Link2, Plus } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, Link2, Plus, FolderX } from 'lucide-react';
 import type { AppRoute } from '../../../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../../../quiz';
 import type { StudyMaterial } from '../../../../domain/library';
@@ -17,6 +17,7 @@ import { Breadcrumbs } from '../../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
+import { ErrorState } from '../../../../shared/ui/ErrorState/ErrorState';
 import EditMaterialModal from '../../materials/modals/EditMaterialModal';
 import CreateMaterialModal from '../../materials/modals/CreateMaterialModal';
 import DeleteConfirmationModal from '../../materials/modals/DeleteConfirmationModal';
@@ -196,7 +197,20 @@ export default function SubjectWorkspace({
   if (!subject) {
     return (
       <Page title="Subject not found">
-        <div {...stylex.props(styles.loading)}>This subject could not be found.</div>
+        <ErrorState
+          icon={<FolderX size={28} />}
+          title="Subject could not be found"
+          description="This subject does not exist or may have been removed from your library."
+          action={
+            <Button
+              label="Back to Library"
+              variant="primary"
+              onClick={() => onNavigate({ kind: 'library' })}
+            >
+              Back to Library
+            </Button>
+          }
+        />
       </Page>
     );
   }

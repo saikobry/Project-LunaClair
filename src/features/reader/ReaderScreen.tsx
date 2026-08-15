@@ -4,6 +4,7 @@ import { FileQuestion } from 'lucide-react';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/annotation.types';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
+import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { useDocument } from './hooks/useDocument';
@@ -13,30 +14,6 @@ import { useTextSelection } from './hooks/useTextSelection';
 import ReaderView from './ReaderView';
 
 const styles = stylex.create({
-  errorContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    padding: '64px 24px',
-    textAlign: 'center',
-    color: 'var(--color-text-secondary)',
-  },
-  errorIcon: {
-    color: 'var(--color-text-disabled)',
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  errorSubtext: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-  },
   loading: {
     display: 'flex',
     alignItems: 'center',
@@ -128,37 +105,29 @@ export default function ReaderScreen({ materialId }: ReaderScreenProps) {
 
   if (!material) {
     return (
-      <div {...stylex.props(styles.errorContainer)}>
-        <div {...stylex.props(styles.errorIcon)}>
-          <FileQuestion size={48} />
-        </div>
-        <h2 {...stylex.props(styles.errorTitle)}>Material could not be found.</h2>
-      </div>
+      <ErrorState
+        icon={<FileQuestion size={28} />}
+        title="Material could not be found."
+      />
     );
   }
 
   if (error instanceof DocumentNotFoundError) {
     return (
-      <div {...stylex.props(styles.errorContainer)}>
-        <div {...stylex.props(styles.errorIcon)}>
-          <FileQuestion size={48} />
-        </div>
-        <h2 {...stylex.props(styles.errorTitle)}>Document could not be found.</h2>
-        <p {...stylex.props(styles.errorSubtext)}>
-          This material may have been moved or deleted.
-        </p>
-      </div>
+      <ErrorState
+        icon={<FileQuestion size={28} />}
+        title="Document could not be found."
+        description="This material may have been moved or deleted."
+      />
     );
   }
 
   if (error) {
     return (
-      <div {...stylex.props(styles.errorContainer)}>
-        <h2 {...stylex.props(styles.errorTitle)}>Something went wrong.</h2>
-        <p {...stylex.props(styles.errorSubtext)}>
-          An unexpected error occurred while loading this document.
-        </p>
-      </div>
+      <ErrorState
+        title="Something went wrong."
+        description="An unexpected error occurred while loading this document."
+      />
     );
   }
 

@@ -8,6 +8,7 @@ import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/q
 import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input/Input';
 import { Card } from '../../../shared/ui/Card/Card';
+import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { Selector, type SelectorOption } from '../../../shared/ui/Selector/Selector';
 import { useToast } from '../../../app/providers/ToastContext';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
@@ -596,26 +597,44 @@ export function QuestionBankTab({
             )}
 
             {questions.length === 0 ? (
-                <div {...stylex.props(styles.empty)}>
-                    <Inbox size={40} />
-                    <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Start building your question bank</p>
-                    <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 12px 0', fontSize: 13 }}>
-                        Add questions to build your material's question bank and create quizzes.
-                    </p>
-                    <Button
-                        label="Create first question"
-                        variant="primary"
-                        icon={<Plus size={14} />}
-                        onClick={openCreate}
-                    >
-                        Create First Question
-                    </Button>
-                </div>
+                <EmptyState
+                    icon={<Inbox size={28} />}
+                    title="Start building your question bank"
+                    description="Add questions to build your material's question bank and create quizzes."
+                    headingLevel="h3"
+                    action={
+                        <Button
+                            label="Create first question"
+                            variant="primary"
+                            icon={<Plus size={14} />}
+                            onClick={openCreate}
+                        >
+                            Create First Question
+                        </Button>
+                    }
+                />
             ) : filtered.length === 0 ? (
-                <div {...stylex.props(styles.empty)}>
-                    <Inbox size={40} />
-                    <p>No questions match your filters.</p>
-                </div>
+                <EmptyState
+                    icon={<Inbox size={24} />}
+                    iconVariant="muted"
+                    title="No questions found"
+                    description="No questions match your search or active filters."
+                    headingLevel="h3"
+                    action={
+                        <Button
+                            label="Clear filters"
+                            variant="secondary"
+                            onClick={() => {
+                                setSearch('');
+                                setTypeFilter('');
+                                setDifficultyFilter('');
+                                setStatusFilter('');
+                            }}
+                        >
+                            Clear filters
+                        </Button>
+                    }
+                />
             ) : (
                 <div {...stylex.props(styles.list)}>
                     {filtered.map((q) => {

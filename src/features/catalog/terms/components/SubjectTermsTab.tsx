@@ -5,6 +5,7 @@ import type { Term } from '../../../../domain/library';
 import { useTerms } from '../hooks/queries/useTerms';
 import { useLibrary } from '../../materials/hooks/queries/useLibrary';
 import { Button } from '../../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import SubjectTermList, { type SubjectTermListItem } from './SubjectTermList';
 import AddExistingTermModal from '../modals/AddExistingTermModal';
 import CreateTermModal from '../modals/CreateTermModal';
@@ -23,43 +24,18 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: 20,
   },
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
+    color: 'var(--color-text-secondary)',
+    fontSize: 14,
+  },
   actions: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-  },
-  empty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '64px 32px',
-    textAlign: 'center',
-    gap: 12,
-  },
-  emptyIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-accent)',
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    maxWidth: 380,
-    lineHeight: 1.5,
   },
 });
 
@@ -142,9 +118,7 @@ export default function SubjectTermsTab({
   if (isLoading) {
     return (
       <div {...stylex.props(styles.container)}>
-        <div {...stylex.props(styles.empty)}>
-          <p {...stylex.props(styles.emptyText)}>Loading terms...</p>
-        </div>
+        <div {...stylex.props(styles.loading)}>Loading terms...</div>
       </div>
     );
   }
@@ -152,16 +126,12 @@ export default function SubjectTermsTab({
   return (
     <div {...stylex.props(styles.container)}>
       {terms.length === 0 ? (
-        <div {...stylex.props(styles.empty)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <Layers size={28} />
-          </div>
-          <h3 {...stylex.props(styles.emptyTitle)}>No terms assigned yet</h3>
-          <p {...stylex.props(styles.emptyText)}>
-            Attach an existing global term or create a new one to start grouping
-            this subject&apos;s materials by term.
-          </p>
-          <div {...stylex.props(styles.actions)}>
+        <EmptyState
+          icon={<Layers size={28} />}
+          title="No terms assigned yet"
+          description="Attach an existing global term or create a new one to start grouping this subject's materials by term."
+          headingLevel="h3"
+          action={
             <Button
               label="Add Existing Term"
               variant="secondary"
@@ -170,6 +140,8 @@ export default function SubjectTermsTab({
             >
               Add Existing Term
             </Button>
+          }
+          secondaryAction={
             <Button
               label="Create Term"
               variant="primary"
@@ -178,8 +150,8 @@ export default function SubjectTermsTab({
             >
               Create Term
             </Button>
-          </div>
-        </div>
+          }
+        />
       ) : (
         <SubjectTermList
           terms={listItems}

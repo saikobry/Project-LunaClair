@@ -8,7 +8,7 @@ import type { StudyMaterial } from '../../../../domain/library';
 import type { Subject } from '../../../../domain/library';
 import { Page } from '../../../../shared/ui/Page';
 import { Button } from '../../../../shared/ui/Button/Button';
-import { styles } from '../../shared/styles/library.stylex';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import MaterialGrid from './MaterialGrid';
 import SubjectCardGrid from './SubjectCardGrid';
 import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
@@ -149,24 +149,21 @@ export default function LibraryView({
 
       {/* Empty State — only shown when nothing exists at all */}
       {!isLoading && subjects.length === 0 && materials.length === 0 && (
-        <div {...stylex.props(styles.emptyState)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <BookHeart size={64} />
-          </div>
-          <h2 {...stylex.props(styles.emptyTitle)}>Your library is empty</h2>
-          <p {...stylex.props(styles.emptyText)}>
-            Browse the platform catalog and add materials to your library.
-            Imported materials are available offline, including their quizzes.
-          </p>
-          <Button
-            label="Browse Available Materials"
-            variant="primary"
-            icon={<LibraryBig size={18} />}
-            onClick={onBrowseAvailable}
-          >
-            Browse Available Materials
-          </Button>
-        </div>
+        <EmptyState
+          icon={<BookHeart size={56} />}
+          title="Your library is empty"
+          description="Browse the platform catalog and add materials to your library. Imported materials are available offline, including their quizzes."
+          action={
+            <Button
+              label="Browse Available Materials"
+              variant="primary"
+              icon={<LibraryBig size={18} />}
+              onClick={onBrowseAvailable}
+            >
+              Browse Available Materials
+            </Button>
+          }
+        />
       )}
     </Page>
   );

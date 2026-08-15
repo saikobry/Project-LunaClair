@@ -7,6 +7,7 @@ import type { StudyMaterial } from '../../../../domain/library';
 import type { Term } from '../../../../domain/library';
 import { MaterialCard } from '../../materials/components/MaterialCard/MaterialCard';
 import { Button } from '../../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
 
 const styles = stylex.create({
@@ -19,47 +20,6 @@ const styles = stylex.create({
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     gap: 16,
-  },
-  empty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '64px 32px',
-    textAlign: 'center',
-    gap: 12,
-  },
-  emptyIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-accent)',
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    maxWidth: 380,
-    lineHeight: 1.5,
-  },
-  emptyActions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginTop: 4,
   },
 });
 
@@ -139,17 +99,13 @@ export default function MaterialsTab({
 
       {materials.length === 0 ? (
         /* Full empty state — no materials exist yet */
-        <div {...stylex.props(styles.empty)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <BookOpen size={28} />
-          </div>
-          <h3 {...stylex.props(styles.emptyTitle)}>No materials yet</h3>
-          <p {...stylex.props(styles.emptyText)}>
-            This subject doesn't have any study materials in your library yet.
-            Browse available materials from the catalog or create a custom one.
-          </p>
-          <div {...stylex.props(styles.emptyActions)}>
-            {onBrowseAvailable && (
+        <EmptyState
+          icon={<BookOpen size={28} />}
+          title="No materials yet"
+          description="This subject doesn't have any study materials in your library yet. Browse available materials from the catalog or create a custom one."
+          headingLevel="h3"
+          action={
+            onBrowseAvailable && (
               <Button
                 label="Browse Available Materials"
                 variant="primary"
@@ -158,8 +114,10 @@ export default function MaterialsTab({
               >
                 Browse Available Materials
               </Button>
-            )}
-            {onAddMaterial && (
+            )
+          }
+          secondaryAction={
+            onAddMaterial && (
               <Button
                 label="Create Custom Material"
                 variant={onBrowseAvailable ? 'secondary' : 'primary'}
@@ -169,20 +127,18 @@ export default function MaterialsTab({
               >
                 Create Custom Material
               </Button>
-            )}
-          </div>
-        </div>
+            )
+          }
+        />
       ) : filteredMaterials.length === 0 ? (
         /* Filtered empty state — materials exist but none match the filter */
-        <div {...stylex.props(styles.empty)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <BookOpen size={28} />
-          </div>
-          <h3 {...stylex.props(styles.emptyTitle)}>No matching materials</h3>
-          <p {...stylex.props(styles.emptyText)}>
-            No materials match the current term filter. Try selecting a different term.
-          </p>
-        </div>
+        <EmptyState
+          icon={<BookOpen size={28} />}
+          iconVariant="muted"
+          title="No matching materials"
+          description="No materials match the current term filter. Try selecting a different term."
+          headingLevel="h3"
+        />
       ) : (
         <div ref={gridRef} {...stylex.props(styles.grid)}>
           {filteredMaterials.map((material) => {

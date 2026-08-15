@@ -50,38 +50,6 @@ export const styles = stylex.create({
     marginTop: 4,
   },
 
-  // === Empty State ===
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '64px 32px',
-    textAlign: 'center',
-    gap: 12,
-  },
-
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 8,
-    opacity: 0.3,
-  },
-
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-
-  emptyText: {
-    fontSize: 14,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    maxWidth: 360,
-    lineHeight: 1.5,
-  },
-
   // === Shared Modal Layout ===
   modalDescription: {
     fontSize: 14,

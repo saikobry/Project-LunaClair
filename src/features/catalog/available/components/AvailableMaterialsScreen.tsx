@@ -13,12 +13,13 @@ import {
 } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
 import { CardGridSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
+import { ErrorState } from '../../../../shared/ui/ErrorState/ErrorState';
 import { useAvailableCatalog } from '../hooks/queries/useAvailableCatalog';
 import { useImportMaterial } from '../hooks/mutations/useImportMaterial';
 import { useImportSubject } from '../hooks/mutations/useImportSubject';
 import { useRemoveImportedMaterial } from '../hooks/mutations/useRemoveImportedMaterial';
 import { useLibrary } from '../../materials/hooks/queries/useLibrary';
-import { styles } from '../../shared/styles/library.stylex';
 
 type AvailabilityFilter = 'all' | 'available' | 'imported';
 
@@ -153,38 +154,6 @@ const localStyles = stylex.create({
     justifyContent: 'flex-end',
     gap: 8,
     marginTop: 4,
-  },
-  emptyResults: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '48px 24px',
-    textAlign: 'center',
-    gap: 12,
-  },
-  emptyResultsIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'var(--color-background-muted)',
-    color: 'var(--color-text-disabled)',
-  },
-  emptyResultsTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  emptyResultsText: {
-    fontSize: 13,
-    color: 'var(--color-text-secondary)',
-    margin: 0,
-    maxWidth: 320,
-    lineHeight: 1.5,
   },
 });
 
@@ -372,17 +341,11 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
 
       {/* Error / Offline state — catalog never fetched */}
       {!isLoading && (isError || !catalog) && (
-        <div {...stylex.props(styles.emptyState)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <WifiOff size={64} />
-          </div>
-          <h2 {...stylex.props(styles.emptyTitle)}>Catalog unavailable</h2>
-          <p {...stylex.props(styles.emptyText)}>
-            The platform catalog could not be loaded — this is your first visit
-            while offline, or the API is unreachable. Connect to the internet and
-            try again.
-          </p>
-        </div>
+        <ErrorState
+          icon={<WifiOff size={56} />}
+          title="Catalog unavailable"
+          description="The platform catalog could not be loaded — this is your first visit while offline, or the API is unreachable. Connect to the internet and try again."
+        />
       )}
 
       {/* Filter and Search Bar */}
@@ -418,27 +381,28 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
 
       {/* Filtered Empty Results State */}
       {!isLoading && catalog && totalCatalogMaterials > 0 && filteredMaterials.length === 0 && (
-        <div {...stylex.props(localStyles.emptyResults)}>
-          <div {...stylex.props(localStyles.emptyResultsIcon)}>
-            <Search size={24} />
-          </div>
-          <h3 {...stylex.props(localStyles.emptyResultsTitle)}>No materials found</h3>
-          <p {...stylex.props(localStyles.emptyResultsText)}>
-            {searchQuery.trim()
+        <EmptyState
+          icon={<Search size={24} />}
+          iconVariant="muted"
+          title="No materials found"
+          description={
+            searchQuery.trim()
               ? `No materials matched "${searchQuery.trim()}".`
-              : 'No materials match the selected availability filter.'}
-          </p>
-          <Button
-            label="Clear filters"
-            variant="secondary"
-            onClick={() => {
-              setSearchQuery('');
-              setStatusFilter('all');
-            }}
-          >
-            Clear filters
-          </Button>
-        </div>
+              : 'No materials match the selected availability filter.'
+          }
+          action={
+            <Button
+              label="Clear filters"
+              variant="secondary"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+            >
+              Clear filters
+            </Button>
+          }
+        />
       )}
 
       {/* Subject groups */}
@@ -501,15 +465,11 @@ export function AvailableMaterialsScreen({ onOpenMaterial, onPreview }: Availabl
 
       {/* Empty catalog (when platform catalog itself has 0 items) */}
       {!isLoading && catalog && totalCatalogMaterials === 0 && (
-        <div {...stylex.props(styles.emptyState)}>
-          <div {...stylex.props(styles.emptyIcon)}>
-            <BookOpen size={64} />
-          </div>
-          <h2 {...stylex.props(styles.emptyTitle)}>No materials available</h2>
-          <p {...stylex.props(styles.emptyText)}>
-            The platform catalog is empty. Check back later.
-          </p>
-        </div>
+        <EmptyState
+          icon={<BookOpen size={56} />}
+          title="No materials available"
+          description="The platform catalog is empty. Check back later."
+        />
       )}
     </Page>
   );

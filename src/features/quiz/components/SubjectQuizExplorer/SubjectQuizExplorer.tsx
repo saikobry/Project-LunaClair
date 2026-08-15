@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Input } from '../../../../shared/ui/Input/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../types/quizTree.types';
@@ -725,10 +726,12 @@ export function SubjectQuizExplorer({
   if (tree.length === 0) {
     return (
       <div {...stylex.props(styles.container)}>
-        <div {...stylex.props(styles.empty)}>
-          <BrainCircuit size={40} />
-          <p>No quizzes available for this subject.</p>
-        </div>
+        <EmptyState
+          icon={<BrainCircuit size={28} />}
+          title="No quizzes yet"
+          description="No quizzes are available for this subject yet. Create quizzes from material workspaces to get started."
+          headingLevel="h3"
+        />
       </div>
     );
   }
@@ -760,10 +763,22 @@ export function SubjectQuizExplorer({
       ))}
 
       {filteredTree.length === 0 && searchQuery && (
-        <div {...stylex.props(styles.empty)}>
-          <Search size={32} />
-          <p>{`No quizzes match \u201c${searchQuery}\u201d`}</p>
-        </div>
+        <EmptyState
+          icon={<Search size={24} />}
+          iconVariant="muted"
+          title="No quizzes found"
+          description={`No quizzes match \u201c${searchQuery}\u201d.`}
+          headingLevel="h3"
+          action={
+            <Button
+              label="Clear search"
+              variant="secondary"
+              onClick={() => setSearchQuery('')}
+            >
+              Clear search
+            </Button>
+          }
+        />
       )}
 
       {filteredTree.length > 0 && (
