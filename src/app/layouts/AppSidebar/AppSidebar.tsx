@@ -637,7 +637,7 @@ export function AppSidebar({
             <span
               {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
             >
-              v0.1.0
+              v0.2.0
             </span>
           </div>
           <div {...stylex.props(styles.footerRow2)}>
@@ -647,7 +647,7 @@ export function AppSidebar({
         </div>
         <div {...stylex.props(styles.footerTablet)}>
           <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
-          <span {...stylex.props(styles.versionBadge)}>v0.1.0</span>
+          <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
           <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
         </div>
       </button>

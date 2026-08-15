@@ -7,7 +7,7 @@ import type {
 /**
  * Concrete implementation of `CatalogRepository` backed by the LunaClair API.
  * The snapshot (`GET /api/catalog`) is proxied in dev (Vite proxy) and
- * production (Cloudflare Pages `_redirects`), and cached offline by the service
+ * production (Cloudflare Pages Functions), and cached offline by the service
  * worker via Workbox `CacheFirst`. The per-material resolution
  * (`GET /api/catalog/materials/:id`) is deliberately NOT cached (Worker sends
  * `Cache-Control: no-store`) — import must resolve against current server state.

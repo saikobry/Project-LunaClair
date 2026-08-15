@@ -1,2 +1,0 @@
-# Cloudflare Pages rewrite rule: proxy all `/api/*` requests to the Worker API
-/api/* https://api.project-lunaclair.workers.dev/api/:splat 200

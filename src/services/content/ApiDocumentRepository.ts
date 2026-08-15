@@ -14,7 +14,7 @@ interface DocumentApiResponse {
  * Concrete implementation of `DocumentRepository` that resolves study materials
  * from the LunaClair API (`/api/documents/{documentId}`).
  *
- * Requests are proxied in dev (Vite proxy) and production (Cloudflare Pages `_redirects`),
+ * Requests are proxied in dev (Vite proxy) and production (Cloudflare Pages Functions),
  * and cached offline by the service worker via Workbox `CacheFirst`.
  */
 export class ApiDocumentRepository implements DocumentRepository {
