@@ -50,19 +50,6 @@ export const styles = stylex.create({
     marginTop: 4,
   },
 
-  sourceBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '2px 8px',
-    fontSize: 11,
-    fontWeight: 600,
-    color: 'var(--color-accent)',
-    backgroundColor: 'var(--color-accent-muted)',
-    borderRadius: 6,
-    textTransform: 'uppercase',
-    letterSpacing: '0.4px',
-  },
-
   // === Empty State ===
   emptyState: {
     display: 'flex',

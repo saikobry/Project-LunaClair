@@ -26,7 +26,6 @@ export function useCreateMaterial() {
         id: `temp-${Date.now()}`,
         title: input.title,
         description: input.description,
-        sourceType: input.sourceType ?? 'bundled',
         sourceId: input.sourceId ?? `temp-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

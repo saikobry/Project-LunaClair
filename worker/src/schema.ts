@@ -88,7 +88,6 @@ export const materials = sqliteTable('materials', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  sourceType: text('source_type').notNull(),
   sourceId: text('source_id').notNull(),
   subjectId: text('subject_id').references(() => subjects.id, { onDelete: 'set null' }),
   termId: text('term_id').references(() => terms.id, { onDelete: 'set null' }),

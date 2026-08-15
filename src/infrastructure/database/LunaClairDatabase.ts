@@ -10,7 +10,7 @@ import type { HighlightItem, DrawingPath } from '../../domain/reader';
 import type { QuizDraft } from '../../application/quiz-management/drafts/QuizDraft';
 import type { ReviewState } from '../../domain/flashcards/scheduler';
 import type { ImportedDocumentContent } from '../../domain/reader';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6 } from './schema';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -46,6 +46,7 @@ export interface MetadataRecord {
  *            quiz canvas authoring session (autosaved QuizDraft DTOs).
  * Version 5: Adds flashcardReviews — spaced-repetition review states per card.
  * Version 6: Adds documentContents — locally imported document markdown.
+ * Version 7: Drops the legacy `sourceType` index from materials.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -99,6 +100,7 @@ export class LunaClairDatabase extends Dexie {
         this.version(4).stores(SCHEMA_V4);
         this.version(5).stores(SCHEMA_V5);
         this.version(6).stores(SCHEMA_V6);
+        this.version(7).stores(SCHEMA_V7);
     }
 }
 

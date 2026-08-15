@@ -89,7 +89,6 @@ export function MaterialCard({
             <h3 {...stylex.props(cardStyles.title)}>{material.title}</h3>
             <div {...stylex.props(cardStyles.badgeRow)}>
               {termTitle && <Chip variant="accent">{termTitle}</Chip>}
-              <Chip variant="neutral">{material.sourceType}</Chip>
             </div>
           </div>
           {hasMenuActions && (

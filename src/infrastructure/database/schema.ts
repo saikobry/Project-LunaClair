@@ -65,5 +65,16 @@ export const SCHEMA_V6 = {
     documentContents: 'sourceId',
 } as const;
 
+/**
+ * Version 7: Removes the legacy `sourceType` index from materials. The field
+ * never drove behavior (the reader keys on `sourceId`) and was stale storage
+ * jargon from the pre-D1 bundled-content era — dropped end-to-end (domain,
+ * Dexie, D1). Existing records keep the property, it is simply unindexed.
+ */
+export const SCHEMA_V7 = {
+    ...SCHEMA_V6,
+    materials: 'id, subjectId, termId, createdAt, lastOpenedAt',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
 
