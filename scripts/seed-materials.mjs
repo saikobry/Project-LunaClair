@@ -119,20 +119,20 @@ async function seed() {
   let totalDocs = 0;
   let totalFigures = 0;
 
-  for (const sourceId of materialDirs) {
-    const dirPath = join(MATERIALS_DIR, sourceId);
+  for (const documentId of materialDirs) {
+    const dirPath = join(MATERIALS_DIR, documentId);
     const mdPath = join(dirPath, 'index.md');
 
     if (!existsSync(mdPath)) {
-      console.warn(`⚠️ Skipping ${sourceId}: missing index.md`);
+      console.warn(`⚠️ Skipping ${documentId}: missing index.md`);
       continue;
     }
 
     const content = readFileSync(mdPath, 'utf8');
-    const title = extractTitle(content, sourceId);
+    const title = extractTitle(content, documentId);
 
     // 1. PUT Document
-    const docUrl = `${baseUrl}/api/documents/${encodeURIComponent(sourceId)}`;
+    const docUrl = `${baseUrl}/api/documents/${encodeURIComponent(documentId)}`;
     const docRes = await fetch(docUrl, {
       method: 'PUT',
       headers: {
@@ -144,11 +144,11 @@ async function seed() {
 
     if (!docRes.ok) {
       const errText = await docRes.text();
-      throw new Error(`Failed to PUT document ${sourceId} (${docRes.status}): ${errText}`);
+      throw new Error(`Failed to PUT document ${documentId} (${docRes.status}): ${errText}`);
     }
 
     totalDocs++;
-    console.log(`  📄 [Doc] ${sourceId} — "${title}" (${content.length} chars)`);
+    console.log(`  📄 [Doc] ${documentId} — "${title}" (${content.length} chars)`);
 
     // 2. PUT Figures if images/ exists
     const imagesDir = join(dirPath, 'images');
@@ -163,7 +163,7 @@ async function seed() {
         const ext = extname(filename).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-        const figUrl = `${baseUrl}/api/documents/${encodeURIComponent(sourceId)}/figures/${encodeURIComponent(filename)}`;
+        const figUrl = `${baseUrl}/api/documents/${encodeURIComponent(documentId)}/figures/${encodeURIComponent(filename)}`;
         const figRes = await fetch(figUrl, {
           method: 'PUT',
           headers: {
@@ -176,7 +176,7 @@ async function seed() {
         if (!figRes.ok) {
           const errText = await figRes.text();
           throw new Error(
-            `Failed to PUT figure ${sourceId}/${filename} (${figRes.status}): ${errText}`,
+            `Failed to PUT figure ${documentId}/${filename} (${figRes.status}): ${errText}`,
           );
         }
 

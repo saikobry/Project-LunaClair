@@ -2,7 +2,7 @@ export interface StudyMaterial {
   id: string;
   title: string;
   description?: string;
-  sourceId: string;
+  documentId: string;
   subjectId?: string;
   termId?: string;
   order?: number;

@@ -1,9 +1,9 @@
 export class DocumentNotFoundError extends Error {
-    readonly sourceId: string;
+    readonly documentId: string;
 
-    constructor(sourceId: string) {
-        super(`Document not found: ${sourceId}`);
+    constructor(documentId: string) {
+        super(`Document not found: ${documentId}`);
         this.name = 'DocumentNotFoundError';
-        this.sourceId = sourceId;
+        this.documentId = documentId;
     }
 }

@@ -27,7 +27,7 @@ export class DexieLibraryRepository implements LibraryRepository {
             id: generateId(),
             title: input.title,
             description: input.description,
-            sourceId: input.sourceId ?? generateId(),
+            documentId: input.documentId ?? generateId(),
             subjectId: input.subjectId,
             termId: input.termId,
             order: input.order,

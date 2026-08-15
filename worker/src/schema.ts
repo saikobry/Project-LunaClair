@@ -19,7 +19,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 export const documents = sqliteTable('documents', {
-  sourceId: text('source_id').primaryKey(),
+  id: text('id').primaryKey(),
   title: text('title').notNull(),
   content: text('content').notNull(),
   createdAt: text('created_at').notNull(),
@@ -29,9 +29,9 @@ export const documents = sqliteTable('documents', {
 export const figures = sqliteTable(
   'figures',
   {
-    sourceId: text('source_id')
+    documentId: text('document_id')
       .notNull()
-      .references(() => documents.sourceId, { onDelete: 'cascade' }),
+      .references(() => documents.id, { onDelete: 'cascade' }),
     filename: text('filename').notNull(),
     data: blob('data', { mode: 'buffer' }).notNull(),
     contentType: text('content_type').notNull(),
@@ -39,7 +39,7 @@ export const figures = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.sourceId, table.filename] }),
+    primaryKey({ columns: [table.documentId, table.filename] }),
   ],
 );
 
@@ -88,7 +88,7 @@ export const materials = sqliteTable('materials', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  sourceId: text('source_id').notNull(),
+  documentId: text('document_id').notNull(),
   subjectId: text('subject_id').references(() => subjects.id, { onDelete: 'set null' }),
   termId: text('term_id').references(() => terms.id, { onDelete: 'set null' }),
   order: integer('order'),

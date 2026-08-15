@@ -52,7 +52,7 @@ export class DexieLibraryImportService implements LibraryImportService {
                 const quizzes = await db.quizzes.where('materialId').equals(materialId).toArray();
                 if (quizzes.length > 0) await db.quizzes.bulkDelete(quizzes.map((z) => z.id));
 
-                if (material?.sourceId) await db.documentContents.delete(material.sourceId);
+                if (material?.documentId) await db.documentContents.delete(material.documentId);
             },
         );
     }

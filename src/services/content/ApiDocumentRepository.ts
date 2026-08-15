@@ -12,7 +12,7 @@ interface DocumentApiResponse {
 
 /**
  * Concrete implementation of `DocumentRepository` that resolves study materials
- * from the LunaClair API (`/api/documents/{sourceId}`).
+ * from the LunaClair API (`/api/documents/{documentId}`).
  *
  * Requests are proxied in dev (Vite proxy) and production (Cloudflare Pages `_redirects`),
  * and cached offline by the service worker via Workbox `CacheFirst`.
@@ -22,31 +22,31 @@ export class ApiDocumentRepository implements DocumentRepository {
         material: StudyMaterial,
         signal?: AbortSignal,
     ): Promise<Document> {
-        const url = `/api/documents/${encodeURIComponent(material.sourceId)}`;
+        const url = `/api/documents/${encodeURIComponent(material.documentId)}`;
 
         let response: Response;
         try {
             response = await fetch(url, { signal });
         } catch (err) {
             if (err instanceof DOMException && err.name === 'AbortError') throw err;
-            throw new DocumentNotFoundError(material.sourceId);
+            throw new DocumentNotFoundError(material.documentId);
         }
 
         if (!response.ok) {
-            throw new DocumentNotFoundError(material.sourceId);
+            throw new DocumentNotFoundError(material.documentId);
         }
 
         let data: DocumentApiResponse;
         try {
             data = (await response.json()) as DocumentApiResponse;
         } catch {
-            throw new DocumentNotFoundError(material.sourceId);
+            throw new DocumentNotFoundError(material.documentId);
         }
 
         return {
             id: material.id,
             title: data.title || material.title,
-            content: preprocessMarkdown(data.content, material.sourceId),
+            content: preprocessMarkdown(data.content, material.documentId),
             format: 'markdown',
         };
     }

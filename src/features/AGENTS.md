@@ -23,7 +23,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - **No barrel boundaries (ADR-010).** Feature-root barrels were removed; the curated contract is the documented direct-path allow-list below. Any `index.ts` that survives must be consumed by imports.
 - **Domain-specific code stays in features.** `shared/` contains only domain-agnostic UI primitives, composites, and infrastructure utilities.
 - Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
-- Study content assets (markdown, figures) live in `public/materials/{sourceId}/` — not inside feature directories
+- Study content assets (markdown, figures) live in `content/materials/{documentId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
 - Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen, FlashcardScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by AppSidebar + tabs, not by per-screen buttons.
 - Feature view: `{Feature}View.tsx` — pure presentation

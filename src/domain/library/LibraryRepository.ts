@@ -3,7 +3,7 @@ import type { StudyMaterial } from './StudyMaterial';
 export interface CreateMaterialInput {
   title: string;
   description?: string;
-  sourceId?: string;
+  documentId?: string;
   subjectId?: string;
   termId?: string;
   order?: number;

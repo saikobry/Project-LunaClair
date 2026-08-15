@@ -3,7 +3,7 @@
     "id": "cell-structure",
     "title": "Cell Structure & Function",
     "description": "Cell theory, organelles, and membrane transport.",
-    "sourceId": "cell-structure",
+    "documentId": "cell-structure",
     "subjectId": "subject-bio-101",
     "termId": "term-prelim",
     "order": 1
@@ -12,7 +12,7 @@
     "id": "cellular-respiration",
     "title": "Cellular Respiration",
     "description": "Glycolysis, Krebs cycle, electron transport chain.",
-    "sourceId": "cellular-respiration",
+    "documentId": "cellular-respiration",
     "subjectId": "subject-bio-101",
     "termId": "term-midterm",
     "order": 1
@@ -21,7 +21,7 @@
     "id": "photosynthesis",
     "title": "Photosynthesis",
     "description": "Light-dependent reactions, Calvin cycle, photorespiration.",
-    "sourceId": "photosynthesis",
+    "documentId": "photosynthesis",
     "subjectId": "subject-bio-101",
     "termId": "term-midterm",
     "order": 2
@@ -30,7 +30,7 @@
     "id": "genetics",
     "title": "Genetics & Heredity",
     "description": "Mendelian genetics, DNA replication, protein synthesis, mutations.",
-    "sourceId": "genetics",
+    "documentId": "genetics",
     "subjectId": "subject-bio-101",
     "termId": "term-finals",
     "order": 1
@@ -39,7 +39,7 @@
     "id": "ancient-civilizations",
     "title": "Ancient Civilizations",
     "description": "Mesopotamia, Egypt, Indus Valley, and early Chinese dynasties.",
-    "sourceId": "ancient-civilizations",
+    "documentId": "ancient-civilizations",
     "subjectId": "subject-world-history",
     "termId": "term-prelim",
     "order": 1
@@ -48,12 +48,12 @@
     "id": "spanish-verbs",
     "title": "Spanish Verb Conjugation",
     "description": "Present tense conjugations for regular -ar, -er, and -ir verbs.",
-    "sourceId": "spanish-verbs"
+    "documentId": "spanish-verbs"
   },
   {
     "id": "anatomy-physiology",
     "title": "Anatomy & Physiology: Body Membranes",
     "description": "Covering the integumentary system, skin structure, membranes, and common pathologies.",
-    "sourceId": "anatomy-physiology"
+    "documentId": "anatomy-physiology"
   }
 ]

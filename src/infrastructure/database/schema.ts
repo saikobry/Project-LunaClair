@@ -67,13 +67,23 @@ export const SCHEMA_V6 = {
 
 /**
  * Version 7: Removes the legacy `sourceType` index from materials. The field
- * never drove behavior (the reader keys on `sourceId`) and was stale storage
+ * never drove behavior (the reader keys on `documentId`) and was stale storage
  * jargon from the pre-D1 bundled-content era — dropped end-to-end (domain,
  * Dexie, D1). Existing records keep the property, it is simply unindexed.
  */
 export const SCHEMA_V7 = {
     ...SCHEMA_V6,
     materials: 'id, subjectId, termId, createdAt, lastOpenedAt',
+} as const;
+
+/**
+ * Version 8: Rekeys `documentContents` from `sourceId` to `documentId` — the
+ * vocabulary rename (the field is the document's key, not a generic "source").
+ * The v8 upgrade rewrites existing records so locally imported content survives.
+ */
+export const SCHEMA_V8 = {
+    ...SCHEMA_V7,
+    documentContents: 'documentId',
 } as const;
 
 export const DB_NAME = 'lunaclair-db';

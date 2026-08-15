@@ -25,7 +25,7 @@ export class HybridDocumentRepository implements DocumentRepository {
         material: StudyMaterial,
         signal?: AbortSignal,
     ): Promise<Document> {
-        const imported = await this.local.getBySourceId(material.sourceId, signal);
+        const imported = await this.local.getByDocumentId(material.documentId, signal);
         if (imported) {
             return {
                 id: material.id,

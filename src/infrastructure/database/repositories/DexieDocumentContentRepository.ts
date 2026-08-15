@@ -4,21 +4,21 @@ import { db } from '../LunaClairDatabase';
 
 /**
  * Dexie-backed `DocumentContentRepository` — locally imported document markdown,
- * keyed by `sourceId`. This is the explicit local representation of an imported
+ * keyed by `documentId`. This is the explicit local representation of an imported
  * material's content; the Service Worker runtime cache is not the source of
  * truth for library membership.
  */
 export class DexieDocumentContentRepository implements DocumentContentRepository {
-    async getBySourceId(sourceId: string): Promise<ImportedDocumentContent | null> {
-        return (await db.documentContents.get(sourceId)) ?? null;
+    async getByDocumentId(documentId: string): Promise<ImportedDocumentContent | null> {
+        return (await db.documentContents.get(documentId)) ?? null;
     }
 
     async put(record: ImportedDocumentContent): Promise<void> {
         await db.documentContents.put(record);
     }
 
-    async deleteBySourceId(sourceId: string): Promise<void> {
-        await db.documentContents.delete(sourceId);
+    async deleteByDocumentId(documentId: string): Promise<void> {
+        await db.documentContents.delete(documentId);
     }
 }
 

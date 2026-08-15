@@ -2,15 +2,15 @@
  * LunaClair API Worker — the only bridge between the LunaClair PWA and Cloudflare D1.
  *
  * Public endpoints (no auth):
- *   GET  /api/documents/:sourceId                       → { id, title, content }
- *   GET  /api/documents/:sourceId/figures/:filename     → figure bytes
+ *   GET  /api/documents/:documentId                     → { id, title, content }
+ *   GET  /api/documents/:documentId/figures/:filename   → figure bytes
  *   GET  /api/catalog                                   → { subjects, terms, subjectTerms, materials }
  *   GET  /api/catalog/materials/:id                     → { material, subject?, term?, subjectTerm? }
  *   GET  /api/quiz                                      → { questions, quizzes } (assembled)
  *
  * Ingest endpoints (require `Authorization: Bearer <SEED_TOKEN>`):
- *   PUT  /api/documents/:sourceId                       → body { title, content }
- *   PUT  /api/documents/:sourceId/figures/:filename     → body: raw figure bytes
+ *   PUT  /api/documents/:documentId                     → body { title, content }
+ *   PUT  /api/documents/:documentId/figures/:filename   → body: raw figure bytes
  *   PUT  /api/catalog                                   → body { subjects, terms, subjectTerms, materials }
  *   PUT  /api/quiz                                      → body { questions, quizzes } (assembled)
  *
@@ -23,7 +23,7 @@
  * state — never the 30-day-cached snapshot.
  * `updatedAt`/`createdAt` are always stamped by the server — clients never send timestamps.
  * Path segments are decoded exactly and validated: no `/`, `\`, or `..` in
- * `sourceId`/`filename`, and lookups are always by the composite key, so one
+ * `documentId`/`filename`, and lookups are always by the composite key, so one
  * document can never reach another document's figure.
  */
 import { and, eq } from 'drizzle-orm';
@@ -134,20 +134,20 @@ export default {
     const db = drizzle(env.DB);
     const parts = url.pathname.split("/").filter(Boolean); // e.g. ["api","documents","cell-structure"]
 
-    // /api/documents/:sourceId
+    // /api/documents/:documentId
     if (parts[0] === "api" && parts[1] === "documents" && parts.length === 3) {
-      const sourceId = decodeSegment(parts[2]);
-      if (sourceId === null) return json({ error: "Bad request" }, 400, corsHeaders);
+      const documentId = decodeSegment(parts[2]);
+      if (documentId === null) return json({ error: "Bad request" }, 400, corsHeaders);
 
       if (request.method === "GET" || request.method === "HEAD") {
         const doc = await db
           .select({ title: documents.title, content: documents.content })
           .from(documents)
-          .where(eq(documents.sourceId, sourceId))
+          .where(eq(documents.id, documentId))
           .get();
         if (!doc) return json({ error: "Document not found" }, 404, corsHeaders);
         return json(
-          { id: sourceId, title: doc.title, content: doc.content },
+          { id: documentId, title: doc.title, content: doc.content },
           200,
           { ...corsHeaders, "cache-control": "public, max-age=3600" },
         );
@@ -165,28 +165,28 @@ export default {
         const updatedAt = new Date().toISOString();
         await db
           .insert(documents)
-          .values({ sourceId, title, content, createdAt, updatedAt })
+          .values({ id: documentId, title, content, createdAt, updatedAt })
           .onConflictDoUpdate({
-            target: documents.sourceId,
+            target: documents.id,
             set: { title, content, updatedAt },
           });
-        return json({ id: sourceId, createdAt, updatedAt }, 200, corsHeaders);
+        return json({ id: documentId, createdAt, updatedAt }, 200, corsHeaders);
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);
     }
 
-    // /api/documents/:sourceId/figures/:filename
+    // /api/documents/:documentId/figures/:filename
     if (parts[0] === "api" && parts[1] === "documents" && parts.length === 5 && parts[3] === "figures") {
-      const sourceId = decodeSegment(parts[2]);
+      const documentId = decodeSegment(parts[2]);
       const filename = decodeSegment(parts[4]);
-      if (sourceId === null || filename === null) return json({ error: "Bad request" }, 400, corsHeaders);
+      if (documentId === null || filename === null) return json({ error: "Bad request" }, 400, corsHeaders);
 
       if (request.method === "GET" || request.method === "HEAD") {
         const fig = await db
           .select({ data: figures.data, contentType: figures.contentType })
           .from(figures)
-          .where(and(eq(figures.sourceId, sourceId), eq(figures.filename, filename)))
+          .where(and(eq(figures.documentId, documentId), eq(figures.filename, filename)))
           .get();
         if (!fig) return json({ error: "Figure not found" }, 404, corsHeaders);
         const body = request.method === "HEAD" ? null : (toUint8Array(fig.data) as unknown as BodyInit);
@@ -210,12 +210,12 @@ export default {
         const updatedAt = new Date().toISOString();
         await db
           .insert(figures)
-          .values({ sourceId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, createdAt, updatedAt })
+          .values({ documentId, filename, data: data as unknown as InstanceType<typeof Buffer>, contentType, createdAt, updatedAt })
           .onConflictDoUpdate({
-            target: [figures.sourceId, figures.filename],
+            target: [figures.documentId, figures.filename],
             set: { data, contentType, updatedAt },
           });
-        return json({ sourceId, filename, createdAt, updatedAt }, 200, corsHeaders);
+        return json({ documentId, filename, createdAt, updatedAt }, 200, corsHeaders);
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);

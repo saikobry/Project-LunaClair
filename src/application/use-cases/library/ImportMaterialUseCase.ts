@@ -50,7 +50,7 @@ export class ImportMaterialUseCase {
         try {
             const doc = await this.documentRepository.getDocumentByMaterial(material, signal);
             documentContent = {
-                sourceId: material.sourceId,
+                documentId: material.documentId,
                 title: doc.title,
                 content: doc.content,
                 updatedAt: material.updatedAt,

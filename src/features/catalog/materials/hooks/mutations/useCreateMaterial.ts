@@ -26,7 +26,7 @@ export function useCreateMaterial() {
         id: `temp-${Date.now()}`,
         title: input.title,
         description: input.description,
-        sourceId: input.sourceId ?? `temp-${Date.now()}`,
+        documentId: input.documentId ?? `temp-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

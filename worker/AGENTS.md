@@ -14,13 +14,13 @@
 - Config: root `wrangler.jsonc` — Worker name `api`, D1 binding `DB` (database `lunaclair`), migrations dir `./worker/migrations`, `nodejs_compat` enabled.
 - Endpoints:
   - `GET /health` — liveness + D1 connectivity probe (503 when D1 is unreachable).
-  - `GET /api/documents/:sourceId` — public document fetch (`{ id, title, content }`), cached with `Cache-Control: public, max-age=3600`.
-  - `GET /api/documents/:sourceId/figures/:filename` — public figure image fetch (binary bytes + `Content-Type`), cached with `Cache-Control: public, max-age=86400`.
+  - `GET /api/documents/:documentId` — public document fetch (`{ id, title, content }`), cached with `Cache-Control: public, max-age=3600`.
+  - `GET /api/documents/:documentId/figures/:filename` — public figure image fetch (binary bytes + `Content-Type`), cached with `Cache-Control: public, max-age=86400`.
   - `GET /api/catalog` — public library catalog snapshot (`{ subjects, terms, subjectTerms, materials }`), cached with `Cache-Control: public, max-age=3600`. This is a **snapshot delivery endpoint, not a CRUD API** — the app fetches it on demand to surface **Available Materials** and imports individual materials on user action; no per-row write path.
   - `GET /api/catalog/materials/:id` — public **authoritative resolution** of one material plus its subject/term/subjectTerm relationships (`{ material, subject?, term?, subjectTerm? }`), **uncached** (`Cache-Control: no-store`) — import resolves against current server state, never the 30-day-cached snapshot; 404 when the material is not in the catalog. Not matched by the service worker runtime cache.
   - `GET /api/quiz` — public quiz content snapshot (`{ questions, quizzes }` in **assembled shapes**: each quiz carries `questionIds` + `items` rebuilt from the `quiz_questions` junction), cached with `Cache-Control: public, max-age=3600`. Also a snapshot delivery endpoint, not CRUD.
-  - `PUT /api/documents/:sourceId` — protected idempotent document ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
-  - `PUT /api/documents/:sourceId/figures/:filename` — protected idempotent figure ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
+  - `PUT /api/documents/:documentId` — protected idempotent document ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
+  - `PUT /api/documents/:documentId/figures/:filename` — protected idempotent figure ingest (requires `Authorization: Bearer <SEED_TOKEN>`).
   - `PUT /api/catalog` — protected idempotent whole-catalog upsert (requires `Authorization: Bearer <SEED_TOKEN>`); rows applied in dependency order (subjects → terms → subjectTerms → materials) so FKs hold — rows within a table run concurrently (`Promise.all`, independent keys); `createdAt`/`updatedAt` server-stamped.
   - `PUT /api/quiz` — protected idempotent quiz upsert (requires `Authorization: Bearer <SEED_TOKEN>`); accepts assembled `{ questions, quizzes }`, splits quizzes into `quizzes` + `quiz_questions` rows (junction rows replaced per quiz — `items` are authoritative), applies in FK-safe order (questions → quizzes → junction); rows/quizzes within each step run concurrently, with each quiz's junction delete awaited before its inserts.
 - CORS: allowlist via the `CORS_ORIGINS` var (comma-separated). Empty or unset allows any requesting origin (`*`) with credentials-safe origin reflection for dev (5173/4173) and production; specified origins enforce an exact allowlist match.
