@@ -142,7 +142,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 3. **Domain modules** import only from other domains or pure libraries — never from React, features, or infrastructure.
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
 5. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features. Scoped exception: application draft contracts in `DexieQuizDraftRepository`.
-6. **No barrel boundaries (ADR-010)** — barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.
+6. **Feature-Root Barrels Prohibited (ADR-010)** — Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths listed in `src/features/AGENTS.md`. Domain and application layers may expose stable module barrels where actively consumed by composition roots or features.
 
 ## PWA / Offline
 

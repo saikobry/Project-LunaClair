@@ -1,7 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { HighlightItem } from '../../../../domain/reader';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
-import { useAnnotationRepository } from '../useAnnotationRepository';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
@@ -10,7 +8,6 @@ import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
  */
 export function useClearHighlights() {
     const queryClient = useQueryClient();
-    useAnnotationRepository();
     const context = useContextOrThrow(ApplicationContext, 'useClearHighlights');
 
     return useMutation({
@@ -18,9 +15,9 @@ export function useClearHighlights() {
 
         onMutate: async (documentId) => {
             await queryClient.cancelQueries({ queryKey: readerQueryKeys.highlights(documentId) });
-            const previous = queryClient.getQueryData<HighlightItem[]>(readerQueryKeys.highlights(documentId));
+            const previous = queryClient.getQueryData(readerQueryKeys.highlights(documentId));
 
-            queryClient.setQueryData<HighlightItem[]>(readerQueryKeys.highlights(documentId), []);
+            queryClient.setQueryData(readerQueryKeys.highlights(documentId), []);
 
             return { previous };
         },

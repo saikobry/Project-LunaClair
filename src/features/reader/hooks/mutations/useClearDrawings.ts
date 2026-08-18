@@ -1,7 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { DrawingPath } from '../../../../domain/reader';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
-import { useAnnotationRepository } from '../useAnnotationRepository';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
@@ -10,7 +8,6 @@ import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
  */
 export function useClearDrawings() {
     const queryClient = useQueryClient();
-    useAnnotationRepository();
     const context = useContextOrThrow(ApplicationContext, 'useClearDrawings');
 
     return useMutation({
@@ -18,9 +15,9 @@ export function useClearDrawings() {
 
         onMutate: async (documentId) => {
             await queryClient.cancelQueries({ queryKey: readerQueryKeys.drawings(documentId) });
-            const previous = queryClient.getQueryData<DrawingPath[]>(readerQueryKeys.drawings(documentId));
+            const previous = queryClient.getQueryData(readerQueryKeys.drawings(documentId));
 
-            queryClient.setQueryData<DrawingPath[]>(readerQueryKeys.drawings(documentId), []);
+            queryClient.setQueryData(readerQueryKeys.drawings(documentId), []);
 
             return { previous };
         },

@@ -20,7 +20,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 
 - **Direct-path contracts only (ADR-010).** Cross-feature consumers import only the approved direct module paths listed under no-barrel-import below; internal feature paths are private.
 - **Single ownership.** Every business capability (including UI, dialogs, hooks, query keys, and feature types) has one owning feature.
-- **No barrel boundaries (ADR-010).** Feature-root barrels were removed; the curated contract is the documented direct-path allow-list below. Any `index.ts` that survives must be consumed by imports.
+- **Feature-Root Barrels Prohibited (ADR-010).** Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths listed in `src/features/AGENTS.md`. Domain and application layers may expose stable module barrels where actively consumed by composition roots or features.
 - **Domain-specific code stays in features.** `shared/` contains only domain-agnostic UI primitives, composites, and infrastructure utilities.
 - Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
 - Study content assets (markdown, figures) live in `content/materials/{documentId}/` — not inside feature directories

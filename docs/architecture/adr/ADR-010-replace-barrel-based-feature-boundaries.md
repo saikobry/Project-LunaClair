@@ -23,10 +23,10 @@ That refactor left the barrel files themselves with **zero importers**. A dead-c
 
 ## Decision
 
-Feature barrels are no longer used as public API boundaries.
+Feature-root barrels (`src/features/*/index.ts`) are no longer used as public API boundaries.
 
-1. **Direct imports are the convention.** Cross-feature consumption uses approved direct module paths, listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). New cross-feature imports extend that list.
-2. **Unimported barrels were removed.** All `index.ts` files with zero importers were deleted in the Aug 2026 sweep. Barrels that remain are those actually consumed by imports — a barrel kept as documentation is a bug, not a contract.
+1. **Direct imports are the convention for cross-feature consumption.** Cross-feature consumption uses approved direct module paths, listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). New cross-feature imports extend that list.
+2. **Unimported barrels were removed.** All `index.ts` files with zero importers were deleted in the Aug 2026 sweep. Domain and application layers (`src/application/index.ts`, `src/domain/*/index.ts`) retain stable module barrels where actively consumed by the composition root or features. A barrel kept merely as boundary documentation without consumers is prohibited.
 3. **Enforcement is the documented allow-list, not a lint rule.** The list is maintained by hand. Dedicated architectural linting is the intended future enforcement, but no specific tool is committed here — do not read this ADR as implementing one.
 
 ## Migration

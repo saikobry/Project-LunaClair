@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HighlightItem } from '../../../../domain/reader';
 import { readerQueryKeys } from '../../queries/readerQueryKeys';
-import { useAnnotationRepository } from '../useAnnotationRepository';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
@@ -12,11 +11,10 @@ interface DeleteHighlightVariables {
 
 /**
  * Deletes a single highlight by ID with optimistic cache removal.
- * Persists the updated array via the annotation repository.
+ * Persists the updated array via the application use case.
  */
 export function useDeleteHighlight() {
     const queryClient = useQueryClient();
-    useAnnotationRepository();
     const context = useContextOrThrow(ApplicationContext, 'useDeleteHighlight');
 
     return useMutation({
