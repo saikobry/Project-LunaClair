@@ -39,5 +39,7 @@ export { DeleteTermUseCase } from './use-cases/subject/DeleteTermUseCase';
 export { SaveHighlightUseCase } from './use-cases/reader/SaveHighlightUseCase';
 export { SaveDrawingUseCase } from './use-cases/reader/SaveDrawingUseCase';
 export { ClearAnnotationsUseCase } from './use-cases/reader/ClearAnnotationsUseCase';
+export { UpdateDocumentContentUseCase } from './use-cases/content/UpdateDocumentContentUseCase';
+export type { UpdateDocumentContentInput } from './use-cases/content/UpdateDocumentContentUseCase';
 export { RecordFlashcardReviewUseCase } from './use-cases/flashcards/RecordFlashcardReviewUseCase';
 export type { RecordFlashcardReviewInput } from './use-cases/flashcards/RecordFlashcardReviewUseCase';

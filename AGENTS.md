@@ -191,6 +191,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
 | `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |
+| `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |
 | `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, import services |
 | `src/shared/AGENTS.md` | `src/shared/` | Shared types, constants, utilities, hooks, components |
 | `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — D1 bridge, schema migrations, deploy workflow |

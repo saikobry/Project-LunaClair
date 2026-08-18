@@ -32,6 +32,7 @@ import {
     TouchMaterialUseCase,
     UnarchiveQuestionUseCase,
     UnarchiveQuizUseCase,
+    UpdateDocumentContentUseCase,
     UpdateMaterialUseCase,
     UpdateQuestionUseCase,
     UpdateQuizUseCase,
@@ -91,6 +92,9 @@ export function createUseCases(repositories: Repositories) {
             saveHighlight: new SaveHighlightUseCase(repositories.annotationRepository),
             saveDrawing: new SaveDrawingUseCase(repositories.annotationRepository),
             clearAnnotations: new ClearAnnotationsUseCase(repositories.annotationRepository),
+        },
+        content: {
+            updateDocumentContent: new UpdateDocumentContentUseCase(repositories.documentContentRepository),
         },
     };
 }

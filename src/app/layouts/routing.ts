@@ -11,7 +11,7 @@ export type AppRoute =
   | { kind: 'preview'; materialId: string }
   | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
-  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
+  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute };
 
@@ -61,7 +61,7 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /materials/:materialId
   const materialMatch = url.pathname.match(/^\/materials\/([^/]+)$/);
   if (materialMatch) {
-    const tab = (url.searchParams.get('tab') as 'read' | 'quiz' | 'flashcards' | 'manage') ?? 'read';
+    const tab = (url.searchParams.get('tab') as 'read' | 'write' | 'quiz' | 'flashcards' | 'manage') ?? 'read';
     const subjectId = url.searchParams.get('subject') ?? undefined;
     return { kind: 'workspace', workspace: 'material', materialId: materialMatch[1], activeTab: tab, subjectId };
   }

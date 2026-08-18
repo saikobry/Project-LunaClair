@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
+import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
@@ -13,6 +13,7 @@ import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPa
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import ReaderScreen from '../../features/reader/ReaderScreen';
+import { MaterialWriterTab } from '../../features/writer/components/MaterialWriterTab';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
 import { FlashcardScreen } from '../../features/flashcards/FlashcardScreen';
@@ -28,11 +29,12 @@ const styles = stylex.create({
   },
 });
 
-export type MaterialTab = 'read' | 'quiz' | 'flashcards' | 'manage';
+export type MaterialTab = 'read' | 'write' | 'quiz' | 'flashcards' | 'manage';
 
 // Hoisted to module scope for a stable reference across renders
 const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[] = [
   { key: 'read', label: 'Read', icon: BookOpen },
+  { key: 'write', label: 'Write', icon: PenTool },
   { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
   { key: 'flashcards', label: 'Flashcards', icon: Layers },
   { key: 'manage', label: 'Manage', icon: ClipboardList },
@@ -126,6 +128,11 @@ export default function MaterialWorkspace({
       <AnimatedTabPanel activeKey={activeTab}>
         {activeTab === 'read' && (
           <ReaderScreen
+            materialId={materialId}
+          />
+        )}
+        {activeTab === 'write' && (
+          <MaterialWriterTab
             materialId={materialId}
           />
         )}
