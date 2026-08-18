@@ -19,6 +19,12 @@ Feature-based modules, each containing everything needed for that feature: compo
 ## Local Contracts
 
 - **Direct-path contracts only (ADR-010).** Cross-feature consumers import only the approved direct module paths listed under no-barrel-import below; internal feature paths are private.
+- **Architectural Boundary Guardrails (Oxlint):** Features must never import concrete infrastructure (`src/infrastructure/**`) or legacy services (`src/services/**`). Enforced statically via Oxlint `no-restricted-imports`.
+- **Dependency Flow Policy:**
+  - `Features → Application`: Required for all write mutations and business workflows (`context.useCases.*`).
+  - `Features → Domain`: Allowed for model types, value objects, and query contracts (`Question`, `StudyMaterial`, `ReviewState`).
+  - `Features → Infrastructure`: Strictly forbidden.
+  - `Features → Context Repositories`: Permitted for query/read hooks; mutations must never invoke repository methods directly.
 - **Single ownership.** Every business capability (including UI, dialogs, hooks, query keys, and feature types) has one owning feature.
 - **Feature-Root Barrels Prohibited (ADR-010).** Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths listed in `src/features/AGENTS.md`. Domain and application layers may expose stable module barrels where actively consumed by composition roots or features.
 - **Domain-specific code stays in features.** `shared/` contains only domain-agnostic UI primitives, composites, and infrastructure utilities.

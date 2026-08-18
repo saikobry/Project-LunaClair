@@ -4,5 +4,30 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/features/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/infrastructure/**",
+                  "**/infrastructure",
+                  "**/services/**",
+                  "**/services",
+                  "@/infrastructure/**",
+                  "@/services/**"
+                ],
+                "message": "Architectural boundary violation: Features must not directly import concrete infrastructure (Dexie/API) or legacy services. Route business mutations through application use cases, and perform queries via domain repository contracts injected into context."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
