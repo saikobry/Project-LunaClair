@@ -33,7 +33,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 
 ## Local Contracts
 
-- Markdown content is resolved through `DocumentRepository` (`HybridDocumentRepository` in the composition root): locally imported content is served from the Dexie `documentContents` store (fully offline), otherwise fetched from `GET /api/documents/{documentId}` (SW runtime-cached). Content is preprocessed by `services/content/markdownPreprocessor` (not in this feature)
+- Markdown content is resolved through `DocumentRepository` (`HybridDocumentRepository` in the composition root): locally imported content is served from the Dexie `documentContents` store (fully offline), otherwise fetched from `GET /api/documents/{documentId}` (SW runtime-cached). Content is preprocessed by `infrastructure/api/markdownPreprocessor` (not in this feature)
 - `ReaderScreen` handles `DocumentNotFoundError` with a friendly UI notice and unexpected errors separately
 - Highlights persist via `AnnotationRepository` under `STORAGE_KEYS.reader.highlights` (`lunaclair.reader.highlights`)
 - Drawings persist via `AnnotationRepository` under `STORAGE_KEYS.reader.drawings` (`lunaclair.reader.drawings`)
@@ -41,7 +41,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 - Drawing mode locks body scroll (`overflow: hidden`, `touchAction: none`, `overscrollBehavior: none`)
 - Highlights use the CSS Custom Highlight API (`CSS.highlights.set`) — no DOM wrapper nodes
 - Text selection offsets are computed via feature-local `getOffsetsOfRange` / `restoreRange` in `utils/selection.ts`
-- Annotation value types (`HighlightItem`, `DrawingPath`, `Point`, `HighlightColor`, `AnnotationMode`, `DrawingTool`) live in `domain/reader/annotation.types.ts` (owned by the reader domain contract — also consumed by `infrastructure/` and `services/` persistence adapters)
+- Annotation value types (`HighlightItem`, `DrawingPath`, `Point`, `HighlightColor`, `AnnotationMode`, `DrawingTool`) live in `domain/reader/annotation.types.ts` (owned by the reader domain contract — also consumed by `infrastructure/` persistence adapters)
 - Query hooks and mutation hooks are separated; mutations live in `hooks/mutations/`
 - DI hooks (`useDocumentRepository`, `useAnnotationRepository`) provide repository access via context
 - Reader styles are co-located StyleX definitions per component (`stylex.create` / `stylex.keyframes`); no feature-level CSS files remain

@@ -119,9 +119,8 @@ src/
   application/    — Framework-agnostic application use cases
   domain/         — Business domain models (pure data, no UI)
   features/       — Feature modules (catalog, reader, quiz, quiz-management, …)
-  infrastructure/ — Persistence layer (Dexie/IndexedDB database, repositories)
+  infrastructure/ — Persistence and external API layer (Dexie database, API adapters, repositories)
   shared/         — Shared types, constants, utilities, base components
-  services/       — Legacy infrastructure services (localStorage, content fetch)
   styles/         — Global styles and master stylesheet
 ```
 
@@ -140,11 +139,10 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 1. **Direct-path feature contracts (ADR-010)** — feature-root barrels were removed; features consume another feature only through the approved direct module paths listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import).
 2. **Internal feature privacy** — imports into `features/<name>/components`, `hooks`, `queries`, `types`, or other internal paths are prohibited from outside that feature. User-directed exception (Aug 2026): `react-doctor/no-barrel-import` is resolved project-wide, and the specific cross-feature direct-path imports that replaced feature barrels are listed in `src/features/AGENTS.md` (Local Contracts → no-barrel-import). New cross-feature consumption follows the documented direct-path pattern and must extend that allow-list.
-3. **Domain modules** import only from other domains or pure libraries — never from React, features, or services.
+3. **Domain modules** import only from other domains or pure libraries — never from React, features, or infrastructure.
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
-5. **Services** import from `shared/` (types/utilities) but not from features.
-6. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features.
-7. **No barrel boundaries (ADR-010)** — barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.
+5. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features. Scoped exception: application draft contracts in `DexieQuizDraftRepository`.
+6. **No barrel boundaries (ADR-010)** — barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.
 
 ## PWA / Offline
 
@@ -193,6 +191,6 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
 | `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |
 | `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, import services |
-| `src/services/AGENTS.md` | `src/services/` | Legacy infrastructure services (localStorage, content fetch) |
 | `src/shared/AGENTS.md` | `src/shared/` | Shared types, constants, utilities, hooks, components |
 | `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — D1 bridge, schema migrations, deploy workflow |
+

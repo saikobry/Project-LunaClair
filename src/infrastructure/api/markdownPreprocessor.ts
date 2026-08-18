@@ -15,4 +15,3 @@ export function preprocessMarkdown(raw: string, documentId: string): string {
             `![${alt}](${baseFigureUrl}${encodeURIComponent(filename)})`,
     );
 }
-

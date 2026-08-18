@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter } from 'lucide-react';
-import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz/quizBadgeAppearance';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';

@@ -2,7 +2,7 @@ import { useState, type ReactNode, type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { GripVertical, Link2 } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../../../domain/quiz/quizBadgeAppearance';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
 import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 import { Selector } from '../../../shared/ui/Selector/Selector';

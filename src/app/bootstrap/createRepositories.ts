@@ -1,7 +1,7 @@
-import { apiCatalogRepository } from '../../services/content/ApiCatalogRepository';
-import { apiDocumentRepository } from '../../services/content/ApiDocumentRepository';
-import { apiQuizContentRepository } from '../../services/content/ApiQuizContentRepository';
-import { HybridDocumentRepository } from '../../services/content/HybridDocumentRepository';
+import { apiCatalogRepository } from '../../infrastructure/api/ApiCatalogRepository';
+import { apiDocumentRepository } from '../../infrastructure/api/ApiDocumentRepository';
+import { apiQuizContentRepository } from '../../infrastructure/api/ApiQuizContentRepository';
+import { HybridDocumentRepository } from '../../infrastructure/api/HybridDocumentRepository';
 import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
 import { dexieDocumentContentRepository } from '../../infrastructure/database/repositories/DexieDocumentContentRepository';
 import { dexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';

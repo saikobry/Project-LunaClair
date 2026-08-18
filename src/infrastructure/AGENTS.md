@@ -1,11 +1,17 @@
-# src/infrastructure/ — Persistence Layer
+# src/infrastructure/ — Persistence and API Layer
 
 ## Purpose
 
-Dexie/IndexedDB database layer: schema definition, database lifecycle (open, migrate, seed), and concrete repository implementations satisfying domain contracts.
+Dexie/IndexedDB local database and remote API adapters: schema definition, database lifecycle (open, migrate, seed), API repository implementations, and concrete repository/service implementations satisfying domain contracts.
 
 ## Ownership
 
+- `api/` — Concrete remote API repository implementations:
+  - `ApiCatalogRepository.ts` → `CatalogRepository` (`GET /api/catalog` snapshot, uncached `GET /api/catalog/materials/:id` resolution)
+  - `ApiDocumentRepository.ts` → `DocumentRepository` (`GET /api/documents/:documentId`)
+  - `ApiQuizContentRepository.ts` → `QuizContentRepository` (`GET /api/quiz` snapshot)
+  - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first fallback to remote API)
+  - `markdownPreprocessor.ts` → figure image relative URL transformer
 - `database/schema.ts` — Version 1/2/3/4/5/6/7/8 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state; v6 adds `documentContents` `'sourceId'` — locally imported document markdown, the explicit local representation of an imported material's content; v7 removes the legacy `sourceType` index from `materials`; v8 rekeys `documentContents` to `'documentId'` (vocabulary rename, with a data-copy upgrade)
 - `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`. v6 adds `documentContents`. v7 drops the `sourceType` index. v8 rekeys `documentContents` from `sourceId` to `documentId` (rewrites existing records).
 - `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 schema migration is handled natively by Dexie `version(3).upgrade()`; the v3 data pass (`lunaclair.migration.v3.complete`) normalizes stored question tags via domain `normalizeTags` (strip `#`, dedup case-insensitively, preserve first-seen casing).
@@ -30,11 +36,10 @@ Dexie/IndexedDB database layer: schema definition, database lifecycle (open, mig
 ## Local Contracts
 
 - Imports from `domain/` (contract interfaces, model types, annotation value shapes) and `shared/` (storage keys) — never from features. Scoped exception: `DexieQuizDraftRepository` and the `quizEditingDrafts` table typing import the application-layer `QuizDraft` DTO and `QuizDraftRepository` contract (dependency inversion for application-owned persistence contracts).
-- All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`).
+- All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`, `apiCatalogRepository`).
 - `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
 - `DexieQuizEditorService.saveQuiz()` runs a single `db.transaction('rw', [questions, quizzes])`: applies all question changes (create or update with conditional version bump), resolves canvas `tempId`s to question ids, rewrites the quiz's `questionIds`/`items`, and re-snapshots `questionVersion` per item — the operation is atomic.
 - Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global), v4 (quizEditingDrafts crash-recovery store), v5 (flashcardReviews spaced repetition store), v6 (documentContents imported-content store), v7 (drops legacy `sourceType` index), v8 (documentContents rekeyed `sourceId` → `documentId`).
-
 - Database name: `lunaclair-db`.
 - Migration is idempotent — guarded by localStorage flags for v1/v2/v3 data passes, native Dexie upgrade for schema v3.
 - **No auto-hydration.** The app boots with an empty local library; the D1 catalog is surfaced through the API and materials are imported on user action via `LibraryImportService`. Dexie is the user's local selection/working state; D1 is the canonical platform catalog; Service Worker Cache Storage is a network-resource cache and is never the source of truth for library membership. The one non-import write of catalog rows is `DexieTermRepository.upsertTerms` via `SyncDefaultTermsUseCase` at onboarding completion (user-initiated) — never on boot.
@@ -53,4 +58,4 @@ No verification framework exists yet.
 
 ## Child DOX Index
 
-No child AGENTS.md files — `database/repositories/` is a flat directory of repository implementations and `database/services/` holds application service implementations.
+No child AGENTS.md files — `api/`, `database/repositories/`, and `database/services/` are structured subdirectories under infrastructure.

@@ -1,12 +1,12 @@
-import type { QuestionDifficulty } from './Question';
-import type { QuestionType } from './QuestionType';
+import type { QuestionDifficulty } from '../../domain/quiz/Question';
+import type { QuestionType } from '../../domain/quiz/QuestionType';
 
 /**
  * Badge appearance per question type and difficulty — the single source of
  * truth for the semantic badge palette shared by the authoring surfaces (quiz
  * canvas collapsed card, question bank).
  *
- * SOURCING RULE (three tiers — see the community-thread decision):
+ * SOURCING RULE (three tiers):
  * 1. QUESTION_TYPE_APPEARANCE — LITERAL hex. The type→color mapping is an
  *    arbitrary domain assignment: nothing outside quiz semantics says
  *    `multiple_choice` is blue, so the value has to be memorized here as
@@ -26,17 +26,14 @@ import type { QuestionType } from './QuestionType';
  * The records are EXHAUSTIVE: adding a new `QuestionType` or
  * `QuestionDifficulty` value forces the compiler to give it an appearance
  * here, so a new question kind can never silently render with missing
- * styling (a lint rule only catches new hardcoded hex outside this file —
- * it can't catch a missing semantic mapping).
+ * styling.
  */
 
 /**
  * Neutral badge appearance for the points chip — shared by every authoring
  * surface. Token HYGIENE tier: these are the generic neutral tokens the
  * shared chip primitive defaults to (accent-muted background,
- * text-secondary foreground), referenced rather than repeated. This is not a
- * semantic-borrowing case like difficulty — there is no claim that "points
- * are accent-colored for a reason".
+ * text-secondary foreground), referenced rather than repeated.
  */
 export const POINTS_APPEARANCE: { bg: string; fg: string } = {
     bg: 'var(--color-accent-muted)',
@@ -44,7 +41,7 @@ export const POINTS_APPEARANCE: { bg: string; fg: string } = {
 };
 
 /**
- * Arbitrary domain assignment tier — literal hex by design. The mapping is
+ * Arbitrary assignment tier — literal hex by design. The mapping is
  * domain knowledge (nothing outside quiz semantics determines these colors),
  * so the values live here as literals and are referenced everywhere.
  */
