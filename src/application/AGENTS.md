@@ -11,6 +11,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 - `use-cases/library/` owns material association validation, CRUD workflows, and the material/subject import/removal workflows (`ImportMaterialUseCase` — resolves the material authoritatively per-id via `CatalogRepository.getMaterial` (never the full snapshot), fetches document/quiz content, and persists atomically via `LibraryImportService`; `ImportSubjectUseCase` — batch imports an entire subject's unimported materials idempotently in one atomic transaction; `RemoveImportedMaterialUseCase` — local-only removal that leaves the canonical D1 catalog entry untouched; `SyncDefaultTermsUseCase` — syncs the canonical academic terms (Prelim/Midterm/Finals) from `CatalogRepository.getCatalog()` into the local terms store, invoked at first-run onboarding completion).
 - `use-cases/subject/` owns subject-term and cascade workflows.
 - `use-cases/reader/` owns annotation persistence workflows.
+- `use-cases/flashcards/` owns spaced-repetition review state transitions and persistence coordination (`RecordFlashcardReviewUseCase`).
 - `quiz-management/drafts/` owns the quiz canvas Application Session DTOs (`QuizDraft`/`QuestionDraft`), draft validation (`quizDraftValidation`), the `QuizDraftRepository` crash-recovery contract, and draft seeding helpers. Drafts carry UI session concerns (`tempId`, `isDirty`) and are never persisted to the Question Bank or Quiz Catalog.
 
 ## Local Contracts

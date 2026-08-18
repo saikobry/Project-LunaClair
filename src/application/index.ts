@@ -32,3 +32,5 @@ export { DeleteTermUseCase } from './use-cases/subject/DeleteTermUseCase';
 export { SaveHighlightUseCase } from './use-cases/reader/SaveHighlightUseCase';
 export { SaveDrawingUseCase } from './use-cases/reader/SaveDrawingUseCase';
 export { ClearAnnotationsUseCase } from './use-cases/reader/ClearAnnotationsUseCase';
+export { RecordFlashcardReviewUseCase } from './use-cases/flashcards/RecordFlashcardReviewUseCase';
+export type { RecordFlashcardReviewInput } from './use-cases/flashcards/RecordFlashcardReviewUseCase';

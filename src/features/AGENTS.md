@@ -12,7 +12,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories |
 | `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (QuizScreen/QuizStartView/QuizView/QuizResultView), session flow hooks, Subject Quiz Explorer tree & selection hooks, DI repositories |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), application use-case adapters, publish/archive workflows |
-| `flashcards/` | ✅ Implemented | Spaced-repetition study mode — Card projection from Question, SM-2 scheduling, 3D flip card player, rating flow, FlashcardReviewRepository hooks |
+| `flashcards/` | ✅ Implemented | Spaced-repetition study mode — Card projection from Question, SM-2 scheduling, 3D flip card player, rating flow (`RecordFlashcardReviewUseCase`), `FlashcardReviewRepository` hooks |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 
@@ -28,7 +28,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen, FlashcardScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by AppSidebar + tabs, not by per-screen buttons.
 - Feature view: `{Feature}View.tsx` — pure presentation
 - Query hooks are separated from mutation hooks. Mutations live in `hooks/mutations/`; subject and term queries live in `hooks/queries/`.
-- UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes. Mutation hooks delegate workflows to `src/application/` use cases.
+- UI components contain 0 async data-fetching logic and 0 direct imports of TanStack Query or concrete storage classes. Mutation hooks delegate workflows to `src/application/` use cases (e.g. `useFlashcardRating` delegates to `RecordFlashcardReviewUseCase`).
 - Subject term UI: `SubjectTermList` is strictly presentational (props `{ terms, onReorder, onRemove }` — zero fetching/mutations/modals); `SubjectTermsTab` is the container owning term queries and mutations and rendering the add-existing/create/unlink modals. Modal open-state for add-existing/create is lifted to `SubjectWorkspace` (controlled props `showAddExisting`/`showCreate` + open/close callbacks) so the Page header hosts tab-specific actions. `useSubjectTermMutations` provides add/remove/reorder (optimistic) and create-and-assign hooks targeting `['subject', 'terms', subjectId]` query keys.
 - Feature-owned cache namespaces: `catalogQueryKeys` owns material, subject, and term queries; `assessmentQueryKeys` owns quiz queries; `flashcardQueryKeys` owns flashcard review queries.
 - `catalog/available/` owns discovery of canonical (D1) materials and the remote → local import lifecycle; `catalog/materials/` owns the local material lifecycle and editing/management. `available` reads local library state (`useLibrary`) for import status and invalidates the shared `catalogQueryKeys` namespaces on import/remove — runtime coupling, not ownership.

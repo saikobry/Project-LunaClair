@@ -4,15 +4,13 @@ import { ApplicationContext } from '../../../../app/providers/ApplicationContext
 import { flashcardQueryKeys } from '../flashcardQueryKeys';
 import type { ReviewState } from '../../../../domain/flashcards/scheduler';
 
-import { dexieFlashcardReviewRepository } from '../../../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
-
 export function useFlashcardReviews(materialId: string) {
     const context = useContextOrThrow(ApplicationContext, 'useFlashcardReviews');
-    const repository = context.flashcardReviewRepository ?? context.repositories?.flashcardReviewRepository ?? dexieFlashcardReviewRepository;
 
     const { data, isLoading, isError, error } = useQuery({
         queryKey: flashcardQueryKeys.reviews(materialId),
         queryFn: async () => {
+            const repository = context.flashcardReviewRepository ?? context.repositories.flashcardReviewRepository;
             const reviews = await repository.getByMaterial(materialId);
             const map: Record<string, ReviewState> = {};
             for (const r of reviews) {
@@ -20,7 +18,6 @@ export function useFlashcardReviews(materialId: string) {
             }
             return map;
         },
-
         enabled: Boolean(materialId),
     });
 

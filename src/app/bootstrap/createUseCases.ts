@@ -1,8 +1,11 @@
-import { AddTermToSubjectUseCase, ArchiveQuestionUseCase, ArchiveQuizUseCase, ClearAnnotationsUseCase, CreateAndAssignTermUseCase, CreateMaterialUseCase, CreateQuestionUseCase, CreateQuizUseCase, DeleteMaterialUseCase, DeleteSubjectUseCase, DeleteTermUseCase, ImportMaterialUseCase, ImportSubjectUseCase, PublishQuestionUseCase, PublishQuizUseCase, RemoveImportedMaterialUseCase, RemoveTermFromSubjectUseCase, ReorderSubjectTermsUseCase, SaveDrawingUseCase, SaveHighlightUseCase, SaveQuizUseCase, StartQuizSessionUseCase, SubmitQuizSessionUseCase, SyncDefaultTermsUseCase, SyncSubjectTermsUseCase, TouchMaterialUseCase, UnarchiveQuestionUseCase, UnarchiveQuizUseCase, UpdateMaterialUseCase, UpdateQuestionUseCase, UpdateQuizUseCase } from '../../application';
+import { AddTermToSubjectUseCase, ArchiveQuestionUseCase, ArchiveQuizUseCase, ClearAnnotationsUseCase, CreateAndAssignTermUseCase, CreateMaterialUseCase, CreateQuestionUseCase, CreateQuizUseCase, DeleteMaterialUseCase, DeleteSubjectUseCase, DeleteTermUseCase, ImportMaterialUseCase, ImportSubjectUseCase, PublishQuestionUseCase, PublishQuizUseCase, RecordFlashcardReviewUseCase, RemoveImportedMaterialUseCase, RemoveTermFromSubjectUseCase, ReorderSubjectTermsUseCase, SaveDrawingUseCase, SaveHighlightUseCase, SaveQuizUseCase, StartQuizSessionUseCase, SubmitQuizSessionUseCase, SyncDefaultTermsUseCase, SyncSubjectTermsUseCase, TouchMaterialUseCase, UnarchiveQuestionUseCase, UnarchiveQuizUseCase, UpdateMaterialUseCase, UpdateQuestionUseCase, UpdateQuizUseCase } from '../../application';
 import type { Repositories } from './createRepositories';
 
 export function createUseCases(repositories: Repositories) {
     return {
+        flashcards: {
+            recordReview: new RecordFlashcardReviewUseCase(repositories.flashcardReviewRepository),
+        },
         quiz: { startSession: new StartQuizSessionUseCase(repositories.quizSessionRepository), submitSession: new SubmitQuizSessionUseCase(repositories.quizSessionRepository) },
         quizManagement: {
             createQuestion: new CreateQuestionUseCase(repositories.questionRepository), updateQuestion: new UpdateQuestionUseCase(repositories.questionRepository), archiveQuestion: new ArchiveQuestionUseCase(repositories.questionRepository), unarchiveQuestion: new UnarchiveQuestionUseCase(repositories.questionRepository), publishQuestion: new PublishQuestionUseCase(repositories.questionRepository),

@@ -2,9 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { flashcardQueryKeys } from '../flashcardQueryKeys';
-import { review, type Rating, type ReviewState } from '../../../../domain/flashcards/scheduler';
-
-import { dexieFlashcardReviewRepository } from '../../../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
+import type { Rating, ReviewState } from '../../../../domain/flashcards/scheduler';
 
 interface RecordRatingInput {
     key: string;
@@ -16,17 +14,15 @@ interface RecordRatingInput {
 export function useFlashcardRating(materialId: string) {
     const context = useContextOrThrow(ApplicationContext, 'useFlashcardRating');
     const queryClient = useQueryClient();
-    const repository = context.flashcardReviewRepository ?? context.repositories?.flashcardReviewRepository ?? dexieFlashcardReviewRepository;
 
     const mutation = useMutation({
-        mutationFn: async ({ key, materialId: matId, existingState, rating }: RecordRatingInput) => {
-            const newState = review(existingState, rating, new Date());
-            newState.key = key;
-            (newState as ReviewState & { materialId: string }).materialId = matId;
-
-            await repository.save([newState]);
-            return newState;
-        },
+        mutationFn: ({ key, materialId: matId, existingState, rating }: RecordRatingInput) =>
+            context.useCases.flashcards.recordReview.execute({
+                key,
+                materialId: matId,
+                existingState,
+                rating,
+            }),
 
         onSuccess: (newState) => {
             queryClient.setQueryData<Record<string, ReviewState>>(

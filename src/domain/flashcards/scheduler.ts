@@ -1,5 +1,6 @@
 export interface ReviewState {
     key: string;
+    materialId?: string;
     repetitions: number;
     easeFactor: number;
     intervalDays: number;
