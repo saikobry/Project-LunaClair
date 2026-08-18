@@ -1,5 +1,7 @@
 import {
   $createTextNode,
+  $isTextNode,
+  TextNode,
   type ElementNode,
   type LexicalNode,
 } from 'lexical';
@@ -34,6 +36,7 @@ import {
   type MultilineElementTransformer,
   type TextMatchTransformer,
   type Transformer,
+  $generateNodesFromMarkdownString,
   isTableRowDivider,
   HEADING,
   QUOTE,
@@ -51,6 +54,77 @@ import {
   CHECK_LIST,
 } from '@lexical/markdown';
 import { ImageNode, $createImageNode, $isImageNode } from '../nodes/ImageNode';
+
+export const UNDERLINE_TRANSFORMER: TextMatchTransformer = {
+  dependencies: [TextNode],
+  export: (node: LexicalNode) => {
+    if (!$isTextNode(node) || !node.hasFormat('underline')) {
+      return null;
+    }
+
+    let inner = node.getTextContent();
+    if (node.hasFormat('bold')) {
+      inner = `**${inner}**`;
+    }
+    if (node.hasFormat('italic')) {
+      inner = `*${inner}*`;
+    }
+    if (node.hasFormat('strikethrough')) {
+      inner = `~~${inner}~~`;
+    }
+    if (node.hasFormat('code')) {
+      inner = `\`${inner}\``;
+    }
+    return `<u>${inner}</u>`;
+  },
+  importRegExp: /<u>([\s\S]*?)<\/u>/,
+  regExp: /<u>([\s\S]*?)<\/u>$/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const [, underlineText] = match;
+    textNode.setTextContent(underlineText);
+    if (!textNode.hasFormat('underline')) {
+      textNode.toggleFormat('underline');
+    }
+    return textNode;
+  },
+  trigger: '>',
+  type: 'text-match',
+};
+
+const TABLE_CELL_INLINE_TRANSFORMERS: Transformer[] = [
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  BOLD_STAR,
+  BOLD_UNDERSCORE,
+  STRIKETHROUGH,
+  ITALIC_STAR,
+  ITALIC_UNDERSCORE,
+  UNDERLINE_TRANSFORMER,
+  HIGHLIGHT,
+  INLINE_CODE,
+  LINK,
+];
+
+function $appendMarkdownToCell(cellNode: TableCellNode, text: string) {
+  if (!text) return;
+  try {
+    const nodes = $generateNodesFromMarkdownString(text, TABLE_CELL_INLINE_TRANSFORMERS);
+    if (nodes.length === 0) {
+      cellNode.append($createTextNode(text));
+      return;
+    }
+    for (const node of nodes) {
+      if (node.getType() === 'paragraph') {
+        const children = (node as ElementNode).getChildren();
+        cellNode.append(...children);
+      } else {
+        cellNode.append(node);
+      }
+    }
+  } catch {
+    cellNode.append($createTextNode(text));
+  }
+}
 
 // ── 1. Horizontal Rule Transformer ──
 export const HR_TRANSFORMER: ElementTransformer = {
@@ -143,7 +217,7 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
             : TableCellHeaderStates.NO_STATUS,
         );
         if (text) {
-          cellNode.append($createTextNode(text));
+          $appendMarkdownToCell(cellNode, text);
         }
         rowNode.append(cellNode);
       });
@@ -259,6 +333,7 @@ export const ENHANCED_UNORDERED_LIST: ElementTransformer = {
       listItem.setIndent(indent);
     }
   },
+  triggerOnEnter: true,
   type: 'element',
 };
 
@@ -302,6 +377,7 @@ export const ENHANCED_ORDERED_LIST: ElementTransformer = {
       listItem.setIndent(indent);
     }
   },
+  triggerOnEnter: true,
   type: 'element',
 };
 
@@ -325,6 +401,7 @@ export const standardTransformers: Transformer[] = [
   STRIKETHROUGH,
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
+  UNDERLINE_TRANSFORMER,
   HIGHLIGHT,
   INLINE_CODE,
   LINK,

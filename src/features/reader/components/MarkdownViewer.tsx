@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
@@ -8,6 +10,17 @@ import type { Components } from 'react-markdown';
 interface MarkdownViewerProps {
   text: string;
 }
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), 'u', 'figure', 'figcaption', 'mark'],
+  attributes: {
+    ...defaultSchema.attributes,
+    u: [...(defaultSchema.attributes?.['*'] || [])],
+    figure: [...(defaultSchema.attributes?.['*'] || [])],
+    figcaption: [...(defaultSchema.attributes?.['*'] || [])],
+  },
+};
 
 /** Minimal structural type for the hast nodes the figure plugin walks. */
 interface HastNode {
@@ -205,6 +218,16 @@ const styles = stylex.create({
     marginTop: 6,
     textAlign: 'center',
   },
+  underline: {
+    textDecorationLine: 'underline',
+    textUnderlineOffset: 3,
+  },
+  strong: {
+    fontWeight: 700,
+  },
+  em: {
+    fontStyle: 'italic',
+  },
 });
 
 /**
@@ -228,7 +251,22 @@ const components: Components = {
     <p {...props} {...stylex.props(styles.paragraph)} />
   ),
   a: ({ node: _node, ...props }) => (
-    <a {...props} {...stylex.props(styles.link)} />
+    <a {...props} {...stylex.props(styles.link)} target="_blank" rel="noopener noreferrer" />
+  ),
+  strong: ({ node: _node, ...props }) => (
+    <strong {...props} {...stylex.props(styles.strong)} />
+  ),
+  b: ({ node: _node, ...props }) => (
+    <b {...props} {...stylex.props(styles.strong)} />
+  ),
+  em: ({ node: _node, ...props }) => (
+    <em {...props} {...stylex.props(styles.em)} />
+  ),
+  i: ({ node: _node, ...props }) => (
+    <i {...props} {...stylex.props(styles.em)} />
+  ),
+  u: ({ node: _node, ...props }) => (
+    <u {...props} {...stylex.props(styles.underline)} />
   ),
   ul: ({ node: _node, ...props }) => (
     <ul {...props} {...stylex.props(styles.list)} />
@@ -285,7 +323,7 @@ const MarkdownViewer = memo(function MarkdownViewer({ text }: MarkdownViewerProp
   return (
     <div className="markdown-viewer" {...stylex.props(styles.root)}>
       <ReactMarkdown
-        rehypePlugins={[rehypeSlug, rehypeFigure]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeSlug, rehypeFigure]}
         remarkPlugins={[remarkGfm]}
         components={components}
       >

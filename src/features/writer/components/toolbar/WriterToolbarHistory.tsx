@@ -45,6 +45,7 @@ export function WriterToolbarHistory() {
         type="button"
         {...stylex.props(toolbarStyles.button)}
         disabled={!canUndo}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
         title="Undo (Ctrl+Z)"
         aria-label="Undo"
@@ -55,6 +56,7 @@ export function WriterToolbarHistory() {
         type="button"
         {...stylex.props(toolbarStyles.button)}
         disabled={!canRedo}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
         title="Redo (Ctrl+Y)"
         aria-label="Redo"

@@ -126,14 +126,7 @@ export function WriterToolbar() {
       <div {...stylex.props(toolbarStyles.divider)} />
       <WriterToolbarBlockFormat blockType={formatState.blockType} />
       <div {...stylex.props(toolbarStyles.divider)} />
-      <WriterToolbarInlineFormat
-        isBold={formatState.isBold}
-        isItalic={formatState.isItalic}
-        isUnderline={formatState.isUnderline}
-        isStrikethrough={formatState.isStrikethrough}
-        isCode={formatState.isCode}
-        isLink={formatState.isLink}
-      />
+      <WriterToolbarInlineFormat formats={formatState} />
       <div {...stylex.props(toolbarStyles.divider)} />
       <WriterToolbarIndents />
       <div {...stylex.props(toolbarStyles.divider)} />

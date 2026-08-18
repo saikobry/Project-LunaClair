@@ -3,6 +3,8 @@ import {
   $createParagraphNode,
   $getSelection,
   $isRangeSelection,
+  $isElementNode,
+  type ElementNode,
 } from 'lexical';
 import {
   $createHeadingNode,
@@ -44,38 +46,65 @@ export function WriterToolbarBlockFormat({ blockType }: WriterToolbarBlockFormat
 
     editor.update(() => {
       const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
+      if (!$isRangeSelection(selection)) return;
+
+      if (newBlockType === 'bullet') {
+        editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+        return;
+      }
+
+      if (newBlockType === 'number') {
+        editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+        return;
+      }
+
+      // If currently in a list and converting to non-list, remove list first
+      if (blockType === 'bullet' || blockType === 'number') {
+        editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+      }
+
+      // Collect unique top-level elements to transform across the selection
+      const elementsToTransform = new Set<ElementNode>();
+      const nodes = selection.getNodes();
+      for (const node of nodes) {
+        const topLevel = node.getKey() === 'root' ? null : node.getTopLevelElement();
+        if (topLevel && $isElementNode(topLevel)) {
+          elementsToTransform.add(topLevel);
+        }
+      }
+
+      // Fallback if getNodes() was empty or didn't match top level
+      if (elementsToTransform.size === 0) {
+        const anchorNode = selection.anchor.getNode();
+        const topLevel = anchorNode.getKey() === 'root' ? null : anchorNode.getTopLevelElement();
+        if (topLevel && $isElementNode(topLevel)) {
+          elementsToTransform.add(topLevel);
+        }
+      }
+
+      for (const element of elementsToTransform) {
+        if (!element.isAttached()) continue;
+
+        let newElement: ElementNode | null = null;
         if (newBlockType === 'paragraph') {
-          const anchorNode = selection.anchor.getNode();
-          const target = anchorNode.getTopLevelElementOrThrow();
-          target.replace($createParagraphNode());
+          newElement = $createParagraphNode();
         } else if (newBlockType.startsWith('h')) {
-          const anchorNode = selection.anchor.getNode();
-          const target = anchorNode.getTopLevelElementOrThrow();
-          target.replace($createHeadingNode(newBlockType as HeadingTagType));
-        } else if (newBlockType === 'bullet') {
-          if (blockType !== 'bullet') {
-            editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-          } else {
-            editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-          }
-        } else if (newBlockType === 'number') {
-          if (blockType !== 'number') {
-            editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-          } else {
-            editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-          }
+          newElement = $createHeadingNode(newBlockType as HeadingTagType);
         } else if (newBlockType === 'quote') {
-          const anchorNode = selection.anchor.getNode();
-          const target = anchorNode.getTopLevelElementOrThrow();
-          target.replace($createQuoteNode());
+          newElement = $createQuoteNode();
         } else if (newBlockType === 'code') {
-          const anchorNode = selection.anchor.getNode();
-          const target = anchorNode.getTopLevelElementOrThrow();
-          target.replace($createCodeNode());
+          newElement = $createCodeNode();
+        }
+
+        if (newElement) {
+          const children = element.getChildren();
+          newElement.append(...children);
+          element.replace(newElement);
         }
       }
     });
+
+    editor.focus();
   };
 
   return (

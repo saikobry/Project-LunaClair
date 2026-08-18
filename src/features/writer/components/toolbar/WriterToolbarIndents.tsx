@@ -15,6 +15,7 @@ export function WriterToolbarIndents() {
       <button
         type="button"
         {...stylex.props(toolbarStyles.button)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)}
         title="Outdent (Shift+Tab)"
         aria-label="Outdent"
@@ -24,6 +25,7 @@ export function WriterToolbarIndents() {
       <button
         type="button"
         {...stylex.props(toolbarStyles.button)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)}
         title="Indent (Tab)"
         aria-label="Indent"

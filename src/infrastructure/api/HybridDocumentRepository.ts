@@ -2,6 +2,7 @@ import type { StudyMaterial } from '../../domain/library/StudyMaterial';
 import type { Document } from '../../domain/reader/Document';
 import type { DocumentRepository } from '../../domain/reader/DocumentRepository';
 import type { DocumentContentRepository } from '../../domain/reader/DocumentContentRepository';
+import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 
 /**
  * `DocumentRepository` that serves imported document content from Dexie first
@@ -34,6 +35,21 @@ export class HybridDocumentRepository implements DocumentRepository {
                 format: 'markdown',
             };
         }
-        return this.remote.getDocumentByMaterial(material, signal);
+
+        try {
+            return await this.remote.getDocumentByMaterial(material, signal);
+        } catch (error) {
+            if (error instanceof DocumentNotFoundError) {
+                // If neither local Dexie nor the remote API has content for this material yet,
+                // return an empty document rather than failing, allowing authoring/reading empty state.
+                return {
+                    id: material.id,
+                    title: material.title,
+                    content: '',
+                    format: 'markdown',
+                };
+            }
+            throw error;
+        }
     }
 }

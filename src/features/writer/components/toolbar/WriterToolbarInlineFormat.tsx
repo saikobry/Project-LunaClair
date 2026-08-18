@@ -5,7 +5,7 @@ import { Bold, Italic, Underline, Strikethrough, Code, Link } from 'lucide-react
 import * as stylex from '@stylexjs/stylex';
 import { toolbarStyles } from './toolbarStyles';
 
-interface WriterToolbarInlineFormatProps {
+export interface InlineFormatState {
   isBold: boolean;
   isItalic: boolean;
   isUnderline: boolean;
@@ -14,14 +14,12 @@ interface WriterToolbarInlineFormatProps {
   isLink: boolean;
 }
 
-export function WriterToolbarInlineFormat({
-  isBold,
-  isItalic,
-  isUnderline,
-  isStrikethrough,
-  isCode,
-  isLink,
-}: WriterToolbarInlineFormatProps) {
+interface WriterToolbarInlineFormatProps {
+  formats: InlineFormatState;
+}
+
+export function WriterToolbarInlineFormat({ formats }: WriterToolbarInlineFormatProps) {
+  const { isBold, isItalic, isUnderline, isStrikethrough, isCode, isLink } = formats;
   const [editor] = useLexicalComposerContext();
 
   const handleInsertLink = () => {
@@ -40,6 +38,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isBold && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
         title="Bold (Ctrl+B)"
         aria-label="Bold"
@@ -50,6 +49,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isItalic && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
         title="Italic (Ctrl+I)"
         aria-label="Italic"
@@ -60,6 +60,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isUnderline && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
         title="Underline (Ctrl+U)"
         aria-label="Underline"
@@ -70,6 +71,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isStrikethrough && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
         title="Strikethrough"
         aria-label="Strikethrough"
@@ -80,6 +82,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isCode && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
         title="Inline Code"
         aria-label="Inline Code"
@@ -90,6 +93,7 @@ export function WriterToolbarInlineFormat({
       <button
         type="button"
         {...stylex.props(toolbarStyles.button, isLink && toolbarStyles.buttonActive)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleInsertLink}
         title="Insert Link (Ctrl+K)"
         aria-label="Link"

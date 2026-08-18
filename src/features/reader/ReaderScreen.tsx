@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { FileQuestion } from 'lucide-react';
+import { FileQuestion, FileText, PenTool } from 'lucide-react';
 import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
 import type { AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/annotation.types';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
+import { Button } from '../../shared/ui/Button/Button';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { useDocument } from './hooks/useDocument';
@@ -22,13 +23,56 @@ const styles = stylex.create({
     color: 'var(--color-text-secondary)',
     fontSize: 14,
   },
+  emptyContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '420px',
+    padding: '48px 24px',
+    textAlign: 'center',
+  },
+  emptyCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    maxWidth: '440px',
+    padding: '40px 32px',
+  },
+  emptyIconBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '56px',
+    height: '56px',
+    borderRadius: '14px',
+    backgroundColor: 'var(--color-accent-muted, #eff6ff)',
+    color: 'var(--color-accent, #2563eb)',
+    marginBottom: '20px',
+  },
+  emptyTitle: {
+    fontSize: '20px',
+    fontWeight: 600,
+    color: 'var(--color-text-primary, #111827)',
+    margin: 0,
+    marginBottom: '8px',
+    letterSpacing: '-0.01em',
+  },
+  emptyDescription: {
+    fontSize: '14px',
+    lineHeight: '1.5',
+    color: 'var(--color-text-secondary, #6b7280)',
+    margin: 0,
+    marginBottom: '24px',
+  },
 });
 
 interface ReaderScreenProps {
   materialId: string;
+  onNavigateToWrite?: () => void;
 }
 
-export default function ReaderScreen({ materialId }: ReaderScreenProps) {
+export default function ReaderScreen({ materialId, onNavigateToWrite }: ReaderScreenProps) {
   const { material, isLoading: materialLoading } = useMaterial(materialId);
   const { showToast } = useToast();
   const { data: document, isLoading: docLoading, error } = useDocument(material ?? null);
@@ -128,6 +172,33 @@ export default function ReaderScreen({ materialId }: ReaderScreenProps) {
         title="Something went wrong."
         description="An unexpected error occurred while loading this document."
       />
+    );
+  }
+
+  const hasContent = content.trim().length > 0;
+  if (!hasContent) {
+    return (
+      <div {...stylex.props(styles.emptyContainer)}>
+        <div {...stylex.props(styles.emptyCard)}>
+          <div {...stylex.props(styles.emptyIconBox)}>
+            <FileText size={28} />
+          </div>
+          <h2 {...stylex.props(styles.emptyTitle)}>No Content Yet</h2>
+          <p {...stylex.props(styles.emptyDescription)}>
+            This study material doesn't have any notes or text yet. Add notes, summary, or lecture material to study and annotate.
+          </p>
+          {onNavigateToWrite && (
+            <Button
+              label="Start Writing"
+              icon={<PenTool size={15} />}
+              variant="primary"
+              onClick={onNavigateToWrite}
+            >
+              Start Writing
+            </Button>
+          )}
+        </div>
+      </div>
     );
   }
 

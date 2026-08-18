@@ -32,12 +32,9 @@ export function useUpdateDocumentContent() {
       });
     },
 
-    onSuccess: (_data, { materialId, documentId }) => {
-      // Invalidate reader cache for both materialId and documentId
+    onSuccess: (_data, { materialId }) => {
+      // Invalidate reader cache for the updated material
       queryClient.invalidateQueries({ queryKey: readerQueryKeys.document(materialId) });
-      if (documentId !== materialId) {
-        queryClient.invalidateQueries({ queryKey: readerQueryKeys.document(documentId) });
-      }
       showToast('Changes saved to local library', { intent: 'success' });
     },
 

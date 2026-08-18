@@ -152,20 +152,16 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
   const updateContentMutation = useUpdateDocumentContent();
 
   const savedMarkdown = useMemo(() => doc?.content ?? '', [doc?.content]);
-  const [liveMarkdown, setLiveMarkdown] = useState<string>(savedMarkdown);
+  // null indicates clean/unmodified state (synced to savedMarkdown)
+  const [liveMarkdown, setLiveMarkdown] = useState<string | null>(null);
+  const currentMarkdown = liveMarkdown ?? savedMarkdown;
+
   const [isRawMode, setIsRawMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editorKey, setEditorKey] = useState<number>(0);
 
-  // Sync state when saved document loads or changes externally
-  useEffect(() => {
-    if (savedMarkdown) {
-      setLiveMarkdown(savedMarkdown);
-    }
-  }, [savedMarkdown]);
-
   const isDirty = useMemo(() => {
-    return liveMarkdown.trim() !== savedMarkdown.trim();
+    return liveMarkdown !== null && liveMarkdown.trim() !== savedMarkdown.trim();
   }, [liveMarkdown, savedMarkdown]);
 
   const handleEditorChange = useCallback((markdown: string) => {
@@ -179,18 +175,19 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
       materialId: material.id,
       documentId: material.documentId,
       title: material.title,
-      content: liveMarkdown,
+      content: currentMarkdown,
     });
-  }, [material, isDirty, updateContentMutation, liveMarkdown]);
+    setLiveMarkdown(null);
+  }, [material, isDirty, updateContentMutation, currentMarkdown]);
 
   const handleDiscard = useCallback(() => {
-    setLiveMarkdown(savedMarkdown);
+    setLiveMarkdown(null);
     setEditorKey((prev) => prev + 1);
-  }, [savedMarkdown]);
+  }, []);
 
   const handleCopyMarkdown = async () => {
     try {
-      await navigator.clipboard.writeText(liveMarkdown);
+      await navigator.clipboard.writeText(currentMarkdown);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -199,7 +196,7 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([liveMarkdown], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([currentMarkdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement('a');
     a.href = url;
@@ -337,7 +334,7 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
       ) : (
         <textarea
           {...stylex.props(styles.rawEditorArea)}
-          value={liveMarkdown}
+          value={currentMarkdown}
           onChange={(e) => setLiveMarkdown(e.target.value)}
           placeholder="Type or paste markdown here..."
           aria-label="Raw Markdown Content"

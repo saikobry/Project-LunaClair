@@ -1,10 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
+import { useDocument } from '../../features/reader/hooks/useDocument';
 import { Page } from '../../shared/ui/Page/Page';
 import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -49,21 +50,33 @@ interface MaterialWorkspaceProps {
 
 export default function MaterialWorkspace({
   materialId,
-  activeTab: initialTab,
+  activeTab,
   subjectId,
   onNavigate,
 }: MaterialWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<MaterialTab>(initialTab);
   const { material, isLoading } = useMaterial(materialId);
+  const { data: doc, isLoading: isDocLoading } = useDocument(material ?? null);
   const { subject } = useSubject(subjectId || material?.subjectId);
   const { term } = useTerm(material?.termId);
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
   const handleTabChange = useCallback((tab: string) => {
     const materialTab = tab as MaterialTab;
-    setActiveTab(materialTab);
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab, subjectId });
-  }, [setActiveTab, onNavigate, materialId, subjectId]);
+  }, [onNavigate, materialId, subjectId]);
+
+  // If a brand-new material has empty content and user navigated via default route (activeTab === 'read'),
+  // automatically route to 'write' on first load
+  const hasAutoRoutedRef = useRef(false);
+  useEffect(() => {
+    if (!hasAutoRoutedRef.current && !isDocLoading && doc !== undefined) {
+      hasAutoRoutedRef.current = true;
+      const isContentEmpty = !doc?.content || doc.content.trim().length === 0;
+      if (activeTab === 'read' && isContentEmpty) {
+        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write', subjectId });
+      }
+    }
+  }, [isDocLoading, doc, activeTab, materialId, subjectId, onNavigate]);
 
   const breadcrumbItems = useMemo(() => {
     if (!material) return [];
@@ -129,6 +142,7 @@ export default function MaterialWorkspace({
         {activeTab === 'read' && (
           <ReaderScreen
             materialId={materialId}
+            onNavigateToWrite={() => handleTabChange('write')}
           />
         )}
         {activeTab === 'write' && (

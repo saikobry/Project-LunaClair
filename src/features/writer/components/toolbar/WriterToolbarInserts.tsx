@@ -44,6 +44,7 @@ export function WriterToolbarInserts() {
       <button
         type="button"
         {...stylex.props(toolbarStyles.button)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleInsertTable}
         title="Insert GFM Table (3×3)"
         aria-label="Insert Table"
@@ -53,6 +54,7 @@ export function WriterToolbarInserts() {
       <button
         type="button"
         {...stylex.props(toolbarStyles.button)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleInsertImage}
         title="Insert Image"
         aria-label="Insert Image"
@@ -62,6 +64,7 @@ export function WriterToolbarInserts() {
       <button
         type="button"
         {...stylex.props(toolbarStyles.button)}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleInsertHR}
         title="Insert Horizontal Rule (---)"
         aria-label="Insert Divider"
