@@ -15,7 +15,8 @@ export function useCreateTerm() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (input: CreateTermInput) => context.termRepository.createTerm(input),
+    mutationFn: (input: CreateTermInput) =>
+      context.useCases.subject.createTerm.execute(input),
 
     onSuccess: () => {
       showToast('Term created', { intent: 'success' });

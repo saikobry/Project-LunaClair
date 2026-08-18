@@ -7,7 +7,6 @@ import type { QuizFlowState, QuizLaunchRequest } from '../../types/quizFeature.t
 import type { AnswerValue } from '../../components/QuestionRenderer';
 import { useQuizLoader } from './useQuizLoader';
 import { useQuizProgress } from './useQuizProgress';
-import { useQuizSubmission } from './useQuizSubmission';
 import { useQuizPersistence } from './useQuizPersistence';
 
 export interface QuizSessionFlow {
@@ -33,7 +32,7 @@ export interface QuizSessionFlow {
 
 /**
  * Orchestrator hook composing modular sub-hooks into a clean QuizFlowState machine.
- * Consumes the new discriminated QuizLaunchRequest union.
+ * Consumes the discriminated QuizLaunchRequest union.
  * Manages the full lifecycle: load → session create → answer → submit → persist.
  */
 export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessionFlow {
@@ -41,7 +40,6 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
     const { quiz, sourceQuizzes, questions, isLoading, isError, error } = useQuizLoader(launchRequest);
 
     const progress = useQuizProgress(questions);
-    const { evaluate } = useQuizSubmission();
     const { createSession, completeSession } = useQuizPersistence();
 
     const [result, setResult] = useState<QuizResult | null>(null);
@@ -83,20 +81,20 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
     const submit = useCallback(() => {
         if (!quiz || questions.length === 0) return;
 
-        const quizResult = evaluate(questions, progress.answers);
-        setResult(quizResult);
-
         const submissions = questions.map((question) => ({
             questionId: question.id,
             value: progress.answers.get(question.id) ?? '',
         }));
 
         completeSession(submissions)
-            .then(() => setIsCompleted(true))
+            .then(({ result: quizResult }) => {
+                setResult(quizResult);
+                setIsCompleted(true);
+            })
             .catch((err) => {
                 setSessionError(err instanceof Error ? err : new Error(String(err)));
             });
-    }, [quiz, questions, progress.answers, evaluate, completeSession]);
+    }, [quiz, questions, progress.answers, completeSession]);
 
     const retake = useCallback(() => {
         setResult(null);

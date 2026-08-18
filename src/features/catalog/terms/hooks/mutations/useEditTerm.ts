@@ -21,7 +21,7 @@ export function useEditTerm() {
 
   return useMutation({
     mutationFn: ({ id, input }: EditTermVariables) =>
-      context.termRepository.updateTerm(id, input),
+      context.useCases.subject.updateTerm.execute(id, input),
 
     onSuccess: () => {
       showToast('Term updated', { intent: 'success' });

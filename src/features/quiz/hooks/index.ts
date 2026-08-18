@@ -13,6 +13,5 @@ export { useQuizTreeSelection } from './queries/useQuizTreeSelection';
 // Session flow hooks
 export { useQuizSessionFlow } from './session/useQuizSessionFlow';
 export { useQuizProgress } from './session/useQuizProgress';
-export { useQuizSubmission } from './session/useQuizSubmission';
 export { useQuizLoader } from './session/useQuizLoader';
 export { useQuizPersistence } from './session/useQuizPersistence';

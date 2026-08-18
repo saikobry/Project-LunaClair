@@ -1,12 +1,13 @@
 import { useCallback, useRef } from 'react';
 import type { QuizSession } from '../../../../domain/quiz/QuizSession';
 import type { CreateSessionInput } from '../../../../domain/quiz/QuizSessionRepository';
+import type { SubmitQuizSessionOutput } from '../../../../application';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 
 /**
  * Manages explicit session creation, completion, and lifecycle persistence.
- * Supports the new discriminated CreateSessionInput (stored vs virtual quiz sources).
+ * Supports the discriminated CreateSessionInput (stored vs virtual quiz sources).
  */
 export function useQuizPersistence() {
     const context = useContextOrThrow(ApplicationContext, 'useQuizPersistence');
@@ -22,20 +23,20 @@ export function useQuizPersistence() {
     );
 
     const completeSession = useCallback(
-        async (submissions: Array<{ questionId: string; value: string | string[] | boolean }>): Promise<QuizSession> => {
+        async (submissions: Array<{ questionId: string; value: string | string[] | boolean }>): Promise<SubmitQuizSessionOutput> => {
             const session = sessionRef.current;
             if (!session) throw new Error('No active session to complete');
-            const { session: completed } = await context.useCases.quiz.submitSession.execute({ sessionId: session.id, submissions });
-            sessionRef.current = completed;
-            return completed;
+            const output = await context.useCases.quiz.submitSession.execute({ sessionId: session.id, submissions });
+            sessionRef.current = output.session;
+            return output;
         },
         [context],
     );
 
     const abandonSession = useCallback(async (): Promise<void> => {
         const session = sessionRef.current;
-        if (session && session.status === 'in_progress') {
-            await context.repositories.quizSessionRepository.deleteSession(session.id);
+        if (session) {
+            await context.useCases.quiz.abandonSession.execute(session.id);
         }
         sessionRef.current = null;
     }, [context]);

@@ -1,5 +1,7 @@
 export { StartQuizSessionUseCase } from './use-cases/quiz/StartQuizSessionUseCase';
 export { SubmitQuizSessionUseCase } from './use-cases/quiz/SubmitQuizSessionUseCase';
+export type { SubmitQuizSessionInput, SubmitQuizSessionOutput } from './use-cases/quiz/SubmitQuizSessionUseCase';
+export { AbandonQuizSessionUseCase } from './use-cases/quiz/AbandonQuizSessionUseCase';
 export { CreateQuestionUseCase } from './use-cases/quiz-management/CreateQuestionUseCase';
 export { UpdateQuestionUseCase } from './use-cases/quiz-management/UpdateQuestionUseCase';
 export { ArchiveQuestionUseCase } from './use-cases/quiz-management/ArchiveQuestionUseCase';
@@ -22,6 +24,11 @@ export { RemoveImportedMaterialUseCase } from './use-cases/library/RemoveImporte
 export { SyncDefaultTermsUseCase } from './use-cases/library/SyncDefaultTermsUseCase';
 export type { SyncDefaultTermsResult } from './use-cases/library/SyncDefaultTermsUseCase';
 export { TouchMaterialUseCase } from './use-cases/library/TouchMaterialUseCase';
+export { CreateSubjectUseCase } from './use-cases/subject/CreateSubjectUseCase';
+export { UpdateSubjectUseCase } from './use-cases/subject/UpdateSubjectUseCase';
+export { ReorderSubjectsUseCase } from './use-cases/subject/ReorderSubjectsUseCase';
+export { CreateTermUseCase } from './use-cases/subject/CreateTermUseCase';
+export { UpdateTermUseCase } from './use-cases/subject/UpdateTermUseCase';
 export { CreateAndAssignTermUseCase } from './use-cases/subject/CreateAndAssignTermUseCase';
 export { SyncSubjectTermsUseCase } from './use-cases/subject/SyncSubjectTermsUseCase';
 export { ReorderSubjectTermsUseCase } from './use-cases/subject/ReorderSubjectTermsUseCase';

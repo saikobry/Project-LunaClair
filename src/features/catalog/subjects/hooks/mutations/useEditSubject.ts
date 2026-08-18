@@ -21,7 +21,7 @@ export function useEditSubject() {
 
   return useMutation({
     mutationFn: ({ id, input }: EditSubjectVariables) =>
-      context.subjectRepository.updateSubject(id, input),
+      context.useCases.subject.updateSubject.execute(id, input),
 
     onSuccess: () => {
       showToast('Subject updated', { intent: 'success' });

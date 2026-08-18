@@ -15,7 +15,8 @@ export function useCreateSubject() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (input: CreateSubjectInput) => context.subjectRepository.createSubject(input),
+    mutationFn: (input: CreateSubjectInput) =>
+      context.useCases.subject.createSubject.execute(input),
 
     onSuccess: () => {
       showToast('Subject created', { intent: 'success' });

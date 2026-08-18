@@ -25,9 +25,8 @@ export function useReorderSubjects() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ orderedIds }: ReorderVariables) => {
-      await context.subjectRepository.reorderSubjects(orderedIds);
-    },
+    mutationFn: ({ orderedIds }: ReorderVariables) =>
+      context.useCases.subject.reorderSubjects.execute(orderedIds),
 
     onMutate: async ({ orderedIds }) => {
       await queryClient.cancelQueries({ queryKey: catalogQueryKeys.subjects() });
