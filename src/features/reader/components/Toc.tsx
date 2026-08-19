@@ -3,14 +3,14 @@ import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp, List } from 'lucide-react';
 import { Outline, parseOutlineFromMarkdown } from '../../../shared/ui/Outline';
 
-const mobileQuery = '@media (max-width: 768px)';
-const desktopQuery = '@media (min-width: 769px)';
+const collapseQuery = '@media (max-width: 1199px)';
+const desktopQuery = '@media (min-width: 1200px)';
 
 const styles = stylex.create({
-  // Mobile Sticky Header
+  // Sticky Dropdown Header (< 1200px)
   mobileStickyHeader: {
     display: 'none',
-    [mobileQuery]: {
+    [collapseQuery]: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',

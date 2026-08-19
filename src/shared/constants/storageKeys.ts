@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   reader: {
     highlights: 'lunaclair.reader.highlights',
     drawings: 'lunaclair.reader.drawings',
+    toolbarPosition: 'lunaclair.reader.toolbar_pos',
   },
   settings: {
     theme: 'lunaclair.settings.theme',

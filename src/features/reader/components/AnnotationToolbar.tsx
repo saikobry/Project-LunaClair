@@ -6,18 +6,16 @@ import { useGSAP } from '@gsap/react';
 import {
   MousePointer,
   PenTool,
-  Pencil,
-  Eraser,
   Palette,
-  ChevronLeft,
   ChevronDown,
-  Undo2,
+  ChevronUp,
   Trash2,
 } from 'lucide-react';
 import type { AnnotationMode, DrawingTool } from '../../../domain/reader';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import { IconButton } from '../../../shared/ui/IconButton';
-import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../constants/annotationDefaults';
+import { useDraggableToolbar } from '../hooks/useDraggableToolbar';
+import { DrawingToolOptions } from './DrawingToolOptions';
 
 const dockQuery = '@media (max-width: 1023px)';
 const tabletQuery = '@media (min-width: 769px) and (max-width: 1023px)';
@@ -28,32 +26,33 @@ const mobileQuery = '@media (max-width: 768px)';
 const MOBILE_LEFT_COLLISION_BOUNDARY = 56;
 
 const styles = stylex.create({
-  // ── Glassmorphic dock (desktop: sticky vertical rail) ──
+  // ── Glassmorphic dock (desktop: draggable floating vertical rail) ──
   // Transitions are scoped to non-transform props: GSAP owns the collapse
   // slide and the collapsible entrance so CSS never re-timelines its
   // per-frame writes.
   toolbar: {
-    position: 'sticky',
-    top: 100,
-    alignSelf: 'flex-start',
+    position: 'fixed',
     zIndex: 1000,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: 10,
-    padding: '12px 10px',
-    width: 64,
+    padding: '10px 8px',
+    width: 48,
     boxSizing: 'border-box',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'var(--color-background-surface, rgba(255, 255, 255, 0.95))',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'rgba(229, 231, 235, 0.8)',
+    borderColor: 'var(--color-border, rgba(229, 231, 235, 0.8))',
     borderRadius: 16,
     boxShadow: '0 4px 24px rgba(0, 0, 0, 0.08)',
+    touchAction: 'none',
+    userSelect: 'none',
+    cursor: 'grab',
     transition:
-      'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease',
+      'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease',
     // Tablet & mobile: centered bottom dock
     [dockQuery]: {
       position: 'fixed',
@@ -69,6 +68,7 @@ const styles = stylex.create({
       borderLeftStyle: 'solid',
       borderLeftColor: 'rgba(229, 231, 235, 0.8)',
       boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
+      cursor: 'default',
     },
     [tabletQuery]: {
       bottom: 24,
@@ -90,14 +90,27 @@ const styles = stylex.create({
       scrollbarWidth: 'none',
     },
   },
+  toolbarDragging: {
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.18)',
+    transform: 'scale(1.02)',
+    cursor: 'grabbing',
+  },
   toolbarCollapsed: {
-    transform: 'translateX(calc(-100% + 44px))',
-    padding: 10,
+    padding: 8,
     boxShadow: '2px 2px 10px rgba(0, 0, 0, 0.05)',
     [dockQuery]: {
-      transform: 'translateX(-50%)',
       padding: 8,
       boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+    },
+  },
+  // Expanded with draw tools — wider to fit the 2-col color grid and
+  // thickness pickers without crowding.
+  toolbarDrawExpanded: {
+    width: 64,
+    padding: '12px 10px',
+    [dockQuery]: {
+      width: 'auto',
+      padding: '8px 14px',
     },
   },
   // Focus Mode (mobile): drop the dock to the bottom edge
@@ -157,91 +170,6 @@ const styles = stylex.create({
       height: 16,
     },
   },
-  // Brush color swatches
-  brushColors: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 6,
-    [dockQuery]: {
-      display: 'flex',
-      flexDirection: 'row',
-      gap: 4,
-    },
-  },
-  brushColorDot: {
-    width: 18,
-    height: 18,
-    borderRadius: '50%',
-    borderWidth: 2,
-    borderStyle: 'solid',
-    borderColor: 'transparent',
-    cursor: 'pointer',
-    padding: 0,
-    transition:
-      'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
-    ':hover': {
-      transform: 'scale(1.15)',
-    },
-  },
-  brushColorDotActive: {
-    borderColor: '#1f2937',
-    transform: 'scale(1.15)',
-    boxShadow: '0 0 0 2px rgba(255, 255, 255, 0.8)',
-  },
-  // Brush thickness pickers
-  brushSizes: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 6,
-    [dockQuery]: {
-      flexDirection: 'row',
-      gap: 4,
-    },
-  },
-  brushSizeBtn: {
-    width: 24,
-    height: 24,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'transparent',
-    backgroundColor: 'transparent',
-    color: '#4b5563',
-    cursor: 'pointer',
-    padding: 0,
-    transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#f3f4f6',
-    },
-  },
-  brushSizeBtnActive: {
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
-    borderColor: '#d1d5db',
-  },
-  // Current-brush color indicator dot on the "Draw with Pen" sub-tool.
-  penIconWithDot: {
-    position: 'relative',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  penColorDot: {
-    position: 'absolute',
-    right: -2,
-    bottom: -1,
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.2)',
-  },
 });
 
 interface AnnotationToolbarProps {
@@ -281,10 +209,6 @@ function useMediaQuery(query: string) {
 /**
  * Detects when the expanded bottom dock would collide with the Focus Mode
  * restore FAB on mobile and reports whether the dock should be elevated.
- * Only Focus Mode drops the dock to the bottom edge (`bottom: 16px`) where
- * it can reach the FAB zone — the resting `bottom: 84px` is already clear of
- * the nav, so `isFocusMode` alone gates the elevation (and is immune to
- * `env(safe-area-inset-bottom)` shifting the dock's measured position).
  */
 function useMobileDockCollision(
   toolbarRef: RefObject<HTMLDivElement | null>,
@@ -348,6 +272,14 @@ export default function AnnotationToolbar({
   const exitTweenRef = useRef<gsap.core.Tween | null>(null);
   const isElevated = useMobileDockCollision(toolbarRef, isOpen, isMobile, focusMode);
 
+  const {
+    isDragging,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    getPositionStyles,
+  } = useDraggableToolbar(toolbarRef, isMobileOrTablet, focusMode);
+
   // Close plays a quick content exit before unmounting; open just flips state
   // and lets the GSAP entrance below animate the fresh content in.
   const handleToggle = () => {
@@ -383,16 +315,7 @@ export default function AnnotationToolbar({
       const toolbar = toolbarRef.current;
       if (!toolbar) return;
 
-      if (isMobileOrTablet) {
-        gsap.set(toolbar, { clearProps: 'transform' });
-      } else {
-        gsap.to(toolbar, {
-          x: isOpen ? 0 : -(toolbar.offsetWidth - 44),
-          duration: 0.35,
-          ease: isOpen ? 'back.out(1.5)' : 'power2.inOut',
-          overwrite: 'auto',
-        });
-      }
+      gsap.set(toolbar, { clearProps: 'transform' });
 
       if (isOpen && collapsibleRef.current) {
         gsap.fromTo(
@@ -414,13 +337,12 @@ export default function AnnotationToolbar({
 
   // Active tool buttons use the `primary` (filled) variant; the collapse
   // toggle and standard actions stay `ghost`. Clear/reset actions use the
-  // `danger` (destructive) variant. The collapse chevron points into the
-  // dock (left on desktop, down on tablet/mobile) — no CSS rotation.
+  // `danger` (destructive) variant.
   const toggleIcon = isOpen ? (
     isMobileOrTablet ? (
       <ChevronDown size={18} />
     ) : (
-      <ChevronLeft size={18} />
+      <ChevronUp size={18} />
     )
   ) : (
     <Palette size={18} />
@@ -429,11 +351,18 @@ export default function AnnotationToolbar({
   const toolbarNode = (
     <div
       ref={toolbarRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      style={getPositionStyles()}
       {...stylex.props(
         styles.toolbar,
         !isOpen && styles.toolbarCollapsed,
+        isOpen && mode === 'draw' && styles.toolbarDrawExpanded,
         focusMode && styles.toolbarFocus,
         isElevated && styles.toolbarElevated,
+        isDragging && styles.toolbarDragging,
       )}
     >
       <IconButton
@@ -469,98 +398,16 @@ export default function AnnotationToolbar({
 
           {/* Sub-tools for drawing mode */}
           {mode === 'draw' && (
-            <>
-              <div {...stylex.props(styles.divider)} />
-              <div {...stylex.props(styles.section)}>
-                <IconButton
-                  variant={tool === 'pen' ? 'primary' : 'ghost'}
-                  label="Draw with Pen"
-                  tooltip="Draw with Pen"
-                  icon={
-                    <span {...stylex.props(styles.penIconWithDot)}>
-                      <Pencil size={16} />
-                      <span
-                        aria-hidden="true"
-                        {...stylex.props(styles.penColorDot)}
-                        style={{ backgroundColor: currentColor }}
-                      />
-                    </span>
-                  }
-                  onClick={() => onToolChange('pen')}
-                />
-                <IconButton
-                  variant={tool === 'eraser' ? 'primary' : 'ghost'}
-                  label="Erase strokes"
-                  tooltip="Erase strokes"
-                  icon={<Eraser size={16} />}
-                  onClick={() => onToolChange('eraser')}
-                />
-              </div>
-
-              {tool === 'pen' && (
-                <>
-                  <div {...stylex.props(styles.divider)} />
-                  <div {...stylex.props(styles.section)}>
-                    <div {...stylex.props(styles.brushColors)}>
-                      {BRUSH_COLORS.map((color) => (
-                        <button
-                          key={color.hex}
-                          type="button"
-                          {...stylex.props(
-                            styles.brushColorDot,
-                            currentColor === color.hex && styles.brushColorDotActive,
-                          )}
-                          style={{ backgroundColor: color.hex }}
-                          onClick={() => onColorChange(color.hex)}
-                          title={color.name}
-                          aria-label={`Brush color ${color.name}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div {...stylex.props(styles.divider)} />
-              <div {...stylex.props(styles.section)}>
-                <div {...stylex.props(styles.brushSizes)}>
-                  {THICKNESS_OPTIONS.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      {...stylex.props(
-                        styles.brushSizeBtn,
-                        brushThickness === size && styles.brushSizeBtnActive,
-                      )}
-                      onClick={() => onThicknessChange(size)}
-                      title={`${size}px brush`}
-                      aria-label={`${size}px brush`}
-                    >
-                      <span
-                        style={{
-                          width: `${Math.max(4, size)}px`,
-                          height: `${Math.max(4, size)}px`,
-                          backgroundColor: 'currentColor',
-                          borderRadius: '50%',
-                        }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div {...stylex.props(styles.divider)} />
-              <div {...stylex.props(styles.section)}>
-                <IconButton
-                  variant="ghost"
-                  label="Undo Last Stroke"
-                  tooltip="Undo Last Stroke"
-                  icon={<Undo2 size={18} />}
-                  isDisabled={!hasDrawings}
-                  onClick={onUndo}
-                />
-              </div>
-            </>
+            <DrawingToolOptions
+              tool={tool}
+              onToolChange={onToolChange}
+              currentColor={currentColor}
+              onColorChange={onColorChange}
+              brushThickness={brushThickness}
+              onThicknessChange={onThicknessChange}
+              onUndo={onUndo}
+              hasDrawings={hasDrawings}
+            />
           )}
 
           {/* Clear/Reset functions */}
@@ -594,7 +441,7 @@ export default function AnnotationToolbar({
     </div>
   );
 
-  if (isMobileOrTablet && typeof document !== 'undefined') {
+  if (typeof document !== 'undefined') {
     return createPortal(toolbarNode, document.body);
   }
 
