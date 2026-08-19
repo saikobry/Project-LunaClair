@@ -1,7 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import * as stylex from '@stylexjs/stylex';
-import { ChevronDown, ChevronUp, List } from 'lucide-react';
-import { Outline, parseOutlineFromMarkdown } from '../../../shared/ui/Outline';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { ChevronDown, ChevronUp, ChevronRight, List } from 'lucide-react';
+import { Outline, parseOutlineFromMarkdown, type OutlineItem } from '../../../shared/ui/Outline';
 
 const collapseQuery = '@media (max-width: 1199px)';
 const desktopQuery = '@media (min-width: 1200px)';
@@ -132,19 +135,176 @@ const styles = stylex.create({
     fontWeight: 600,
   },
 
-  // Desktop View
+  // Desktop View (Overlay)
   desktopWrapper: {
     display: 'none',
     [desktopQuery]: {
-      display: 'block',
-      width: 220,
-      flexShrink: 0,
-      position: 'sticky',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      position: 'fixed',
       top: 80,
-      alignSelf: 'flex-start',
-      maxHeight: 'calc(100vh - 120px)',
-      overflowY: 'auto',
+      right: 24,
+      zIndex: 100,
+      overflow: 'visible',
     },
+  },
+  desktopExpandedCard: {
+    width: 240,
+    maxHeight: 'calc(100vh - 120px)',
+    overflowY: 'auto',
+    scrollbarWidth: 'none',
+    scrollPaddingTop: 56,
+    scrollPaddingBottom: 36,
+    backgroundColor: 'var(--color-background-surface, rgba(255, 255, 255, 0.95))',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border, rgba(229, 231, 235, 0.8))',
+    borderRadius: 14,
+    padding: '14px 14px 12px 14px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+    transition: 'all 0.2s ease',
+  },
+  desktopHeaderBtn: {
+    position: 'sticky',
+    top: -14,
+    zIndex: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: 'calc(100% + 28px)',
+    margin: '-14px -14px 10px -14px',
+    padding: '10px 14px',
+    borderWidth: 0,
+    borderStyle: 'none',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'var(--color-border, rgba(229, 231, 235, 0.6))',
+    borderRadius: '14px 14px 0 0',
+    backgroundColor: 'var(--color-background-surface, rgba(255, 255, 255, 0.96))',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary, #6b7280)',
+    boxSizing: 'border-box',
+    transition: 'color 0.15s ease, background-color 0.15s ease',
+    ':hover': {
+      backgroundColor: 'var(--color-background-muted, rgba(0, 0, 0, 0.04))',
+      color: 'var(--color-text-primary, #111827)',
+    },
+  },
+  desktopHeaderTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  desktopHeaderChevron: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--color-text-tertiary, #9ca3af)',
+    transition: 'color 0.15s ease',
+  },
+  miniTocContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: 32,
+    padding: '10px 5px',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border, rgba(229, 231, 235, 0.8))',
+    backgroundColor: 'var(--color-background-surface, rgba(255, 255, 255, 0.95))',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
+    userSelect: 'none',
+    boxSizing: 'border-box',
+    transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+    ':hover': {
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+      borderColor: 'var(--color-accent, #6366f1)',
+    },
+  },
+  miniTocHeaderBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingTop: 4,
+    paddingBottom: 8,
+    paddingLeft: 0,
+    paddingRight: 0,
+    borderWidth: 0,
+    borderStyle: 'none',
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'var(--color-border, rgba(229, 231, 235, 0.6))',
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary)',
+    marginBottom: 8,
+    borderRadius: 6,
+    transition: 'color 0.15s ease, background-color 0.15s ease',
+    ':hover': {
+      color: 'var(--color-text-primary)',
+      backgroundColor: 'var(--color-background-muted, rgba(0, 0, 0, 0.04))',
+    },
+  },
+  miniTocBars: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 3.5,
+    width: '100%',
+    maxHeight: 'calc(100vh - 160px)',
+    overflowY: 'auto',
+    scrollbarWidth: 'none',
+  },
+  miniBarWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+    height: 7,
+    padding: 0,
+    borderWidth: 0,
+    borderStyle: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    borderRadius: 2,
+    boxSizing: 'border-box',
+    transition: 'background-color 0.15s ease',
+    ':hover': {
+      backgroundColor: 'var(--color-background-muted, rgba(0, 0, 0, 0.06))',
+    },
+  },
+  miniBarWrapperActive: {
+    backgroundColor: 'var(--color-accent-muted, rgba(99, 102, 241, 0.1))',
+  },
+  miniBar: {
+    display: 'block',
+    height: 2,
+    borderRadius: 1.5,
+    backgroundColor: 'var(--color-text-tertiary, #9ca3af)',
+    opacity: 0.6,
+    transition: 'all 0.2s ease',
+    ':hover': {
+      opacity: 1,
+      backgroundColor: 'var(--color-text-primary, #111827)',
+    },
+  },
+  miniBarActive: {
+    height: 3,
+    backgroundColor: 'var(--color-accent, #6366f1)',
+    opacity: 1,
+    boxShadow: '0 0 4px var(--color-accent, #6366f1)',
   },
 });
 
@@ -155,6 +315,9 @@ interface TocProps {
 export function TocMobile({ content }: TocProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activeId, setActiveId] = useState<string>('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const isClickScrollingRef = useRef(false);
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const items = useMemo(() => {
     if (!content) return [];
@@ -167,9 +330,86 @@ export function TocMobile({ content }: TocProps) {
     return items.find((item) => item.id === resolvedActiveId) ?? items[0];
   }, [items, resolvedActiveId]);
 
+  // Mobile scroll spy
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const handleScroll = () => {
+      if (isClickScrollingRef.current) return;
+
+      const headingElements = items
+        .map((item) => document.getElementById(item.id))
+        .filter((el): el is HTMLElement => el !== null);
+
+      if (headingElements.length === 0) return;
+
+      const isAtBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 60;
+
+      if (isAtBottom && items.length > 0) {
+        const lastItem = items[items.length - 1];
+        if (lastItem) {
+          setActiveId(lastItem.id);
+          return;
+        }
+      }
+
+      let currentId = items[0]?.id ?? '';
+
+      for (const el of headingElements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 80) {
+          currentId = el.id;
+        } else {
+          break;
+        }
+      }
+
+      setActiveId(currentId);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [items]);
+
+  // Animate mobile dropdown entrance with GSAP
+  useGSAP(() => {
+    if (!dropdownOpen || !dropdownRef.current) return;
+    gsap.fromTo(
+      dropdownRef.current,
+      { opacity: 0, y: -8, scaleY: 0.96, transformOrigin: 'top' },
+      {
+        opacity: 1,
+        y: 0,
+        scaleY: 1,
+        duration: 0.18,
+        ease: 'power2.out',
+        clearProps: 'transform',
+      },
+    );
+  }, { dependencies: [dropdownOpen] });
+
+  // Autoscroll active item in mobile dropdown when opened
+  useEffect(() => {
+    if (!dropdownOpen || !resolvedActiveId || !dropdownRef.current) return;
+    const activeEl = dropdownRef.current.querySelector<HTMLElement>('[data-active="true"]');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [dropdownOpen, resolvedActiveId]);
+
   const handleSelectSection = (id: string) => {
     setActiveId(id);
     setDropdownOpen(false);
+    isClickScrollingRef.current = true;
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+    clickTimeoutRef.current = setTimeout(() => {
+      isClickScrollingRef.current = false;
+    }, 800);
 
     const target = document.getElementById(id);
     if (target) {
@@ -203,13 +443,14 @@ export function TocMobile({ content }: TocProps) {
       </button>
 
       {dropdownOpen && (
-        <div {...stylex.props(styles.mobileDropdown)}>
+        <div ref={dropdownRef} {...stylex.props(styles.mobileDropdown)}>
           {items.map((item) => {
             const isActive = item.id === activeItem?.id;
             return (
               <button
                 key={item.id}
                 type="button"
+                data-active={isActive ? 'true' : undefined}
                 {...stylex.props(styles.mobileItem, isActive && styles.mobileItemActive)}
                 onClick={() => handleSelectSection(item.id)}
               >
@@ -223,8 +464,119 @@ export function TocMobile({ content }: TocProps) {
   );
 }
 
+function MiniToc({
+  items,
+  activeId,
+  onExpand,
+  onSelectSection,
+}: {
+  items: OutlineItem[];
+  activeId: string;
+  onExpand: () => void;
+  onSelectSection: (id: string) => void;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+  const barsRef = useRef<HTMLDivElement>(null);
+
+  // GSAP springy entrance for MiniToc
+  useGSAP(() => {
+    if (!navRef.current) return;
+    gsap.fromTo(
+      navRef.current,
+      { opacity: 0, scale: 0.88, transformOrigin: 'top right' },
+      {
+        opacity: 1,
+        scale: 1,
+        duration: 0.2,
+        ease: 'back.out(1.4)',
+        clearProps: 'transform',
+      },
+    );
+  }, { scope: navRef });
+
+  // Autoscroll active mini bar into view with vertical breathing room
+  useEffect(() => {
+    if (!activeId || !barsRef.current) return;
+    const container = barsRef.current;
+    const activeBar = container.querySelector<HTMLElement>('[data-active="true"]');
+    if (!activeBar) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const barRect = activeBar.getBoundingClientRect();
+    const margin = 16;
+
+    if (barRect.top < containerRect.top + margin) {
+      container.scrollTo({
+        top: Math.max(0, container.scrollTop - (containerRect.top + margin - barRect.top)),
+        behavior: 'smooth',
+      });
+    } else if (barRect.bottom > containerRect.bottom - margin) {
+      container.scrollTo({
+        top: container.scrollTop + (barRect.bottom - (containerRect.bottom - margin)),
+        behavior: 'smooth',
+      });
+    }
+  }, [activeId]);
+
+  return (
+    <nav
+      ref={navRef}
+      aria-label="Table of contents outline"
+      {...stylex.props(styles.miniTocContainer)}
+    >
+      <button
+        type="button"
+        {...stylex.props(styles.miniTocHeaderBtn)}
+        onClick={onExpand}
+        title="Expand Table of Contents"
+        aria-label="Expand Table of Contents"
+      >
+        <List size={14} />
+      </button>
+      <div ref={barsRef} {...stylex.props(styles.miniTocBars)}>
+        {items.map((item) => {
+          const isActive = item.id === activeId;
+          const level = item.level ?? 1;
+          const barWidth = level === 1 ? 16 : level === 2 ? 12 : 8;
+          const barMarginLeft = level === 1 ? 0 : level === 2 ? 4 : 8;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              data-active={isActive ? 'true' : undefined}
+              {...stylex.props(
+                styles.miniBarWrapper,
+                isActive && styles.miniBarWrapperActive,
+              )}
+              title={item.label}
+              aria-label={item.label}
+              onClick={() => onSelectSection(item.id)}
+            >
+              <span
+                {...stylex.props(
+                  styles.miniBar,
+                  isActive && styles.miniBarActive,
+                )}
+                style={{
+                  width: `${barWidth}px`,
+                  marginLeft: `${barMarginLeft}px`,
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 export function TocDesktop({ content }: TocProps) {
+  const [isMinimized, setIsMinimized] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string>('');
+  const cardRef = useRef<HTMLDivElement>(null);
+  const isClickScrollingRef = useRef(false);
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const items = useMemo(() => {
     if (!content) return [];
@@ -234,18 +586,172 @@ export function TocDesktop({ content }: TocProps) {
 
   const resolvedActiveId = activeId || items[0]?.id || '';
 
+  // GSAP smooth expand animation for desktop outline card
+  useGSAP(() => {
+    if (isMinimized || !cardRef.current) return;
+    gsap.fromTo(
+      cardRef.current,
+      { opacity: 0, scale: 0.94, y: -6, transformOrigin: 'top right' },
+      {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.22,
+        ease: 'power2.out',
+        clearProps: 'transform',
+      },
+    );
+  }, { dependencies: [isMinimized] });
+
+  // Outside click listener to minimize expanded TOC card overlay
+  useEffect(() => {
+    if (isMinimized) return;
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setIsMinimized(true);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isMinimized]);
+
+  // Scroll spy to keep active section in sync for both full and miniature outline
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const handleScroll = () => {
+      if (isClickScrollingRef.current) return;
+
+      const headingElements = items
+        .map((item) => document.getElementById(item.id))
+        .filter((el): el is HTMLElement => el !== null);
+
+      if (headingElements.length === 0) return;
+
+      const isAtBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 60;
+
+      if (isAtBottom && items.length > 0) {
+        const lastItem = items[items.length - 1];
+        if (lastItem) {
+          setActiveId(lastItem.id);
+          return;
+        }
+      }
+
+      let currentId = items[0]?.id ?? '';
+
+      for (const el of headingElements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 80) {
+          currentId = el.id;
+        } else {
+          break;
+        }
+      }
+
+      setActiveId(currentId);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [items]);
+
+  // Auto-scroll the TOC card to keep the active section indicator / slider in view with breathing room
+  useEffect(() => {
+    if (isMinimized || !resolvedActiveId || !cardRef.current) return;
+
+    const card = cardRef.current;
+    const activeEl = card.querySelector<HTMLElement>('a[aria-current="true"]');
+    if (!activeEl) return;
+
+    const cardRect = card.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+    const topMargin = 56; // Header height + breathing room
+    const bottomMargin = 36; // Bottom margin
+
+    if (activeRect.top < cardRect.top + topMargin) {
+      card.scrollTo({
+        top: Math.max(0, card.scrollTop - (cardRect.top + topMargin - activeRect.top)),
+        behavior: 'smooth',
+      });
+    } else if (activeRect.bottom > cardRect.bottom - bottomMargin) {
+      card.scrollTo({
+        top: card.scrollTop + (activeRect.bottom - (cardRect.bottom - bottomMargin)),
+        behavior: 'smooth',
+      });
+    }
+  }, [resolvedActiveId, isMinimized]);
+
+  const handleSelectSection = (id: string) => {
+    setActiveId(id);
+    isClickScrollingRef.current = true;
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+    clickTimeoutRef.current = setTimeout(() => {
+      isClickScrollingRef.current = false;
+    }, 800);
+
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   if (items.length === 0) return null;
 
-  return (
+  const desktopNode = (
     <div {...stylex.props(styles.desktopWrapper)}>
-      <Outline
-        items={items}
-        activeId={resolvedActiveId}
-        onActiveIdChange={setActiveId}
-        label="On this page"
-        density="compact"
-      />
+      {isMinimized ? (
+        <MiniToc
+          items={items}
+          activeId={resolvedActiveId}
+          onExpand={() => setIsMinimized(false)}
+          onSelectSection={handleSelectSection}
+        />
+      ) : (
+        <div
+          ref={cardRef}
+          {...stylex.props(styles.desktopExpandedCard)}
+        >
+          <button
+            type="button"
+            {...stylex.props(styles.desktopHeaderBtn)}
+            onClick={() => setIsMinimized(true)}
+            title="Collapse Table of Contents"
+            aria-label="Collapse Table of Contents"
+          >
+            <div {...stylex.props(styles.desktopHeaderTitle)}>
+              <List size={14} />
+              <span>On this page</span>
+            </div>
+            <div {...stylex.props(styles.desktopHeaderChevron)}>
+              <ChevronRight size={15} />
+            </div>
+          </button>
+          <Outline
+            items={items}
+            activeId={resolvedActiveId}
+            onActiveIdChange={handleSelectSection}
+            density="compact"
+          />
+        </div>
+      )}
     </div>
   );
-}
 
+  if (typeof document !== 'undefined') {
+    return createPortal(desktopNode, document.body);
+  }
+
+  return desktopNode;
+}

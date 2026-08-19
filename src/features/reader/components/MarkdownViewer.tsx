@@ -108,9 +108,9 @@ const styles = stylex.create({
     width: '100%',
     minWidth: 0,
     boxSizing: 'border-box',
-    padding: '40px 32px',
+    padding: '40px 32px 50vh 32px',
     [mobileQuery]: {
-      padding: '20px 12px',
+      padding: '20px 12px 35vh 12px',
     },
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',

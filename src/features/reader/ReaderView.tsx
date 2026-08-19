@@ -8,24 +8,20 @@ import DrawingCanvas from './components/DrawingCanvas';
 import SelectionPopover from './components/SelectionPopover';
 import { TocMobile, TocDesktop } from './components/Toc';
 
-const collapseTocQuery = '@media (max-width: 1199px)';
-
 const styles = stylex.create({
   layout: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'flex-start',
-    gap: 24,
+    justifyContent: 'center',
     width: '100%',
     minWidth: 0,
     boxSizing: 'border-box',
-    [collapseTocQuery]: {
-      gap: 0,
-    },
   },
   mainContent: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
     flex: 1,
     minWidth: 0,
     width: '100%',
