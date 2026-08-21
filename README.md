@@ -4,6 +4,8 @@
 
 Project LunaClair is an AI-powered learning platform. The long-term vision is to transform learning materials into structured study datasets that power quizzes, flashcards, practice exams, progress tracking, and other study experiences.
 
+**Current status:** Phase 6.1 (Flashcards & Spaced Repetition) is complete. Phase 7 (Analytics & Learning Insights) is next; additional shipped capabilities are documented in the roadmap without being retroactively assigned to Phase 6.1.
+
 ## Tech Stack
 
 | Technology | Role |
@@ -27,6 +29,7 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | `quiz/` | ✅ Implemented | Assessment engine — 5 question types, quiz player, session flow, subject quiz explorer |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, per-type editors, publish/archive workflows |
 | `flashcards/` | ✅ Implemented | SM-2 spaced repetition, 3D flip-card player, rating flow |
+| `writer/` | ✅ Implemented | Lexical WYSIWYG authoring with lossless Markdown transformation |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 
@@ -38,9 +41,8 @@ src/
 ├── app/            — Application shell, layouts, providers, composition root
 ├── application/    — Framework-agnostic application use cases
 ├── domain/         — Business domain models (pure data, no UI)
-├── features/       — Feature modules (catalog, reader, quiz, quiz-management, flashcards)
-├── infrastructure/ — Persistence layer (Dexie database, schema/migrations, repositories)
-├── services/       — Legacy infrastructure services (localStorage, content fetch)
+├── features/       — Feature modules (catalog, reader, quiz, quiz-management, flashcards, writer)
+├── infrastructure/ — Persistence and API layer (Dexie database, repositories, Worker adapters)
 ├── shared/         — Domain-agnostic types, constants, hooks, UI primitives
 └── styles/         — Global styles and master stylesheet
 ```
@@ -50,8 +52,8 @@ src/
 - **Layered:** presentation (`app/` + `features/`) → application use cases (`application/`) → domain contracts (`domain/`) → infrastructure repositories (`infrastructure/`, Dexie/IndexedDB).
 - **Dependency injection:** the composition root in `src/app/bootstrap` creates repositories and use cases; `ApplicationProvider` supplies one stable application graph through React Context. Query hooks access repositories via DI; mutation hooks delegate workflows to use cases.
 - **Caching:** TanStack Query runs with `networkMode: 'offlineFirst'` for queries *and* mutations so IndexedDB-backed operations never pause when offline.
-- **Domain purity:** domain modules import only from other domains or pure libraries — never React, features, or services.
-- **Feature contracts:** features consume each other only through curated root `index.ts` contracts; internal feature paths are private.
+- **Domain purity:** domain modules import only from other domains or pure libraries — never React, features, or infrastructure.
+- **Feature contracts:** feature-root barrels are prohibited by ADR-010; cross-feature consumers use the approved direct module paths, while internal feature paths remain private.
 - Key decisions are recorded as ADRs in [docs/architecture/adr/](docs/architecture/adr/README.md) — repository pattern, React Context DI, TanStack Query, Dexie, strategy pattern, immutable quiz history, feature-first architecture, feature ownership.
 
 See [docs/architecture/architecture.md](docs/architecture/architecture.md) for the full guide.

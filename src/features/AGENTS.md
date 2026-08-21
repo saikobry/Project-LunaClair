@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Feature-based modules, each containing everything needed for that feature: components, hooks, assets, types, styles, and utilities. Features own their business capabilities and may consume another feature only through its curated root `index.ts` contract.
+Feature-based modules, each containing everything needed for that feature: components, hooks, assets, types, styles, and utilities. Features own their business capabilities and consume other features only through the approved direct module paths defined by ADR-010.
 
 ## Ownership
 
@@ -20,7 +20,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 ## Local Contracts
 
 - **Direct-path contracts only (ADR-010).** Cross-feature consumers import only the approved direct module paths listed under no-barrel-import below; internal feature paths are private.
-- **Architectural Boundary Guardrails (Oxlint):** Features must never import concrete infrastructure (`src/infrastructure/**`) or legacy services (`src/services/**`). Enforced statically via Oxlint `no-restricted-imports`.
+- **Architectural Boundary Guardrails (Oxlint):** Features must never import concrete infrastructure (`src/infrastructure/**`) or reintroduced legacy service modules. Enforced statically via Oxlint `no-restricted-imports`.
 - **Dependency Flow Policy:**
   - `Features → Application`: Required for all write mutations and business workflows (`context.useCases.*`).
   - `Features → Domain`: Allowed for model types, value objects, and query contracts (`Question`, `StudyMaterial`, `ReviewState`).
@@ -29,7 +29,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 - **Single ownership.** Every business capability (including UI, dialogs, hooks, query keys, and feature types) has one owning feature.
 - **Feature-Root Barrels Prohibited (ADR-010).** Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths listed in `src/features/AGENTS.md`. Domain and application layers may expose stable module barrels where actively consumed by composition roots or features.
 - **Domain-specific code stays in features.** `shared/` contains only domain-agnostic UI primitives, composites, and infrastructure utilities.
-- Each feature contains its own: components/, hooks/, types/, utils/, services/, styles/
+- Features organize capability code into components/, hooks/, types/, styles/, and utilities as needed; persistence and application services belong outside feature modules.
 - Study content assets (markdown, figures) live in `content/materials/{documentId}/` — not inside feature directories
 - Feature orchestrator: `{Feature}Screen.tsx` — wires hooks to views
 - Workspace-embedded screens (ReaderScreen, QuizScreen `embedded`, QuizManagementScreen, FlashcardScreen) render bare content — the MaterialWorkspace provides the Page shell, title, and tab bar. Navigation is handled by AppSidebar + tabs, not by per-screen buttons.

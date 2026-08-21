@@ -25,7 +25,6 @@ src/
 ├── infrastructure/ # Database infrastructure, schema, migrators, repositories
 ├── features/       # Ownership-driven feature modules
 ├── shared/         # Domain-agnostic UI, utilities, and shared contracts
-├── services/       # Content and external infrastructure services
 └── styles/         # Global styles and master stylesheet
 ```
 
@@ -47,9 +46,9 @@ Database persistence infrastructure (`src/infrastructure/database/`): Dexie data
 
 ### `src/features/`
 
-Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through curated root `index.ts` contracts; internal feature paths remain private.
+Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through the approved direct module paths defined by ADR-010; internal feature paths remain private.
 
-Active features include `catalog/` (materials, subjects, and terms — consolidating the former `library/`, `subject/`, and `settings/` features), `reader/`, `quiz/`, `quiz-management/`, and `flashcards/`. Reserved boundaries include `importer/` and `generator/`.
+Active features include `catalog/` (materials, subjects, terms, and available catalog/import surfaces), `reader/`, `quiz/`, `quiz-management/`, `flashcards/`, and `writer/`. Reserved boundaries include `importer/` and `generator/`.
 
 ### `src/shared/`
 
@@ -57,7 +56,7 @@ Reusable domain-agnostic types, constants, utility functions, design tokens, and
 
 ## Cloud Sync & Content Layer (Cloudflare D1)
 
-- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as both the **study content store** (materials & figures) and the future **cloud sync layer** (Phase 9).
+- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as both the **study content store** (materials & figures) and the future **cloud sync layer** (Phase 10).
 - Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~1.5 MB.
 - D1 is only reachable through the `api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema lives as versioned migrations in `worker/migrations/`; canonical markdown files live in `content/materials/` and are seeded via `scripts/seed-materials.mjs`.
@@ -89,7 +88,7 @@ Key decisions are documented in [`docs/architecture/adr/`](adr/README.md).
 
 1. **Direct-path feature contracts (ADR-010).** Feature-root barrels are removed; cross-feature consumers import only the approved direct module paths listed in `src/features/AGENTS.md` (no-barrel-import allow-list).
 2. **Internal feature privacy.** Deep imports into another feature's implementation paths are prohibited.
-3. **Domain modules import only from other domains or pure libraries** — never from React, features, or services.
+3. **Domain modules import only from other domains or pure libraries** — never from React, features, or infrastructure.
 4. **Shared code is domain-agnostic** — extract only reusable neutral types and utilities to `shared/`.
-5. **Infrastructure and services import from `domain/` contracts and `shared/` types/utilities, but never from features.**
+5. **Infrastructure imports from `domain/` contracts and `shared/` types/utilities, but never from features.**
 6. **No barrel boundaries (ADR-010).** Barrels are no longer used as feature public APIs; any remaining `index.ts` must be consumed by imports, not retained as documentation.

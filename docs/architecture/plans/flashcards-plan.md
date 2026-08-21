@@ -1,6 +1,6 @@
 # LunaClair — Flashcards & Spaced Repetition Implementation Plan
 
-**Status:** Approved plan — not yet implemented
+**Status:** Implemented — Phase 6.1 (Flashcards & Spaced Repetition)
 **Decisions locked:** Cards derive from quiz questions · SM-2 scheduler · per-card review state persisted in IndexedDB
 **Owner:** Saiko Interactive
 
@@ -19,8 +19,8 @@ A **flashcards** study mode that derives cards from the existing question bank a
 **Out of scope (deferred)**
 - Cards from glossary `Term`s (needs a `definition` field + migration) — the domain key scheme (`q:` / `t:` prefixes) leaves room for it.
 - Session history/stats tables (`quizSessions`-style) — v1 persists per-card state only.
-- AI-generated decks (Phase 7 generator) and content import (Phase 8 importer).
-- Cloud sync of review state (Phase 9).
+- AI-generated decks (Phase 8 generator) and content import (Phase 9 importer).
+- Cloud sync of review state (Phase 10).
 
 ## 2. Why this fits the codebase
 
@@ -32,7 +32,7 @@ Everything needed already exists in some form:
 | Per-type answer rendering | `AnswerPayload` discriminated union (5 types) |
 | Multi-quiz deck assembly | `buildUnifiedQuestionSetFromQuizzes` in `domain/quiz/virtualQuiz.ts` |
 | Session flow pattern | `useQuizSessionFlow` + `QuizSessionRepository` lifecycle |
-| Offline persistence + migrations | Dexie versioned schema (currently v4) + `DatabaseMigrator` |
+| Offline persistence + migrations | Dexie versioned schema (currently v8) + `DatabaseMigrator` |
 | Embedded feature screen | `QuizScreen` `embedded` mode inside `MaterialWorkspace` tabs |
 | Pure domain services | `AssessmentService` (framework-free grading) |
 
@@ -40,7 +40,7 @@ No new authoring UI is needed — decks come from the question bank.
 
 ## 3. Domain Layer — `src/domain/flashcards/`
 
-New domain module (domain may import from other domains, never from React/features/services).
+New domain module (domain may import from other domains, never from React, features, or infrastructure).
 
 ### 3.1 `Card.ts`
 
@@ -133,17 +133,16 @@ export interface FlashcardReviewRepository {
 - `src/infrastructure/database/repositories/DexieFlashcardReviewRepository.ts` implements the port.
 - Register in `src/app/bootstrap/createRepositories.ts`; wire optional use cases in `createUseCases.ts`.
 
-## 5. Application Layer (use cases — optional for v1)
+## 5. Application Layer
 
-Ratings are single-record upserts; v1 can call the repository from a mutation hook directly (matching how query hooks still touch repositories). Add use cases only if orchestration grows (e.g. bulk "reset deck" with validation).
+`RecordFlashcardReviewUseCase` owns the SM-2 review transition and persistence coordination. The feature mutation hook delegates to this use case, while query hooks read review state through the injected repository contract.
 
 ## 6. Feature Module — `src/features/flashcards/`
 
-New feature (ADR-007/009), root `index.ts` public contract only.
+Implemented feature module (ADR-010 direct-path contracts; feature-root barrels are prohibited).
 
 ```
 src/features/flashcards/
-  index.ts
   FlashcardScreen.tsx            # orchestrator (mirrors QuizScreen, embedded-capable)
   types/flashcardFeature.types.ts
   hooks/
@@ -191,7 +190,6 @@ deck finished → session-end summary; due dates now drive the next run's order
 
 ## 10. Open Questions / Notes
 
-- Roadmap currently lists flashcards as "Phase 6 — planned" while Phase 6 (Application Layer) is completed — renumber planned phases (7+?) before tracking this work.
 - SM-2 quality mapping (1/3/4/5) matches Anki's 4-button feel; adjust to 2-button (Again/Good) if the product wants minimalism.
 - Review-state table can later grow stats columns (per-day history) or a `flashcardSessions` history table — both are additive Dexie migrations.
 - The `generator/` (AI decks) and `importer/` features are reserved and can reuse the same domain + player once built.

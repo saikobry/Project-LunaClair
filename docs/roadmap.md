@@ -14,7 +14,7 @@
 - ✅ **Phase 3 — Reader Domain Modernization**
   - Highlight and drawing persistence, per-document annotation keying, optimistic mutation hooks.
 - ✅ **Phase 4 — Content Asset Pipeline**
-  - Decoupled document resolution from `AppShell`, static markdown content fetching (`public/materials/`), markdown figure preprocessing.
+  - Decoupled document resolution, markdown content delivery, and figure preprocessing.
 - ✅ **Phase 4.1 — Reader Architecture Cleanup**
   - Removal of legacy in-memory content registries and standardization of storage namespaces.
 - ✅ **Phase 5 — Assessment Engine Foundation**
@@ -28,18 +28,26 @@
 - ✅ **Phase 6.1 — Flashcards & Spaced Repetition**
   - Spaced-repetition flashcards derived dynamically from existing question bank via `questionToCard`, pure SM-2 scheduler (`review`, `isDue`), `FlashcardReviewRepository` with v5 IndexedDB schema (`flashcardReviews`), 3D flip card player, rating flow, and embedded Flashcards tab in `MaterialWorkspace`.
 
+## Additional shipped capabilities (not separately phased)
+
+These capabilities were delivered after the numbered Phase 6.1 milestone and are documented here without retroactively assigning them to the Flashcards phase:
+
+- ✅ **Writer:** Lexical WYSIWYG study-material authoring with lossless Markdown transformations and local document-content persistence.
+- ✅ **Catalog-first library:** D1-delivered catalog discovery, explicit material import/removal, authoritative per-material resolution, and read-only previews.
+- ✅ **Application shell hardening:** Quiz canvas crash-recovery drafts, URL-addressable workspace routes, Focus Mode, and first-run onboarding.
+- ✅ **Architecture enforcement:** ADR-010 direct-path feature contracts, feature ownership cleanup, and static import-boundary guardrails.
+
 ---
 
 ## Offline Readiness (Implemented — Aug 2026)
 
-The delivery layer previously had zero PWA infrastructure (audit: no service worker, no manifest, no content caching, no offline UI). All four gaps are now closed:
+LunaClair is installable and offline-capable. Offline readiness is separate from cloud synchronization:
 
-- ✅ **Phase A — PWA foundation:** `vite-plugin-pwa` (v1.3, Vite 8-compatible). Service worker precaches the app shell — 47 entries ≈ 7.4 MB first install. Web manifest (`display: standalone`, white theme/background, portrait) + PNG icon set (`pwa-64/192/512`, `maskable-icon-512`, `apple-touch-icon-180`) generated from `public/app-icon.svg` (a square, white-background derivation of `favicon.svg`; `icons.svg` is a social sprite and was never usable). Regenerate with `npm run generate:pwa-assets`. SW registration + manifest link are auto-injected at build.
-- ✅ **Phase B — Content caching:** precache glob `materials/**` covers documents and figure images. The SW answers `LocalDocumentRepository` fetches with zero repository changes (Dexie = app data, Cache Storage = delivery).
-- ✅ **Offline UX:** `OfflineBanner` in the app shell (persistent "You're offline" warning chip + transient "You're back online" recovery chip; `aria-live`). Plus one hidden prerequisite: TanStack Query now runs `networkMode: 'offlineFirst'` — the default `'online'` mode pauses not-yet-cached queries when offline, which surfaced as "Material not found" on fresh material lookups.
-- ✅ **Install discovery (community-reviewed):** quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time **iOS-only** card shown from the second distinct visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively; iOS had zero native path (see `src/app/AGENTS.md`).
-
-**Asset audit:** `public/materials/` = 28 files, **6.1 MB** (7 markdown ≈ 40 KB + 21 PNG figures, all under `anatomy-physiology/images/`). **Precache everything** is the right call at this size; switch to a `/materials/**` runtime cache if content grows. Verified: offline cold boot from cache, library from IndexedDB, documents render with all 22 anatomy figures served by the SW.
+- ✅ **PWA foundation:** `vite-plugin-pwa` provides the app-shell service worker, web manifest, and generated install icons. Registration and manifest injection are handled by the build.
+- ✅ **Content delivery caching:** canonical study materials live under `content/materials/`, are seeded into Cloudflare D1, served by the API Worker, and cached on demand by the service worker. Imported document markdown is persisted locally in Dexie's `documentContents` store.
+- ✅ **Offline UX:** `OfflineBanner` communicates connectivity, and TanStack Query uses `networkMode: 'offlineFirst'` so IndexedDB-backed queries and mutations continue while disconnected.
+- ✅ **Install discovery:** an opt-in sidebar install entry and a one-time iOS-specific install card are available without deferred `beforeinstallprompt` machinery.
+- ✅ **First-run onboarding:** a bundled, skippable tutorial syncs the default academic terms into local state when dismissed or completed.
 
 Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution) stays **Phase 10 — Cloud Synchronization** scope.
 
@@ -57,4 +65,3 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
   - Cloud database adapter, offline-first sync pipelines, multi-device state synchronization.
 - 🔒 **Phase 11 — Collaboration & Sharing**
   - Shared question decks, peer study sessions, exported quiz bundles.
-

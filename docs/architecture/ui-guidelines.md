@@ -31,14 +31,14 @@ StyleX (@stylexjs/stylex)
 
 ### Persistence & Service Boundaries
 
-5. **Browser storage APIs only in `src/infrastructure/database/` or `src/services/`** ❌
+5. **Browser storage APIs only in `src/infrastructure/database/`** ❌
    - `localStorage`, `sessionStorage`, IndexedDB calls belong in infrastructure adapters, never in features.
 
 6. **Domain layer is pure** ❌
    - No DOM, `window`, `document`, `navigator`, `localStorage`, or browser APIs in `src/domain/`.
 
-7. **Curated feature contracts** ✅
-   - Features may consume another feature only through its root `index.ts`; deep imports into feature internals are prohibited.
+7. **Direct-path feature contracts** ✅
+   - Features may consume another feature only through the approved direct module paths defined by ADR-010; deep imports into feature internals are prohibited.
    - Domain-specific composites and hooks live in their owning feature, not `src/shared/`.
 
 ## Astryx Theme as Single Color Authority

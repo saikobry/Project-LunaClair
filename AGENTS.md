@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 6 (Application Layer & Domain Boundary Refinement)
+**Phase:** 6.1 complete (Flashcards & Spaced Repetition); next planned phase: 7 (Analytics & Learning Insights)
 
 ## Stack
 
@@ -143,7 +143,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 4. **Shared code** is strictly domain-agnostic; business capability code belongs to its owning feature.
 5. **Infrastructure** imports from `domain/` (contracts) and `shared/` (types/utilities) but not from features. Scoped exception: application draft contracts in `DexieQuizDraftRepository`.
 6. **Feature-Root Barrels Prohibited (ADR-010)** — Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths listed in `src/features/AGENTS.md`. Domain and application layers may expose stable module barrels where actively consumed by composition roots or features.
-7. **Architectural Boundary Guardrails (Oxlint)** — `src/features/**` is statically prohibited from importing `src/infrastructure/**` or legacy `src/services/**` via Oxlint `no-restricted-imports`. All write mutations must route through `src/application/` use cases; repository access in features is restricted to read/query paths via dependency injection.
+7. **Architectural Boundary Guardrails (Oxlint)** — `src/features/**` is statically prohibited from importing `src/infrastructure/**` or reintroduced legacy service modules via Oxlint `no-restricted-imports`. All write mutations must route through `src/application/` use cases; repository access in features is restricted to read/query paths via dependency injection.
 
 ## PWA / Offline
 
@@ -153,7 +153,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - The library catalog (subjects, terms, subject-term links, materials metadata) is D1-delivered: canonical data lives at `content/catalog/*.json`, ingested via `npm run seed:catalog:local` / `npm run seed:catalog:remote` (`scripts/seed-catalog.mjs`), and served as one public snapshot at `GET /api/catalog`. Quiz content (questions/quizzes) follows the same pattern: `content/quiz/*.json` → `npm run seed:quiz:local` / `seed:quiz:remote` → `GET /api/quiz`.
 - **Catalog-first, user-selected library model (no auto-hydration).** The app does **not** copy the D1 catalog into Dexie on boot — a fresh install starts with an empty library (the three default academic terms — Prelim/Midterm/Finals — are the exception: they sync into Dexie when first-run onboarding is completed, or arrive with material import; never on boot). The catalog is fetched independently (TanStack Query → `GET /api/catalog`, SW runtime-cached) and surfaced as **Available Materials** (`/available`); users explicitly **Add to Library** / **Remove from Library** per material via `ImportMaterialUseCase` / `RemoveImportedMaterialUseCase`. **Read-only preview** (Aug 2026, community-reviewed): non-imported materials open a dedicated preview surface (`/available/:materialId/preview`, `PreviewMaterialScreen`) that resolves the material authoritatively per-id, renders the document read-only (Dexie-first, API fallback — same `HybridDocumentRepository`), and offers Add to Library — a deliberate distinct surface so the full workspace (`/materials/:id`) stays synonymous with "this is one of my materials". Preview never touches the local library, never writes study state, and never fires "last opened" — no partial-open state leaks into the workspace's local-first invariants. Import resolves the material authoritatively per-id (`GET /api/catalog/materials/:id`, uncached) — **import must never require the full catalog snapshot in memory**; `GET /api/catalog` stays a discovery read model. Importing a material atomically persists its subject/term links, metadata, document markdown (in the new `documentContents` Dexie store), and its questions/quizzes from `GET /api/quiz`; figures stay SW-cached. The reader serves imported content from Dexie first (`HybridDocumentRepository`), API second. **D1 = canonical catalog; Dexie = user's local selection/working state; Service Worker Cache Storage = network-resource cache, never the source of truth for library membership.** User edits remain local-only until the future sync phase.
 - TanStack Query runs with `networkMode: 'offlineFirst'` for **queries and mutations** (see `AppProviders`) so IndexedDB-backed operations execute — not pause — when `navigator.onLine` is false. Do not revert to the default `'online'` mode (it freezes fresh lookups and defers Dexie writes while offline).
-- Offline synchronization (sync queue, conflict resolution) is **Phase 9** scope; offline-readiness is shipped.
+- Offline synchronization (sync queue, conflict resolution) is **Phase 10** scope; offline-readiness is shipped.
 - Icon pipeline: `npm run generate:pwa-assets` regenerates `pwa-*`/maskable/apple-touch PNGs in `public/` from `public/app-icon.svg` (a square derivation of `favicon.svg`).
 - Install discovery (community-reviewed, Aug 2026): quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time iOS-only card from the second visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively, iOS has none. Details in `src/app/AGENTS.md`.
 - First-run onboarding (Aug 2026): one-time, skippable welcome tutorial mounted by `AppShell` — bundled app chrome with zero network dependency; its Finish AND Skip actions call `SyncDefaultTermsUseCase` to sync the default academic terms into Dexie from the (SW-cached) catalog (dismissal is never punished). Details in `src/app/AGENTS.md`.
@@ -164,7 +164,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - D1 is never called directly from the browser — all cloud data flows through the **`api` Cloudflare Worker** (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema is authored with Drizzle ORM (`worker/src/schema.ts` → `npm run db:generate` → versioned migrations in `worker/migrations/`); `GET /health` on the Worker verifies D1 connectivity.
 - Remote SQL: `npx wrangler d1 execute lunaclair --remote --command "<sql>"`.
-- Offline synchronization (Dexie ⇄ D1 sync queue, conflict resolution) remains **Phase 9** scope — the plumbing is deployed, the sync feature is not.
+- Offline synchronization (Dexie ⇄ D1 sync queue, conflict resolution) remains **Phase 10** scope — the plumbing is deployed, the sync feature is not.
 - See `worker/AGENTS.md` for Worker-specific contracts.
 
 ## Conventions
