@@ -8,7 +8,7 @@ html {
 
 :root {
   color-scheme: light;
-  font-synthesis: none;
+  font-synthesis: weight style;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -39,6 +39,15 @@ h1, h2 {
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
+}
+
+strong, b {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+em, i {
+  font-style: italic;
 }
 
 h1 {

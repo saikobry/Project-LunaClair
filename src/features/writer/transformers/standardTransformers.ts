@@ -144,6 +144,40 @@ export const HR_TRANSFORMER: ElementTransformer = {
   type: 'element',
 };
 
+export function splitTableCells(line: string): string[] {
+  const trimmed = line.trim();
+  const content =
+    trimmed.startsWith('|') && trimmed.endsWith('|')
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  const cells: string[] = [];
+  let current = '';
+  let isEscaped = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    if (isEscaped) {
+      current += char;
+      isEscaped = false;
+    } else if (char === '\\') {
+      isEscaped = true;
+      current += char;
+    } else if (char === '|') {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function escapeTableCellText(text: string): string {
+  return text.replace(/\\\|/g, '___ESCAPED_PIPE___').replace(/\|/g, '\\|').replace(/___ESCAPED_PIPE___/g, '\\|');
+}
+
 // ── 2. Table Transformer (GFM tables) ──
 export const TABLE_TRANSFORMER: MultilineElementTransformer = {
   dependencies: [TableNode, TableRowNode, TableCellNode],
@@ -161,7 +195,7 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
       const rowCells: string[] = [];
       for (const cell of cells) {
         if (!$isTableCellNode(cell)) continue;
-        const text = traverseChildren(cell).replace(/\n/g, ' ').trim();
+        const text = escapeTableCellText(traverseChildren(cell).replace(/\n/g, ' ').trim());
         rowCells.push(text);
       }
       if (isFirstRow) {
@@ -205,10 +239,7 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
 
     contentLines.forEach((line, rowIndex) => {
       const rowNode = $createTableRowNode();
-      const cellTexts = line
-        .split('|')
-        .slice(1, -1)
-        .map((t) => t.trim());
+      const cellTexts = splitTableCells(line);
 
       cellTexts.forEach((text) => {
         const cellNode = $createTableCellNode(

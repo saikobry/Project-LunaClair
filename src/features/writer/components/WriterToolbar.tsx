@@ -121,7 +121,7 @@ export function WriterToolbar() {
   }, [editor, $updateToolbar]);
 
   return (
-    <div {...stylex.props(toolbarStyles.toolbar)} aria-label="Editor Toolbar" role="toolbar">
+    <div {...stylex.props(toolbarStyles.toolbar)} aria-label="Formatting" role="toolbar">
       <WriterToolbarHistory />
       <div {...stylex.props(toolbarStyles.divider)} />
       <WriterToolbarBlockFormat blockType={formatState.blockType} />

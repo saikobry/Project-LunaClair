@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 6.1 complete (Flashcards & Spaced Repetition); next planned phase: 7 (Analytics & Learning Insights)
+**Phase:** 6.2 complete (LunaClair Writer & Markdown Fidelity Stabilization); next planned phase: 7 (Analytics & Learning Insights)
 
 ## Stack
 
@@ -92,6 +92,8 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 | Dev server | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
+| Test (Unit & Integration) | `npm run test:run` / `npm run test` / `npm run test:coverage` |
+| Test (E2E Acceptance) | `npm run test:e2e` |
 | Regenerate PWA icons | `npm run generate:pwa-assets` |
 | Dev API Worker | `npm run dev:api` |
 | Deploy API Worker | `npm run deploy:api` |
@@ -101,7 +103,7 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 
 **Build process**: `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
-**No test framework** is configured. No test scripts or test files exist.
+**Testing framework**: Vitest (`vitest`) configured in `vitest.config.ts` for unit, fidelity, Dexie persistence, and UI state tests; Playwright (`@playwright/test`) configured in `playwright.config.ts` for real Chromium E2E acceptance tests (`npm run test:e2e`).
 
 ## Linter
 

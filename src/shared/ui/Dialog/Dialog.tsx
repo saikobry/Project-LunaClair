@@ -115,6 +115,7 @@ export function Dialog({
       maxHeight={maxHeight}
       purpose={purpose}
       className={className}
+      role="dialog"
       style={{ border: 'none', ...style }}
       {...ariaProps}
     >

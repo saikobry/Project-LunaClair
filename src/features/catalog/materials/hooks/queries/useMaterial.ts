@@ -17,6 +17,7 @@ export function useMaterial(materialId: string | undefined) {
     queryKey: catalogQueryKeys.material(materialId ?? ''),
     queryFn: ({ signal }) => context.libraryRepository.getMaterialById(materialId!, signal),
     enabled: !!materialId,
+    placeholderData: (prev) => prev,
   });
 
   return { material: data ?? null, isLoading, isError, error };

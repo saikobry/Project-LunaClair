@@ -30,11 +30,11 @@ interface InitialContentPluginProps {
 
 function InitialContentPlugin({ markdown }: InitialContentPluginProps) {
   const [editor] = useLexicalComposerContext();
-  const lastMarkdownRef = useRef<string | null>(null);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (lastMarkdownRef.current === markdown) return;
-    lastMarkdownRef.current = markdown;
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
 
     editor.update(
       () => {
