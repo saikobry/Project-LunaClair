@@ -38,7 +38,8 @@ function InitialContentPlugin({ markdown }: InitialContentPluginProps) {
 
     editor.update(
       () => {
-        $convertFromMarkdownString(markdown, standardTransformers);
+        const normalized = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        $convertFromMarkdownString(normalized, standardTransformers);
       },
       { discrete: true },
     );

@@ -32,6 +32,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 
 ## Verification
 
+- `npm run test:run`
 - `npm run build`
 - `npm run lint`
 

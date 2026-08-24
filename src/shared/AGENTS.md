@@ -33,7 +33,8 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

@@ -53,7 +53,10 @@ Feature-based modules, each containing everything needed for that feature: compo
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run test:run` — Vitest unit, transformer, fidelity, persistence, and state test execution.
+- `npm run test:e2e` — Playwright real-browser acceptance test execution.
+- `npm run build` — TypeScript (`tsc -b`) and Vite production bundle check.
+- `npm run lint` — Oxlint static boundary and lint analysis.
 
 ## Child DOX Index
 

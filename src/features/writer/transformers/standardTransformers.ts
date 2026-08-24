@@ -37,7 +37,6 @@ import {
   type TextMatchTransformer,
   type Transformer,
   $generateNodesFromMarkdownString,
-  isTableRowDivider,
   HEADING,
   QUOTE,
   CODE,
@@ -132,7 +131,7 @@ export const HR_TRANSFORMER: ElementTransformer = {
   export: (node: LexicalNode) => {
     return $isHorizontalRuleNode(node) ? '---' : null;
   },
-  regExp: /^(---|\*\*\*|___)\s?$/,
+  regExp: /^(---|\*\*\*|___)\s*$/,
   replace: (parentNode, _1, _2, isImport) => {
     const line = $createHorizontalRuleNode();
     if (isImport) {
@@ -143,6 +142,11 @@ export const HR_TRANSFORMER: ElementTransformer = {
   },
   type: 'element',
 };
+
+export function isTableRowDivider(line: string): boolean {
+  const trimmed = line.trim();
+  return /^\|?(\s*:?-+:?\s*\|?)+$/.test(trimmed) && trimmed.includes('-');
+}
 
 export function splitTableCells(line: string): string[] {
   const trimmed = line.trim();
@@ -210,18 +214,15 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
 
     return output.join('\n');
   },
-  regExpStart: /^\|(.+)\|$/,
-  regExpEnd: {
-    optional: true,
-    regExp: /^$/,
-  },
-  replace: (rootNode, _children, startMatch, _endMatch, linesInBetween) => {
-    if (!linesInBetween && !startMatch) return false;
+  handleImportAfterStartMatch: ({ lines, rootNode, startLineIndex }) => {
+    const allLines: string[] = [lines[startLineIndex].trim()];
+    let endLineIndex = startLineIndex;
+    while (endLineIndex + 1 < lines.length && lines[endLineIndex + 1].trim().startsWith('|')) {
+      endLineIndex++;
+      allLines.push(lines[endLineIndex].trim());
+    }
 
-    const allLines = [startMatch[0], ...(linesInBetween || [])].filter((l) =>
-      l.trim().startsWith('|'),
-    );
-    if (allLines.length < 2) return false;
+    if (allLines.length < 2) return null;
 
     const contentLines: string[] = [];
     let hasDivider = false;
@@ -233,7 +234,7 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
       }
     }
 
-    if (contentLines.length === 0) return false;
+    if (!hasDivider || contentLines.length === 0) return null;
 
     const tableNode = $createTableNode();
 
@@ -257,8 +258,10 @@ export const TABLE_TRANSFORMER: MultilineElementTransformer = {
     });
 
     rootNode.append(tableNode);
-    return true;
+    return [true, endLineIndex];
   },
+  regExpStart: /^\|(.+)\|\s*$/,
+  replace: () => false,
   type: 'multiline-element',
 };
 

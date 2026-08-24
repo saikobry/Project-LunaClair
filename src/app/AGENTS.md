@@ -42,7 +42,8 @@ Application-level orchestration: the root shell layout, configuration constants,
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

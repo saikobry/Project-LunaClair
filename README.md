@@ -4,7 +4,7 @@
 
 Project LunaClair is an AI-powered learning platform. The long-term vision is to transform learning materials into structured study datasets that power quizzes, flashcards, practice exams, progress tracking, and other study experiences.
 
-**Current status:** Phase 6.1 (Flashcards & Spaced Repetition) is complete. Phase 7 (Analytics & Learning Insights) is next; additional shipped capabilities are documented in the roadmap without being retroactively assigned to Phase 6.1.
+**Current status:** Phase 6.2 (LunaClair Writer & Markdown Fidelity Stabilization) is complete. Next planned phase is Phase 7 (Analytics & Learning Insights).
 
 ## Tech Stack
 
@@ -12,6 +12,7 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 |---|---|
 | React 19 + TypeScript (strict) | UI framework |
 | Vite 8 | Build tool |
+| Lexical (`@lexical/*`) | WYSIWYG authoring engine & Markdown transformers |
 | StyleX | Styling, design tokens |
 | @astryxdesign/core + theme-neutral | UI component kit and theme |
 | TanStack Query | Server-state caching & mutations (`networkMode: 'offlineFirst'`) |
@@ -19,6 +20,8 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | GSAP | Animation, drag interactions |
 | react-markdown + remark-gfm + rehype-slug | Markdown rendering |
 | vite-plugin-pwa | PWA / offline app shell |
+| Vitest + Testing Library | Unit, transformer, fidelity, state & persistence test suite |
+| Playwright | Real-browser E2E acceptance tests |
 
 ## Features
 
@@ -65,10 +68,19 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 | Dev server | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
+| Unit & Integration Tests | `npm run test:run` / `npm run test` / `npm run test:coverage` |
+| E2E Acceptance Tests | `npm run test:e2e` |
 | Preview production build | `npm run preview` |
 | Regenerate PWA icons | `npm run generate:pwa-assets` |
+| Dev API Worker | `npm run dev:api` |
+| Deploy API Worker | `npm run deploy:api` |
+| Regenerate Worker types | `npm run types:worker` |
+| Generate D1 migration | `npm run db:generate` |
+| Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:remote` |
 
 **Build process:** `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
+
+**Testing:** Vitest (`vitest`) for unit, fidelity, Dexie persistence, and UI state tests; Playwright (`@playwright/test`) for real Chromium E2E acceptance tests.
 
 ## PWA / Offline
 
@@ -85,10 +97,12 @@ Uses **oxlint** (config at `.oxlintrc.json`). Plugins: `react`, `typescript`, `o
 
 ## Conventions & Skills
 
-- No CI and no test framework configured.
+- Testing frameworks: Vitest + Playwright.
 - Agent skills live in `.agents/skills/`:
   - **commit-message** — generates conventional commits from staged changes
   - **react-doctor** — scans React code for anti-patterns, performance, security, architecture, accessibility (run after React changes)
   - **architecture-chronicle** — captures architecture, data flows, and system evolution after a phase
   - **community-question** — drafts paste-ready forum questions grounded in the codebase
+  - **playwright-skill** — Playwright patterns for E2E and component testing
+  - **review** — Audits Playwright tests against best practices
 - No `prettier`, `eslint`, or `biome` — oxlint only.

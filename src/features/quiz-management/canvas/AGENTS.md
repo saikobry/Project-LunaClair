@@ -43,7 +43,8 @@ Self-contained authoring subsystem for the quiz canvas builder (Google Forms-sty
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

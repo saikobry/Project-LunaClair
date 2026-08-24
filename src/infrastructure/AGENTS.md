@@ -54,7 +54,9 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run test:run` — Dexie persistence, database migration, and repository unit/integration tests.
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

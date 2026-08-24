@@ -22,10 +22,11 @@ export function markdownToLexical(
   markdown: string,
   editor?: LexicalEditor,
 ): LexicalEditor {
+  const normalized = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const targetEditor = editor ?? createTestEditor();
   targetEditor.update(
     () => {
-      $convertFromMarkdownString(markdown, standardTransformers);
+      $convertFromMarkdownString(normalized, standardTransformers);
     },
     { discrete: true },
   );

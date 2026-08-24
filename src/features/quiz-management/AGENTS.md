@@ -42,7 +42,8 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

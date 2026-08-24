@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 6.1 (Application Layer, Domain Boundary Refinement & Flashcards)
+**Version:** Phase 6.2 (LunaClair Writer & Markdown Fidelity Stabilization)
 
 ## Documentation Structure
 

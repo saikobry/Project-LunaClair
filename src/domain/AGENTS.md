@@ -40,7 +40,9 @@ Reserved domains:
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run test:run`
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 

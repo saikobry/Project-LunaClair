@@ -66,7 +66,9 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 
 ## Verification
 
-No verification framework exists yet.
+- `npm run test:run`
+- `npm run build`
+- `npm run lint`
 
 ## Child DOX Index
 
