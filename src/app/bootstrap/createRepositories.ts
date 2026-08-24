@@ -14,6 +14,7 @@ import { dexieSubjectTermRepository } from '../../infrastructure/database/reposi
 import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
 import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
+import { WorkerAiAdapter } from '../../infrastructure/ai/WorkerAiAdapter';
 import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
 import { dexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
@@ -24,6 +25,8 @@ export function createRepositories() {
         dexieDocumentContentRepository,
         apiDocumentRepository,
     );
+
+    const aiService = new WorkerAiAdapter();
 
     return {
         documentRepository,
@@ -44,6 +47,7 @@ export function createRepositories() {
         quizEditorService: dexieQuizEditorService,
         flashcardReviewRepository: dexieFlashcardReviewRepository,
         analyticsRepository: dexieAnalyticsRepository,
+        aiService,
     };
 }
 

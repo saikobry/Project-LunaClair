@@ -21,5 +21,10 @@
       // Drizzle v1 writes each migration as its own subdirectory (e.g. 0001_init/migration.sql).
       "migrations_pattern": "worker/migrations/*/migration.sql"
     }
-  ]
+  ],
+
+  // Cloudflare Workers AI binding for serverless edge inference.
+  "ai": {
+    "binding": "AI"
+  }
 }

@@ -41,6 +41,10 @@ import {
   terms,
 } from './schema';
 
+export interface AiBinding {
+  run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown>;
+}
+
 export interface Env {
   /** Cloudflare D1 binding (see wrangler.jsonc → d1_databases). */
   DB: D1Database;
@@ -48,6 +52,8 @@ export interface Env {
   CORS_ORIGINS?: string;
   /** Write-gate secret for the PUT ingest endpoints. Set via .dev.vars / `wrangler secret put`. */
   SEED_TOKEN?: string;
+  /** Cloudflare Workers AI binding for serverless edge inference. */
+  AI?: AiBinding;
 }
 
 const json = (
@@ -441,6 +447,146 @@ export default {
       }
 
       return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/ai/chat — Streaming chat completions with Cloudflare Workers AI
+    if (parts[0] === "api" && parts[1] === "ai" && parts[2] === "chat" && parts.length === 3) {
+      if (request.method !== "POST") {
+        return json({ error: "Method not allowed" }, 405, corsHeaders);
+      }
+
+      if (!env.AI) {
+        return json({ error: "Cloudflare Workers AI binding not configured on Worker" }, 503, corsHeaders);
+      }
+
+      const body = (await request.json().catch(() => null)) as {
+        messages?: Array<{ role?: unknown; content?: unknown }>;
+        documentContext?: { id?: unknown; title?: unknown; markdown?: unknown };
+        selection?: { text?: unknown; surroundingHeading?: unknown; source?: unknown };
+        mode?: unknown;
+      } | null;
+
+      if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
+        return json({ error: "Invalid request: messages array is required" }, 400, corsHeaders);
+      }
+
+      const mode = typeof body.mode === "string" ? body.mode : "assistant";
+      const docContext = body.documentContext && typeof body.documentContext.markdown === "string"
+        ? {
+            title: typeof body.documentContext.title === "string" ? body.documentContext.title : "",
+            markdown: body.documentContext.markdown,
+          }
+        : undefined;
+      const selection = body.selection && typeof body.selection.text === "string"
+        ? {
+            text: body.selection.text,
+            surroundingHeading: typeof body.selection.surroundingHeading === "string" ? body.selection.surroundingHeading : undefined,
+          }
+        : undefined;
+
+      // Server-side ground-truth system prompt construction
+      let systemPrompt = "You are an intelligent study assistant for Project LunaClair, an interactive learning platform. ";
+      switch (mode) {
+        case "socratic":
+          systemPrompt += "You are in SOCRATIC TUTOR mode. Do not give the direct answer away immediately. Ask guiding questions, break complex problems into steps, and encourage the student to think critically.";
+          break;
+        case "explain":
+          systemPrompt += "You are in EXPLAIN mode. Provide a clear, structured, and thorough explanation of the concept or selected text.";
+          break;
+        case "simplify":
+          systemPrompt += "You are in SIMPLIFY mode. Explain the concept in simple, accessible terms using an intuitive real-world analogy suitable for a beginner.";
+          break;
+        case "example":
+          systemPrompt += "You are in EXAMPLE mode. Provide concrete, illustrative, and memorable examples demonstrating the concept in action.";
+          break;
+        case "assistant":
+        default:
+          systemPrompt += "You are in STUDY ASSISTANT mode. Answer the student's questions accurately, concisely, and helpfully.";
+          break;
+      }
+
+      if (docContext?.markdown) {
+        systemPrompt += `\n\n--- STUDY MATERIAL: ${docContext.title || "Current Document"} ---\n${docContext.markdown.slice(0, 16000)}\n--- END OF STUDY MATERIAL ---`;
+        systemPrompt += "\n\nGround your answers in the provided study material whenever relevant. If the material does not contain the answer, use your general knowledge but clearly indicate that it is beyond the material.";
+      }
+
+      if (selection?.text) {
+        systemPrompt += `\n\n--- SELECTED TEXT ---\n"${selection.text}"\n--- END OF SELECTED TEXT ---`;
+        if (selection.surroundingHeading) {
+          systemPrompt += ` (From section: ${selection.surroundingHeading})`;
+        }
+      }
+
+      const formattedMessages: Array<{ role: string; content: string }> = [
+        { role: "system", content: systemPrompt },
+      ];
+
+      for (const m of body.messages) {
+        if (m && typeof m.content === "string") {
+          formattedMessages.push({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: m.content,
+          });
+        }
+      }
+
+      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct";
+      const messageId = `msg-${crypto.randomUUID()}`;
+
+      try {
+        const aiResponse = await env.AI.run(DEFAULT_AI_MODEL, {
+          messages: formattedMessages,
+          stream: true,
+        });
+
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+
+        // Convert Cloudflare AI stream to LunaClair SSE events
+        const transformStream = new TransformStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`));
+          },
+          transform(chunk, controller) {
+            const text = decoder.decode(chunk, { stream: true });
+            const lines = text.split("\n");
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith("data:")) continue;
+              const payload = trimmed.slice(5).trim();
+              if (payload === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(payload) as { response?: string };
+                if (parsed.response) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ type: "token", text: parsed.response })}\n\n`),
+                  );
+                }
+              } catch {
+                // Ignore malformed chunk lines
+              }
+            }
+          },
+          flush(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+          },
+        });
+
+        const outputStream = (aiResponse as ReadableStream<Uint8Array>).pipeThrough(transformStream);
+
+        return new Response(outputStream, {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream; charset=utf-8",
+            "cache-control": "no-cache, no-transform",
+            "connection": "keep-alive",
+            ...corsHeaders,
+          },
+        });
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : "AI stream invocation failed";
+        return json({ error: errorMsg }, 500, corsHeaders);
+      }
     }
 
     return json({ error: "Not found" }, 404, corsHeaders);

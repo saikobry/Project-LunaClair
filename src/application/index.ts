@@ -46,4 +46,8 @@ export type { RecordFlashcardReviewInput } from './use-cases/flashcards/RecordFl
 export { GetGlobalAnalyticsUseCase } from './use-cases/analytics/GetGlobalAnalyticsUseCase';
 export { GetSubjectAnalyticsUseCase } from './use-cases/analytics/GetSubjectAnalyticsUseCase';
 export { GetMaterialAnalyticsUseCase } from './use-cases/analytics/GetMaterialAnalyticsUseCase';
+export { SendChatMessageUseCase } from './use-cases/ai/SendChatMessageUseCase';
+export type { SendChatMessageInput } from './use-cases/ai/SendChatMessageUseCase';
+export { AiContextBuilder } from './use-cases/ai/AiContextBuilder';
+export type { BuildDocumentContextOptions, BuildSelectionContextOptions } from './use-cases/ai/AiContextBuilder';
 

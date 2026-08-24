@@ -41,6 +41,7 @@ import {
     GetGlobalAnalyticsUseCase,
     GetSubjectAnalyticsUseCase,
     GetMaterialAnalyticsUseCase,
+    SendChatMessageUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
@@ -103,6 +104,9 @@ export function createUseCases(repositories: Repositories) {
             getGlobalAnalytics: new GetGlobalAnalyticsUseCase(repositories.analyticsRepository),
             getSubjectAnalytics: new GetSubjectAnalyticsUseCase(repositories.analyticsRepository),
             getMaterialAnalytics: new GetMaterialAnalyticsUseCase(repositories.analyticsRepository),
+        },
+        ai: {
+            sendChatMessage: new SendChatMessageUseCase(repositories.aiService),
         },
     };
 }
