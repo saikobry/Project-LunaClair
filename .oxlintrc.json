@@ -28,6 +28,12 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/features/**/tests/**", "src/features/**/*.test.*", "src/test/**", "tests/**"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
     }
   ]
 }

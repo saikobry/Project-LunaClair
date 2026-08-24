@@ -19,6 +19,12 @@ dist-ssr
 # Freebuff desktop app data
 .freebuff/
 
+# Test artifacts and coverage
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
