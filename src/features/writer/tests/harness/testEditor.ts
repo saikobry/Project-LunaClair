@@ -41,11 +41,3 @@ export function lexicalToMarkdown(editor: LexicalEditor): string {
     return $convertToMarkdownString(standardTransformers);
   });
 }
-
-/**
- * Performs full Markdown -> Lexical -> Markdown round-trip conversion.
- */
-export function roundTripMarkdown(markdown: string): string {
-  const editor = markdownToLexical(markdown);
-  return lexicalToMarkdown(editor);
-}

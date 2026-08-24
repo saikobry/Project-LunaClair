@@ -634,35 +634,45 @@ export function AppSidebar({
         </div>
       </div>
 
-      <button
-        type="button"
-        {...stylex.props(styles.footer)}
-        onClick={onToggleFocusMode}
-        aria-label="Enter Focus Mode"
-        title="Enter Focus Mode (Cmd/Ctrl+B)"
-      >
-        <div {...stylex.props(styles.footerDesktop)}>
-          <div {...stylex.props(styles.footerRow1)}>
-            <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
-            <span {...stylex.props(styles.footerTitle)}>Project LunaClair</span>
-            <span
-              {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
-            >
-              v0.2.0
-            </span>
-          </div>
-          <div {...stylex.props(styles.footerRow2)}>
-            <span {...stylex.props(styles.footerFocusLabel)}>Focus Mode (Cmd+B)</span>
-            <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
-          </div>
-        </div>
-        <div {...stylex.props(styles.footerTablet)}>
+      <SidebarFooter onToggleFocusMode={onToggleFocusMode} />
+    </nav>
+  );
+}
+
+interface SidebarFooterProps {
+  onToggleFocusMode: () => void;
+}
+
+function SidebarFooter({ onToggleFocusMode }: SidebarFooterProps) {
+  return (
+    <button
+      type="button"
+      {...stylex.props(styles.footer)}
+      onClick={onToggleFocusMode}
+      aria-label="Enter Focus Mode"
+      title="Enter Focus Mode (Cmd/Ctrl+B)"
+    >
+      <div {...stylex.props(styles.footerDesktop)}>
+        <div {...stylex.props(styles.footerRow1)}>
           <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
-          <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
+          <span {...stylex.props(styles.footerTitle)}>Project LunaClair</span>
+          <span
+            {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
+          >
+            v0.2.0
+          </span>
+        </div>
+        <div {...stylex.props(styles.footerRow2)}>
+          <span {...stylex.props(styles.footerFocusLabel)}>Focus Mode (Cmd+B)</span>
           <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
         </div>
-      </button>
-    </nav>
+      </div>
+      <div {...stylex.props(styles.footerTablet)}>
+        <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
+        <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
+        <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
+      </div>
+    </button>
   );
 }
 

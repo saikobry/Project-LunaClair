@@ -175,13 +175,13 @@ export function computeSubjectMasteries(
         const qualifiedTopics = topics.filter((t) => t.attemptCount >= 3);
 
         // Strengths: weightedScore DESC, attemptCount DESC, tag ASC
-        const strengths = [...qualifiedTopics]
-            .sort((a, b) => b.weightedScore - a.weightedScore || b.attemptCount - a.attemptCount || a.tag.localeCompare(b.tag))
+        const strengths = qualifiedTopics
+            .toSorted((a, b) => b.weightedScore - a.weightedScore || b.attemptCount - a.attemptCount || a.tag.localeCompare(b.tag))
             .slice(0, 3);
 
         // Weaknesses: weightedScore ASC, attemptCount DESC, tag ASC
-        const weaknesses = [...qualifiedTopics]
-            .sort((a, b) => a.weightedScore - b.weightedScore || b.attemptCount - a.attemptCount || a.tag.localeCompare(b.tag))
+        const weaknesses = qualifiedTopics
+            .toSorted((a, b) => a.weightedScore - b.weightedScore || b.attemptCount - a.attemptCount || a.tag.localeCompare(b.tag))
             .slice(0, 3);
 
         return {
