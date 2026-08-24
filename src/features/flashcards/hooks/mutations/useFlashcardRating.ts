@@ -32,6 +32,7 @@ export function useFlashcardRating(materialId: string) {
                     [newState.key]: newState,
                 })
             );
+            queryClient.invalidateQueries({ queryKey: ['analytics'] });
         },
     });
 

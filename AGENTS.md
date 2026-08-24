@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 6.2 complete (LunaClair Writer & Markdown Fidelity Stabilization); next planned phase: 7 (Analytics & Learning Insights)
+**Phase:** 7 complete (Analytics & Learning Insights); next planned phase: 8 (AI Study Assistant)
 
 ## Stack
 
@@ -191,6 +191,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/app/AGENTS.md` | `src/app/` | Application shell, layout, config, providers |
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
+| `src/features/analytics/AGENTS.md` | `src/features/analytics/` | Analytics & Learning Insights feature — Study overview, retention, mastery, activity heatmap |
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
 | `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |
 | `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |

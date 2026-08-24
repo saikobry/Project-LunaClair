@@ -1,7 +1,7 @@
 import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig, TrendingUp } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
@@ -353,9 +353,9 @@ const styles = stylex.create({
 export interface AppSidebarProps {
   subjectId?: string;
   materialId?: string;
-  /** Which of the three main nav sections is current. `'none'` when a
+  /** Which of the main nav sections is current. `'none'` when a
    *  subject/material/quiz route owns the screen (context links take over). */
-  active: 'library' | 'available' | 'terms' | 'none';
+  active: 'library' | 'available' | 'analytics' | 'terms' | 'none';
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
   onNavigate: (route: AppRoute) => void;
@@ -543,6 +543,17 @@ export function AppSidebar({
           >
             <LibraryBig size={18} />
             <span {...stylex.props(styles.navLabel)}>Available</span>
+          </button>
+
+          <button
+            type="button"
+            {...stylex.props(styles.navItem, active === 'analytics' && styles.navItemActive)}
+            onClick={() => onNavigate({ kind: 'analytics' })}
+            aria-current={active === 'analytics' ? 'page' : undefined}
+            title="Learning Insights & Analytics"
+          >
+            <TrendingUp size={18} />
+            <span {...stylex.props(styles.navLabel)}>Insights</span>
           </button>
 
           <button

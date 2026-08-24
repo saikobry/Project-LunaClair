@@ -11,6 +11,7 @@ import SubjectWorkspace from '../../features/catalog/subjects/components/Subject
 import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
 import { QuizCanvasBuilder } from '../../features/quiz-management/canvas/QuizCanvasBuilder';
+import AnalyticsScreen from '../../features/analytics/AnalyticsScreen';
 import type { AppRoute } from './routing';
 import MaterialWorkspace from './MaterialWorkspace';
 
@@ -126,6 +127,9 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'terms' && (
         <TermManagerScreen />
+      )}
+      {currentRoute.kind === 'analytics' && (
+        <AnalyticsScreen />
       )}
       {currentRoute.kind === 'subject' && (
         <SubjectWorkspace

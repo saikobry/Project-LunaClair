@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { QuizSession } from '../../../../domain/quiz/QuizSession';
 import type { CreateSessionInput } from '../../../../domain/quiz/QuizSessionRepository';
 import type { SubmitQuizSessionOutput } from '../../../../application';
@@ -11,6 +12,7 @@ import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
  */
 export function useQuizPersistence() {
     const context = useContextOrThrow(ApplicationContext, 'useQuizPersistence');
+    const queryClient = useQueryClient();
     const sessionRef = useRef<QuizSession | null>(null);
 
     const createSession = useCallback(
@@ -28,9 +30,10 @@ export function useQuizPersistence() {
             if (!session) throw new Error('No active session to complete');
             const output = await context.useCases.quiz.submitSession.execute({ sessionId: session.id, submissions });
             sessionRef.current = output.session;
+            queryClient.invalidateQueries({ queryKey: ['analytics'] });
             return output;
         },
-        [context],
+        [context, queryClient],
     );
 
     const abandonSession = useCallback(async (): Promise<void> => {

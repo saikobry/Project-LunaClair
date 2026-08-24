@@ -259,9 +259,11 @@ export default function AppShell() {
                 ? 'library'
                 : currentRoute.kind === 'available' || currentRoute.kind === 'preview'
                   ? 'available'
-                  : currentRoute.kind === 'terms'
-                    ? 'terms'
-                    : 'none'
+                  : currentRoute.kind === 'analytics'
+                    ? 'analytics'
+                    : currentRoute.kind === 'terms'
+                      ? 'terms'
+                      : 'none'
             }
             isFocusMode={isFocusMode}
             onToggleFocusMode={toggleFocusMode}
