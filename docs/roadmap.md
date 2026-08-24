@@ -32,10 +32,18 @@
   - Embedded `MaterialWriterTab` in `MaterialWorkspace` with Save/Discard/Copy/Export actions, active dirty state tracking, and unsaved material-switch modal protection.
   - Local document markdown persistence via Dexie's `documentContents` store (Dexie schema v6/v8) and `HybridDocumentRepository` fallback.
   - Three-layer testing suite: 76 Vitest tests (unit, transformer, fidelity, Dexie persistence, and UI state) + 10 Playwright real-browser E2E acceptance tests.
+- ✅ **Phase 7 — Analytics & Learning Insights**
+  - Pure domain analytics calculation engines operating deterministically on canonical learning data (`quizSessions` and `flashcardReviews`) with zero side effects.
+  - Question-weighted accuracy (`totalCorrect / totalAnswered * 100`), consecutive streak with today/yesterday grace logic and historical max, mutually exclusive card maturity partition (`newCount + learningCount + reviewCount + masteredCount === totalCards`), and 7-day review forecast with overdue collapsing.
+  - Topic and subject mastery matrices with difficulty multipliers ($1.0, 1.5, 2.0$), attempt counting, and deterministic strengths/weaknesses ranking ($\ge 85\%$, $\ge 3$ attempts).
+  - Application orchestration: `AnalyticsRepository` port, `DexieAnalyticsRepository` using concurrent indexed queries (`Promise.all`), and application use cases (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase`).
+  - Presentation hub: `/analytics` screen (`Insights` in sidebar), 4 KPI overview cards, card maturity segmented distribution, lightweight SVG review forecast chart, subject mastery matrix, and 52-week activity heatmap with semantically honest labels.
+  - Automatic cache invalidation on quiz session completion and flashcard reviews.
+  - Comprehensive verification: 21 Vitest test files (138 tests, 100% passing) + 10 Playwright E2E tests.
 
 ## Additional shipped capabilities (not separately phased)
 
-These capabilities were delivered alongside Phases 6.1/6.2 and are documented here:
+These capabilities were delivered alongside Phases 6.1/6.2/7 and are documented here:
 
 - ✅ **Catalog-first library:** D1-delivered catalog discovery, explicit material import/removal, authoritative per-material resolution, and read-only previews.
 - ✅ **Application shell hardening:** MiniToc responsive outline overlay with scroll-spy, Quiz canvas crash-recovery drafts, URL-addressable workspace routes, Focus Mode, and first-run onboarding.
@@ -59,9 +67,7 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
 
 ## Planned Phases
 
-- 🔒 **Phase 7 — Analytics & Learning Insights**
-  - Performance dashboards, spaced repetition retention curves, mastery tracking across subjects.
-- 🔒 **Phase 8 — AI Content Generation**
+- 🔒 **Phase 8 — AI Study Assistant & Content Generation**
   - AI-generated question banks, automated material summaries, flashcard set generation.
 - 🔒 **Phase 9 — Content Importer**
   - PDF importing, OCR text extraction, custom material import pipelines.

@@ -4,7 +4,7 @@
 
 Project LunaClair is an AI-powered learning platform. The long-term vision is to transform learning materials into structured study datasets that power quizzes, flashcards, practice exams, progress tracking, and other study experiences.
 
-**Current status:** Phase 6.2 (LunaClair Writer & Markdown Fidelity Stabilization) is complete. Next planned phase is Phase 7 (Analytics & Learning Insights).
+**Current status:** Phase 7 (Analytics & Learning Insights) is complete. Next planned phase is Phase 8 (AI Study Assistant).
 
 ## Tech Stack
 
@@ -33,6 +33,7 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, per-type editors, publish/archive workflows |
 | `flashcards/` | ✅ Implemented | SM-2 spaced repetition, 3D flip-card player, rating flow |
 | `writer/` | ✅ Implemented | Lexical WYSIWYG authoring with lossless Markdown transformation |
+| `analytics/` | ✅ Implemented | Study overview KPIs, card maturity distribution, 7-day review forecast, subject mastery matrix, and 52-week activity heatmap |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 

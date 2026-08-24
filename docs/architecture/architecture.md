@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 6.2 (LunaClair Writer & Markdown Fidelity Stabilization)
+**Version:** Phase 7 (Analytics & Learning Insights)
 
 ## Documentation Structure
 
@@ -38,17 +38,17 @@ Framework-agnostic use cases coordinate domain contracts. A use case never impor
 
 ### `src/domain/`
 
-Pure business domain models and services. Domain modules have zero React or UI dependencies.
+Pure business domain models, engines, and services. Domain modules have zero React or UI dependencies. Subdomains include `reader/`, `quiz/`, `library/`, `flashcards/`, and `analytics/` (streak, activity calendar, mastery ranking, retention maturity/forecast, and overview aggregation).
 
 ### `src/infrastructure/`
 
-Database persistence infrastructure (`src/infrastructure/database/`): Dexie database, schema versioning, startup lifecycle, migrators, seed data, and concrete repository implementations.
+Database persistence infrastructure (`src/infrastructure/database/`): Dexie database, schema versioning, startup lifecycle, migrators, seed data, and concrete repository implementations (`DexieAnalyticsRepository`, `DexieQuizSessionRepository`, `DexieFlashcardReviewRepository`, etc.).
 
 ### `src/features/`
 
 Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through the approved direct module paths defined by ADR-010; internal feature paths remain private.
 
-Active features include `catalog/` (materials, subjects, terms, and available catalog/import surfaces), `reader/`, `quiz/`, `quiz-management/`, `flashcards/`, and `writer/`. Reserved boundaries include `importer/` and `generator/`.
+Active features include `catalog/` (materials, subjects, terms, and available catalog/import surfaces), `reader/`, `quiz/`, `quiz-management/`, `flashcards/`, `writer/`, and `analytics/` (Learning insights dashboard, KPI metrics, retention breakdown, review forecast, topic mastery, and 52-week activity heatmap). Reserved boundaries include `importer/` and `generator/`.
 
 ### `src/shared/`
 
@@ -64,9 +64,11 @@ Reusable domain-agnostic types, constants, utility functions, design tokens, and
 - **Catalog-first, user-selected library model.** The app does not auto-hydrate D1 into Dexie on boot — a fresh install starts with an empty library. The remote catalog is fetched on demand (TanStack Query → `GET /api/catalog`, SW runtime-cached) and surfaced as Available Materials (`/available`); the user explicitly imports materials (`ImportMaterialUseCase` → atomic `LibraryImportService` write of subject/term links, material, document markdown in the `documentContents` Dexie store, and questions/quizzes from `GET /api/quiz`). `HybridDocumentRepository` serves imported content from Dexie first, API second. Figures remain SW-cached. **D1 = canonical catalog; Dexie = user's local selection/working state; Service Worker Cache Storage = network cache, never library membership.**
 - The Worker's `GET /health` endpoint verifies D1 connectivity.
 
-## Application Workflow Boundary
+## Application Workflow Boundaries
 
-`StartQuizSessionUseCase → SubmitQuizSessionUseCase` is the quiz lifecycle. Submission grades immutable session snapshots through `AssessmentService`, persists the result, and completes the session as one application operation. Material association checks and subject-term orchestration likewise live in application use cases, while repositories perform persistence only.
+- **Quiz Lifecycle:** `StartQuizSessionUseCase → SubmitQuizSessionUseCase` is the quiz lifecycle. Submission grades immutable session snapshots through `AssessmentService`, persists the result, completes the session as one application operation, and invalidates analytics queries.
+- **Flashcard Lifecycle:** `RecordFlashcardReviewUseCase` updates spaced-repetition card intervals/ease/lapses and invalidates analytics queries.
+- **Analytics Orchestration:** `DexieAnalyticsRepository` retrieves raw IndexedDB records concurrently across stores (`quizSessions`, `flashcardReviews`, `questions`, `materials`, `subjects`) and dispatches pure calculation engines in `domain/analytics/` (`computeStudyOverview`, `computeCardMaturity`, `computeReviewForecast`, `computeSubjectMasteries`, `buildActivityCalendar`). Use cases (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase`) deliver clean view models to TanStack Query and UI components. Material association checks and subject-term orchestration likewise live in application use cases, while repositories perform persistence only.
 
 ## Architecture Decision Records (ADRs)
 
