@@ -530,26 +530,32 @@ export default {
         }
       }
 
-      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.2-3b-instruct";
+      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
       const messageId = `msg-${crypto.randomUUID()}`;
 
       try {
-        const aiResponse = await env.AI.run(DEFAULT_AI_MODEL, {
+        const aiResponse = await env.AI.run(DEFAULT_AI_MODEL as any, {
           messages: formattedMessages,
           stream: true,
+          max_tokens: 2048,
+          temperature: 0.6,
         });
 
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
+        let buffer = "";
 
-        // Convert Cloudflare AI stream to LunaClair SSE events
+        // Convert Cloudflare AI stream to LunaClair SSE events with proper line buffering
         const transformStream = new TransformStream({
           start(controller) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start", messageId })}\n\n`));
           },
           transform(chunk, controller) {
-            const text = decoder.decode(chunk, { stream: true });
-            const lines = text.split("\n");
+            buffer += decoder.decode(chunk, { stream: true });
+            const lines = buffer.split("\n");
+            // Keep the last incomplete fragment in the buffer
+            buffer = lines.pop() ?? "";
+
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed || !trimmed.startsWith("data:")) continue;
@@ -557,17 +563,35 @@ export default {
               if (payload === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(payload) as { response?: string };
-                if (parsed.response) {
+                if (typeof parsed.response === "string" && parsed.response.length > 0) {
                   controller.enqueue(
                     encoder.encode(`data: ${JSON.stringify({ type: "token", text: parsed.response })}\n\n`),
                   );
                 }
               } catch {
-                // Ignore malformed chunk lines
+                // Ignore incomplete line or malformed payload
               }
             }
           },
           flush(controller) {
+            if (buffer.trim()) {
+              const trimmed = buffer.trim();
+              if (trimmed.startsWith("data:")) {
+                const payload = trimmed.slice(5).trim();
+                if (payload !== "[DONE]") {
+                  try {
+                    const parsed = JSON.parse(payload) as { response?: string };
+                    if (typeof parsed.response === "string" && parsed.response.length > 0) {
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ type: "token", text: parsed.response })}\n\n`),
+                      );
+                    }
+                  } catch {
+                    // Ignore
+                  }
+                }
+              }
+            }
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
           },
         });

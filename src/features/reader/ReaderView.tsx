@@ -59,11 +59,12 @@ interface ReaderViewProps {
   // Drawing canvas props
   paths: DrawingPath[];
   onPathsChange: (paths: DrawingPath[]) => void;
-  // Popover props
+  // Highlight popover props
   popover: PopoverState;
   onCreateHighlight: (color: HighlightColor) => void;
   onDeleteHighlight: () => void;
   onClosePopover: () => void;
+  onAskAiSelection?: (action: 'explain' | 'simplify' | 'example', text: string) => void;
 }
 
 export default function ReaderView({
@@ -88,6 +89,7 @@ export default function ReaderView({
   onCreateHighlight,
   onDeleteHighlight,
   onClosePopover,
+  onAskAiSelection,
 }: ReaderViewProps) {
   return (
     <div {...stylex.props(styles.layout)}>
@@ -126,6 +128,16 @@ export default function ReaderView({
               onSelectColor={onCreateHighlight}
               onDelete={popover.targetHighlightId ? onDeleteHighlight : undefined}
               onClose={onClosePopover}
+              onAskAi={
+                onAskAiSelection
+                  ? (action) => {
+                      const text = popover.pendingSelection?.text || '';
+                      if (text) {
+                        onAskAiSelection(action, text);
+                      }
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>

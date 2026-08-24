@@ -67,12 +67,22 @@ const styles = stylex.create({
   },
 });
 
+export interface ReaderSelectionEvent {
+  text: string;
+  action: 'explain' | 'simplify' | 'example';
+}
+
 interface ReaderScreenProps {
   materialId: string;
   onNavigateToWrite?: () => void;
+  onAskAiSelection?: (selection: ReaderSelectionEvent) => void;
 }
 
-export default function ReaderScreen({ materialId, onNavigateToWrite }: ReaderScreenProps) {
+export default function ReaderScreen({
+  materialId,
+  onNavigateToWrite,
+  onAskAiSelection,
+}: ReaderScreenProps) {
   const { material, isLoading: materialLoading } = useMaterial(materialId);
   const { showToast } = useToast();
   const { data: document, isLoading: docLoading, error } = useDocument(material ?? null);
@@ -226,6 +236,11 @@ export default function ReaderScreen({ materialId, onNavigateToWrite }: ReaderSc
         onCreateHighlight={handleCreateHighlight}
         onDeleteHighlight={handleDeleteHighlight}
         onClosePopover={() => setPopover({ x: 0, y: 0, visible: false })}
+        onAskAiSelection={
+          onAskAiSelection
+            ? (action, text) => onAskAiSelection({ text, action })
+            : undefined
+        }
       />
 
       <ConfirmationDialog

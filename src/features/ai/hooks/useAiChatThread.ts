@@ -37,6 +37,8 @@ export interface UseAiChatThreadResult {
   usage: AiUsage | null;
   sendMessage: (content: string, overrideOptions?: Partial<UseAiChatThreadOptions>) => Promise<void>;
   abort: () => void;
+  stopStreaming: () => void;
+  retryMessage: (messageId: string) => Promise<void>;
   clearHistory: () => Promise<void>;
   reloadMessages: () => Promise<void>;
 }
@@ -262,6 +264,19 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     [context, thread, materialId, mode, options, messages, abort],
   );
 
+  const retryMessage = useCallback(
+    async (messageId: string) => {
+      const msgIndex = messages.findIndex((m) => m.id === messageId);
+      if (msgIndex === -1) return;
+      const priorUserMessages = messages.slice(0, msgIndex).filter((m) => m.role === 'user');
+      const targetMessage = priorUserMessages[priorUserMessages.length - 1];
+      if (targetMessage) {
+        await sendMessage(targetMessage.content);
+      }
+    },
+    [messages, sendMessage],
+  );
+
   return {
     thread,
     messages,
@@ -273,6 +288,8 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     usage,
     sendMessage,
     abort,
+    stopStreaming: abort,
+    retryMessage,
     clearHistory,
     reloadMessages,
   };

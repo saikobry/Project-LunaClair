@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
 import type { AppRoute } from './AppShell';
@@ -18,6 +18,9 @@ import { MaterialWriterTab } from '../../features/writer/components/MaterialWrit
 import QuizScreen from '../../features/quiz/QuizScreen';
 import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
 import { FlashcardScreen } from '../../features/flashcards/FlashcardScreen';
+import { AiChatDrawer, type SelectionContext } from '../../features/ai/components/AiChatDrawer';
+import { AiDrawerToggleButton } from '../../features/ai/components/AiDrawerToggleButton';
+import { extractSectionContext } from '../../features/ai/lib/aiContextExtractor';
 
 const styles = stylex.create({
   loading: {
@@ -58,6 +61,41 @@ export default function MaterialWorkspace({
   const { data: doc, isLoading: isDocLoading } = useDocument(material ?? null);
   const { subject } = useSubject(subjectId || material?.subjectId);
   const { term } = useTerm(material?.termId);
+
+  // AI Chat Drawer workspace state
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
+
+  const handleToggleAi = useCallback(() => {
+    setIsAiOpen((prev) => !prev);
+  }, []);
+
+  // Keyboard shortcut: Cmd/Ctrl+J toggles the AI Study Drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'j' || e.key === 'J')) {
+        e.preventDefault();
+        handleToggleAi();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleToggleAi]);
+
+  // Handle contextual "Ask AI" actions from Reader text selection
+  const handleReaderAskAi = useCallback(
+    (selection: { text: string; action: 'explain' | 'simplify' | 'example' }) => {
+      const { sectionHeading } = extractSectionContext(doc?.content, selection.text);
+      setSelectionContext({
+        text: selection.text,
+        action: selection.action,
+        sectionHeading,
+      });
+      setIsAiOpen(true);
+      setHasUnreadAi(false);
+    },
+    [doc?.content],
+  );
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
   const handleTabChange = useCallback((tab: string) => {
@@ -131,6 +169,12 @@ export default function MaterialWorkspace({
     <Page
       title={material.title}
       breadcrumb={<Breadcrumbs items={breadcrumbItems} />}
+      actions={
+        <AiDrawerToggleButton
+          isOpen={isAiOpen}
+          onToggle={handleToggleAi}
+        />
+      }
     >
       <TabList value={activeTab} onChange={handleTabChange} layout="fill" hasDivider aria-label="Material tabs">
         {MATERIAL_TABS.map(({ key, label, icon: Icon }) => (
@@ -143,6 +187,7 @@ export default function MaterialWorkspace({
           <ReaderScreen
             materialId={materialId}
             onNavigateToWrite={() => handleTabChange('write')}
+            onAskAiSelection={handleReaderAskAi}
           />
         )}
         {activeTab === 'write' && (
@@ -171,6 +216,15 @@ export default function MaterialWorkspace({
           />
         )}
       </AnimatedTabPanel>
+
+      <AiChatDrawer
+        isOpen={isAiOpen}
+        onClose={() => setIsAiOpen(false)}
+        materialId={materialId}
+        documentContext={doc?.content}
+        selectionContext={selectionContext}
+        onClearSelectionContext={() => setSelectionContext(null)}
+      />
     </Page>
   );
 }

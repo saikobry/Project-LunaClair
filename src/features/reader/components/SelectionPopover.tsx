@@ -1,8 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, Sparkles, Lightbulb, BookOpen } from 'lucide-react';
 import type { HighlightColor } from '../../../domain/reader';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { HIGHLIGHT_COLORS } from '../constants/annotationDefaults';
@@ -39,8 +39,6 @@ const styles = stylex.create({
       transform: 'scale(1.2)',
     },
   },
-  // Dark-popover overrides for ghost IconButtons (the neutral theme's ghost
-  // text color is dark and would be unreadable on the dark surface).
   popoverAction: {
     color: '#9ca3af',
     borderRadius: 6,
@@ -49,8 +47,40 @@ const styles = stylex.create({
       color: '#f3f4f6',
     },
   },
-  // High-contrast destructive action: red tinted shell that reads clearly
-  // against the dark bubble.
+  popoverAi: {
+    color: '#a5b4fc',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderRadius: 6,
+    ':hover': {
+      backgroundColor: 'rgba(99, 102, 241, 0.3)',
+      color: '#ffffff',
+    },
+  },
+  aiActionsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 4,
+    borderLeft: '1px solid rgba(255, 255, 255, 0.15)',
+  },
+  aiActionBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '3px 7px',
+    borderRadius: '4px',
+    border: 'none',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#e5e7eb',
+    fontSize: '11px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    ':hover': {
+      backgroundColor: 'rgba(99, 102, 241, 0.25)',
+      color: '#ffffff',
+    },
+  },
   popoverDelete: {
     color: '#f87171',
     backgroundColor: 'rgba(248, 113, 113, 0.15)',
@@ -78,6 +108,7 @@ interface SelectionPopoverProps {
   onSelectColor: (color: HighlightColor) => void;
   onDelete?: () => void;
   onClose: () => void;
+  onAskAi?: (action: 'explain' | 'simplify' | 'example') => void;
 }
 
 export default function SelectionPopover({
@@ -87,12 +118,12 @@ export default function SelectionPopover({
   onSelectColor,
   onDelete,
   onClose,
+  onAskAi,
 }: SelectionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [showAiMenu, setShowAiMenu] = useState(false);
 
   // Springy entrance — GSAP owns scale/alpha (replaces the CSS keyframes).
-  // The component remounts whenever it becomes visible, so this runs fresh
-  // each time the popover opens.
   useGSAP(() => {
     const popover = popoverRef.current;
     if (!popover) return;
@@ -135,6 +166,60 @@ export default function SelectionPopover({
             />
           ))}
         </div>
+
+        {/* Ask AI Context Actions */}
+        {onAskAi && !showAiMenu && (
+          <IconButton
+            variant="ghost"
+            size="sm"
+            label="Ask AI"
+            tooltip="Ask AI about selection"
+            icon={<Sparkles size={15} color="#a5b4fc" />}
+            xstyle={styles.popoverAi}
+            onClick={() => setShowAiMenu(true)}
+          />
+        )}
+
+        {onAskAi && showAiMenu && (
+          <div {...stylex.props(styles.aiActionsRow)}>
+            <button
+              type="button"
+              onClick={() => {
+                onAskAi('explain');
+                onClose();
+              }}
+              {...stylex.props(styles.aiActionBtn)}
+              title="Explain selected text in detail"
+            >
+              <Sparkles size={12} color="#a5b4fc" />
+              <span>Explain</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onAskAi('simplify');
+                onClose();
+              }}
+              {...stylex.props(styles.aiActionBtn)}
+              title="Simplify selected text"
+            >
+              <Lightbulb size={12} color="#fde047" />
+              <span>Simplify</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onAskAi('example');
+                onClose();
+              }}
+              {...stylex.props(styles.aiActionBtn)}
+              title="Provide a practical example"
+            >
+              <BookOpen size={12} color="#93c5fd" />
+              <span>Example</span>
+            </button>
+          </div>
+        )}
 
         {/* Delete option if it's an existing highlight */}
         {onDelete && (
