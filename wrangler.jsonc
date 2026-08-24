@@ -25,6 +25,7 @@
 
   // Cloudflare Workers AI binding for serverless edge inference.
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
+    "remote": true
   }
 }

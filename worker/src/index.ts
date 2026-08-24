@@ -530,7 +530,7 @@ export default {
         }
       }
 
-      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct";
+      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.2-3b-instruct";
       const messageId = `msg-${crypto.randomUUID()}`;
 
       try {
