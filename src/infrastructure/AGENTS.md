@@ -28,6 +28,7 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `DexieQuizDraftRepository` → application `QuizDraftRepository` (crash-recovery drafts in `quizEditingDrafts`; latest-draft lookups by quiz or material)
   - `DexieFlashcardReviewRepository` → `FlashcardReviewRepository` (spaced repetition per-card review states stored in `flashcardReviews`; `getAllReviews` query)
   - `DexieDocumentContentRepository` → `DocumentContentRepository` (locally imported document markdown keyed by `documentId` in `documentContents`)
+  - `DexieAnalyticsRepository` → `AnalyticsRepository` (multi-table indexed query coordination over `quizSessions`, `flashcardReviews`, `questions`, `materials`, `subjects`; delegates analytics calculations to pure domain engines)
 - `database/services/` — Concrete application service implementations:
   - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
   - `DexieQuizEditorService` → `QuizEditorService` (atomic quiz authoring save across `questions` + `quizzes` stores; conditional `questionVersion` bumps; re-snapshots `questionVersion` into quiz items; normalizes `tags` through domain `normalizeTags` on question create/update)

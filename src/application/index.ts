@@ -43,3 +43,7 @@ export { UpdateDocumentContentUseCase } from './use-cases/content/UpdateDocument
 export type { UpdateDocumentContentInput } from './use-cases/content/UpdateDocumentContentUseCase';
 export { RecordFlashcardReviewUseCase } from './use-cases/flashcards/RecordFlashcardReviewUseCase';
 export type { RecordFlashcardReviewInput } from './use-cases/flashcards/RecordFlashcardReviewUseCase';
+export { GetGlobalAnalyticsUseCase } from './use-cases/analytics/GetGlobalAnalyticsUseCase';
+export { GetSubjectAnalyticsUseCase } from './use-cases/analytics/GetSubjectAnalyticsUseCase';
+export { GetMaterialAnalyticsUseCase } from './use-cases/analytics/GetMaterialAnalyticsUseCase';
+

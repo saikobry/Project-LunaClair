@@ -38,6 +38,9 @@ import {
     UpdateQuizUseCase,
     UpdateSubjectUseCase,
     UpdateTermUseCase,
+    GetGlobalAnalyticsUseCase,
+    GetSubjectAnalyticsUseCase,
+    GetMaterialAnalyticsUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
@@ -95,6 +98,11 @@ export function createUseCases(repositories: Repositories) {
         },
         content: {
             updateDocumentContent: new UpdateDocumentContentUseCase(repositories.documentContentRepository),
+        },
+        analytics: {
+            getGlobalAnalytics: new GetGlobalAnalyticsUseCase(repositories.analyticsRepository),
+            getSubjectAnalytics: new GetSubjectAnalyticsUseCase(repositories.analyticsRepository),
+            getMaterialAnalytics: new GetMaterialAnalyticsUseCase(repositories.analyticsRepository),
         },
     };
 }

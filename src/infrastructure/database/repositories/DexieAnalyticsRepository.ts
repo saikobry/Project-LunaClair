@@ -1,0 +1,137 @@
+import type { AnalyticsRepository } from '../../../domain/analytics/AnalyticsRepository';
+import type {
+    GlobalAnalytics,
+    SubjectMastery,
+    MaterialAnalytics,
+} from '../../../domain/analytics/analytics.types';
+import { computeStudyOverview } from '../../../domain/analytics/overviewEngine';
+import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/retentionEngine';
+import { computeSubjectMasteries, computeTopicMastery } from '../../../domain/analytics/masteryEngine';
+import { buildActivityCalendar } from '../../../domain/analytics/activityEngine';
+import { db } from '../LunaClairDatabase';
+
+export class DexieAnalyticsRepository implements AnalyticsRepository {
+    async getGlobalAnalytics(signal?: AbortSignal): Promise<GlobalAnalytics> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        // Fetch all raw datasets concurrently
+        const [sessions, reviews, questions, materials, subjects] = await Promise.all([
+            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
+            db.flashcardReviews.toArray(),
+            db.questions.filter((q) => q.status !== 'archived').toArray(),
+            db.materials.toArray(),
+            db.subjects.toArray(),
+        ]);
+
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        // Delegate all analytical calculations to pure domain engines
+        const overview = computeStudyOverview(sessions, reviews);
+        const maturity = computeCardMaturity(reviews, questions.length);
+        const forecast = computeReviewForecast(reviews, 7);
+        const subjectMasteries = computeSubjectMasteries(subjects, materials, sessions);
+        const activity = buildActivityCalendar(sessions, reviews, 365);
+
+        return {
+            overview,
+            maturity,
+            forecast,
+            subjects: subjectMasteries,
+            activity,
+        };
+    }
+
+    async getSubjectAnalytics(subjectId: string, signal?: AbortSignal): Promise<SubjectMastery | null> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        const subject = await db.subjects.get(subjectId);
+        if (!subject) return null;
+
+        const [materials, sessions] = await Promise.all([
+            db.materials.where('subjectId').equals(subjectId).toArray(),
+            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
+        ]);
+
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        const [subjectMastery] = computeSubjectMasteries([subject], materials, sessions);
+        return subjectMastery ?? null;
+    }
+
+    async getMaterialAnalytics(materialId: string, signal?: AbortSignal): Promise<MaterialAnalytics | null> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        const material = await db.materials.get(materialId);
+        if (!material) return null;
+
+        const [questions, reviews, sessions] = await Promise.all([
+            db.questions.where('materialId').equals(materialId).toArray(),
+            db.flashcardReviews.where('materialId').equals(materialId).toArray(),
+            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
+        ]);
+
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        // Filter sessions that have question snapshots belonging to this material
+        const materialSessions = sessions.filter((s) =>
+            Object.values(s.questionSnapshots || {}).some((q) => q.materialId === materialId),
+        );
+
+        let totalAnswered = 0;
+        let correctAnswers = 0;
+
+        for (const session of materialSessions) {
+            if (!session.answers) continue;
+            for (const answer of session.answers) {
+                const snapshot = session.questionSnapshots?.[answer.questionId];
+                if (snapshot && snapshot.materialId === materialId) {
+                    totalAnswered += 1;
+                    if (answer.isCorrect) {
+                        correctAnswers += 1;
+                    }
+                }
+            }
+        }
+
+        const accuracy = totalAnswered > 0
+            ? Number(((correctAnswers / totalAnswered) * 100).toFixed(2))
+            : 0;
+
+        let totalCardReviews = 0;
+        for (const r of reviews) {
+            totalCardReviews += r.reviewCount || 0;
+        }
+
+        const activeQuestions = questions.filter((q) => q.status !== 'archived');
+        const maturity = computeCardMaturity(reviews, activeQuestions.length);
+
+        // Filter material sessions to only questions from this material for topic mastery
+        const sanitizedSessions = materialSessions.map((session) => ({
+            ...session,
+            questionSnapshots: Object.fromEntries(
+                Object.entries(session.questionSnapshots || {}).filter(([_, q]) => q.materialId === materialId),
+            ),
+            answers: session.answers.filter((a) => {
+                const q = session.questionSnapshots?.[a.questionId];
+                return q && q.materialId === materialId;
+            }),
+        }));
+
+        const topics = computeTopicMastery(sanitizedSessions);
+
+        return {
+            materialId,
+            overview: {
+                quizzesCompleted: materialSessions.length,
+                totalAnswered,
+                correctAnswers,
+                accuracy,
+                totalCardReviews,
+            },
+            maturity,
+            topics,
+        };
+    }
+}
+
+export const dexieAnalyticsRepository = new DexieAnalyticsRepository();

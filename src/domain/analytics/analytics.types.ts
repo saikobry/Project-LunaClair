@@ -96,3 +96,24 @@ export interface ActivityDay {
     /** Activity volume level (0: 0, 1: 1, 2: 2-3, 3: 4-6, 4: 7+). */
     intensityLevel: 0 | 1 | 2 | 3 | 4;
 }
+
+export interface GlobalAnalytics {
+    overview: StudyOverviewMetrics;
+    maturity: CardMaturityBreakdown;
+    forecast: ReviewForecastDay[];
+    subjects: SubjectMastery[];
+    activity: ActivityDay[];
+}
+
+export interface MaterialAnalytics {
+    materialId: string;
+    overview: {
+        quizzesCompleted: number;
+        totalAnswered: number;
+        correctAnswers: number;
+        accuracy: number;
+        totalCardReviews: number;
+    };
+    maturity: CardMaturityBreakdown;
+    topics: TopicMastery[];
+}
