@@ -48,6 +48,14 @@ export { GetSubjectAnalyticsUseCase } from './use-cases/analytics/GetSubjectAnal
 export { GetMaterialAnalyticsUseCase } from './use-cases/analytics/GetMaterialAnalyticsUseCase';
 export { SendChatMessageUseCase } from './use-cases/ai/SendChatMessageUseCase';
 export type { SendChatMessageInput } from './use-cases/ai/SendChatMessageUseCase';
+export { GetOrCreateAiThreadUseCase } from './use-cases/ai/GetOrCreateAiThreadUseCase';
+export type { GetOrCreateAiThreadInput } from './use-cases/ai/GetOrCreateAiThreadUseCase';
+export { GetAiThreadMessagesUseCase } from './use-cases/ai/GetAiThreadMessagesUseCase';
+export type { GetAiThreadMessagesInput } from './use-cases/ai/GetAiThreadMessagesUseCase';
+export { DeleteAiThreadUseCase } from './use-cases/ai/DeleteAiThreadUseCase';
+export type { DeleteAiThreadInput } from './use-cases/ai/DeleteAiThreadUseCase';
+export { ClearChatHistoryUseCase } from './use-cases/ai/ClearChatHistoryUseCase';
+export type { ClearChatHistoryInput } from './use-cases/ai/ClearChatHistoryUseCase';
 export { AiContextBuilder } from './use-cases/ai/AiContextBuilder';
 export type { BuildDocumentContextOptions, BuildSelectionContextOptions } from './use-cases/ai/AiContextBuilder';
 

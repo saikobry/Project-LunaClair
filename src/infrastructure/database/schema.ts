@@ -86,5 +86,16 @@ export const SCHEMA_V8 = {
     documentContents: 'documentId',
 } as const;
 
+/**
+ * Version 9: Adds aiThreads and aiMessages for local-first AI Study Assistant
+ * conversation persistence. System prompts are never persisted.
+ */
+export const SCHEMA_V9 = {
+    ...SCHEMA_V8,
+    aiThreads: 'id, materialId, mode, createdAt, updatedAt',
+    aiMessages: 'id, threadId, role, status, createdAt',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
+
 

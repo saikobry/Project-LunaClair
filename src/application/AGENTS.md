@@ -14,7 +14,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 - `use-cases/content/` owns document content persistence workflows (`UpdateDocumentContentUseCase` — updates local markdown representation in Dexie without coupling to UI features or library discovery).
 - `use-cases/flashcards/` owns spaced-repetition review state transitions and persistence coordination (`RecordFlashcardReviewUseCase`).
 - `use-cases/analytics/` owns analytics coordination workflows (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase` — delegates raw data aggregation and calculations via `AnalyticsRepository` port).
-- `use-cases/ai/` owns AI prompt/context construction and streamed chat execution (`SendChatMessageUseCase`, `AiContextBuilder`).
+- `use-cases/ai/` owns AI prompt/context construction, streamed chat execution with atomic turn persistence (`SendChatMessageUseCase`, `AiContextBuilder`), and thread lifecycle management (`GetOrCreateAiThreadUseCase`, `GetAiThreadMessagesUseCase`, `DeleteAiThreadUseCase`, `ClearChatHistoryUseCase`).
 - `quiz-management/drafts/` owns the quiz canvas Application Session DTOs (`QuizDraft`/`QuestionDraft`), draft validation (`quizDraftValidation`), the `QuizDraftRepository` crash-recovery contract, and draft seeding helpers. Drafts carry UI session concerns (`tempId`, `isDirty`) and are never persisted to the Question Bank or Quiz Catalog.
 
 ## Local Contracts

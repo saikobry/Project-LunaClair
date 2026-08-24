@@ -42,6 +42,10 @@ import {
     GetSubjectAnalyticsUseCase,
     GetMaterialAnalyticsUseCase,
     SendChatMessageUseCase,
+    GetOrCreateAiThreadUseCase,
+    GetAiThreadMessagesUseCase,
+    DeleteAiThreadUseCase,
+    ClearChatHistoryUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
@@ -106,7 +110,11 @@ export function createUseCases(repositories: Repositories) {
             getMaterialAnalytics: new GetMaterialAnalyticsUseCase(repositories.analyticsRepository),
         },
         ai: {
-            sendChatMessage: new SendChatMessageUseCase(repositories.aiService),
+            sendChatMessage: new SendChatMessageUseCase(repositories.aiService, repositories.aiChatRepository),
+            getOrCreateThread: new GetOrCreateAiThreadUseCase(repositories.aiChatRepository),
+            getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChatRepository),
+            deleteThread: new DeleteAiThreadUseCase(repositories.aiChatRepository),
+            clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChatRepository),
         },
     };
 }

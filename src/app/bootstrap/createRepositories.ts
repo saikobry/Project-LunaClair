@@ -12,8 +12,9 @@ import { dexieQuizSessionRepository } from '../../infrastructure/database/reposi
 import { dexieSubjectRepository } from '../../infrastructure/database/repositories/DexieSubjectRepository';
 import { dexieSubjectTermRepository } from '../../infrastructure/database/repositories/DexieSubjectTermRepository';
 import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
-import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
+import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
+import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/WorkerAiAdapter';
 import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
@@ -47,6 +48,7 @@ export function createRepositories() {
         quizEditorService: dexieQuizEditorService,
         flashcardReviewRepository: dexieFlashcardReviewRepository,
         analyticsRepository: dexieAnalyticsRepository,
+        aiChatRepository: dexieAiChatRepository,
         aiService,
     };
 }

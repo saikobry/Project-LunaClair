@@ -50,4 +50,40 @@ describe('AI Domain Contracts', () => {
     expect(events[2]).toEqual({ type: 'token', text: 'as the pacemaker.' });
     expect(events[3]).toEqual({ type: 'done', usage: { promptTokens: 10, completionTokens: 6 } });
   });
+
+  it('instantiates valid domain thread and message records for persistence', () => {
+    const thread = {
+      id: 'thread-cardio-1',
+      materialId: 'doc-cardio',
+      title: 'Cardiovascular Q&A',
+      mode: 'assistant' as const,
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z',
+    };
+
+    const userMessage = {
+      id: 'msg-u1',
+      threadId: thread.id,
+      role: 'user' as const,
+      content: 'Explain SA node.',
+      status: 'complete' as const,
+      createdAt: '2026-08-25T00:00:00.000Z',
+    };
+
+    const assistantMessage = {
+      id: 'msg-a1',
+      threadId: thread.id,
+      role: 'assistant' as const,
+      content: 'The sinoatrial node is the pacemaker.',
+      status: 'complete' as const,
+      createdAt: '2026-08-25T00:00:01.000Z',
+      metadata: {
+        usage: { promptTokens: 15, completionTokens: 8, totalTokens: 23 },
+      },
+    };
+
+    expect(thread.materialId).toBe('doc-cardio');
+    expect(userMessage.status).toBe('complete');
+    expect(assistantMessage.metadata?.usage?.totalTokens).toBe(23);
+  });
 });

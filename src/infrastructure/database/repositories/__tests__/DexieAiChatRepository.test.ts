@@ -1,0 +1,175 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import 'fake-indexeddb/auto';
+import { LunaClairDatabase } from '../../LunaClairDatabase';
+import { DexieAiChatRepository } from '../DexieAiChatRepository';
+import type { AiMessageRecord, AiThread } from '../../../../domain/ai/ai.types';
+
+describe('DexieAiChatRepository & Schema v9', () => {
+  let db: LunaClairDatabase;
+  let repo: DexieAiChatRepository;
+
+  beforeEach(async () => {
+    db = new LunaClairDatabase();
+    await db.open();
+    repo = new DexieAiChatRepository(db);
+  });
+
+  afterEach(async () => {
+    await db.delete();
+    db.close();
+  });
+
+  it('preserves existing v8 tables and provides aiThreads and aiMessages in schema v9', async () => {
+    expect(db.verno).toBe(9);
+    expect(db.aiThreads).toBeDefined();
+    expect(db.aiMessages).toBeDefined();
+    expect(db.materials).toBeDefined();
+    expect(db.documentContents).toBeDefined();
+  });
+
+  it('saves and retrieves AI threads with correct scoping', async () => {
+    const threadMaterial: AiThread = {
+      id: 't-cardio-assist',
+      materialId: 'doc-cardio',
+      title: 'Cardio Assistant',
+      mode: 'assistant',
+      createdAt: '2026-08-25T01:00:00.000Z',
+      updatedAt: '2026-08-25T01:00:00.000Z',
+    };
+
+    const threadSocratic: AiThread = {
+      id: 't-cardio-soc',
+      materialId: 'doc-cardio',
+      title: 'Cardio Socratic',
+      mode: 'socratic',
+      createdAt: '2026-08-25T01:10:00.000Z',
+      updatedAt: '2026-08-25T01:10:00.000Z',
+    };
+
+    const threadGlobal: AiThread = {
+      id: 't-global-assist',
+      materialId: undefined,
+      title: 'Global Tutor',
+      mode: 'assistant',
+      createdAt: '2026-08-25T00:50:00.000Z',
+      updatedAt: '2026-08-25T00:50:00.000Z',
+    };
+
+    await repo.saveThread(threadMaterial);
+    await repo.saveThread(threadSocratic);
+    await repo.saveThread(threadGlobal);
+
+    // Verify listThreads with materialId filter
+    const materialThreads = await repo.listThreads('doc-cardio');
+    expect(materialThreads).toHaveLength(2);
+    expect(materialThreads[0].id).toBe('t-cardio-soc'); // Sorted by updatedAt descending
+
+    // Verify listThreads for global threads
+    const globalThreads = await repo.listThreads(undefined);
+    expect(globalThreads).toHaveLength(1);
+    expect(globalThreads[0].id).toBe('t-global-assist');
+
+    // Verify findLatestThread by material + mode
+    const latestAssist = await repo.findLatestThread('doc-cardio', 'assistant');
+    expect(latestAssist?.id).toBe('t-cardio-assist');
+
+    const latestSoc = await repo.findLatestThread('doc-cardio', 'socratic');
+    expect(latestSoc?.id).toBe('t-cardio-soc');
+  });
+
+  it('saves message and updates parent thread updatedAt timestamp', async () => {
+    const thread: AiThread = {
+      id: 'thread-1',
+      materialId: 'doc-1',
+      title: 'Test Thread',
+      mode: 'assistant',
+      createdAt: '2026-08-25T01:00:00.000Z',
+      updatedAt: '2026-08-25T01:00:00.000Z',
+    };
+    await repo.saveThread(thread);
+
+    const message: AiMessageRecord = {
+      id: 'msg-1',
+      threadId: 'thread-1',
+      role: 'user',
+      content: 'Hello AI',
+      status: 'complete',
+      createdAt: '2026-08-25T01:05:00.000Z',
+    };
+    await repo.saveMessage(message);
+
+    const messages = await repo.getMessages('thread-1');
+    expect(messages).toHaveLength(1);
+    expect(messages[0].content).toBe('Hello AI');
+
+    const updatedThread = await repo.getThread('thread-1');
+    expect(updatedThread?.updatedAt).toBe('2026-08-25T01:05:00.000Z');
+  });
+
+  it('cascades deletion of messages when a thread is deleted', async () => {
+    const thread: AiThread = {
+      id: 'thread-delete',
+      materialId: 'doc-1',
+      title: 'To Delete',
+      mode: 'assistant',
+      createdAt: '2026-08-25T01:00:00.000Z',
+      updatedAt: '2026-08-25T01:00:00.000Z',
+    };
+    await repo.saveThread(thread);
+    await repo.saveMessage({
+      id: 'm1',
+      threadId: 'thread-delete',
+      role: 'user',
+      content: 'Q1',
+      status: 'complete',
+      createdAt: '2026-08-25T01:01:00.000Z',
+    });
+    await repo.saveMessage({
+      id: 'm2',
+      threadId: 'thread-delete',
+      role: 'assistant',
+      content: 'A1',
+      status: 'complete',
+      createdAt: '2026-08-25T01:02:00.000Z',
+    });
+
+    await repo.deleteThread('thread-delete');
+
+    const fetchedThread = await repo.getThread('thread-delete');
+    expect(fetchedThread).toBeNull();
+
+    const messages = await repo.getMessages('thread-delete');
+    expect(messages).toHaveLength(0);
+  });
+
+  it('recovers orphaned streaming messages to error/INTERRUPTED status', async () => {
+    const thread: AiThread = {
+      id: 'thread-crash',
+      materialId: 'doc-1',
+      title: 'Crash Test',
+      mode: 'assistant',
+      createdAt: '2026-08-25T01:00:00.000Z',
+      updatedAt: '2026-08-25T01:00:00.000Z',
+    };
+    await repo.saveThread(thread);
+
+    // Simulate an interrupted turn where browser reloaded during streaming
+    await repo.saveMessage({
+      id: 'msg-interrupted',
+      threadId: 'thread-crash',
+      role: 'assistant',
+      content: 'Partially generated text...',
+      status: 'streaming',
+      createdAt: '2026-08-25T01:05:00.000Z',
+    });
+
+    const recoveredCount = await repo.recoverInterruptedMessages();
+    expect(recoveredCount).toBe(1);
+
+    const messages = await repo.getMessages('thread-crash');
+    expect(messages).toHaveLength(1);
+    expect(messages[0].status).toBe('error');
+    expect(messages[0].metadata?.errorCode).toBe('INTERRUPTED');
+    expect(messages[0].metadata?.errorMessage).toBe('Generation was interrupted.');
+  });
+});

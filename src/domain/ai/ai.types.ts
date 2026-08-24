@@ -69,3 +69,39 @@ export type AiStreamEvent =
   | { type: 'token'; text: string }
   | { type: 'done'; usage?: AiUsage }
   | { type: 'error'; code: string; message: string };
+
+/**
+ * Status of an individual message in persistence.
+ */
+export type AiMessageStatus = 'streaming' | 'complete' | 'error';
+
+/**
+ * Persisted AI conversation thread entity in Dexie IndexedDB.
+ */
+export interface AiThread {
+  id: string;
+  /** Optional: undefined = global assistant thread; string = material-scoped thread. */
+  materialId?: string;
+  title: string;
+  mode: AiTutorMode;
+  createdAt: string; // ISO 8601 UTC
+  updatedAt: string; // ISO 8601 UTC
+}
+
+/**
+ * Persisted chat turn record in Dexie IndexedDB.
+ * System prompts are never persisted; only user and assistant turns are stored.
+ */
+export interface AiMessageRecord {
+  id: string;
+  threadId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  status: AiMessageStatus;
+  createdAt: string; // ISO 8601 UTC
+  metadata?: {
+    usage?: AiUsage;
+    errorCode?: string;
+    errorMessage?: string;
+  };
+}

@@ -71,7 +71,7 @@ export async function setupApiMocks(page: Page) {
   const terms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'terms.json'), 'utf-8'));
   const subjectTerms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'subjectTerms.json'), 'utf-8'));
 
-  await page.route('**/api/catalog', async (route) => {
+  await page.route(/\/api\/catalog(\?.*)?$/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
@@ -79,9 +79,9 @@ export async function setupApiMocks(page: Page) {
     });
   });
 
-  await page.route('**/api/catalog/materials/*', async (route) => {
+  await page.route(/\/api\/catalog\/materials\/([^/?]+)/, async (route) => {
     const url = route.request().url();
-    const id = url.split('/').pop()?.split('?')[0];
+    const id = url.split('/api/catalog/materials/')[1]?.split('?')[0];
     const material = materials.find((m: { id: string }) => m.id === id);
     if (!material) {
       return route.fulfill({ status: 404, body: JSON.stringify({ error: 'Material not found' }) });
@@ -99,9 +99,9 @@ export async function setupApiMocks(page: Page) {
     });
   });
 
-  await page.route('**/api/documents/*', async (route) => {
+  await page.route(/\/api\/documents\/([^/?]+)/, async (route) => {
     const url = route.request().url();
-    const id = url.split('/').pop()?.split('?')[0];
+    const id = url.split('/api/documents/')[1]?.split('?')[0];
     const docPath = path.join(materialsDir, id ?? '', 'index.md');
     let content = `# Default Document for ${id}`;
     if (fs.existsSync(docPath)) {
@@ -114,13 +114,40 @@ export async function setupApiMocks(page: Page) {
     });
   });
 
-  await page.route('**/api/quiz', async (route) => {
+  await page.route(/\/api\/quiz/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({ questions: [], quizzes: [] }),
     });
   });
+}
+
+/**
+ * Resets the IndexedDB database and local storage between E2E tests.
+ */
+export async function resetDatabase(page: Page) {
+  try {
+    await page.goto('/');
+    await page.evaluate(async () => {
+      if (window.indexedDB) {
+        await new Promise<void>((resolve) => {
+          const req = window.indexedDB.deleteDatabase('lunaclair-db');
+          req.onsuccess = () => resolve();
+          req.onerror = () => resolve();
+          req.onblocked = () => resolve();
+        });
+      }
+      try {
+        localStorage.clear();
+        localStorage.setItem('lunaclair.settings.onboarding_done', '1');
+      } catch {
+        // Ignore
+      }
+    });
+  } catch {
+    // Ignore in non-navigated contexts
+  }
 }
 
 /**
@@ -143,17 +170,17 @@ export async function setupImportedMaterial(page: Page, materialId = 'cell-struc
   await page.goto('/available');
   await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
 
-  // Import cell-structure specifically
+  // Import cell-structure if not already in library
   const cellStructureBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
-  await expect(cellStructureBtn).toBeVisible({ timeout: 5000 });
-  await cellStructureBtn.click();
-  await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
+  if (await cellStructureBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await cellStructureBtn.click();
+    await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
+  }
 
-  // Also import cellular-respiration if present (enabling in-app material-switch flows)
+  // Also import cellular-respiration if present and not imported
   const cellularRespirationBtn = page.getByRole('button', { name: /Add Cellular Respiration/i });
-  if (await cellularRespirationBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await cellularRespirationBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
     await cellularRespirationBtn.click();
-    // Wait for the import to complete — the "In My Library" badge confirms it
     await expect(page.getByText(/In My Library/i).nth(1)).toBeVisible({ timeout: 5000 });
   }
 

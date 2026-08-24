@@ -15,7 +15,7 @@ Feature-based modules, each containing everything needed for that feature: compo
 | `flashcards/` | ✅ Implemented | Spaced-repetition study mode — Card projection from Question, SM-2 scheduling, 3D flip card player, rating flow (`RecordFlashcardReviewUseCase`), `FlashcardReviewRepository` hooks |
 | `writer/` | ✅ Implemented | WYSIWYG authoring and study material editing engine built on Lexical standard nodes and lossless Markdown transformation (H1–H6, multi-level lists, GFM tables, images, blockquotes, horizontal rules). |
 | `analytics/` | ✅ Implemented | Learning analytics & insights dashboard — Study overview KPIs, card maturity distribution, 7-day review load forecast, subject/topic mastery matrix, and 52-week activity calendar. |
-| `ai/` | 🚧 In Progress (Phase 8A) | AI Study Assistant & streaming chat capabilities — streaming token hooks (`useAiStreamChat`), context orchestration |
+| `ai/` | 🚧 In Progress (Phase 8A/8B) | AI Study Assistant — streaming token hooks (`useAiStreamChat`), thread management & reload persistence (`useAiChatThread`), context orchestration |
 | `importer/` | 🔒 Reserved | Content import |
 | `generator/` | 🔒 Reserved | AI content generation |
 
