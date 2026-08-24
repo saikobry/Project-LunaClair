@@ -3,6 +3,11 @@ import type { ReviewState } from '../../../domain/flashcards/scheduler';
 import { db } from '../LunaClairDatabase';
 
 export class DexieFlashcardReviewRepository implements FlashcardReviewRepository {
+    async getAllReviews(signal?: AbortSignal): Promise<ReviewState[]> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        return db.flashcardReviews.toArray();
+    }
+
     async getByKeys(keys: string[]): Promise<ReviewState[]> {
         if (keys.length === 0) return [];
         return db.flashcardReviews.where('key').anyOf(keys).toArray();

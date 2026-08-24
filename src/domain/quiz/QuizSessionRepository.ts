@@ -10,6 +10,7 @@ export type CreateSessionInput =
 
 export interface QuizSessionRepository {
     getSessions(quizId: string, signal?: AbortSignal): Promise<QuizSession[]>;
+    getAllCompletedSessions(signal?: AbortSignal): Promise<QuizSession[]>;
     getSessionById(id: string, signal?: AbortSignal): Promise<QuizSession | null>;
     /**
      * Creates a new quiz session with immutable question snapshots.

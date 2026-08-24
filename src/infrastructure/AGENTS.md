@@ -19,14 +19,14 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 - `database/repositories/` — Concrete repository implementations. `DexieLibraryRepository` performs raw material persistence; material association validation belongs to application use cases.
   - `DexieQuestionRepository` → `QuestionRepository` (normalizes `tags` through domain `normalizeTags` on create/update)
   - `DexieQuizRepository` → `QuizRepository`
-  - `DexieQuizSessionRepository` → `QuizSessionRepository` (multi-store transactions for immutable `questionSnapshots`)
+  - `DexieQuizSessionRepository` → `QuizSessionRepository` (multi-store transactions for immutable `questionSnapshots`; `getAllCompletedSessions` query)
   - `DexieLibraryRepository` → `LibraryRepository`
   - `DexieAnnotationRepository` → `AnnotationRepository`
   - `DexieSubjectRepository` → `SubjectRepository` (cascade: removes `subjectTerms` rows and clears `subjectId`/`termId` on `materials` on delete)
   - `DexieTermRepository` → `TermRepository` (cascade: removes `subjectTerms` rows and clears `termId` on `materials` on delete; `upsertTerms` bulk-puts by id for default-term sync)
   - `DexieSubjectTermRepository` → `SubjectTermRepository` (manages many-to-many Subject ↔ Term associations with composite key `[subjectId+termId]`)
   - `DexieQuizDraftRepository` → application `QuizDraftRepository` (crash-recovery drafts in `quizEditingDrafts`; latest-draft lookups by quiz or material)
-  - `DexieFlashcardReviewRepository` → `FlashcardReviewRepository` (spaced repetition per-card review states stored in `flashcardReviews`)
+  - `DexieFlashcardReviewRepository` → `FlashcardReviewRepository` (spaced repetition per-card review states stored in `flashcardReviews`; `getAllReviews` query)
   - `DexieDocumentContentRepository` → `DocumentContentRepository` (locally imported document markdown keyed by `documentId` in `documentContents`)
 - `database/services/` — Concrete application service implementations:
   - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)

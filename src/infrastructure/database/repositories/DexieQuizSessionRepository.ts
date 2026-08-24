@@ -18,6 +18,11 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
         return db.quizSessions.where('quizId').equals(quizId).toArray();
     }
 
+    async getAllCompletedSessions(signal?: AbortSignal): Promise<QuizSession[]> {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        return db.quizSessions.filter((s) => s.status === 'completed').toArray();
+    }
+
     async getSessionById(id: string, signal?: AbortSignal): Promise<QuizSession | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         return (await db.quizSessions.get(id)) ?? null;
