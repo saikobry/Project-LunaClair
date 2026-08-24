@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "playwright-skill": {
+      "source": "testdino-hq/playwright-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "0c8392f842df20ea35ce63ee799cdce99bf8ae44afa6df97171d4216efd0ff78"
+    },
     "react-doctor": {
       "source": "aidenybai/react-doctor",
       "sourceType": "github",
       "skillPath": "skills/react-doctor/SKILL.md",
       "computedHash": "79ab46cf22147748cab2f436770b95e029f6cacbc05421fefa695caff0027e2b"
+    },
+    "review": {
+      "source": "alirezarezvani/claude-skills",
+      "sourceType": "github",
+      "skillPath": "engineering-team/playwright-pro/skills/review/SKILL.md",
+      "computedHash": "09b14fddf7d5f2279ddc6e6954f894f0435ddb9b91195e68a24b2c0f1bfdb1d7"
     }
   }
 }
