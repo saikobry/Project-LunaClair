@@ -1,5 +1,13 @@
 import type { AiService } from '../../domain/ai/AiService';
-import type { AiChatRequest, AiStreamEvent } from '../../domain/ai/ai.types';
+import {
+  AiGenerationError,
+  type AiChatMessage,
+  type AiChatRequest,
+  type AiStreamEvent,
+  type AiGenerationRequest,
+  type AiStructuredOutputValidator,
+} from '../../domain/ai/ai.types';
+import { parseStructuredAiResponse } from './parsing/parseStructuredAiResponse';
 
 export interface WorkerAiAdapterOptions {
   /** Base URL for API requests. Defaults to '' (relative to current origin / proxy). */
@@ -143,5 +151,46 @@ export class WorkerAiAdapter implements AiService {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  async generateStructured<T>(
+    request: AiGenerationRequest,
+    validator: AiStructuredOutputValidator<T>,
+  ): Promise<T> {
+    const messages: AiChatMessage[] = [
+      {
+        id: 'sys',
+        role: 'system',
+        content:
+          request.systemPrompt ||
+          'You are an educational AI assistant. You generate strictly formatted structured JSON output without preamble or commentary.',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'usr',
+        role: 'user',
+        content: request.userPrompt,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    let accumulatedText = '';
+    const stream = this.streamChat({
+      messages,
+      documentContext: request.documentContext,
+      selection: request.selection,
+      mode: 'assistant',
+      signal: request.signal,
+    });
+
+    for await (const event of stream) {
+      if (event.type === 'token') {
+        accumulatedText += event.text;
+      } else if (event.type === 'error') {
+        throw new AiGenerationError(event.message, event.code);
+      }
+    }
+
+    return parseStructuredAiResponse(accumulatedText, validator);
   }
 }

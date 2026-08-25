@@ -46,6 +46,10 @@ import {
     GetAiThreadMessagesUseCase,
     DeleteAiThreadUseCase,
     ClearChatHistoryUseCase,
+    GenerateQuestionsUseCase,
+    BatchCreateQuestionsUseCase,
+    GenerateFlashcardsUseCase,
+    BatchCreateFlashcardsUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
@@ -115,6 +119,12 @@ export function createUseCases(repositories: Repositories) {
             getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChatRepository),
             deleteThread: new DeleteAiThreadUseCase(repositories.aiChatRepository),
             clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChatRepository),
+        },
+        generator: {
+            generateQuestions: new GenerateQuestionsUseCase(repositories.aiService),
+            batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.questionRepository),
+            generateFlashcards: new GenerateFlashcardsUseCase(repositories.aiService),
+            batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.questionRepository),
         },
     };
 }

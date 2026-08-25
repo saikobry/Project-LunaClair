@@ -49,6 +49,32 @@ export class DexieQuestionRepository implements QuestionRepository {
         return question;
     }
 
+    async createQuestionsBatch(inputs: CreateQuestionInput[]): Promise<Question[]> {
+        if (inputs.length === 0) return [];
+        const now = new Date().toISOString();
+        const questions: Question[] = inputs.map((input) => ({
+            id: generateId(),
+            materialId: input.materialId,
+            type: input.type,
+            prompt: input.prompt,
+            payload: input.payload,
+            difficulty: input.difficulty ?? 'medium',
+            points: input.points ?? 1,
+            explanation: input.explanation,
+            tags: normalizeTags(input.tags),
+            status: input.status ?? 'draft',
+            version: 1,
+            createdAt: now,
+            updatedAt: now,
+        }));
+
+        await db.transaction('rw', db.questions, async () => {
+            await db.questions.bulkPut(questions);
+        });
+
+        return questions;
+    }
+
     async updateQuestion(id: string, input: UpdateQuestionInput): Promise<Question> {
         const existing = await db.questions.get(id);
         if (!existing) throw new Error(`Question not found: ${id}`);

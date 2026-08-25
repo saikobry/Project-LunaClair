@@ -153,6 +153,7 @@ interface FlashcardDeckSetupViewProps {
     quizzes: Quiz[];
     reviews: Record<string, ReviewState>;
     onStartSession: (selectedQuizId?: string, studyMode?: DeckStudyMode) => void;
+    onGenerateAi?: () => void;
 }
 
 export function FlashcardDeckSetupView({
@@ -160,6 +161,7 @@ export function FlashcardDeckSetupView({
     quizzes,
     reviews,
     onStartSession,
+    onGenerateAi,
 }: FlashcardDeckSetupViewProps) {
     const now = new Date();
 
@@ -201,8 +203,20 @@ export function FlashcardDeckSetupView({
                     </div>
                     <h2 {...stylex.props(styles.title)}>No Flashcards Available</h2>
                     <p {...stylex.props(styles.description)}>
-                        This material doesn&apos;t have any published quiz questions yet. Create questions in the Quiz tab to automatically populate your flashcard deck!
+                        This material doesn&apos;t have any flashcards yet. Generate cards directly from your notes using AI, or create questions in the Question Bank!
                     </p>
+                    {onGenerateAi && (
+                        <div style={{ marginTop: 8 }}>
+                            <Button
+                                label="Generate Flashcards with AI"
+                                variant="primary"
+                                icon={<Sparkles size={16} />}
+                                onClick={onGenerateAi}
+                            >
+                                Generate Flashcards with AI
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -293,7 +307,7 @@ export function FlashcardDeckSetupView({
                     )}
                 </div>
 
-                <div style={{ marginTop: 20, width: '100%' }}>
+                <div style={{ marginTop: 20, width: '100%', display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <Button
                         label="Start Flashcard Session"
                         variant="primary"
@@ -302,6 +316,16 @@ export function FlashcardDeckSetupView({
                     >
                         Start Flashcard Session
                     </Button>
+                    {onGenerateAi && (
+                        <Button
+                            label="Generate with AI"
+                            variant="secondary"
+                            icon={<Sparkles size={16} />}
+                            onClick={onGenerateAi}
+                        >
+                            Generate with AI
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>

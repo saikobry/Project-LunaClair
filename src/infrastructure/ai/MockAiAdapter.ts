@@ -1,8 +1,16 @@
 import type { AiService } from '../../domain/ai/AiService';
-import type { AiChatRequest, AiStreamEvent } from '../../domain/ai/ai.types';
+import {
+  AiGenerationError,
+  type AiChatRequest,
+  type AiStreamEvent,
+  type AiGenerationRequest,
+  type AiStructuredOutputValidator,
+} from '../../domain/ai/ai.types';
+import { parseStructuredAiResponse } from './parsing/parseStructuredAiResponse';
 
 export interface MockAiAdapterOptions {
   tokens?: string[];
+  structuredResponse?: string | unknown;
   delayMs?: number;
   shouldFail?: boolean;
   errorCode?: string;
@@ -14,6 +22,7 @@ export interface MockAiAdapterOptions {
  */
 export class MockAiAdapter implements AiService {
   private readonly tokens: string[];
+  private readonly structuredResponse?: string | unknown;
   private readonly delayMs: number;
   private readonly shouldFail: boolean;
   private readonly errorCode: string;
@@ -30,6 +39,7 @@ export class MockAiAdapter implements AiService {
       'natural ',
       'pacemaker.',
     ];
+    this.structuredResponse = options.structuredResponse;
     this.delayMs = options.delayMs ?? 0;
     this.shouldFail = options.shouldFail ?? false;
     this.errorCode = options.errorCode ?? 'MOCK_ERROR';
@@ -71,5 +81,40 @@ export class MockAiAdapter implements AiService {
         totalTokens: 25 + this.tokens.length,
       },
     };
+  }
+
+  async generateStructured<T>(
+    request: AiGenerationRequest,
+    validator: AiStructuredOutputValidator<T>,
+  ): Promise<T> {
+    if (request.signal?.aborted) {
+      throw new AiGenerationError('Generation request was cancelled.', 'ABORTED');
+    }
+
+    if (this.shouldFail) {
+      throw new AiGenerationError(this.errorMessage, this.errorCode);
+    }
+
+    if (this.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    }
+
+    if (this.structuredResponse !== undefined) {
+      if (typeof this.structuredResponse === 'string') {
+        return parseStructuredAiResponse(this.structuredResponse, validator);
+      }
+      const validated = validator(this.structuredResponse);
+      if (validated.success) {
+        return validated.data;
+      }
+      throw new AiGenerationError(
+        `Structured output validation failed: ${validated.error}`,
+        'INVALID_STRUCTURED_OUTPUT',
+      );
+    }
+
+    // Default: use accumulated tokens as string
+    const rawText = this.tokens.join('');
+    return parseStructuredAiResponse(rawText, validator);
   }
 }

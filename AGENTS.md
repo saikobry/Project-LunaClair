@@ -192,6 +192,8 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
 | `src/features/analytics/AGENTS.md` | `src/features/analytics/` | Analytics & Learning Insights feature — Study overview, retention, mastery, activity heatmap |
+| `src/features/ai/AGENTS.md` | `src/features/ai/` | AI Study Assistant feature — Chat drawer, grounded context, streaming token hooks |
+| `src/features/generator/AGENTS.md` | `src/features/generator/` | AI Content Generator feature — Question and flashcard synthesis dialogs and review cards |
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
 | `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |
 | `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |

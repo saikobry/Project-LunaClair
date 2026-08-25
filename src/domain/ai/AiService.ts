@@ -1,4 +1,9 @@
-import type { AiChatRequest, AiStreamEvent } from './ai.types';
+import type {
+  AiChatRequest,
+  AiStreamEvent,
+  AiGenerationRequest,
+  AiStructuredOutputValidator,
+} from './ai.types';
 
 /**
  * Provider-agnostic capability port for AI interactions in LunaClair.
@@ -11,4 +16,12 @@ export interface AiService {
    * Streams chat tokens and lifecycle events for an interactive conversation.
    */
   streamChat(request: AiChatRequest): AsyncIterable<AiStreamEvent>;
+
+  /**
+   * Generates structured output validated against a schema validator.
+   */
+  generateStructured<T>(
+    request: AiGenerationRequest,
+    validator: AiStructuredOutputValidator<T>,
+  ): Promise<T>;
 }

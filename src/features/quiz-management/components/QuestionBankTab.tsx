@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter } from 'lucide-react';
+import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter, Sparkles } from 'lucide-react';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
@@ -14,6 +14,7 @@ import { useToast } from '../../../app/providers/ToastContext';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { QuestionEditorDialog } from './QuestionEditorDialog';
 import { QuestionPayloadPreview } from './QuestionPayloadPreview';
+import { AiQuestionGeneratorDialog } from '../../generator/components/AiQuestionGeneratorDialog';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const desktopQuery = '@media (min-width: 769px)';
@@ -249,11 +250,14 @@ interface QuestionBankTabProps {
     questions: Question[];
     quizzes?: import('../../../domain/quiz/Quiz').Quiz[];
     materialId: string;
+    materialTitle?: string;
+    documentMarkdown?: string;
     onCreate: (input: CreateQuestionInput) => void;
     onUpdate: (id: string, input: UpdateQuestionInput) => void;
     onPublish: (id: string) => void;
     onArchive: (id: string) => void;
     onUnarchive?: (id: string) => void;
+    onRefresh?: () => void;
 }
 
 function statusBorderColor(status: QuestionStatus): string {
@@ -419,11 +423,14 @@ export function QuestionBankTab({
     questions,
     quizzes = [],
     materialId,
+    materialTitle,
+    documentMarkdown,
     onCreate,
     onUpdate,
     onPublish,
     onArchive,
     onUnarchive,
+    onRefresh,
 }: QuestionBankTabProps) {
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
@@ -433,6 +440,7 @@ export function QuestionBankTab({
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | ''>('');
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Question | null>(null);
     const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
 
@@ -560,6 +568,16 @@ export function QuestionBankTab({
                     </Button>
                 </div>
                 <Button
+                    label="Generate with AI"
+                    variant="secondary"
+                    icon={<Sparkles size={14} />}
+                    onClick={() => setAiGeneratorOpen(true)}
+                    isDisabled={!documentMarkdown}
+                    tooltip={!documentMarkdown ? 'Document markdown is not available' : 'Generate questions with AI'}
+                >
+                    Generate with AI
+                </Button>
+                <Button
                     label="New question"
                     variant="primary"
                     icon={<Plus size={14} />}
@@ -680,6 +698,22 @@ export function QuestionBankTab({
                 }}
                 onCancel={() => setPendingArchiveId(null)}
             />
+
+            {aiGeneratorOpen && (
+                <AiQuestionGeneratorDialog
+                    isOpen={aiGeneratorOpen}
+                    onClose={() => setAiGeneratorOpen(false)}
+                    materialId={materialId}
+                    materialTitle={materialTitle || 'Study Material'}
+                    documentMarkdown={documentMarkdown || ''}
+                    onSuccess={(createdCount) => {
+                        showToast(`Added ${createdCount} questions to Question Bank in Draft status`, { intent: 'success' });
+                        if (onRefresh) {
+                            onRefresh();
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

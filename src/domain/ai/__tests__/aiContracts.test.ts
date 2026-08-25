@@ -34,6 +34,10 @@ describe('AI Domain Contracts', () => {
         yield { type: 'token', text: 'as the pacemaker.' };
         yield { type: 'done', usage: { promptTokens: 10, completionTokens: 6 } };
       },
+      async generateStructured<T>(_req: any, validator: any): Promise<T> {
+        const validated = validator({ result: 'ok' });
+        return (validated.success ? validated.data : { result: 'ok' }) as T;
+      },
     };
 
     const events: AiStreamEvent[] = [];

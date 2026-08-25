@@ -65,10 +65,16 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
 
 ---
 
+- ✅ **Phase 8 — AI Study Assistant & Content Generation**
+  - **8A (AI Infrastructure & Streaming):** Cloudflare Workers AI bridge (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), line-buffered SSE chunk streaming, provider-agnostic `AiService` port, `WorkerAiAdapter`, and `useAiStreamChat` token hook.
+  - **8B (Grounded Context & Tutor Modes):** Section-aware context extractor (`extractSectionContext`), multi-mode prompts (`assistant`, `socratic`, `summarizer`), and active text selection contextual actions ("Explain", "Simplify", "Example").
+  - **8C (Thread Persistence & Workspace Drawer):** Persistent conversation threads and messages in IndexedDB (Dexie v9 `aiThreads`/`aiMessages`, `DexieAiChatRepository`), orphan message cleanup, interrupted stream recovery, and workspace-level drawer integration (`MaterialWorkspace` → `AiChatDrawer`).
+  - **8D (AI Content Synthesis — Questions & Flashcards):** Structured generation port (`generateStructured`) with single-pass JSON repair, canonical question schema validators across 5 quiz types, atomic batch persistence (`QuestionRepository.createQuestionsBatch`) in default `draft` status, interactive `AiQuestionGeneratorDialog` in Question Bank, and dedicated `AiFlashcardGeneratorDialog` with front/back flashcard cards in FlashcardScreen.
+
+---
+
 ## Planned Phases
 
-- 🔒 **Phase 8 — AI Study Assistant & Content Generation**
-  - AI-generated question banks, automated material summaries, flashcard set generation.
 - 🔒 **Phase 9 — Content Importer**
   - PDF importing, OCR text extraction, custom material import pipelines.
 - 🔒 **Phase 10 — Cloud Synchronization**

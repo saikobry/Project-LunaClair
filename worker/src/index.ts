@@ -530,16 +530,28 @@ export default {
         }
       }
 
-      const DEFAULT_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      const PRIMARY_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      const FALLBACK_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct";
       const messageId = `msg-${crypto.randomUUID()}`;
 
       try {
-        const aiResponse = await env.AI.run(DEFAULT_AI_MODEL as any, {
-          messages: formattedMessages,
-          stream: true,
-          max_tokens: 2048,
-          temperature: 0.6,
-        });
+        let aiResponse: unknown;
+        try {
+          aiResponse = await env.AI.run(PRIMARY_AI_MODEL as any, {
+            messages: formattedMessages,
+            stream: true,
+            max_tokens: 4096,
+            temperature: 0.5,
+          });
+        } catch (primaryErr) {
+          console.warn("Primary AI model encountered error, falling back to Llama 3.1 8B:", primaryErr);
+          aiResponse = await env.AI.run(FALLBACK_AI_MODEL as any, {
+            messages: formattedMessages,
+            stream: true,
+            max_tokens: 4096,
+            temperature: 0.5,
+          });
+        }
 
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();

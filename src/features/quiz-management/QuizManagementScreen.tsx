@@ -1,10 +1,11 @@
 import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Library, ListChecks } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
+import { useDocument } from '../reader/hooks/useDocument';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { QuestionBankTab } from './components/QuestionBankTab';
@@ -45,7 +46,9 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
         throw new Error('QuizManagementScreen must be used within a <ApplicationProvider>');
     }
 
-    const { isLoading: materialLoading } = useMaterial(materialId);
+    const queryClient = useQueryClient();
+    const { material, isLoading: materialLoading } = useMaterial(materialId);
+    const { data: doc, isLoading: docLoading } = useDocument(material);
 
     const [activeTab, setActiveTab] = useState<Tab>('questions');
 
@@ -62,7 +65,7 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
     const questionMgmt = useQuestionManagement();
     const quizBuilder = useQuizBuilder();
 
-    if (materialLoading || questionsLoading || quizzesLoading) {
+    if (materialLoading || questionsLoading || quizzesLoading || docLoading) {
         return (
             <div {...stylex.props(styles.loading)}>Loading…</div>
         );
@@ -82,11 +85,16 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
                         questions={questions}
                         quizzes={quizzes}
                         materialId={materialId}
+                        materialTitle={material?.title ?? 'Study Material'}
+                        documentMarkdown={doc?.content ?? ''}
                         onCreate={(input) => questionMgmt.createQuestion.mutate(input)}
                         onUpdate={(id, input) => questionMgmt.updateQuestion.mutate({ id, input })}
                         onPublish={(id) => questionMgmt.publishQuestion.mutate(id)}
                         onArchive={(id) => questionMgmt.archiveQuestion.mutate(id)}
                         onUnarchive={(id) => questionMgmt.unarchiveQuestion.mutate(id)}
+                        onRefresh={() => {
+                            queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });
+                        }}
                     />
                 )}
 

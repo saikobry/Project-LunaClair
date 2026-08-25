@@ -27,6 +27,7 @@ export interface QuestionRepository {
     getQuestionById(id: string, signal?: AbortSignal): Promise<Question | null>;
     getQuestionsByIds(ids: string[], signal?: AbortSignal): Promise<Question[]>;
     createQuestion(input: CreateQuestionInput): Promise<Question>;
+    createQuestionsBatch(inputs: CreateQuestionInput[]): Promise<Question[]>;
     updateQuestion(id: string, input: UpdateQuestionInput): Promise<Question>;
     deleteQuestion(id: string): Promise<void>;
 }

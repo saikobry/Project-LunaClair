@@ -15,6 +15,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 - `use-cases/flashcards/` owns spaced-repetition review state transitions and persistence coordination (`RecordFlashcardReviewUseCase`).
 - `use-cases/analytics/` owns analytics coordination workflows (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase` — delegates raw data aggregation and calculations via `AnalyticsRepository` port).
 - `use-cases/ai/` owns AI prompt/context construction, streamed chat execution with atomic turn persistence (`SendChatMessageUseCase`, `AiContextBuilder`), and thread lifecycle management (`GetOrCreateAiThreadUseCase`, `GetAiThreadMessagesUseCase`, `DeleteAiThreadUseCase`, `ClearChatHistoryUseCase`).
+- `use-cases/generator/` owns AI structured content synthesis workflows (`GenerateQuestionsUseCase`, `BatchCreateQuestionsUseCase`, `GenerateFlashcardsUseCase`, `BatchCreateFlashcardsUseCase`) coordinating `AiService.generateStructured`, section-bounded context extraction, strict domain draft validators, and atomic batch persistence to `QuestionRepository.createQuestionsBatch` with default `status: 'draft'`.
 - `quiz-management/drafts/` owns the quiz canvas Application Session DTOs (`QuizDraft`/`QuestionDraft`), draft validation (`quizDraftValidation`), the `QuizDraftRepository` crash-recovery contract, and draft seeding helpers. Drafts carry UI session concerns (`tempId`, `isDirty`) and are never persisted to the Question Bank or Quiz Catalog.
 
 ## Local Contracts

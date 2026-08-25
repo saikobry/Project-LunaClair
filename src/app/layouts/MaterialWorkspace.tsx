@@ -92,7 +92,6 @@ export default function MaterialWorkspace({
         sectionHeading,
       });
       setIsAiOpen(true);
-      setHasUnreadAi(false);
     },
     [doc?.content],
   );

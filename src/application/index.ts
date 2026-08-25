@@ -58,4 +58,10 @@ export { ClearChatHistoryUseCase } from './use-cases/ai/ClearChatHistoryUseCase'
 export type { ClearChatHistoryInput } from './use-cases/ai/ClearChatHistoryUseCase';
 export { AiContextBuilder } from './use-cases/ai/AiContextBuilder';
 export type { BuildDocumentContextOptions, BuildSelectionContextOptions } from './use-cases/ai/AiContextBuilder';
+export { GenerateQuestionsUseCase } from './use-cases/generator/GenerateQuestionsUseCase';
+export { BatchCreateQuestionsUseCase } from './use-cases/generator/BatchCreateQuestionsUseCase';
+export type { BatchCreateQuestionsInput } from './use-cases/generator/BatchCreateQuestionsUseCase';
+export { GenerateFlashcardsUseCase } from './use-cases/generator/GenerateFlashcardsUseCase';
+export { BatchCreateFlashcardsUseCase } from './use-cases/generator/BatchCreateFlashcardsUseCase';
+export type { BatchCreateFlashcardsInput } from './use-cases/generator/BatchCreateFlashcardsUseCase';
 

@@ -105,3 +105,36 @@ export interface AiMessageRecord {
     errorMessage?: string;
   };
 }
+
+/**
+ * Request payload for structured AI content generation.
+ */
+export interface AiGenerationRequest {
+  systemPrompt?: string;
+  userPrompt: string;
+  documentContext?: AiDocumentContext;
+  selection?: AiSelectionContext;
+  temperature?: number;
+  maxTokens?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Validator function for structured AI outputs.
+ */
+export type AiStructuredOutputValidator<T> = (
+  data: unknown,
+) => { success: true; data: T } | { success: false; error: string };
+
+/**
+ * Domain error raised when AI generation or output validation fails.
+ */
+export class AiGenerationError extends Error {
+  code: string;
+
+  constructor(message: string, code: string = 'GENERATION_FAILED') {
+    super(message);
+    this.name = 'AiGenerationError';
+    this.code = code;
+  }
+}

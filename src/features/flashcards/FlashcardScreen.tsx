@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useQuestions } from '../quiz/hooks/queries/useQuestions';
 import { useQuizzes } from '../quiz/hooks/queries/useQuizzes';
 import { useFlashcardReviews } from './hooks/queries/useFlashcardReviews';
 import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
+import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
+import { useDocument } from '../reader/hooks/useDocument';
+import { useToast } from '../../app/providers/ToastContext';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/deck';
 import type { Flashcard } from '../../domain/flashcards/Card';
 import type { Rating } from '../../domain/flashcards/scheduler';
@@ -12,6 +16,7 @@ import type { FlashcardViewStep, FlashcardSessionSummary } from './types/flashca
 import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
 import { FlashcardPlayerView } from './components/FlashcardPlayerView';
 import { FlashcardSessionEndView } from './components/FlashcardSessionEndView';
+import { AiFlashcardGeneratorDialog } from '../generator/components/AiFlashcardGeneratorDialog';
 
 const styles = stylex.create({
     container: {
@@ -43,17 +48,22 @@ const INITIAL_SUMMARY: FlashcardSessionSummary = {
 };
 
 export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
+    const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const { questions, isLoading: loadingQuestions } = useQuestions(materialId);
     const { quizzes, isLoading: loadingQuizzes } = useQuizzes(materialId);
     const { reviews, isLoading: loadingReviews } = useFlashcardReviews(materialId);
     const { recordRating } = useFlashcardRating(materialId);
+    const { material, isLoading: loadingMaterial } = useMaterial(materialId);
+    const { data: doc, isLoading: loadingDoc } = useDocument(material);
 
     const [step, setStep] = useState<FlashcardViewStep>('setup');
+    const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
     const [deck, setDeck] = useState<Flashcard[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [summary, setSummary] = useState<FlashcardSessionSummary>(INITIAL_SUMMARY);
 
-    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews;
+    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews || loadingMaterial || loadingDoc;
 
     const handleStartSession = (selectedQuizId?: string, studyMode?: DeckStudyMode) => {
         let pool = questions.filter((q) => q.status !== 'archived');
@@ -125,6 +135,7 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     quizzes={quizzes}
                     reviews={reviews}
                     onStartSession={handleStartSession}
+                    onGenerateAi={() => setAiGeneratorOpen(true)}
                 />
             )}
 
@@ -142,6 +153,20 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     summary={summary}
                     onRestudy={handleRestudy}
                     onDone={() => setStep('setup')}
+                />
+            )}
+
+            {aiGeneratorOpen && (
+                <AiFlashcardGeneratorDialog
+                    isOpen={aiGeneratorOpen}
+                    onClose={() => setAiGeneratorOpen(false)}
+                    materialId={materialId}
+                    materialTitle={material?.title || 'Study Material'}
+                    documentMarkdown={doc?.content || ''}
+                    onSuccess={(count) => {
+                        showToast(`Added ${count} flashcards to your deck`, { intent: 'success' });
+                        queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });
+                    }}
                 />
             )}
         </div>
