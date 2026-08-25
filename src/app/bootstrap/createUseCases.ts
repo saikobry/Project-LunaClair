@@ -50,6 +50,9 @@ import {
     BatchCreateQuestionsUseCase,
     GenerateFlashcardsUseCase,
     BatchCreateFlashcardsUseCase,
+    ExtractContentUseCase,
+    CommitImportUseCase,
+    CleanupImportWithAiUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
@@ -125,6 +128,15 @@ export function createUseCases(repositories: Repositories) {
             batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.questionRepository),
             generateFlashcards: new GenerateFlashcardsUseCase(repositories.aiService),
             batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.questionRepository),
+        },
+        importer: {
+            extractContent: new ExtractContentUseCase(repositories.importerRegistry),
+            commitImport: new CommitImportUseCase(
+                repositories.libraryRepository,
+                repositories.documentContentRepository,
+                repositories.importAssetRepository,
+            ),
+            cleanupWithAi: new CleanupImportWithAiUseCase(repositories.aiService),
         },
     };
 }

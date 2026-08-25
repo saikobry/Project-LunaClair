@@ -19,7 +19,8 @@ import { WorkerAiAdapter } from '../../infrastructure/ai/WorkerAiAdapter';
 import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
 import { dexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
-
+import { createDefaultImporterRegistry } from '../../infrastructure/importer/createExtractors';
+import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
 export function createRepositories() {
     // Reader resolves imported content from Dexie first, API second.
     const documentRepository = new HybridDocumentRepository(
@@ -50,6 +51,8 @@ export function createRepositories() {
         analyticsRepository: dexieAnalyticsRepository,
         aiChatRepository: dexieAiChatRepository,
         aiService,
+        importerRegistry: createDefaultImporterRegistry(),
+        importAssetRepository: dexieImportAssetRepository,
     };
 }
 

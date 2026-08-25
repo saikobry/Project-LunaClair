@@ -71,12 +71,17 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
   - **8C (Thread Persistence & Workspace Drawer):** Persistent conversation threads and messages in IndexedDB (Dexie v9 `aiThreads`/`aiMessages`, `DexieAiChatRepository`), orphan message cleanup, interrupted stream recovery, and workspace-level drawer integration (`MaterialWorkspace` → `AiChatDrawer`).
   - **8D (AI Content Synthesis — Questions & Flashcards):** Structured generation port (`generateStructured`) with single-pass JSON repair, canonical question schema validators across 5 quiz types, atomic batch persistence (`QuestionRepository.createQuestionsBatch`) in default `draft` status, interactive `AiQuestionGeneratorDialog` in Question Bank, and dedicated `AiFlashcardGeneratorDialog` with front/back flashcard cards in FlashcardScreen.
 
+- ✅ **Phase 9 — Content Importer**
+  - **9A (Domain Contracts & Pipeline):** Provider-agnostic `ContentImporter` port, `ImporterRegistry` format resolution, `ExtractionOptions` (signal, progress, password, language), `ImportAssetRepository` port, domain types (`ImportSession`, `ImportCandidate`, `ExtractionResult`, `PageExtraction`, `ImportMetadata`, `ImportError`), and a 6-pass pure Markdown conversion pipeline (normalization → structure → page anchors → lists → tables → cleanup).
+  - **9B (Infrastructure Adapters & Storage):** `PdfjsImporter` with sequential page memory management, density scoring heuristic for OCR delegation, and password exception recovery; `TesseractExtractor` with lazy worker pool and grayscale/EXIF preprocessing; `ImageImporter` and `DefaultImporterRegistry`; Dexie v10 schema adding the `importAssets` store (`materialId`, `blob`, `mimeType`, `filename`, `importedAt`) and `DexieImportAssetRepository`.
+  - **9C (Application Orchestration):** `ExtractContentUseCase` connecting importers to the Markdown pipeline; `CommitImportUseCase` atomically persisting `StudyMaterial`, `ImportedDocumentContent`, and `ImportedAsset`; `CleanupImportWithAiUseCase` providing opt-in structured AI cleanup with original/cleaned diff generation.
+  - **9D (Feature UI & 5-Step Wizard):** `ImporterScreen` 5-step wizard (`selecting` → `extracting` → `review` → `details` → `completed`), drag-and-drop file ingestion (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.jfif`, `.heic`, `.heif`, `.webp`), bounded concurrent extraction queue (max 2 parallel jobs), adaptive dual-pane review layout embedding Lexical `WriterEditor` and `MarkdownViewer` with per-page confidence badges, opt-in AI diff comparison (`AiCleanupDiffView`), title/subject/term assignment, password unlock dialog, and completion summary with workspace navigation.
+  - **9E (Shell Integration & Code-Splitting):** URL-addressable `/import` route lazy-loaded via `React.lazy` to keep the initial application bundle lean, sidebar navigation entry with `FileUp` icon, comprehensive unit test coverage (40 test files, 224 passing unit tests), and full Playwright real-browser acceptance test suite (14 passing E2E tests).
+
 ---
 
 ## Planned Phases
 
-- 🔒 **Phase 9 — Content Importer**
-  - PDF importing, OCR text extraction, custom material import pipelines.
 - 🔒 **Phase 10 — Cloud Synchronization**
   - Cloud database adapter, offline-first sync pipelines, multi-device state synchronization.
 - 🔒 **Phase 11 — Collaboration & Sharing**

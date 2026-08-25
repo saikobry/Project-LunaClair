@@ -10,6 +10,7 @@ export type AppRoute =
   | { kind: 'available' }
   | { kind: 'analytics' }
   | { kind: 'preview'; materialId: string }
+  | { kind: 'import' }
   | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
@@ -27,6 +28,8 @@ export function routeToUrl(route: AppRoute): string {
       return '/available';
     case 'analytics':
       return '/analytics';
+    case 'import':
+      return '/import';
     case 'preview':
       return `/available/${route.materialId}/preview`;
     case 'terms':
@@ -96,6 +99,11 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /analytics
   if (url.pathname === '/analytics') {
     return { kind: 'analytics' };
+  }
+
+  // /import
+  if (url.pathname === '/import') {
+    return { kind: 'import' };
   }
 
   // / (library)

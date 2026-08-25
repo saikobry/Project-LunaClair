@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 7 complete (Analytics & Learning Insights); next planned phase: 8 (AI Study Assistant)
+**Phase:** 9 complete (Content Importer); next planned phase: 10 (Cloud Synchronization)
 
 ## Stack
 
@@ -195,6 +195,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/features/ai/AGENTS.md` | `src/features/ai/` | AI Study Assistant feature — Chat drawer, grounded context, streaming token hooks |
 | `src/features/generator/AGENTS.md` | `src/features/generator/` | AI Content Generator feature — Question and flashcard synthesis dialogs and review cards |
 | `src/features/reader/AGENTS.md` | `src/features/reader/` | Reader feature — highlighting, drawing, markdown rendering |
+| `src/features/importer/AGENTS.md` | `src/features/importer/` | Content Importer feature — 5-step wizard, PDF & OCR extraction, Lexical review |
 | `src/features/quiz-management/AGENTS.md` | `src/features/quiz-management/` | Quiz & question authoring — Question Bank, Quiz Catalog, editors, publishing |
 | `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |
 | `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, import services |

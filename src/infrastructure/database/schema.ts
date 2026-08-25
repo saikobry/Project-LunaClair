@@ -96,6 +96,9 @@ export const SCHEMA_V9 = {
     aiMessages: 'id, threadId, role, status, createdAt',
 } as const;
 
+export const SCHEMA_V10 = {
+    ...SCHEMA_V9,
+    importAssets: 'materialId',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
-
-

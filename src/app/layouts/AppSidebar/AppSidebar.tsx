@@ -1,7 +1,7 @@
 import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig, TrendingUp } from 'lucide-react';
+import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig, TrendingUp, FileUp } from 'lucide-react';
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
@@ -355,7 +355,7 @@ export interface AppSidebarProps {
   materialId?: string;
   /** Which of the main nav sections is current. `'none'` when a
    *  subject/material/quiz route owns the screen (context links take over). */
-  active: 'library' | 'available' | 'analytics' | 'terms' | 'none';
+  active: 'library' | 'available' | 'import' | 'analytics' | 'terms' | 'none';
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
   onNavigate: (route: AppRoute) => void;
@@ -543,6 +543,17 @@ export function AppSidebar({
           >
             <LibraryBig size={18} />
             <span {...stylex.props(styles.navLabel)}>Available</span>
+          </button>
+
+          <button
+            type="button"
+            {...stylex.props(styles.navItem, active === 'import' && styles.navItemActive)}
+            onClick={() => onNavigate({ kind: 'import' })}
+            aria-current={active === 'import' ? 'page' : undefined}
+            title="Import Content"
+          >
+            <FileUp size={18} />
+            <span {...stylex.props(styles.navLabel)}>Import</span>
           </button>
 
           <button

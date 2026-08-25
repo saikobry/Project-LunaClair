@@ -11,7 +11,7 @@ import type { QuizDraft } from '../../application/quiz-management/drafts/QuizDra
 import type { ReviewState } from '../../domain/flashcards/scheduler';
 import type { ImportedDocumentContent } from '../../domain/reader';
 import type { AiThread, AiMessageRecord } from '../../domain/ai/ai.types';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9 } from './schema';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -37,6 +37,15 @@ export interface MetadataRecord {
     value: unknown;
 }
 
+/** Row shape for the importAssets store. */
+export interface ImportAssetRecord {
+    materialId: string;
+    blob: Blob;
+    mimeType: string;
+    filename: string;
+    importedAt: string;
+}
+
 /**
  * Dexie subclass defining the LunaClair IndexedDB database.
  * Version 1: Phase 5 stores.
@@ -50,6 +59,7 @@ export interface MetadataRecord {
  * Version 7: Drops the legacy `sourceType` index from materials.
  * Version 8: Rekeys documentContents from `sourceId` to `documentId`.
  * Version 9: Adds aiThreads and aiMessages for local-first AI chat persistence.
+ * Version 10: Adds importAssets table for raw uploaded files.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -68,6 +78,7 @@ export class LunaClairDatabase extends Dexie {
     documentContents!: Table<ImportedDocumentContent, string>;
     aiThreads!: Table<AiThread, string>;
     aiMessages!: Table<AiMessageRecord, string>;
+    importAssets!: Table<ImportAssetRecord, string>;
 
     constructor() {
         super(DB_NAME);
@@ -129,6 +140,7 @@ export class LunaClairDatabase extends Dexie {
             }
         });
         this.version(9).stores(SCHEMA_V9);
+        this.version(10).stores(SCHEMA_V10);
     }
 }
 

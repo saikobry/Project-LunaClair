@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, lazy, Suspense } from 'react';
 // Direct-path imports (react-doctor/no-barrel-import, user-directed):
 // QuizScreen is the feature's default export and QuizLaunchRequest lives in
 // the feature's types module.
@@ -14,6 +14,8 @@ import { QuizCanvasBuilder } from '../../features/quiz-management/canvas/QuizCan
 import AnalyticsScreen from '../../features/analytics/AnalyticsScreen';
 import type { AppRoute } from './routing';
 import MaterialWorkspace from './MaterialWorkspace';
+
+const ImporterScreen = lazy(() => import('../../features/importer/ImporterScreen'));
 
 interface ShellRoutesProps {
   currentRoute: AppRoute;
@@ -130,6 +132,14 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'analytics' && (
         <AnalyticsScreen />
+      )}
+      {currentRoute.kind === 'import' && (
+        <Suspense>
+          <ImporterScreen
+            onOpenMaterial={handleOpenMaterial}
+            onCancel={() => navigate({ kind: 'library' })}
+          />
+        </Suspense>
       )}
       {currentRoute.kind === 'subject' && (
         <SubjectWorkspace

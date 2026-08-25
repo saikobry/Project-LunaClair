@@ -517,16 +517,29 @@ export default {
         }
       }
 
+      const clientSystemMsgs = body.messages
+        .filter((m) => m.role === "system" && typeof m.content === "string")
+        .map((m) => (m.content as string).trim())
+        .filter(Boolean)
+        .join("\n\n");
+
+      const effectiveSystemPrompt = clientSystemMsgs
+        ? `${systemPrompt}\n\n--- TASK SPECIFIC INSTRUCTIONS ---\n${clientSystemMsgs}`
+        : systemPrompt;
+
       const formattedMessages: Array<{ role: string; content: string }> = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: effectiveSystemPrompt },
       ];
 
       for (const m of body.messages) {
-        if (m && typeof m.content === "string") {
-          formattedMessages.push({
-            role: m.role === "assistant" ? "assistant" : "user",
-            content: m.content,
-          });
+        if (m && typeof m.content === "string" && m.role !== "system") {
+          const role = m.role === "assistant" ? "assistant" : "user";
+          const lastMsg = formattedMessages[formattedMessages.length - 1];
+          if (lastMsg && lastMsg.role === role) {
+            lastMsg.content += `\n\n${m.content}`;
+          } else {
+            formattedMessages.push({ role, content: m.content });
+          }
         }
       }
 

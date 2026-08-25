@@ -19,8 +19,8 @@ describe('DexieAiChatRepository & Schema v9', () => {
     db.close();
   });
 
-  it('preserves existing v8 tables and provides aiThreads and aiMessages in schema v9', async () => {
-    expect(db.verno).toBe(9);
+  it('preserves existing v8 tables and provides aiThreads and aiMessages in schema v9/v10', async () => {
+    expect(db.verno).toBeGreaterThanOrEqual(9);
     expect(db.aiThreads).toBeDefined();
     expect(db.aiMessages).toBeDefined();
     expect(db.materials).toBeDefined();

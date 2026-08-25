@@ -65,3 +65,8 @@ export { GenerateFlashcardsUseCase } from './use-cases/generator/GenerateFlashca
 export { BatchCreateFlashcardsUseCase } from './use-cases/generator/BatchCreateFlashcardsUseCase';
 export type { BatchCreateFlashcardsInput } from './use-cases/generator/BatchCreateFlashcardsUseCase';
 
+export { ExtractContentUseCase } from './use-cases/importer/ExtractContentUseCase';
+export { CommitImportUseCase } from './use-cases/importer/CommitImportUseCase';
+export type { CommitImportInput } from './use-cases/importer/CommitImportUseCase';
+export { CleanupImportWithAiUseCase } from './use-cases/importer/CleanupImportWithAiUseCase';
+export type { AiCleanupResult } from './use-cases/importer/CleanupImportWithAiUseCase';

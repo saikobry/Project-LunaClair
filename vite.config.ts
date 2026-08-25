@@ -85,6 +85,7 @@ export default defineConfig({
         // figure images) live in Cloudflare D1 and are fetched on demand via the
         // Worker API, then cached by the service worker via runtimeCaching.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,woff2}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // SPA: deep links (pushState routes) fall back to the shell offline.
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
