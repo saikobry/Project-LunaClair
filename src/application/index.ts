@@ -71,6 +71,13 @@ export type { CommitImportInput } from './use-cases/importer/CommitImportUseCase
 export { CleanupImportWithAiUseCase } from './use-cases/importer/CleanupImportWithAiUseCase';
 export type { AiCleanupResult } from './use-cases/importer/CleanupImportWithAiUseCase';
 
+export { MaterializeStudyPackageUseCase } from './use-cases/package/MaterializeStudyPackageUseCase';
+export type { MaterializeStudyPackageInput } from './use-cases/package/MaterializeStudyPackageUseCase';
+export { ImportStudyPackageUseCase } from './use-cases/package/ImportStudyPackageUseCase';
+export type { ImportStudyPackageInput, ImportStudyPackageResult } from './use-cases/package/ImportStudyPackageUseCase';
+
+export { serializePackageToBlob, serializePackageToJson } from '../infrastructure/package/StudyPackageSerializer';
+
 export {
   SyncEngine,
   type SyncEngineDependencies,
@@ -92,5 +99,6 @@ export {
   TriggerSyncUseCase,
   type TriggerSyncInput,
 } from './sync';
+
 
 

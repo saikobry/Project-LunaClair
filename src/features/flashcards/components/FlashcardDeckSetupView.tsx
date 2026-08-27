@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { Layers, Play, Clock, Sparkles, Filter } from 'lucide-react';
+import { Layers, Play, Clock, Sparkles, Filter, Package } from 'lucide-react';
 import type { Quiz } from '../../../domain/quiz/Quiz';
 import type { Question } from '../../../domain/quiz/Question';
 import type { ReviewState } from '../../../domain/flashcards/scheduler';
@@ -154,6 +154,8 @@ interface FlashcardDeckSetupViewProps {
     reviews: Record<string, ReviewState>;
     onStartSession: (selectedQuizId?: string, studyMode?: DeckStudyMode) => void;
     onGenerateAi?: () => void;
+    onExport?: () => void;
+    isExporting?: boolean;
 }
 
 export function FlashcardDeckSetupView({
@@ -162,6 +164,8 @@ export function FlashcardDeckSetupView({
     reviews,
     onStartSession,
     onGenerateAi,
+    onExport,
+    isExporting,
 }: FlashcardDeckSetupViewProps) {
     const now = new Date();
 
@@ -205,8 +209,8 @@ export function FlashcardDeckSetupView({
                     <p {...stylex.props(styles.description)}>
                         This material doesn&apos;t have any flashcards yet. Generate cards directly from your notes using AI, or create questions in the Question Bank!
                     </p>
-                    {onGenerateAi && (
-                        <div style={{ marginTop: 8 }}>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {onGenerateAi && (
                             <Button
                                 label="Generate Flashcards with AI"
                                 variant="primary"
@@ -215,8 +219,20 @@ export function FlashcardDeckSetupView({
                             >
                                 Generate Flashcards with AI
                             </Button>
-                        </div>
-                    )}
+                        )}
+                        {onExport && (
+                            <Button
+                                label="Export as .lcpack"
+                                variant="secondary"
+                                icon={<Package size={16} />}
+                                onClick={onExport}
+                                isLoading={isExporting}
+                                isDisabled={isExporting}
+                            >
+                                Export as .lcpack
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -324,6 +340,18 @@ export function FlashcardDeckSetupView({
                             onClick={onGenerateAi}
                         >
                             Generate with AI
+                        </Button>
+                    )}
+                    {onExport && (
+                        <Button
+                            label="Export as .lcpack"
+                            variant="secondary"
+                            icon={<Package size={16} />}
+                            onClick={onExport}
+                            isLoading={isExporting}
+                            isDisabled={isExporting}
+                        >
+                            Export as .lcpack
                         </Button>
                     )}
                 </div>

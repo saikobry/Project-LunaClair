@@ -1,11 +1,13 @@
 import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Library, ListChecks } from 'lucide-react';
+import { Library, ListChecks, Package } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { useDocument } from '../reader/hooks/useDocument';
+import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
+import { Button } from '../../shared/ui/Button/Button';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { QuestionBankTab } from './components/QuestionBankTab';
@@ -30,6 +32,20 @@ const styles = stylex.create({
         padding: '64px 24px',
         color: 'var(--color-text-secondary)',
         fontSize: 14,
+    },
+    headerRow: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
+    },
+    tabListWrapper: {
+        flex: 1,
+        minWidth: 280,
+    },
+    exportButton: {
+        marginTop: 2,
     },
 });
 
@@ -64,6 +80,7 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
 
     const questionMgmt = useQuestionManagement();
     const quizBuilder = useQuizBuilder();
+    const { exportPackage, isExporting } = useExportStudyPackage();
 
     if (materialLoading || questionsLoading || quizzesLoading || docLoading) {
         return (
@@ -73,11 +90,27 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
 
     return (
         <>
-            <TabList value={activeTab} onChange={(tab) => setActiveTab(tab as Tab)} layout="fill" hasDivider aria-label="Quiz Management tabs">
-                {MGMT_TABS.map(({ key, label, icon: Icon }) => (
-                    <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
-                ))}
-            </TabList>
+            <div {...stylex.props(styles.headerRow)}>
+                <div {...stylex.props(styles.tabListWrapper)}>
+                    <TabList value={activeTab} onChange={(tab) => setActiveTab(tab as Tab)} layout="fill" hasDivider aria-label="Quiz Management tabs">
+                        {MGMT_TABS.map(({ key, label, icon: Icon }) => (
+                            <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
+                        ))}
+                    </TabList>
+                </div>
+                <div {...stylex.props(styles.exportButton)}>
+                    <Button
+                        label="Export as .lcpack"
+                        variant="secondary"
+                        icon={<Package size={15} />}
+                        onClick={() => exportPackage(materialId)}
+                        isLoading={isExporting}
+                        isDisabled={isExporting}
+                    >
+                        Export as .lcpack
+                    </Button>
+                </div>
+            </div>
 
             <AnimatedTabPanel activeKey={activeTab}>
                 {activeTab === 'questions' && (

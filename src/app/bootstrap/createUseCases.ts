@@ -53,6 +53,8 @@ import {
     ExtractContentUseCase,
     CommitImportUseCase,
     CleanupImportWithAiUseCase,
+    MaterializeStudyPackageUseCase,
+    ImportStudyPackageUseCase,
     SyncEngine,
     syncStatusStore,
     GetSyncStatusUseCase,
@@ -170,6 +172,16 @@ export function createUseCases(repositories: Repositories) {
                 repositories.importAssetRepository,
             ),
             cleanupWithAi: new CleanupImportWithAiUseCase(repositories.aiService),
+        },
+        package: {
+            materializeStudyPackage: new MaterializeStudyPackageUseCase(
+                repositories.libraryRepository,
+                repositories.documentContentRepository,
+                repositories.questionRepository,
+                repositories.quizRepository,
+                repositories.importAssetRepository,
+            ),
+            importStudyPackage: new ImportStudyPackageUseCase(repositories.db),
         },
         sync: {
             syncEngine,

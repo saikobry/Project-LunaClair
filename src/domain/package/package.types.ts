@@ -51,8 +51,8 @@ export interface PackageQuiz {
     materialId: `pkg_mat_${string}`;
     title: string;
     description?: string;
-    timeLimitSeconds?: number;
-    passingPercentage?: number;
+    timeLimitSeconds?: number | null;
+    passingPercentage?: number | null;
     items: PackageQuizItem[];
 }
 

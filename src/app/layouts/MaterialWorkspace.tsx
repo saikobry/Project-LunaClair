@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion } from 'lucide-react';
+import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
 import { useDocument } from '../../features/reader/hooks/useDocument';
+import { useExportStudyPackage } from '../../features/package/hooks/useExportStudyPackage';
 import { Page } from '../../shared/ui/Page/Page';
 import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -96,6 +97,8 @@ export default function MaterialWorkspace({
     [doc?.content],
   );
 
+  const { exportPackage, isExporting } = useExportStudyPackage();
+
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
   const handleTabChange = useCallback((tab: string) => {
     const materialTab = tab as MaterialTab;
@@ -169,10 +172,22 @@ export default function MaterialWorkspace({
       title={material.title}
       breadcrumb={<Breadcrumbs items={breadcrumbItems} />}
       actions={
-        <AiDrawerToggleButton
-          isOpen={isAiOpen}
-          onToggle={handleToggleAi}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            label="Export as .lcpack"
+            variant="secondary"
+            icon={<Package size={15} />}
+            onClick={() => exportPackage(materialId)}
+            isLoading={isExporting}
+            isDisabled={isExporting}
+          >
+            Export as .lcpack
+          </Button>
+          <AiDrawerToggleButton
+            isOpen={isAiOpen}
+            onToggle={handleToggleAi}
+          />
+        </div>
       }
     >
       <TabList value={activeTab} onChange={handleTabChange} layout="fill" hasDivider aria-label="Material tabs">

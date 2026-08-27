@@ -114,8 +114,8 @@ export function remapStudyPackage(
             questionIds,
             items: remappedItems,
             status: 'published',
-            timeLimitSeconds: quiz.timeLimitSeconds,
-            passingPercentage: quiz.passingPercentage,
+            timeLimitSeconds: quiz.timeLimitSeconds ?? undefined,
+            passingPercentage: quiz.passingPercentage ?? undefined,
             createdAt: now,
             updatedAt: now,
         };

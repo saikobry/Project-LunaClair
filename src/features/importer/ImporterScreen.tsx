@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { importerStyles } from './styles/importer.stylex';
 import { useImportSession } from './hooks/useImportSession';
@@ -7,6 +8,8 @@ import { ExtractionProgressView } from './components/ExtractionProgressView';
 import { ImportReviewView } from './components/ImportReviewView';
 import { MaterialDetailsView } from './components/MaterialDetailsView';
 import { ImportResultView } from './components/ImportResultView';
+import { useImportStudyPackage } from '../package/hooks/useImportStudyPackage';
+import { StudyPackagePreviewModal } from '../package/components/StudyPackagePreviewModal';
 
 export interface ImporterScreenProps {
   onOpenMaterial?: (materialId: string, subjectId?: string) => void;
@@ -28,6 +31,43 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
     resetSession,
     goToStep,
   } = useImportSession();
+
+  const {
+    stagedPackage,
+    isPreviewOpen,
+    isImporting,
+    stagePackageFromFile,
+    closePreview,
+    confirmImport,
+  } = useImportStudyPackage();
+
+  const handleFilesAdded = useCallback(
+    async (files: File[]) => {
+      const packageFiles: File[] = [];
+      const extractionFiles: File[] = [];
+
+      for (const file of files) {
+        if (
+          file.name.endsWith('.lcpack') ||
+          file.name.endsWith('.json') ||
+          file.type === 'application/json'
+        ) {
+          packageFiles.push(file);
+        } else {
+          extractionFiles.push(file);
+        }
+      }
+
+      if (packageFiles.length > 0) {
+        await stagePackageFromFile(packageFiles[0]);
+      }
+
+      if (extractionFiles.length > 0) {
+        addFiles(extractionFiles);
+      }
+    },
+    [addFiles, stagePackageFromFile],
+  );
 
   return (
     <div {...stylex.props(importerStyles.container)}>
@@ -53,7 +93,7 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
       
       {currentStep === 'selecting' && (
         <div {...stylex.props(importerStyles.content)}>
-          <ImportDropZone onFilesAdded={addFiles} />
+          <ImportDropZone onFilesAdded={handleFilesAdded} />
           {session.candidates.length > 0 && (
             <div style={{ marginTop: '24px' }}>
               <div {...stylex.props(importerStyles.fileList)}>
@@ -119,10 +159,17 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
           onOpenMaterial={onOpenMaterial}
         />
       )}
+
+      {/* Staged StudyPackage Preview & Destination Modal */}
+      <StudyPackagePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={closePreview}
+        packageData={stagedPackage}
+        onConfirmImport={confirmImport}
+        isImporting={isImporting}
+      />
     </div>
   );
 }
 
 export default ImporterScreen;
-
-

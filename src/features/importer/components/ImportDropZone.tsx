@@ -13,7 +13,12 @@ export function ImportDropZone({ onFilesAdded }: ImportDropZoneProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files).filter(f => 
-      f.type.startsWith('image/') || f.type === 'application/pdf' || f.name.endsWith('.pdf')
+      f.type.startsWith('image/') ||
+      f.type === 'application/pdf' ||
+      f.name.endsWith('.pdf') ||
+      f.name.endsWith('.lcpack') ||
+      f.name.endsWith('.json') ||
+      f.type === 'application/json'
     );
     if (files.length > 0) {
       onFilesAdded(files);
@@ -48,15 +53,14 @@ export function ImportDropZone({ onFilesAdded }: ImportDropZoneProps) {
       <input
         type="file"
         multiple
-        accept=".pdf,.png,.jpg,.jpeg,.jfif,.heic,.heif,.webp"
+        accept=".pdf,.png,.jpg,.jpeg,.jfif,.heic,.heif,.webp,.lcpack,.json,application/json"
         style={{ display: 'none' }}
         ref={fileInputRef}
         onChange={handleFileInputChange}
       />
       <FileUp size={48} color='#9ca3af' />
       <div {...stylex.props(importerStyles.dropZoneText)}>Drag & drop your study materials here, or click to browse</div>
-      <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP</div>
+      <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages</div>
     </div>
   );
 }
-

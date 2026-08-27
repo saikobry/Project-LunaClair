@@ -215,11 +215,11 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
                 errors.push(`Quiz "${String(quiz.id || idx)}" description must be a string.`);
             }
 
-            if (quiz.timeLimitSeconds !== undefined && (typeof quiz.timeLimitSeconds !== 'number' || quiz.timeLimitSeconds < 0)) {
+            if (quiz.timeLimitSeconds != null && (typeof quiz.timeLimitSeconds !== 'number' || quiz.timeLimitSeconds < 0)) {
                 errors.push(`Quiz "${String(quiz.id || idx)}" timeLimitSeconds must be a non-negative number.`);
             }
 
-            if (quiz.passingPercentage !== undefined && (typeof quiz.passingPercentage !== 'number' || quiz.passingPercentage < 0 || quiz.passingPercentage > 100)) {
+            if (quiz.passingPercentage != null && (typeof quiz.passingPercentage !== 'number' || quiz.passingPercentage < 0 || quiz.passingPercentage > 100)) {
                 errors.push(`Quiz "${String(quiz.id || idx)}" passingPercentage must be a number between 0 and 100.`);
             }
 

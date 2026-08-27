@@ -17,6 +17,7 @@ import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
 import { FlashcardPlayerView } from './components/FlashcardPlayerView';
 import { FlashcardSessionEndView } from './components/FlashcardSessionEndView';
 import { AiFlashcardGeneratorDialog } from '../generator/components/AiFlashcardGeneratorDialog';
+import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
 
 const styles = stylex.create({
     container: {
@@ -56,6 +57,7 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
     const { recordRating } = useFlashcardRating(materialId);
     const { material, isLoading: loadingMaterial } = useMaterial(materialId);
     const { data: doc, isLoading: loadingDoc } = useDocument(material);
+    const { exportPackage, isExporting } = useExportStudyPackage();
 
     const [step, setStep] = useState<FlashcardViewStep>('setup');
     const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
@@ -136,6 +138,8 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     reviews={reviews}
                     onStartSession={handleStartSession}
                     onGenerateAi={() => setAiGeneratorOpen(true)}
+                    onExport={() => exportPackage(materialId)}
+                    isExporting={isExporting}
                 />
             )}
 
