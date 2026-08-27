@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../LunaClairDatabase';
 import { DexieAnalyticsRepository } from './DexieAnalyticsRepository';
 import type { Subject } from '../../../domain/library/Subject';
@@ -119,6 +119,9 @@ describe('DexieAnalyticsRepository Integration', () => {
     };
 
     beforeEach(async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-08-25T12:00:00Z'));
+
         await db.quizSessions.clear();
         await db.flashcardReviews.clear();
         await db.questions.clear();
@@ -132,6 +135,10 @@ describe('DexieAnalyticsRepository Integration', () => {
         await db.quizzes.bulkPut([sampleQuizBio, sampleQuizCS]);
 
         repo = new DexieAnalyticsRepository();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     describe('getGlobalAnalytics()', () => {

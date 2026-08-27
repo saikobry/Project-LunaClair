@@ -6,6 +6,7 @@ export interface HighlightItem {
   end: number;
   color: HighlightColor;
   text: string;
+  deletedAt?: string;
 }
 
 export interface Point {
@@ -19,6 +20,7 @@ export interface DrawingPath {
   thickness: number;
   points: Point[];
   isEraser?: boolean;
+  deletedAt?: string;
 }
 
 export type AnnotationMode = 'select' | 'draw';

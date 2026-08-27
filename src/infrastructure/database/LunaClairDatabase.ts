@@ -11,7 +11,8 @@ import type { QuizDraft } from '../../application/quiz-management/drafts/QuizDra
 import type { ReviewState } from '../../domain/flashcards/scheduler';
 import type { ImportedDocumentContent } from '../../domain/reader';
 import type { AiThread, AiMessageRecord } from '../../domain/ai/ai.types';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10 } from './schema';
+import type { SyncQueueItem, SyncState, ConflictDraft } from '../../domain/sync/sync.types';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -60,6 +61,7 @@ export interface ImportAssetRecord {
  * Version 8: Rekeys documentContents from `sourceId` to `documentId`.
  * Version 9: Adds aiThreads and aiMessages for local-first AI chat persistence.
  * Version 10: Adds importAssets table for raw uploaded files.
+ * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10 Cloud Synchronization.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -79,6 +81,9 @@ export class LunaClairDatabase extends Dexie {
     aiThreads!: Table<AiThread, string>;
     aiMessages!: Table<AiMessageRecord, string>;
     importAssets!: Table<ImportAssetRecord, string>;
+    syncQueue!: Table<SyncQueueItem, string>;
+    syncState!: Table<SyncState, string>;
+    conflictDrafts!: Table<ConflictDraft, string>;
 
     constructor() {
         super(DB_NAME);
@@ -141,6 +146,7 @@ export class LunaClairDatabase extends Dexie {
         });
         this.version(9).stores(SCHEMA_V9);
         this.version(10).stores(SCHEMA_V10);
+        this.version(11).stores(SCHEMA_V11);
     }
 }
 

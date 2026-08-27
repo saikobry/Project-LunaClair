@@ -101,4 +101,16 @@ export const SCHEMA_V10 = {
     importAssets: 'materialId',
 } as const;
 
+/**
+ * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10
+ * Cloud Synchronization (offline mutation queue, sync cursors, and conflict drafts).
+ */
+export const SCHEMA_V11 = {
+    ...SCHEMA_V10,
+    syncQueue: 'id, entityType, entityId, status, clientMutationId, createdAt',
+    syncState: 'key, userId, deviceId, lastServerCursor, lastSyncedAt',
+    conflictDrafts: 'id, documentId, baseVersion, serverVersion, createdAt',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';
+
