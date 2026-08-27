@@ -19,6 +19,8 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
   - `deviceId.ts` → `getOrCreateDeviceId()` (generates or retrieves stable device UUID persisted under `lunaclair.device_id`)
   - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider` (persists credentials under `lunaclair.session_credentials` with default guest identity fallback)
+- `sharing/` — Concrete Cloudflare Worker HTTP share transport adapter:
+  - `WorkerShareTransport.ts` → `ShareTransport` (handles header injection, passcode headers `X-Share-Passcode`, network error mapping to `ShareNetworkError`, and HTTP status mapping to `ShareHttpError`)
 - `importer/` — Concrete content importer adapters and factory:
   - `PdfjsImporter.ts` → `ContentImporter` (PDF extraction via `pdfjs-dist` dynamic import, sequential page memory management, density evaluation for OCR delegation, password exception handling)
   - `TesseractExtractor.ts` → OCR engine (`tesseract.js` dynamic import, lazy worker pool, EXIF canvas rotation, grayscale preprocessing)

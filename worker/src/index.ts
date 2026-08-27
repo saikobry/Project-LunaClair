@@ -41,6 +41,12 @@ import {
   terms,
 } from './schema';
 import { handleSyncPull, handleSyncPush } from './sync';
+import {
+  handleCreateShare,
+  handleDeleteShare,
+  handleGetShare,
+  handleTrackShareDownload,
+} from './shares';
 
 export interface AiBinding {
   run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown>;
@@ -653,6 +659,35 @@ export default {
         return json({ error: "Method not allowed" }, 405, corsHeaders);
       }
       return handleSyncPull(request, env, corsHeaders);
+    }
+
+    // /api/shares — Publish a new StudyPackage share snapshot
+    if (parts[0] === "api" && parts[1] === "shares" && parts.length === 2) {
+      if (request.method === "POST") {
+        return handleCreateShare(request, env, corsHeaders);
+      }
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/shares/:id/download — Track a download
+    if (parts[0] === "api" && parts[1] === "shares" && parts.length === 4 && parts[3] === "download") {
+      const shareId = parts[2];
+      if (request.method === "POST") {
+        return handleTrackShareDownload(env, shareId, corsHeaders);
+      }
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
+    }
+
+    // /api/shares/:id — Retrieve or delete a published share
+    if (parts[0] === "api" && parts[1] === "shares" && parts.length === 3) {
+      const shareId = parts[2];
+      if (request.method === "GET" || request.method === "HEAD") {
+        return handleGetShare(request, env, shareId, url, corsHeaders);
+      }
+      if (request.method === "DELETE") {
+        return handleDeleteShare(request, env, shareId, corsHeaders);
+      }
+      return json({ error: "Method not allowed" }, 405, corsHeaders);
     }
 
     return json({ error: "Not found" }, 404, corsHeaders);

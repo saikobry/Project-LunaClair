@@ -26,6 +26,7 @@ import { dexieSyncStateRepository } from '../../infrastructure/database/sync/Dex
 import { dexieConflictDraftRepository } from '../../infrastructure/database/sync/DexieConflictDraftRepository';
 import { dexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { workerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
+import { workerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
 import { localStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
 import { db } from '../../infrastructure/database/LunaClairDatabase';
 
@@ -67,6 +68,7 @@ export function createRepositories() {
         conflictDraftRepository: dexieConflictDraftRepository,
         dexieSyncReconciler,
         workerSyncTransport,
+        shareTransport: workerShareTransport,
         localStorageCredentialsProvider,
         credentialsProvider: localStorageCredentialsProvider,
     };

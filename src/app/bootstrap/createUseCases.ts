@@ -55,6 +55,10 @@ import {
     CleanupImportWithAiUseCase,
     MaterializeStudyPackageUseCase,
     ImportStudyPackageUseCase,
+    PublishStudyPackageUseCase,
+    FetchPublishedShareUseCase,
+    TrackShareDownloadUseCase,
+    DeletePublishedShareUseCase,
     SyncEngine,
     syncStatusStore,
     GetSyncStatusUseCase,
@@ -182,6 +186,21 @@ export function createUseCases(repositories: Repositories) {
                 repositories.importAssetRepository,
             ),
             importStudyPackage: new ImportStudyPackageUseCase(repositories.db),
+        },
+        sharing: {
+            publishStudyPackage: new PublishStudyPackageUseCase(
+                new MaterializeStudyPackageUseCase(
+                    repositories.libraryRepository,
+                    repositories.documentContentRepository,
+                    repositories.questionRepository,
+                    repositories.quizRepository,
+                    repositories.importAssetRepository,
+                ),
+                repositories.shareTransport,
+            ),
+            fetchPublishedShare: new FetchPublishedShareUseCase(repositories.shareTransport),
+            trackShareDownload: new TrackShareDownloadUseCase(repositories.shareTransport),
+            deletePublishedShare: new DeletePublishedShareUseCase(repositories.shareTransport),
         },
         sync: {
             syncEngine,

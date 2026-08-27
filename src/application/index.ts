@@ -76,6 +76,14 @@ export type { MaterializeStudyPackageInput } from './use-cases/package/Materiali
 export { ImportStudyPackageUseCase } from './use-cases/package/ImportStudyPackageUseCase';
 export type { ImportStudyPackageInput, ImportStudyPackageResult } from './use-cases/package/ImportStudyPackageUseCase';
 
+export { PublishStudyPackageUseCase } from './use-cases/sharing/PublishStudyPackageUseCase';
+export type { PublishStudyPackageInput } from './use-cases/sharing/PublishStudyPackageUseCase';
+export { FetchPublishedShareUseCase } from './use-cases/sharing/FetchPublishedShareUseCase';
+export type { FetchPublishedShareInput } from './use-cases/sharing/FetchPublishedShareUseCase';
+export { TrackShareDownloadUseCase } from './use-cases/sharing/TrackShareDownloadUseCase';
+export { DeletePublishedShareUseCase } from './use-cases/sharing/DeletePublishedShareUseCase';
+export type { DeletePublishedShareInput } from './use-cases/sharing/DeletePublishedShareUseCase';
+
 export { serializePackageToBlob, serializePackageToJson } from '../infrastructure/package/StudyPackageSerializer';
 
 export {
