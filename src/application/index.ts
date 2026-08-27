@@ -70,3 +70,18 @@ export { CommitImportUseCase } from './use-cases/importer/CommitImportUseCase';
 export type { CommitImportInput } from './use-cases/importer/CommitImportUseCase';
 export { CleanupImportWithAiUseCase } from './use-cases/importer/CleanupImportWithAiUseCase';
 export type { AiCleanupResult } from './use-cases/importer/CleanupImportWithAiUseCase';
+
+export {
+  SyncEngine,
+  type SyncEngineDependencies,
+  SyncStatusStore,
+  syncStatusStore,
+  type SyncStatus,
+  defaultSyncRetryPolicy,
+  calculateRetryDelay,
+  createSyncRetryPolicy,
+  DEFAULT_SYNC_RETRY_OPTIONS,
+  type SyncRetryPolicy,
+  type SyncRetryPolicyOptions,
+} from './sync';
+

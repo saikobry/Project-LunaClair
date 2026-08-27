@@ -15,6 +15,8 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 - `ai/` — Concrete AI gateway adapters:
   - `WorkerAiAdapter.ts` → `AiService` (consumes streaming SSE events from Cloudflare Worker AI `/api/ai/chat`)
   - `MockAiAdapter.ts` → `AiService` (deterministic mock token stream for test suites)
+- `sync/` — Concrete Cloudflare Worker HTTP sync transport adapter:
+  - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
 - `importer/` — Concrete content importer adapters and factory:
   - `PdfjsImporter.ts` → `ContentImporter` (PDF extraction via `pdfjs-dist` dynamic import, sequential page memory management, density evaluation for OCR delegation, password exception handling)
   - `TesseractExtractor.ts` → OCR engine (`tesseract.js` dynamic import, lazy worker pool, EXIF canvas rotation, grayscale preprocessing)
@@ -53,7 +55,7 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 ## Local Contracts
 
 - Imports from `domain/` (contract interfaces, model types, annotation value shapes) and `shared/` (storage keys) — never from features. Scoped exception: `DexieQuizDraftRepository` and the `quizEditingDrafts` table typing import the application-layer `QuizDraft` DTO and `QuizDraftRepository` contract (dependency inversion for application-owned persistence contracts).
-- All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`, `dexieSyncQueueRepository`, `apiCatalogRepository`).
+- All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`, `dexieSyncQueueRepository`, `apiCatalogRepository`, `workerSyncTransport`).
 - `runSyncableTransaction` automatically deduplicates and includes `db.syncQueue` in the Dexie transaction table scope, ensuring atomicity across local entity mutations and persistent outbox queue entries.
 - `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
 - `DexieQuizEditorService.saveQuiz()` runs a single `db.transaction('rw', [questions, quizzes])`: applies all question changes (create or update with conditional version bump), resolves canvas `tempId`s to question ids, rewrites the quiz's `questionIds`/`items`, and re-snapshots `questionVersion` per item — the operation is atomic.
@@ -78,4 +80,4 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 
 ## Child DOX Index
 
-No child AGENTS.md files — `api/`, `database/repositories/`, `database/sync/`, and `database/services/` are structured subdirectories under infrastructure.
+No child AGENTS.md files — `api/`, `sync/`, `database/repositories/`, `database/sync/`, and `database/services/` are structured subdirectories under infrastructure.

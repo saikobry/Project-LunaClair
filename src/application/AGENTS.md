@@ -17,11 +17,14 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 - `use-cases/ai/` owns AI prompt/context construction, streamed chat execution with atomic turn persistence (`SendChatMessageUseCase`, `AiContextBuilder`), and thread lifecycle management (`GetOrCreateAiThreadUseCase`, `GetAiThreadMessagesUseCase`, `DeleteAiThreadUseCase`, `ClearChatHistoryUseCase`).
 - `use-cases/generator/` owns AI structured content synthesis workflows (`GenerateQuestionsUseCase`, `BatchCreateQuestionsUseCase`, `GenerateFlashcardsUseCase`, `BatchCreateFlashcardsUseCase`) coordinating `AiService.generateStructured`, section-bounded context extraction, strict domain draft validators, and atomic batch persistence to `QuestionRepository.createQuestionsBatch` with default `status: 'draft'`.
 - `use-cases/importer/` owns content extraction and import orchestration (`ExtractContentUseCase` — resolves format importer, executes extraction, and applies multi-pass Markdown conversion; `CommitImportUseCase` — generates material/document IDs, sets metadata, persists original file blob to `importAssets`, and atomically registers material with `materials` and `documentContents` stores; `CleanupImportWithAiUseCase` — opt-in AI markdown cleanup returning dual-version original/cleaned diff).
+- `sync/` owns cloud synchronization orchestration (`SyncEngine` coordinating the 4-step convergence cycle: pull → push outbox → pull catchup → finalize idle), single-flight mutex (`syncMutex` merging concurrent calls and executing requested follow-up cycles), observable in-memory projection (`SyncStatusStore` with `rehydrateFromStorage` and reactive listeners), and exponential backoff retry policies (`syncRetryPolicy` / `calculateRetryDelay`).
 - `quiz-management/drafts/` owns the quiz canvas Application Session DTOs (`QuizDraft`/`QuestionDraft`), draft validation (`quizDraftValidation`), the `QuizDraftRepository` crash-recovery contract, and draft seeding helpers. Drafts carry UI session concerns (`tempId`, `isDirty`) and are never persisted to the Question Bank or Quiz Catalog.
 
 ## Local Contracts
 
-- Use cases never import React, TanStack Query, Dexie, browser APIs, or UI components.
+- Use cases and application services never import React, TanStack Query, Dexie, browser APIs, or UI components.
+- `SyncEngine` encapsulates the 4-step sync convergence protocol (pull -> push batches -> pull -> finalize idle), enforces a single-flight mutex with follow-up cycle execution, handles offline detection gracefully, and updates `SyncStatusStore`.
+
 - Dependencies are domain repository/service contracts, domain models/services, and application input/output types.
 - Import must never require the full catalog snapshot in memory — `ImportMaterialUseCase` resolves via `CatalogRepository.getMaterial`. (The snapshot read in `SyncDefaultTermsUseCase` is onboarding-scoped default-term sync, not import.)
 - Default-term sync is insert-if-missing by id, idempotent, and never overwrites local term edits; fetch failures return `{ synced: false }` (terms still arrive later via import) while persistence failures surface as real errors.

@@ -3,6 +3,9 @@ import {
   getSyncModelForEntity,
   createSyncStateKey,
   isValidSyncIdentity,
+  SyncNetworkError,
+  SyncHttpError,
+  SyncProtocolError,
   SyncConflictError,
   OptimisticConcurrencyError,
   InvalidSyncPayloadError,
@@ -60,6 +63,51 @@ describe('Sync Domain Primitives & Models', () => {
   });
 
   describe('Sync Domain Errors', () => {
+    it('instantiates SyncNetworkError with retryable flag and cause', () => {
+      const cause = new TypeError('Failed to fetch');
+      const err = new SyncNetworkError('Network unreachable', cause);
+      expect(err).toBeInstanceOf(Error);
+      expect(err).toBeInstanceOf(SyncNetworkError);
+      expect(err.name).toBe('SyncNetworkError');
+      expect(err.message).toBe('Network unreachable');
+      expect(err.isRetryable).toBe(true);
+      expect(err.cause).toBe(cause);
+    });
+
+    it('instantiates SyncHttpError with status-dependent retryable classification', () => {
+      const err400 = new SyncHttpError(400, { error: 'Bad request' });
+      expect(err400).toBeInstanceOf(Error);
+      expect(err400).toBeInstanceOf(SyncHttpError);
+      expect(err400.name).toBe('SyncHttpError');
+      expect(err400.status).toBe(400);
+      expect(err400.isRetryable).toBe(false);
+      expect(err400.responseBody).toEqual({ error: 'Bad request' });
+
+      const err429 = new SyncHttpError(429, 'Rate limited');
+      expect(err429.status).toBe(429);
+      expect(err429.isRetryable).toBe(true);
+
+      const err500 = new SyncHttpError(500, { error: 'Server error' });
+      expect(err500.status).toBe(500);
+      expect(err500.isRetryable).toBe(true);
+
+      const err503 = new SyncHttpError(503, 'Unavailable', 'Service down for maintenance');
+      expect(err503.status).toBe(503);
+      expect(err503.isRetryable).toBe(true);
+      expect(err503.message).toBe('Service down for maintenance');
+    });
+
+    it('instantiates SyncProtocolError as non-retryable with details', () => {
+      const details = { field: 'serverCursor', expected: 'number' };
+      const err = new SyncProtocolError('Schema validation failure', details);
+      expect(err).toBeInstanceOf(Error);
+      expect(err).toBeInstanceOf(SyncProtocolError);
+      expect(err.name).toBe('SyncProtocolError');
+      expect(err.message).toBe('Schema validation failure');
+      expect(err.isRetryable).toBe(false);
+      expect(err.details).toBe(details);
+    });
+
     it('instantiates SyncConflictError with properties and correct prototype', () => {
       const draft: ConflictDraft = {
         id: 'draft-1',
@@ -79,6 +127,7 @@ describe('Sync Domain Primitives & Models', () => {
       expect(error.entityId).toBe('doc-1');
       expect(error.entityType).toBe('document');
       expect(error.draft).toBe(draft);
+      expect(error.isRetryable).toBe(false);
     });
 
     it('instantiates OptimisticConcurrencyError with default or custom message', () => {
@@ -89,6 +138,7 @@ describe('Sync Domain Primitives & Models', () => {
       expect(defaultErr.baseVersion).toBe(1);
       expect(defaultErr.serverVersion).toBe(3);
       expect(defaultErr.message).toContain('base version 1 does not match server version 3');
+      expect(defaultErr.isRetryable).toBe(false);
 
       const customErr = new OptimisticConcurrencyError('doc-1', 1, 3, 'Custom concurrency failure');
       expect(customErr.message).toBe('Custom concurrency failure');
@@ -100,6 +150,7 @@ describe('Sync Domain Primitives & Models', () => {
       expect(err.name).toBe('InvalidSyncPayloadError');
       expect(err.entityType).toBe('highlight');
       expect(err.reason).toBe('missing_field');
+      expect(err.isRetryable).toBe(false);
     });
 
     it('instantiates InvalidSyncCursorError with cursor info', () => {
@@ -107,6 +158,7 @@ describe('Sync Domain Primitives & Models', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe('InvalidSyncCursorError');
       expect(err.cursor).toBe(-5);
+      expect(err.isRetryable).toBe(false);
     });
 
     it('instantiates OutboxTransactionError with cause', () => {
@@ -115,6 +167,7 @@ describe('Sync Domain Primitives & Models', () => {
       expect(err).toBeInstanceOf(Error);
       expect(err.name).toBe('OutboxTransactionError');
       expect(err.cause).toBe(cause);
+      expect(err.isRetryable).toBe(false);
     });
   });
 

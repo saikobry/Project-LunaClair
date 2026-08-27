@@ -43,6 +43,10 @@ export {
 
 // Domain Errors
 export {
+  SyncError,
+  SyncNetworkError,
+  SyncHttpError,
+  SyncProtocolError,
   SyncConflictError,
   OptimisticConcurrencyError,
   InvalidSyncPayloadError,
@@ -50,7 +54,40 @@ export {
   OutboxTransactionError,
 } from './sync.errors';
 
+// Pure Domain Reconcilers
+export {
+  reconcileDocument,
+  type LocalDocumentState,
+  type DocumentReconcileResult,
+  reconcileTimestampLww,
+  type LwwTimestampEntity,
+  type LwwReconcileResult,
+  reconcileFlashcardReview,
+  type FlashcardReconcileResult,
+  reconcileQuizSession,
+  type QuizSessionReconcileResult,
+} from './reconcilers';
+
+// Transport Port & DTOs
+export type {
+  SyncTransport,
+  SyncPushRequest,
+  SyncPushResponse,
+  SyncPullResponse,
+} from './SyncTransport';
+
+// Retry Policies & Exponential Backoff
+export {
+  type SyncRetryPolicyOptions,
+  type SyncRetryPolicy,
+  DEFAULT_SYNC_RETRY_OPTIONS,
+  calculateRetryDelay,
+  createSyncRetryPolicy,
+} from './SyncRetryPolicy';
+
 // Repository Contracts
 export type { SyncQueueRepository } from './repositories/SyncQueueRepository';
 export type { SyncStateRepository } from './repositories/SyncStateRepository';
 export type { ConflictDraftRepository } from './repositories/ConflictDraftRepository';
+
+

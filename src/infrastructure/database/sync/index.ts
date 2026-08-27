@@ -20,3 +20,12 @@ export {
     DexieConflictDraftRepository,
     dexieConflictDraftRepository,
 } from './DexieConflictDraftRepository';
+
+// Dexie Transactional Sync Reconciler
+export {
+    DexieSyncReconciler,
+    dexieSyncReconciler,
+    type ReconcilePullResult,
+    type ApplyPushResult,
+} from './DexieSyncReconciler';
+

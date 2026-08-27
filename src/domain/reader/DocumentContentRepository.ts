@@ -10,6 +10,7 @@ export interface ImportedDocumentContent {
   title: string;
   content: string;
   updatedAt: string;
+  version?: number;
 }
 
 export interface DocumentContentRepository {
