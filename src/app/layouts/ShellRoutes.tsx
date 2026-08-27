@@ -12,6 +12,7 @@ import { TermManagerScreen } from '../../features/catalog/terms/components/TermM
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
 import { QuizCanvasBuilder } from '../../features/quiz-management/canvas/QuizCanvasBuilder';
 import AnalyticsScreen from '../../features/analytics/AnalyticsScreen';
+import { SharedPackageScreen } from '../../features/package/components/SharedPackageScreen';
 import type { AppRoute } from './routing';
 import MaterialWorkspace from './MaterialWorkspace';
 
@@ -140,6 +141,13 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             onCancel={() => navigate({ kind: 'library' })}
           />
         </Suspense>
+      )}
+      {currentRoute.kind === 'share' && (
+        <SharedPackageScreen
+          shareId={currentRoute.shareId}
+          onOpenMaterial={handleOpenMaterial}
+          onCancel={() => navigate({ kind: 'library' })}
+        />
       )}
       {currentRoute.kind === 'subject' && (
         <SubjectWorkspace

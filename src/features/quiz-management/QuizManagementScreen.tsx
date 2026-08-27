@@ -1,12 +1,13 @@
 import { useState, useContext } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Library, ListChecks, Package } from 'lucide-react';
+import { Library, ListChecks, Package, Share2 } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { AppRoute } from '../../app/layouts/AppShell';
 import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
 import { useDocument } from '../reader/hooks/useDocument';
 import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
+import { ShareStudyPackageModal } from '../package/components/ShareStudyPackageModal';
 import { Button } from '../../shared/ui/Button/Button';
 import { TabList, Tab } from '../../shared/ui/TabList/TabList';
 import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
@@ -81,6 +82,7 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
     const questionMgmt = useQuestionManagement();
     const quizBuilder = useQuizBuilder();
     const { exportPackage, isExporting } = useExportStudyPackage();
+    const [isShareOpen, setIsShareOpen] = useState(false);
 
     if (materialLoading || questionsLoading || quizzesLoading || docLoading) {
         return (
@@ -98,7 +100,15 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
                         ))}
                     </TabList>
                 </div>
-                <div {...stylex.props(styles.exportButton)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <Button
+                        label="Share"
+                        variant="secondary"
+                        icon={<Share2 size={15} />}
+                        onClick={() => setIsShareOpen(true)}
+                    >
+                        Share
+                    </Button>
                     <Button
                         label="Export as .lcpack"
                         variant="secondary"
@@ -142,6 +152,13 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
                     />
                 )}
             </AnimatedTabPanel>
+
+            <ShareStudyPackageModal
+                isOpen={isShareOpen}
+                onClose={() => setIsShareOpen(false)}
+                materialId={materialId}
+                materialTitle={material?.title ?? 'Quiz Management'}
+            />
         </>
     );
 }

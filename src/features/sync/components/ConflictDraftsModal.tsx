@@ -300,12 +300,15 @@ export function ConflictDraftsModal({
 
   const activeDraft: ConflictDraft | undefined = drafts[currentIndex];
 
+  const activeDraftId = activeDraft?.id;
+  const initialMergedContent = activeDraft?.localContent || activeDraft?.serverContent || '';
+
   useEffect(() => {
-    if (activeDraft) {
-      setMergedText(activeDraft.localContent || activeDraft.serverContent || '');
+    if (activeDraftId) {
+      setMergedText(initialMergedContent);
       setIsMerging(false);
     }
-  }, [activeDraft]);
+  }, [activeDraftId, initialMergedContent]);
 
   // Adjust index if out of bounds after a resolution
   useEffect(() => {

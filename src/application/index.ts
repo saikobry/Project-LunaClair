@@ -81,6 +81,7 @@ export type { PublishStudyPackageInput } from './use-cases/sharing/PublishStudyP
 export { FetchPublishedShareUseCase } from './use-cases/sharing/FetchPublishedShareUseCase';
 export type { FetchPublishedShareInput } from './use-cases/sharing/FetchPublishedShareUseCase';
 export { TrackShareDownloadUseCase } from './use-cases/sharing/TrackShareDownloadUseCase';
+export type { TrackShareDownloadInput } from './use-cases/sharing/TrackShareDownloadUseCase';
 export { DeletePublishedShareUseCase } from './use-cases/sharing/DeletePublishedShareUseCase';
 export type { DeletePublishedShareInput } from './use-cases/sharing/DeletePublishedShareUseCase';
 

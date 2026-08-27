@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { Layers, Play, Clock, Sparkles, Filter, Package } from 'lucide-react';
+import { Layers, Play, Clock, Sparkles, Filter, Package, Share2 } from 'lucide-react';
 import type { Quiz } from '../../../domain/quiz/Quiz';
 import type { Question } from '../../../domain/quiz/Question';
 import type { ReviewState } from '../../../domain/flashcards/scheduler';
@@ -156,6 +156,7 @@ interface FlashcardDeckSetupViewProps {
     onGenerateAi?: () => void;
     onExport?: () => void;
     isExporting?: boolean;
+    onShare?: () => void;
 }
 
 export function FlashcardDeckSetupView({
@@ -166,6 +167,7 @@ export function FlashcardDeckSetupView({
     onGenerateAi,
     onExport,
     isExporting,
+    onShare,
 }: FlashcardDeckSetupViewProps) {
     const now = new Date();
 
@@ -218,6 +220,16 @@ export function FlashcardDeckSetupView({
                                 onClick={onGenerateAi}
                             >
                                 Generate Flashcards with AI
+                            </Button>
+                        )}
+                        {onShare && (
+                            <Button
+                                label="Share"
+                                variant="secondary"
+                                icon={<Share2 size={16} />}
+                                onClick={onShare}
+                            >
+                                Share
                             </Button>
                         )}
                         {onExport && (
@@ -340,6 +352,16 @@ export function FlashcardDeckSetupView({
                             onClick={onGenerateAi}
                         >
                             Generate with AI
+                        </Button>
+                    )}
+                    {onShare && (
+                        <Button
+                            label="Share"
+                            variant="secondary"
+                            icon={<Share2 size={16} />}
+                            onClick={onShare}
+                        >
+                            Share
                         </Button>
                     )}
                     {onExport && (

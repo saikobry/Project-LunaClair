@@ -3,6 +3,10 @@
  */
 import type { ShareTransport } from '../../../domain/sharing/sharing.types';
 
+export interface TrackShareDownloadInput {
+  shareId: string;
+}
+
 export class TrackShareDownloadUseCase {
   private readonly shareTransport: ShareTransport;
 
@@ -10,7 +14,9 @@ export class TrackShareDownloadUseCase {
     this.shareTransport = shareTransport;
   }
 
-  async execute(shareId: string, signal?: AbortSignal): Promise<{ success: boolean; downloadCount: number }> {
+  async execute(input: string | TrackShareDownloadInput, signal?: AbortSignal): Promise<{ success: boolean; downloadCount: number }> {
+    const shareId = typeof input === 'string' ? input : input.shareId;
     return this.shareTransport.trackDownload(shareId, signal);
   }
 }
+

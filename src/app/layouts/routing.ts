@@ -15,7 +15,8 @@ export type AppRoute =
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
-  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute };
+  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute }
+  | { kind: 'share'; shareId: string };
 
 /**
  * Serialize an AppRoute to a URL path string.
@@ -34,6 +35,8 @@ export function routeToUrl(route: AppRoute): string {
       return `/available/${route.materialId}/preview`;
     case 'terms':
       return '/terms';
+    case 'share':
+      return `/share/${route.shareId}`;
     case 'subject':
       return `/subjects/${route.subjectId}?tab=${route.activeTab}`;
     case 'workspace':
@@ -51,6 +54,17 @@ export function routeToUrl(route: AppRoute): string {
  */
 export function urlToRoute(path: string, search: string): AppRoute | null {
   const url = new URL(path + search, window.location.origin);
+
+  // /share/:shareId or /s/:code — shared study package landing
+  const shareMatch = url.pathname.match(/^\/share\/([^/]+)$/);
+  if (shareMatch) {
+    return { kind: 'share', shareId: shareMatch[1] };
+  }
+
+  const shortShareMatch = url.pathname.match(/^\/s\/([^/]+)$/);
+  if (shortShareMatch) {
+    return { kind: 'share', shareId: shortShareMatch[1] };
+  }
 
   // /available/:materialId/preview — read-only preview of a not-yet-imported material
   const previewMatch = url.pathname.match(/^\/available\/([^/]+)\/preview$/);

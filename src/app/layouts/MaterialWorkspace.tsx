@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package } from 'lucide-react';
+import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
 import type { AppRoute } from './AppShell';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
 import { useDocument } from '../../features/reader/hooks/useDocument';
 import { useExportStudyPackage } from '../../features/package/hooks/useExportStudyPackage';
+import { ShareStudyPackageModal } from '../../features/package/components/ShareStudyPackageModal';
 import { Page } from '../../shared/ui/Page/Page';
 import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -98,6 +99,7 @@ export default function MaterialWorkspace({
   );
 
   const { exportPackage, isExporting } = useExportStudyPackage();
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
   const handleTabChange = useCallback((tab: string) => {
@@ -174,6 +176,14 @@ export default function MaterialWorkspace({
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
+            label="Share"
+            variant="secondary"
+            icon={<Share2 size={15} />}
+            onClick={() => setIsShareOpen(true)}
+          >
+            Share
+          </Button>
+          <Button
             label="Export as .lcpack"
             variant="secondary"
             icon={<Package size={15} />}
@@ -238,6 +248,13 @@ export default function MaterialWorkspace({
         documentContext={doc?.content}
         selectionContext={selectionContext}
         onClearSelectionContext={() => setSelectionContext(null)}
+      />
+
+      <ShareStudyPackageModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        materialId={materialId}
+        materialTitle={material.title}
       />
     </Page>
   );
