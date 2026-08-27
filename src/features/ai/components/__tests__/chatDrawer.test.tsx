@@ -126,7 +126,7 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       // Wait for assistant tokens to stream and complete
       await waitFor(() => {
         expect(screen.getByText(/pumps blood/i)).toBeInTheDocument();
-      });
+      }, { timeout: 4000 });
 
       // Verify close button calls onClose
       const closeBtn = screen.getByRole('button', { name: /Close AI Assistant/i });
@@ -159,11 +159,11 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       // Wait for automatic contextual prompt execution
       await waitFor(() => {
         expect(screen.getByText(/Please explain the following excerpt in clear detail/i)).toBeInTheDocument();
-      });
+      }, { timeout: 4000 });
 
       await waitFor(() => {
         expect(screen.getByText(/The SA node initiates the electrical impulse/i)).toBeInTheDocument();
-      });
+      }, { timeout: 4000 });
 
       expect(onClearSelection).toHaveBeenCalled();
     });

@@ -728,4 +728,215 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       expect(res2.status).toBe(405);
     });
   });
+
+  describe('Worker Auth Gate & Identity Resolution', () => {
+    const createJwt = (payloadObj: Record<string, unknown>): string => {
+      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+      const payload = btoa(JSON.stringify(payloadObj));
+      return `${header}.${payload}.mockSignature`;
+    };
+
+    it('derives userId from JWT "sub" claim in Authorization Bearer header', async () => {
+      const jwtToken = createJwt({ sub: 'user-from-jwt-sub' });
+      const req = new Request('https://api.project-lunaclair.workers.dev/api/sync/push', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${jwtToken}`,
+        },
+        body: JSON.stringify({
+          deviceId: 'device-auth-1',
+          mutations: [
+            {
+              clientMutationId: 'mut-auth-sub',
+              entityType: 'highlight',
+              entityId: 'hl-auth-1',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-08-27T17:00:00.000Z',
+              payload: { text: 'Authenticated via JWT sub' },
+            },
+          ],
+        }),
+      });
+
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(200);
+
+      // Verify that pull with the same JWT receives the data
+      const pullReq = new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${jwtToken}`,
+        },
+      });
+      const pullRes = await worker.fetch(pullReq, env);
+      const pullBody = (await pullRes.json()) as SyncPullResponse;
+      expect(pullBody.changes).toHaveLength(1);
+      expect(pullBody.changes[0].entityId).toBe('hl-auth-1');
+
+      // Verify that another user does NOT see this data
+      const otherPullReq = new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${createJwt({ sub: 'other-user' })}`,
+        },
+      });
+      const otherPullRes = await worker.fetch(otherPullReq, env);
+      const otherPullBody = (await otherPullRes.json()) as SyncPullResponse;
+      expect(otherPullBody.changes).toHaveLength(0);
+    });
+
+    it('derives userId from JWT "userId" claim in Authorization Bearer header', async () => {
+      const jwtToken = createJwt({ userId: 'user-from-jwt-userId-claim' });
+      const req = new Request('https://api.project-lunaclair.workers.dev/api/sync/push', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${jwtToken}`,
+        },
+        body: JSON.stringify({
+          deviceId: 'device-auth-2',
+          mutations: [
+            {
+              clientMutationId: 'mut-auth-userid',
+              entityType: 'highlight',
+              entityId: 'hl-auth-2',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-08-27T17:00:00.000Z',
+              payload: { text: 'Authenticated via JWT userId' },
+            },
+          ],
+        }),
+      });
+
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(200);
+
+      const pullReq = new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${jwtToken}`,
+        },
+      });
+      const pullRes = await worker.fetch(pullReq, env);
+      const pullBody = (await pullRes.json()) as SyncPullResponse;
+      expect(pullBody.changes).toHaveLength(1);
+      expect(pullBody.changes[0].entityId).toBe('hl-auth-2');
+    });
+
+    it('derives userId from raw Bearer token string when not a JWT', async () => {
+      const req = new Request('https://api.project-lunaclair.workers.dev/api/sync/push', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer raw-session-token-xyz',
+        },
+        body: JSON.stringify({
+          deviceId: 'device-auth-3',
+          mutations: [
+            {
+              clientMutationId: 'mut-auth-raw',
+              entityType: 'highlight',
+              entityId: 'hl-auth-3',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-08-27T17:00:00.000Z',
+              payload: { text: 'Authenticated via raw bearer token' },
+            },
+          ],
+        }),
+      });
+
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(200);
+
+      const pullReq = new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+        method: 'GET',
+        headers: {
+          authorization: 'Bearer raw-session-token-xyz',
+        },
+      });
+      const pullRes = await worker.fetch(pullReq, env);
+      const pullBody = (await pullRes.json()) as SyncPullResponse;
+      expect(pullBody.changes).toHaveLength(1);
+      expect(pullBody.changes[0].entityId).toBe('hl-auth-3');
+    });
+
+    it('enforces Authorization Bearer precedence over x-user-id header', async () => {
+      const jwtToken = createJwt({ sub: 'authoritative-user' });
+      const req = new Request('https://api.project-lunaclair.workers.dev/api/sync/push', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${jwtToken}`,
+          'x-user-id': 'spoofed-user-id',
+        },
+        body: JSON.stringify({
+          deviceId: 'device-precedence',
+          mutations: [
+            {
+              clientMutationId: 'mut-precedence',
+              entityType: 'highlight',
+              entityId: 'hl-prec-1',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-08-27T17:00:00.000Z',
+              payload: { text: 'Precedence test' },
+            },
+          ],
+        }),
+      });
+
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(200);
+
+      // Data is under 'authoritative-user', NOT 'spoofed-user-id'
+      const authPull = await worker.fetch(
+        new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+          headers: { authorization: `Bearer ${jwtToken}` },
+        }),
+        env,
+      );
+      expect(((await authPull.json()) as SyncPullResponse).changes).toHaveLength(1);
+
+      const spoofedPull = await worker.fetch(
+        new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+          headers: { 'x-user-id': 'spoofed-user-id' },
+        }),
+        env,
+      );
+      expect(((await spoofedPull.json()) as SyncPullResponse).changes).toHaveLength(0);
+    });
+
+    it('falls back to "user_default" when neither Authorization nor x-user-id header is provided', async () => {
+      const req = new Request('https://api.project-lunaclair.workers.dev/api/sync/push', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          deviceId: 'device-default',
+          mutations: [
+            {
+              clientMutationId: 'mut-default',
+              entityType: 'highlight',
+              entityId: 'hl-def-1',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-08-27T17:00:00.000Z',
+              payload: { text: 'Default user' },
+            },
+          ],
+        }),
+      });
+
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(200);
+
+      const pullReq = new Request('https://api.project-lunaclair.workers.dev/api/sync/pull?cursor=0', {
+        method: 'GET',
+      });
+      const pullRes = await worker.fetch(pullReq, env);
+      const pullBody = (await pullRes.json()) as SyncPullResponse;
+      expect(pullBody.changes).toHaveLength(1);
+      expect(pullBody.changes[0].entityId).toBe('hl-def-1');
+    });
+  });
 });

@@ -14,6 +14,10 @@ export const STORAGE_KEYS = {
     installDismissed: 'lunaclair.settings.install_prompt_dismissed',
     onboardingDone: 'lunaclair.settings.onboarding_done',
   },
+  sync: {
+    deviceId: 'lunaclair.device_id',
+    sessionCredentials: 'lunaclair.session_credentials',
+  },
   session: {
     visitMarked: 'lunaclair.session.visit_marked',
   },

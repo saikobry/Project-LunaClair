@@ -25,6 +25,14 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
         return draft ?? null;
     }
 
+    async getAll(): Promise<ConflictDraft[]> {
+        return await this.db.conflictDrafts.toArray();
+    }
+
+    async count(): Promise<number> {
+        return await this.db.conflictDrafts.count();
+    }
+
     async removeConflictDraft(id: string): Promise<void> {
         await this.db.conflictDrafts.delete(id);
     }

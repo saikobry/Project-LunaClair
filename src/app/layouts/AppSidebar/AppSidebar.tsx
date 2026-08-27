@@ -5,6 +5,7 @@ import { Home, BookText, GraduationCap, Tag, Focus, Download, LibraryBig, Trendi
 import type { AppRoute } from '../AppShell';
 import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
+import { SyncStatusPill } from '../../../features/sync/components/SyncStatusPill';
 import { isIOS, isStandalone } from '../installDetection';
 import logoSvg from '../../../assets/logo.svg';
 
@@ -197,6 +198,29 @@ const styles = stylex.create({
     opacity: 0,
     backgroundColor: 'var(--color-accent-muted)',
     borderRadius: 12,
+  },
+  footerWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    width: '100%',
+    [mobile]: {
+      display: 'none',
+    },
+  },
+  syncContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    width: '100%',
+    paddingLeft: 4,
+    paddingRight: 4,
+    boxSizing: 'border-box',
+    [tablet]: {
+      justifyContent: 'center',
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
   },
   // Unified bottom-left brand card: logo, version, and Focus Mode toggle
   footer: {
@@ -656,34 +680,39 @@ interface SidebarFooterProps {
 
 function SidebarFooter({ onToggleFocusMode }: SidebarFooterProps) {
   return (
-    <button
-      type="button"
-      {...stylex.props(styles.footer)}
-      onClick={onToggleFocusMode}
-      aria-label="Enter Focus Mode"
-      title="Enter Focus Mode (Cmd/Ctrl+B)"
-    >
-      <div {...stylex.props(styles.footerDesktop)}>
-        <div {...stylex.props(styles.footerRow1)}>
-          <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
-          <span {...stylex.props(styles.footerTitle)}>Project LunaClair</span>
-          <span
-            {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
-          >
-            v0.2.0
-          </span>
+    <div {...stylex.props(styles.footerWrapper)}>
+      <div {...stylex.props(styles.syncContainer)}>
+        <SyncStatusPill />
+      </div>
+      <button
+        type="button"
+        {...stylex.props(styles.footer)}
+        onClick={onToggleFocusMode}
+        aria-label="Enter Focus Mode"
+        title="Enter Focus Mode (Cmd/Ctrl+B)"
+      >
+        <div {...stylex.props(styles.footerDesktop)}>
+          <div {...stylex.props(styles.footerRow1)}>
+            <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
+            <span {...stylex.props(styles.footerTitle)}>Project LunaClair</span>
+            <span
+              {...stylex.props(styles.versionBadge, styles.footerRow1Badge)}
+            >
+              v0.2.0
+            </span>
+          </div>
+          <div {...stylex.props(styles.footerRow2)}>
+            <span {...stylex.props(styles.footerFocusLabel)}>Focus Mode (Cmd+B)</span>
+            <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
+          </div>
         </div>
-        <div {...stylex.props(styles.footerRow2)}>
-          <span {...stylex.props(styles.footerFocusLabel)}>Focus Mode (Cmd+B)</span>
+        <div {...stylex.props(styles.footerTablet)}>
+          <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
+          <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
           <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
         </div>
-      </div>
-      <div {...stylex.props(styles.footerTablet)}>
-        <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.footerLogo)} />
-        <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
-        <Focus size={14} {...stylex.props(styles.footerFocusIcon)} aria-hidden="true" />
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 

@@ -80,9 +80,20 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
 
 ---
 
+- ✅ **Phase 10 — Cloud Synchronization**
+  - **10A (Domain Primitives & Types):** Pure sync domain types (`SyncEntityType`, `SyncOperation`, `EntityVersion`, `SyncCursor`, `SessionCredentials`, `SyncMutation`, `SyncQueueItem`, `SyncState`, `ConflictDraft`), typed `SyncPayloadMap`, domain comparators (`evaluateDocumentConcurrency`, `compareLwwTimestamps`, `compareFlashcardReviews`), soft-delete tombstones (`deletedAt`), and domain repository ports.
+  - **10B (Dexie Schema v11 & Transactional Outbox):** Additive Dexie v11 schema (`syncQueue`, `syncState`, `conflictDrafts`), table typings in `LunaClairDatabase`, `runSyncableTransaction` helper for atomic entity write + outbox record creation, and Dexie repository implementations (`DexieSyncQueueRepository`, `DexieSyncStateRepository`, `DexieConflictDraftRepository`).
+  - **10C (D1 Cloud Replica & Schema):** 4-table hybrid replication schema in `worker/src/schema.ts` (`user_documents` versioned, `user_entities` opaque JSON LWW/append, `sync_changes` global sequence journal, `sync_idempotency` dedup ledger) and versioned D1 migration (`20260827080605_furry_molly_hayes`).
+  - **10D (Worker Sync Protocol):** `POST /api/sync/push` with single SQL atomic CAS versioning for documents, LWW recency check, append-only ingestion for quiz sessions, exact-once idempotency ledger, and `GET /api/sync/pull` with global sequence delta querying and batch entity hydration.
+  - **10E (Client Sync Engine & Transport):** `SyncTransport` port, `WorkerSyncTransport` adapter with runtime validation and typed error hierarchy (`SyncNetworkError`, `SyncHttpError`, `SyncProtocolError`), exponential backoff retry policy, and framework-agnostic single-flight `SyncEngine` orchestrating the 4-step convergence cycle (`pullUntilCaughtUp` → `reconcile` → `pushPendingBatches` → `pullUntilCaughtUp`).
+  - **10F (Client Reconcilers & Conflict Handlers):** Specialized domain reconcilers (`DocumentReconciler`, `TimestampLwwReconciler`, `FlashcardReviewReconciler`, `QuizSessionReconciler`) and atomic multi-table `DexieSyncReconciler` (`reconcilePullBatch` & `applyPushResult`).
+  - **10G (Session & Identity Plumbing):** Authoritative Bearer token user identity derivation on Worker, `SessionCredentialsProvider` port, `LocalStorageCredentialsProvider` with stable device ID management (`getOrCreateDeviceId`), and application sync use cases (`ResolveConflictDraftUseCase`, `TriggerSyncUseCase`, `GetSyncStatusUseCase`, `GetConflictDraftsUseCase`).
+  - **10H (Sync UX & Presentation):** Reactive `useSyncStatus` and `useConflictDrafts` hooks, accessible `SyncStatusPill` with visual indicators in `AppSidebar`, and interactive `ConflictDraftsModal` for student conflict review and resolution (`keep_server`, `keep_local`, `merge`).
+
+---
+
 ## Planned Phases
 
-- 🔒 **Phase 10 — Cloud Synchronization**
-  - Cloud database adapter, offline-first sync pipelines, multi-device state synchronization.
 - 🔒 **Phase 11 — Collaboration & Sharing**
   - Shared question decks, peer study sessions, exported quiz bundles.
+

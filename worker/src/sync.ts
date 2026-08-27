@@ -97,15 +97,11 @@ const json = (
   });
 
 /**
- * Extracts userId from x-user-id header or Authorization Bearer token.
+ * Extracts userId from Authorization Bearer token (authoritative) or x-user-id header.
+ * Derives userId from valid JWT claims (`sub` or `userId`) or token payload.
  * Defaults to 'user_default'.
  */
 export function resolveUserId(request: Request): string {
-  const customHeaderUser = request.headers.get('x-user-id');
-  if (customHeaderUser && customHeaderUser.trim().length > 0) {
-    return customHeaderUser.trim();
-  }
-
   const authHeader = request.headers.get('authorization');
   if (authHeader) {
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
@@ -132,6 +128,11 @@ export function resolveUserId(request: Request): string {
         return token;
       }
     }
+  }
+
+  const customHeaderUser = request.headers.get('x-user-id');
+  if (customHeaderUser && customHeaderUser.trim().length > 0) {
+    return customHeaderUser.trim();
   }
 
   return 'user_default';

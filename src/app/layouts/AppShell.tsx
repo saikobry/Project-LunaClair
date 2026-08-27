@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { FocusModeProvider } from '../providers/FocusModeContext';
+import { ApplicationContext } from '../providers/ApplicationContext';
 import logoSvg from '../../assets/logo.svg';
 import type { AppRoute } from './routing';
 import { AppSidebar } from './AppSidebar/AppSidebar';
@@ -194,8 +195,28 @@ const styles = stylex.create({
  * `useShellFocusMode`, and per-route screens in `ShellRoutes`.
  */
 export default function AppShell() {
+  const appContext = useContext(ApplicationContext);
   const { currentRoute, navigate } = useAppRoute();
   const { isFocusMode, toggleFocusMode } = useShellFocusMode();
+
+  // Initialize background cloud auto-synchronization on application mount
+  useEffect(() => {
+    const syncEngine = appContext?.useCases?.sync?.syncEngine ?? appContext?.useCases?.syncEngine;
+    const credsProvider = appContext?.credentialsProvider ?? appContext?.localStorageCredentialsProvider;
+    if (syncEngine && credsProvider) {
+      let cleanup: (() => void) | undefined;
+      void credsProvider.getCredentials().then((credentials) => {
+        if (credentials) {
+          cleanup = syncEngine.startAutoSync(credentials);
+        }
+      });
+      return () => {
+        if (cleanup) {
+          cleanup();
+        }
+      };
+    }
+  }, [appContext]);
 
   // PWA install surfaces. The sidebar entry and iOS card only exist in
   // production builds (dev has no SW/manifest, so install is meaningless).

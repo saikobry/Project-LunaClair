@@ -17,6 +17,16 @@ export interface ConflictDraftRepository {
   getById(id: string): Promise<ConflictDraft | null>;
 
   /**
+   * Retrieves all conflict drafts across all documents.
+   */
+  getAll(): Promise<ConflictDraft[]>;
+
+  /**
+   * Returns the count of all unresolved conflict drafts.
+   */
+  count(): Promise<number>;
+
+  /**
    * Deletes a resolved or discarded conflict draft.
    */
   removeConflictDraft(id: string): Promise<void>;

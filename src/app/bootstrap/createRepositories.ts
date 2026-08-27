@@ -18,9 +18,17 @@ import { dexieAiChatRepository } from '../../infrastructure/database/repositorie
 import { WorkerAiAdapter } from '../../infrastructure/ai/WorkerAiAdapter';
 import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
+import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
 import { dexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/createExtractors';
-import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
+import { dexieSyncQueueRepository } from '../../infrastructure/database/sync/DexieSyncQueueRepository';
+import { dexieSyncStateRepository } from '../../infrastructure/database/sync/DexieSyncStateRepository';
+import { dexieConflictDraftRepository } from '../../infrastructure/database/sync/DexieConflictDraftRepository';
+import { dexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
+import { workerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
+import { localStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
+import { db } from '../../infrastructure/database/LunaClairDatabase';
+
 export function createRepositories() {
     // Reader resolves imported content from Dexie first, API second.
     const documentRepository = new HybridDocumentRepository(
@@ -31,6 +39,7 @@ export function createRepositories() {
     const aiService = new WorkerAiAdapter();
 
     return {
+        db,
         documentRepository,
         catalogRepository: apiCatalogRepository,
         quizContentRepository: apiQuizContentRepository,
@@ -53,6 +62,13 @@ export function createRepositories() {
         aiService,
         importerRegistry: createDefaultImporterRegistry(),
         importAssetRepository: dexieImportAssetRepository,
+        syncQueueRepository: dexieSyncQueueRepository,
+        syncStateRepository: dexieSyncStateRepository,
+        conflictDraftRepository: dexieConflictDraftRepository,
+        dexieSyncReconciler,
+        workerSyncTransport,
+        localStorageCredentialsProvider,
+        credentialsProvider: localStorageCredentialsProvider,
     };
 }
 

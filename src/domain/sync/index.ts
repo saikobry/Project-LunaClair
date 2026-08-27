@@ -76,6 +76,9 @@ export type {
   SyncPullResponse,
 } from './SyncTransport';
 
+// Session Credentials Port
+export type { SessionCredentialsProvider } from './SessionCredentialsProvider';
+
 // Retry Policies & Exponential Backoff
 export {
   type SyncRetryPolicyOptions,

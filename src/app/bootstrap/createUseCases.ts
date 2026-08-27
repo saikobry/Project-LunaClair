@@ -53,10 +53,43 @@ import {
     ExtractContentUseCase,
     CommitImportUseCase,
     CleanupImportWithAiUseCase,
+    SyncEngine,
+    syncStatusStore,
+    GetSyncStatusUseCase,
+    GetConflictDraftsUseCase,
+    ResolveConflictDraftUseCase,
+    TriggerSyncUseCase,
 } from '../../application';
 import type { Repositories } from './createRepositories';
 
 export function createUseCases(repositories: Repositories) {
+    const syncEngine = new SyncEngine(
+        repositories.db,
+        repositories.workerSyncTransport,
+        repositories.dexieSyncReconciler,
+        repositories.syncQueueRepository,
+        repositories.syncStateRepository,
+        syncStatusStore,
+    );
+
+    const getSyncStatusUseCase = new GetSyncStatusUseCase(
+        syncStatusStore,
+    );
+
+    const getConflictDraftsUseCase = new GetConflictDraftsUseCase(
+        repositories.conflictDraftRepository,
+    );
+
+    const resolveConflictDraftUseCase = new ResolveConflictDraftUseCase(
+        repositories.db,
+        repositories.conflictDraftRepository,
+    );
+
+    const triggerSyncUseCase = new TriggerSyncUseCase(
+        syncEngine,
+        repositories.credentialsProvider,
+    );
+
     return {
         flashcards: {
             recordReview: new RecordFlashcardReviewUseCase(repositories.flashcardReviewRepository),
@@ -138,6 +171,24 @@ export function createUseCases(repositories: Repositories) {
             ),
             cleanupWithAi: new CleanupImportWithAiUseCase(repositories.aiService),
         },
+        sync: {
+            syncEngine,
+            syncStatusStore,
+            resolveConflictDraft: resolveConflictDraftUseCase,
+            triggerSync: triggerSyncUseCase,
+            getSyncStatus: getSyncStatusUseCase,
+            getConflictDrafts: getConflictDraftsUseCase,
+            resolveConflictDraftUseCase,
+            triggerSyncUseCase,
+            getSyncStatusUseCase,
+            getConflictDraftsUseCase,
+        },
+        syncEngine,
+        syncStatusStore,
+        resolveConflictDraftUseCase,
+        triggerSyncUseCase,
+        getSyncStatusUseCase,
+        getConflictDraftsUseCase,
     };
 }
 

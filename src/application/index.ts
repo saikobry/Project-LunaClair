@@ -83,5 +83,14 @@ export {
   DEFAULT_SYNC_RETRY_OPTIONS,
   type SyncRetryPolicy,
   type SyncRetryPolicyOptions,
+  GetSyncStatusUseCase,
+  type SyncStatusResult,
+  GetConflictDraftsUseCase,
+  type GetConflictDraftsInput,
+  ResolveConflictDraftUseCase,
+  type ResolveConflictDraftInput,
+  TriggerSyncUseCase,
+  type TriggerSyncInput,
 } from './sync';
+
 

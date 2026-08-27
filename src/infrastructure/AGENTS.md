@@ -15,8 +15,10 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 - `ai/` — Concrete AI gateway adapters:
   - `WorkerAiAdapter.ts` → `AiService` (consumes streaming SSE events from Cloudflare Worker AI `/api/ai/chat`)
   - `MockAiAdapter.ts` → `AiService` (deterministic mock token stream for test suites)
-- `sync/` — Concrete Cloudflare Worker HTTP sync transport adapter:
+- `sync/` — Concrete Cloudflare Worker HTTP sync transport adapter and session credential providers:
   - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
+  - `deviceId.ts` → `getOrCreateDeviceId()` (generates or retrieves stable device UUID persisted under `lunaclair.device_id`)
+  - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider` (persists credentials under `lunaclair.session_credentials` with default guest identity fallback)
 - `importer/` — Concrete content importer adapters and factory:
   - `PdfjsImporter.ts` → `ContentImporter` (PDF extraction via `pdfjs-dist` dynamic import, sequential page memory management, density evaluation for OCR delegation, password exception handling)
   - `TesseractExtractor.ts` → OCR engine (`tesseract.js` dynamic import, lazy worker pool, EXIF canvas rotation, grayscale preprocessing)
