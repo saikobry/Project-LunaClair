@@ -75,18 +75,34 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
         answers: SubmittedAnswer[],
         score: QuizSession['score'],
     ): Promise<QuizSession> {
-        const existing = await db.quizSessions.get(id);
-        if (!existing) throw new Error(`QuizSession not found: ${id}`);
+        return db.transaction('rw', [db.quizSessions, db.syncQueue], async () => {
+            const existing = await db.quizSessions.get(id);
+            if (!existing) throw new Error(`QuizSession not found: ${id}`);
 
-        const updated: QuizSession = {
-            ...existing,
-            status: 'completed',
-            answers,
-            score,
-            completedAt: new Date().toISOString(),
-        };
-        await db.quizSessions.put(updated);
-        return updated;
+            const updated: QuizSession = {
+                ...existing,
+                status: 'completed',
+                answers,
+                score,
+                completedAt: new Date().toISOString(),
+            };
+            await db.quizSessions.put(updated);
+
+            await db.syncQueue.put({
+                id: crypto.randomUUID(),
+                clientMutationId: crypto.randomUUID(),
+                entityType: 'quizSession',
+                entityId: id,
+                operation: 'APPEND',
+                clientTimestamp: updated.completedAt ?? new Date().toISOString(),
+                payload: updated,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+                retryCount: 0,
+            });
+
+            return updated;
+        });
     }
 
     async deleteSession(id: string): Promise<void> {

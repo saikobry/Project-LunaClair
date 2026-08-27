@@ -20,7 +20,24 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
 
     async save(reviews: ReviewState[]): Promise<void> {
         if (reviews.length === 0) return;
-        await db.flashcardReviews.bulkPut(reviews);
+        const now = new Date().toISOString();
+        await db.transaction('rw', [db.flashcardReviews, db.syncQueue], async () => {
+            await db.flashcardReviews.bulkPut(reviews);
+            for (const r of reviews) {
+                await db.syncQueue.put({
+                    id: crypto.randomUUID(),
+                    clientMutationId: crypto.randomUUID(),
+                    entityType: 'flashcardReview',
+                    entityId: r.key,
+                    operation: 'UPSERT',
+                    clientTimestamp: r.lastReviewedAt ?? now,
+                    payload: r,
+                    status: 'pending',
+                    createdAt: now,
+                    retryCount: 0,
+                });
+            }
+        });
     }
 
     async deleteByKeys(keys: string[]): Promise<void> {

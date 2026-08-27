@@ -201,8 +201,8 @@ export default function AppShell() {
 
   // Initialize background cloud auto-synchronization on application mount
   useEffect(() => {
-    const syncEngine = appContext?.useCases?.sync?.syncEngine ?? appContext?.useCases?.syncEngine;
-    const credsProvider = appContext?.credentialsProvider ?? appContext?.localStorageCredentialsProvider;
+    const syncEngine = appContext?.useCases?.sync?.syncEngine;
+    const credsProvider = appContext?.repositories?.credentialsProvider ?? appContext?.repositories?.localStorageCredentialsProvider;
     if (syncEngine && credsProvider) {
       let cleanup: (() => void) | undefined;
       void credsProvider.getCredentials().then((credentials) => {
