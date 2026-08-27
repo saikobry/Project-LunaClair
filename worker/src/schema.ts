@@ -12,6 +12,7 @@
  */
 import {
   blob,
+  index,
   integer,
   primaryKey,
   sqliteTable,
@@ -151,3 +152,69 @@ export const quizQuestions = sqliteTable(
     primaryKey({ columns: [table.quizId, table.questionId] }),
   ],
 );
+
+/**
+ * Cloud Sync Tables — Phase 10
+ *
+ * 4 tables supporting bidirectional local-first synchronization between Dexie and D1:
+ * - `userDocuments`: user documents with LWW versioning
+ * - `userEntities`: key-value store for domain entities (highlights, bookmarks, progress, etc.)
+ * - `syncChanges`: append-only change log for cursor/sequence-based delta pulls
+ * - `syncIdempotency`: mutation idempotency ledger
+ */
+export const userDocuments = sqliteTable(
+  'user_documents',
+  {
+    userId: text('user_id').notNull(),
+    documentId: text('document_id').notNull(),
+    version: integer('version').notNull().default(1),
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.documentId] }),
+  ],
+);
+
+export const userEntities = sqliteTable(
+  'user_entities',
+  {
+    userId: text('user_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    payload: text('payload').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.entityType, table.entityId] }),
+  ],
+);
+
+export const syncChanges = sqliteTable(
+  'sync_changes',
+  {
+    sequence: integer('sequence').primaryKey({ autoIncrement: true }),
+    userId: text('user_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    operation: text('operation').notNull(),
+    version: integer('version'),
+    changedAt: text('changed_at').notNull(),
+  },
+  (table) => [
+    index('idx_sync_changes_user_seq').on(table.userId, table.sequence),
+  ],
+);
+
+export const syncIdempotency = sqliteTable('sync_idempotency', {
+  clientMutationId: text('client_mutation_id').primaryKey(),
+  userId: text('user_id').notNull(),
+  deviceId: text('device_id').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  processedAt: text('processed_at').notNull(),
+});
+

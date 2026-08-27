@@ -6,7 +6,9 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     async getHighlights(documentId: string, signal?: AbortSignal): Promise<HighlightItem[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const records = await db.highlights.where('documentId').equals(documentId).toArray();
-        return records.map(({ documentId: _d, createdAt: _c, ...item }) => item);
+        return records
+            .filter((r) => !r.deletedAt)
+            .map(({ documentId: _d, createdAt: _c, ...item }) => item);
     }
 
     async saveHighlights(documentId: string, highlights: HighlightItem[]): Promise<void> {
@@ -30,7 +32,9 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     async getDrawings(documentId: string, signal?: AbortSignal): Promise<DrawingPath[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const records = await db.drawings.where('documentId').equals(documentId).toArray();
-        return records.map(({ documentId: _d, createdAt: _c, ...path }) => path);
+        return records
+            .filter((r) => !r.deletedAt)
+            .map(({ documentId: _d, createdAt: _c, ...path }) => path);
     }
 
     async saveDrawings(documentId: string, paths: DrawingPath[]): Promise<void> {

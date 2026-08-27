@@ -40,6 +40,7 @@ import {
   subjectTerms,
   terms,
 } from './schema';
+import { handleSyncPull, handleSyncPush } from './sync';
 
 export interface AiBinding {
   run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown>;
@@ -636,6 +637,22 @@ export default {
         const errorMsg = err instanceof Error ? err.message : "AI stream invocation failed";
         return json({ error: errorMsg }, 500, corsHeaders);
       }
+    }
+
+    // /api/sync/push — Push mutation envelopes for cloud sync
+    if (parts[0] === "api" && parts[1] === "sync" && parts[2] === "push" && parts.length === 3) {
+      if (request.method !== "POST") {
+        return json({ error: "Method not allowed" }, 405, corsHeaders);
+      }
+      return handleSyncPush(request, env, corsHeaders);
+    }
+
+    // /api/sync/pull — Pull delta changes by sequence cursor
+    if (parts[0] === "api" && parts[1] === "sync" && parts[2] === "pull" && parts.length === 3) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return json({ error: "Method not allowed" }, 405, corsHeaders);
+      }
+      return handleSyncPull(request, env, corsHeaders);
     }
 
     return json({ error: "Not found" }, 404, corsHeaders);
