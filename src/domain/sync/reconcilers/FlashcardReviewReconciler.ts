@@ -1,5 +1,5 @@
-import type { FlashcardReviewSyncPayload } from '../sync.entities';
-import { compareFlashcardReviews } from '../sync.versioning';
+import type { FlashcardReviewSyncPayload } from '../SyncEntities';
+import { compareFlashcardReviews } from '../syncVersioning';
 
 export type FlashcardReconcileResult =
   | {

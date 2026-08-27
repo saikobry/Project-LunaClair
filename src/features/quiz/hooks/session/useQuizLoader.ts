@@ -51,7 +51,7 @@ export function useQuizLoader(launchRequest: QuizLaunchRequest): QuizLoaderResul
     } = useQuery({
         queryKey: isByMaterial
             ? assessmentQueryKeys.quizzes(materialId!)
-            : [...assessmentQueryKeys.root, 'quizzes-by-ids', rawQuizIdsKey],
+            : [...assessmentQueryKeys.all, 'quizzes-by-ids', rawQuizIdsKey],
         queryFn: ({ signal }) => {
             if (isByMaterial) {
                 return quizRepository.getQuizzes(materialId!, signal);
@@ -80,7 +80,7 @@ export function useQuizLoader(launchRequest: QuizLaunchRequest): QuizLoaderResul
         isError: questionsError,
         error: questionsErr,
     } = useQuery({
-        queryKey: [...assessmentQueryKeys.root, 'questions-by-ids', ...allQuestionIds.sort()],
+        queryKey: [...assessmentQueryKeys.all, 'questions-by-ids', ...allQuestionIds.sort()],
         queryFn: ({ signal }) => questionRepository.getQuestionsByIds(allQuestionIds, signal),
         enabled: allQuestionIds.length > 0,
     });

@@ -1,4 +1,4 @@
-import { InvalidSyncCursorError } from './sync.errors';
+import { InvalidSyncCursorError } from './SyncErrors';
 import type { SyncCursor } from './sync.types';
 
 /**

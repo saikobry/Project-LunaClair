@@ -34,7 +34,7 @@ export function useSubjectQuizTree(subjectId: string) {
         data: quizzes = [],
         isLoading: quizzesLoading,
     } = useQuery({
-        queryKey: [...assessmentQueryKeys.root, 'subject-quizzes', subjectId],
+        queryKey: [...assessmentQueryKeys.all, 'subject-quizzes', subjectId],
         queryFn: ({ signal }) => quizRepository.getQuizzesForMaterials(materialIds, signal),
         enabled: materialIds.length > 0,
     });

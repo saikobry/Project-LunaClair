@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
-import { flashcardQueryKeys } from '../flashcardQueryKeys';
+import { flashcardQueryKeys } from '../../queries/flashcardQueryKeys';
 import type { Rating, ReviewState } from '../../../../domain/flashcards/scheduler';
 
 interface RecordRatingInput {

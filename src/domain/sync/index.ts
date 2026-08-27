@@ -14,13 +14,13 @@ export type {
 } from './sync.types';
 
 // Sync Model Categorization
-export { type SyncModel, getSyncModelForEntity } from './sync.models';
+export { type SyncModel, getSyncModelForEntity } from './SyncModels';
 
 // Identity Helpers
-export { createSyncStateKey, isValidSyncIdentity } from './sync.identity';
+export { createSyncStateKey, isValidSyncIdentity } from './syncIdentity';
 
 // Cursor Management & Monotonicity
-export { isValidSyncCursor, assertCursorMonotonic, advanceSyncCursor } from './sync.cursor';
+export { isValidSyncCursor, assertCursorMonotonic, advanceSyncCursor } from './syncCursor';
 
 // Typed Entity Payloads
 export type {
@@ -31,7 +31,7 @@ export type {
   QuizSessionSyncPayload,
   SyncPayloadMap,
   TypedSyncMutation,
-} from './sync.entities';
+} from './SyncEntities';
 
 // Versioning & Concurrency Resolution
 export {
@@ -39,7 +39,7 @@ export {
   nextEntityVersion,
   compareLwwTimestamps,
   compareFlashcardReviews,
-} from './sync.versioning';
+} from './syncVersioning';
 
 // Domain Errors
 export {
@@ -52,7 +52,7 @@ export {
   InvalidSyncPayloadError,
   InvalidSyncCursorError,
   OutboxTransactionError,
-} from './sync.errors';
+} from './SyncErrors';
 
 // Pure Domain Reconcilers
 export {

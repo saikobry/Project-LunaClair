@@ -1,4 +1,4 @@
-import type { DocumentSyncPayload } from '../sync.entities';
+import type { DocumentSyncPayload } from '../SyncEntities';
 import type { ConflictDraft, EntityVersion, SyncMutation, SyncQueueItem } from '../sync.types';
 
 export interface LocalDocumentState {

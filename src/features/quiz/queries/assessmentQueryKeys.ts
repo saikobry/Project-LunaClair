@@ -1,15 +1,15 @@
 export const assessmentQueryKeys = {
-    root: ['assessment'] as const,
+    all: ['assessment'] as const,
     questions: (materialId: string) =>
-        [...assessmentQueryKeys.root, 'questions', materialId] as const,
+        [...assessmentQueryKeys.all, 'questions', materialId] as const,
     question: (id: string) =>
-        [...assessmentQueryKeys.root, 'question', id] as const,
+        [...assessmentQueryKeys.all, 'question', id] as const,
     quizzes: (materialId: string) =>
-        [...assessmentQueryKeys.root, 'quizzes', materialId] as const,
+        [...assessmentQueryKeys.all, 'quizzes', materialId] as const,
     quiz: (id: string) =>
-        [...assessmentQueryKeys.root, 'quiz', id] as const,
+        [...assessmentQueryKeys.all, 'quiz', id] as const,
     sessions: (quizId: string) =>
-        [...assessmentQueryKeys.root, 'sessions', quizId] as const,
+        [...assessmentQueryKeys.all, 'sessions', quizId] as const,
     session: (id: string) =>
-        [...assessmentQueryKeys.root, 'session', id] as const,
+        [...assessmentQueryKeys.all, 'session', id] as const,
 };

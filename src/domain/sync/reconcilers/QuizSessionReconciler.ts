@@ -1,4 +1,4 @@
-import type { QuizSessionSyncPayload } from '../sync.entities';
+import type { QuizSessionSyncPayload } from '../SyncEntities';
 
 export type QuizSessionReconcileResult =
   | {

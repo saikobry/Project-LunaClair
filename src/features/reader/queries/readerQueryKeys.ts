@@ -1,6 +1,6 @@
 export const readerQueryKeys = {
-    root: ['reader'] as const,
-    document: (materialId: string) => [...readerQueryKeys.root, 'document', materialId] as const,
-    highlights: (documentId: string) => [...readerQueryKeys.root, 'highlights', documentId] as const,
-    drawings: (documentId: string) => [...readerQueryKeys.root, 'drawings', documentId] as const,
+    all: ['reader'] as const,
+    document: (materialId: string) => [...readerQueryKeys.all, 'document', materialId] as const,
+    highlights: (documentId: string) => [...readerQueryKeys.all, 'highlights', documentId] as const,
+    drawings: (documentId: string) => [...readerQueryKeys.all, 'drawings', documentId] as const,
 };

@@ -1,4 +1,4 @@
-import type { FlashcardReviewSyncPayload } from './sync.entities';
+import type { FlashcardReviewSyncPayload } from './SyncEntities';
 import type { EntityVersion } from './sync.types';
 
 /**

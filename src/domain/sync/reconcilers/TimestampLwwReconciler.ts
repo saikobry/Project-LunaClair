@@ -1,4 +1,4 @@
-import { compareLwwTimestamps } from '../sync.versioning';
+import { compareLwwTimestamps } from '../syncVersioning';
 
 export interface LwwTimestampEntity {
   createdAt: string;

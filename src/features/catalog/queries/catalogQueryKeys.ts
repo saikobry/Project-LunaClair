@@ -6,7 +6,7 @@
  * consolidation refactor.
  */
 export const catalogQueryKeys = {
-  root: ['catalog'] as const,
+  all: ['catalog'] as const,
   // Remote catalog snapshot (GET /api/catalog) — server state, not local library
   catalog: () => ['catalog', 'remote'] as const,
   // Authoritative per-material remote resolution (GET /api/catalog/materials/:id)
