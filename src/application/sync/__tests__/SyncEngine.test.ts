@@ -302,8 +302,8 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     await p1;
 
     // Mutex should have executed the initial run + scheduled 1 follow-up run
-    // Total pull calls = 2 for cycle 1 + 2 for cycle 2 = 4 pulls
-    expect(mockTransport.pull).toHaveBeenCalledTimes(4);
+    // Total pull calls = 1 for cycle 1 + 1 for cycle 2 = 2 pulls (with idle second-pull skip optimization)
+    expect(mockTransport.pull).toHaveBeenCalledTimes(2);
   });
 
   it('Test 5: Offline detection sets status to offline without throwing', async () => {

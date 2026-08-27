@@ -130,13 +130,18 @@ export class SyncEngine {
       this.statusStore.setState({ pendingCount: initialPending });
 
       // Step 1: Pull until caught up (Initial pull)
-      let cursor = await this.pullUntilCaughtUp(credentials, stateKey);
+      const pullResult = await this.pullUntilCaughtUp(credentials, stateKey);
+      let cursor = pullResult.cursor;
 
       // Step 2: Push pending batches
-      cursor = await this.pushPendingBatches(credentials, stateKey, cursor);
+      const pushResult = await this.pushPendingBatches(credentials, stateKey, cursor);
+      cursor = pushResult.cursor;
 
-      // Step 3: Pull until caught up (Catch concurrent remote changes)
-      cursor = await this.pullUntilCaughtUp(credentials, stateKey);
+      // Step 3: Pull again ONLY if mutations were pushed or remote changes were applied in step 1
+      if (pushResult.pushedCount > 0 || pullResult.appliedChangesCount > 0) {
+        const secondPull = await this.pullUntilCaughtUp(credentials, stateKey);
+        cursor = secondPull.cursor;
+      }
 
       // Step 4: Finalize and mark idle
       const finalPending = await this.queueRepo.countPending();
@@ -181,20 +186,22 @@ export class SyncEngine {
   private async pullUntilCaughtUp(
     credentials: SessionCredentials,
     stateKey: string
-  ): Promise<number> {
+  ): Promise<{ cursor: number; appliedChangesCount: number }> {
     const syncState = await this.stateRepo.getSyncState(stateKey);
     let cursor = syncState?.lastServerCursor ?? 0;
     let hasMore = true;
+    let appliedChangesCount = 0;
 
     while (hasMore) {
       const pullResponse = await this.transport.pull(credentials, cursor, 100);
-      await this.reconciler.reconcilePullBatch(
+      const reconcileResult = await this.reconciler.reconcilePullBatch(
         this.db,
         credentials.userId,
         credentials.deviceId,
         cursor,
         pullResponse
       );
+      appliedChangesCount += (reconcileResult?.appliedCount ?? 0) + (reconcileResult?.conflictCount ?? 0);
 
       cursor = pullResponse.newCursor;
       this.statusStore.setState({ lastServerCursor: cursor });
@@ -210,7 +217,7 @@ export class SyncEngine {
       hasMore = pullResponse.hasMore;
     }
 
-    return cursor;
+    return { cursor, appliedChangesCount };
   }
 
   /**
@@ -220,8 +227,9 @@ export class SyncEngine {
     credentials: SessionCredentials,
     stateKey: string,
     currentCursor: number
-  ): Promise<number> {
+  ): Promise<{ cursor: number; pushedCount: number }> {
     let cursor = currentCursor;
+    let pushedCount = 0;
     const maxBatchesPerCycle = 10;
 
     for (let batch = 0; batch < maxBatchesPerCycle; batch++) {
@@ -236,6 +244,8 @@ export class SyncEngine {
       };
 
       const pushResponse = await this.transport.push(credentials, pushRequest);
+      pushedCount += pending.length;
+
       await this.reconciler.applyPushResult(
         this.db,
         credentials.userId,
@@ -259,25 +269,32 @@ export class SyncEngine {
       this.statusStore.setState({ pendingCount: remaining });
     }
 
-    return cursor;
+    return { cursor, pushedCount };
   }
 
   /**
    * Sets up automatic background synchronization triggers:
    * - online event listener
-   * - visibilitychange event listener (when document becomes visible)
-   * - periodic interval timer (default: every 60s)
+   * - visibilitychange event listener (when document becomes visible, with 10s cooldown)
+   * - periodic interval timer (only polls when tab is visible, default: every 60s)
    *
    * Returns a cleanup unsubscribe function.
    */
   startAutoSync(credentials: SessionCredentials, intervalMs: number = 60000): () => void {
+    let lastFocusSyncTime = 0;
+
     const onOnline = () => {
       void this.sync(credentials);
     };
 
     const onVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        void this.sync(credentials);
+        const now = Date.now();
+        // 10-second cooldown on tab-focus triggers to avoid rapid refetching
+        if (now - lastFocusSyncTime > 10000) {
+          lastFocusSyncTime = now;
+          void this.sync(credentials);
+        }
       }
     };
 
@@ -290,7 +307,10 @@ export class SyncEngine {
     }
 
     const timerId = setInterval(() => {
-      void this.sync(credentials);
+      // Pause periodic timer when tab is in background / hidden
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void this.sync(credentials);
+      }
     }, intervalMs);
 
     return () => {
