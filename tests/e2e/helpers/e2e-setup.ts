@@ -121,6 +121,18 @@ export async function setupApiMocks(page: Page) {
       body: JSON.stringify({ questions: [], quizzes: [] }),
     });
   });
+
+  await page.route(/\/api\/shares(?:\?.*)?$/, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+      });
+    } else {
+      await route.fallback();
+    }
+  });
 }
 
 /**

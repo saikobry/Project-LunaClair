@@ -5,7 +5,7 @@ import { useCallback, lazy, Suspense } from 'react';
 import QuizScreen from '../../features/quiz/QuizScreen';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
 import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
-import AvailableMaterialsScreen from '../../features/catalog/available/components/AvailableMaterialsScreen';
+import ExploreScreen from '../../features/catalog/explore/components/ExploreScreen';
 import PreviewMaterialScreen from '../../features/catalog/available/components/PreviewMaterialScreen';
 import SubjectWorkspace from '../../features/catalog/subjects/components/SubjectWorkspace';
 import { TermManagerScreen } from '../../features/catalog/terms/components/TermManagerScreen';
@@ -112,19 +112,20 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           onOpenSubject={handleOpenSubject}
           onStartQuiz={handleStartQuiz}
           onManage={handleManageQuiz}
-          onBrowseAvailable={() => navigate({ kind: 'available' })}
+          onBrowseAvailable={() => navigate({ kind: 'explore' })}
         />
       )}
-      {currentRoute.kind === 'available' && (
-        <AvailableMaterialsScreen
+      {(currentRoute.kind === 'explore' || currentRoute.kind === 'available') && (
+        <ExploreScreen
           onOpenMaterial={handleOpenMaterial}
           onPreview={(materialId) => navigate({ kind: 'preview', materialId })}
+          onOpenShare={(shareId) => navigate({ kind: 'share', shareId })}
         />
       )}
       {currentRoute.kind === 'preview' && (
         <PreviewMaterialScreen
           materialId={currentRoute.materialId}
-          onBack={() => navigate({ kind: 'available' })}
+          onBack={() => navigate({ kind: 'explore' })}
           onOpenMaterial={handleOpenMaterial}
         />
       )}

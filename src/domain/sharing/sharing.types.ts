@@ -41,9 +41,36 @@ export interface PublishedShare {
   downloadCount: number;
 }
 
+export interface PublicShareSummary {
+  id: string;
+  format: 'lcpack';
+  schemaVersion: number;
+  title: string;
+  description?: string;
+  author?: string;
+  viewCount: number;
+  downloadCount: number;
+  createdAt: string;
+}
+
+export interface ListPublicSharesParams {
+  q?: string;
+  sort?: 'popular' | 'recent';
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ListPublicSharesResult {
+  items: PublicShareSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface ShareTransport {
   publish(pkg: StudyPackage, options?: PublishShareOptions, signal?: AbortSignal): Promise<PublishShareResult>;
   fetch(shareId: string, passcode?: string, signal?: AbortSignal): Promise<PublishedShare>;
   trackDownload(shareId: string, signal?: AbortSignal): Promise<{ success: boolean; downloadCount: number }>;
   delete(shareId: string, authToken?: string, signal?: AbortSignal): Promise<void>;
+  listPublicShares(params?: ListPublicSharesParams, signal?: AbortSignal): Promise<ListPublicSharesResult>;
 }
+

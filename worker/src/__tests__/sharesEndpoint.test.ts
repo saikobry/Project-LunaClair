@@ -4,7 +4,12 @@
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it } from 'vitest';
 import worker, { type Env } from '../index';
-import type { PublishedShareResponse, PublishShareResponse } from '../shares';
+import type {
+  ListPublicSharesResponse,
+  PublishedShareResponse,
+  PublishShareResponse,
+  PublicShareSummary,
+} from '../shares';
 
 function createMockD1(): D1Database {
   const db = new DatabaseSync(':memory:');
@@ -441,4 +446,377 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
       expect(getRes.status).toBe(404);
     });
   });
+
+  describe('GET /api/shares (Discovery Feed & Keyset Pagination)', () => {
+    it('returns only public shares and filters out unlisted and passcode shares', async () => {
+      // 1. Create Public share
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer user_1' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Public Pack' },
+            },
+            accessType: 'public',
+          }),
+        }),
+        env,
+      );
+
+      // 2. Create Unlisted share
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer user_2' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Unlisted Pack' },
+            },
+            accessType: 'unlisted',
+          }),
+        }),
+        env,
+      );
+
+      // 3. Create Passcode share
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer user_3' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Passcode Pack' },
+            },
+            accessType: 'passcode',
+            passcode: 'secret',
+          }),
+        }),
+        env,
+      );
+
+      // Query discovery feed
+      const listReq = new Request('http://localhost/api/shares');
+      const listRes = await worker.fetch(listReq, env);
+      expect(listRes.status).toBe(200);
+
+      const data = await listRes.json() as ListPublicSharesResponse;
+      expect(data.items.length).toBe(1);
+      expect(data.items[0].title).toBe('Public Pack');
+
+      // Verify privacy invariants: no sensitive columns in projection
+      const rawItem = data.items[0] as unknown as Record<string, unknown>;
+      expect(rawItem.userId).toBeUndefined();
+      expect(rawItem.packagePayload).toBeUndefined();
+      expect(rawItem.passcodeHash).toBeUndefined();
+      expect(rawItem.package).toBeUndefined();
+    });
+
+    it('excludes expired shares from discovery feed', async () => {
+      // Expired share
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Expired Pack' },
+            },
+            accessType: 'public',
+            expiresAt: '2020-01-01T00:00:00.000Z',
+          }),
+        }),
+        env,
+      );
+
+      // Active share with future expiration
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Future Pack' },
+            },
+            accessType: 'public',
+            expiresAt: '2099-01-01T00:00:00.000Z',
+          }),
+        }),
+        env,
+      );
+
+      // Active share with no expiration
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: { ...sampleValidPackage.metadata, title: 'Forever Pack' },
+            },
+            accessType: 'public',
+          }),
+        }),
+        env,
+      );
+
+      const listRes = await worker.fetch(new Request('http://localhost/api/shares'), env);
+      expect(listRes.status).toBe(200);
+
+      const data = await listRes.json() as ListPublicSharesResponse;
+      expect(data.items.length).toBe(2);
+      const titles = data.items.map((i: PublicShareSummary) => i.title);
+      expect(titles).toContain('Future Pack');
+      expect(titles).toContain('Forever Pack');
+      expect(titles).not.toContain('Expired Pack');
+    });
+
+    it('filters shares with search query q matching title, description, or author', async () => {
+      // Share 1
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: {
+                title: 'Cellular Biology Basics',
+                description: 'Organelles and mitosis',
+                author: 'Dr. Jane Smith',
+              },
+            },
+            accessType: 'public',
+          }),
+        }),
+        env,
+      );
+
+      // Share 2
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: {
+                title: 'Quantum Physics 101',
+                description: 'Wave-particle duality notes',
+                author: 'Dr. Richard Feynman',
+              },
+            },
+            accessType: 'public',
+          }),
+        }),
+        env,
+      );
+
+      // Share 3
+      await worker.fetch(
+        new Request('http://localhost/api/shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            package: {
+              ...sampleValidPackage,
+              metadata: {
+                title: 'Linear Algebra Review',
+                description: 'Vector spaces and matrices',
+                author: 'Dr. Jane Smith',
+              },
+            },
+            accessType: 'public',
+          }),
+        }),
+        env,
+      );
+
+      // Search by title match: 'Biology'
+      const searchRes1 = await worker.fetch(new Request('http://localhost/api/shares?q=Biology'), env);
+      const data1 = await searchRes1.json() as ListPublicSharesResponse;
+      expect(data1.items.length).toBe(1);
+      expect(data1.items[0].title).toBe('Cellular Biology Basics');
+
+      // Search by description match: 'duality'
+      const searchRes2 = await worker.fetch(new Request('http://localhost/api/shares?q=duality'), env);
+      const data2 = await searchRes2.json() as ListPublicSharesResponse;
+      expect(data2.items.length).toBe(1);
+      expect(data2.items[0].title).toBe('Quantum Physics 101');
+
+      // Search by author match: 'Jane Smith'
+      const searchRes3 = await worker.fetch(new Request('http://localhost/api/shares?q=Jane+Smith'), env);
+      const data3 = await searchRes3.json() as ListPublicSharesResponse;
+      expect(data3.items.length).toBe(2);
+      expect(data3.items.map((i: PublicShareSummary) => i.title)).toEqual(
+        expect.arrayContaining(['Cellular Biology Basics', 'Linear Algebra Review']),
+      );
+
+      // Search non-existent
+      const searchRes4 = await worker.fetch(new Request('http://localhost/api/shares?q=NonexistentQuery123'), env);
+      const data4 = await searchRes4.json() as ListPublicSharesResponse;
+      expect(data4.items.length).toBe(0);
+    });
+
+    it('sorts by recent (created_at DESC, id DESC)', async () => {
+      // Share 1: Oldest
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, created_at, updated_at)
+        VALUES ('share_recent_1', 'Oldest Pack', 'public', '{}', '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')
+      `).run();
+
+      // Share 2: Middle
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, created_at, updated_at)
+        VALUES ('share_recent_2', 'Middle Pack', 'public', '{}', '2026-08-15T00:00:00.000Z', '2026-08-15T00:00:00.000Z')
+      `).run();
+
+      // Share 3: Newest
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, created_at, updated_at)
+        VALUES ('share_recent_3', 'Newest Pack', 'public', '{}', '2026-08-28T00:00:00.000Z', '2026-08-28T00:00:00.000Z')
+      `).run();
+
+      const res = await worker.fetch(new Request('http://localhost/api/shares?sort=recent'), env);
+      expect(res.status).toBe(200);
+      const data = await res.json() as ListPublicSharesResponse;
+      expect(data.items.length).toBe(3);
+      expect(data.items.map((i: PublicShareSummary) => i.id)).toEqual([
+        'share_recent_3',
+        'share_recent_2',
+        'share_recent_1',
+      ]);
+    });
+
+    it('sorts by popular (download_count DESC, view_count DESC, created_at DESC, id DESC)', async () => {
+      // Share A: 10 downloads, 5 views
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, download_count, view_count, created_at, updated_at)
+        VALUES ('share_pop_a', 'Pack A', 'public', '{}', 10, 5, '2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z')
+      `).run();
+
+      // Share B: 10 downloads, 20 views (higher views than A)
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, download_count, view_count, created_at, updated_at)
+        VALUES ('share_pop_b', 'Pack B', 'public', '{}', 10, 20, '2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z')
+      `).run();
+
+      // Share C: 2 downloads, 50 views (lower downloads than A and B)
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, download_count, view_count, created_at, updated_at)
+        VALUES ('share_pop_c', 'Pack C', 'public', '{}', 2, 50, '2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z')
+      `).run();
+
+      // Share D: 0 downloads, 0 views
+      await env.DB.prepare(`
+        INSERT INTO shares (id, title, access_type, package_payload, download_count, view_count, created_at, updated_at)
+        VALUES ('share_pop_d', 'Pack D', 'public', '{}', 0, 0, '2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z')
+      `).run();
+
+      const res = await worker.fetch(new Request('http://localhost/api/shares?sort=popular'), env);
+      expect(res.status).toBe(200);
+      const data = await res.json() as ListPublicSharesResponse;
+      expect(data.items.length).toBe(4);
+      expect(data.items.map((i: PublicShareSummary) => i.id)).toEqual([
+        'share_pop_b',
+        'share_pop_a',
+        'share_pop_c',
+        'share_pop_d',
+      ]);
+    });
+
+    it('implements keyset pagination with cursor and limit for sort=popular and sort=recent', async () => {
+      // Insert 5 shares with descending download counts: 50, 40, 30, 20, 10
+      for (let i = 1; i <= 5; i++) {
+        const id = `share_page_${i}`;
+        const dl = (6 - i) * 10;
+        const ca = `2026-08-0${i}T00:00:00.000Z`;
+        await env.DB.prepare(`
+          INSERT INTO shares (id, title, access_type, package_payload, download_count, view_count, created_at, updated_at)
+          VALUES (?, ?, 'public', '{}', ?, 0, ?, ?)
+        `).bind(id, `Pack ${i}`, dl, ca, ca).run();
+      }
+
+      // Page 1 (limit 2)
+      const resPage1 = await worker.fetch(new Request('http://localhost/api/shares?limit=2&sort=popular'), env);
+      expect(resPage1.status).toBe(200);
+      const dataPage1 = await resPage1.json() as ListPublicSharesResponse;
+      expect(dataPage1.items.length).toBe(2);
+      expect(dataPage1.items.map((i: PublicShareSummary) => i.id)).toEqual(['share_page_1', 'share_page_2']);
+      expect(dataPage1.hasMore).toBe(true);
+      expect(typeof dataPage1.nextCursor).toBe('string');
+
+      // Page 2 (limit 2 with cursor)
+      const resPage2 = await worker.fetch(
+        new Request(`http://localhost/api/shares?limit=2&sort=popular&cursor=${encodeURIComponent(dataPage1.nextCursor!)}`),
+        env,
+      );
+      expect(resPage2.status).toBe(200);
+      const dataPage2 = await resPage2.json() as ListPublicSharesResponse;
+      expect(dataPage2.items.length).toBe(2);
+      expect(dataPage2.items.map((i: PublicShareSummary) => i.id)).toEqual(['share_page_3', 'share_page_4']);
+      expect(dataPage2.hasMore).toBe(true);
+      expect(typeof dataPage2.nextCursor).toBe('string');
+
+      // Page 3 (limit 2 with cursor -> remaining 1 item)
+      const resPage3 = await worker.fetch(
+        new Request(`http://localhost/api/shares?limit=2&sort=popular&cursor=${encodeURIComponent(dataPage2.nextCursor!)}`),
+        env,
+      );
+      expect(resPage3.status).toBe(200);
+      const dataPage3 = await resPage3.json() as ListPublicSharesResponse;
+      expect(dataPage3.items.length).toBe(1);
+      expect(dataPage3.items.map((i: PublicShareSummary) => i.id)).toEqual(['share_page_5']);
+      expect(dataPage3.hasMore).toBe(false);
+      expect(dataPage3.nextCursor).toBeNull();
+
+      // Test keyset pagination with sort=recent
+      const resRecentPage1 = await worker.fetch(new Request('http://localhost/api/shares?limit=3&sort=recent'), env);
+      const dataRecent1 = await resRecentPage1.json() as ListPublicSharesResponse;
+      expect(dataRecent1.items.length).toBe(3);
+      expect(dataRecent1.items.map((i: PublicShareSummary) => i.id)).toEqual([
+        'share_page_5',
+        'share_page_4',
+        'share_page_3',
+      ]);
+      expect(dataRecent1.hasMore).toBe(true);
+
+      const resRecentPage2 = await worker.fetch(
+        new Request(`http://localhost/api/shares?limit=3&sort=recent&cursor=${encodeURIComponent(dataRecent1.nextCursor!)}`),
+        env,
+      );
+      const dataRecent2 = await resRecentPage2.json() as ListPublicSharesResponse;
+      expect(dataRecent2.items.length).toBe(2);
+      expect(dataRecent2.items.map((i: PublicShareSummary) => i.id)).toEqual([
+        'share_page_2',
+        'share_page_1',
+      ]);
+      expect(dataRecent2.hasMore).toBe(false);
+      expect(dataRecent2.nextCursor).toBeNull();
+    });
+
+    it('returns 400 when invalid cursor is provided', async () => {
+      const res1 = await worker.fetch(new Request('http://localhost/api/shares?cursor=not-valid-base64-json!'), env);
+      expect(res1.status).toBe(400);
+
+      const res2 = await worker.fetch(
+        new Request(`http://localhost/api/shares?sort=recent&cursor=${Buffer.from('{}').toString('base64')}`),
+        env,
+      );
+      expect(res2.status).toBe(400);
+
+      const res3 = await worker.fetch(
+        new Request(`http://localhost/api/shares?sort=popular&cursor=${Buffer.from('{"ca":"2026-01-01"}').toString('base64')}`),
+        env,
+      );
+      expect(res3.status).toBe(400);
+    });
+  });
 });
+

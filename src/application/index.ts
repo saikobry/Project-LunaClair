@@ -84,6 +84,9 @@ export { TrackShareDownloadUseCase } from './use-cases/sharing/TrackShareDownloa
 export type { TrackShareDownloadInput } from './use-cases/sharing/TrackShareDownloadUseCase';
 export { DeletePublishedShareUseCase } from './use-cases/sharing/DeletePublishedShareUseCase';
 export type { DeletePublishedShareInput } from './use-cases/sharing/DeletePublishedShareUseCase';
+export { ListPublicSharesUseCase } from './use-cases/sharing/ListPublicSharesUseCase';
+export { ClonePublishedShareUseCase } from './use-cases/sharing/ClonePublishedShareUseCase';
+export type { ClonePublishedShareInput, ClonePublishedShareResult } from './use-cases/sharing/ClonePublishedShareUseCase';
 
 export { serializePackageToBlob, serializePackageToJson } from '../infrastructure/package/StudyPackageSerializer';
 

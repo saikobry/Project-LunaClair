@@ -7,7 +7,7 @@
  * - POST   /api/shares/:id/download → Increments download count
  * - DELETE /api/shares/:id          → Deletes share (owner-authenticated)
  */
-import { eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import type { Env } from './index';
 import { shares } from './schema';
@@ -15,6 +15,24 @@ import { shares } from './schema';
 export const MAX_SHARE_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB max package size
 
 export type ShareAccessType = 'public' | 'unlisted' | 'passcode';
+
+export interface PublicShareSummary {
+  id: string;
+  format: 'lcpack';
+  schemaVersion: number;
+  title: string;
+  description?: string;
+  author?: string;
+  viewCount: number;
+  downloadCount: number;
+  createdAt: string;
+}
+
+export interface ListPublicSharesResponse {
+  items: PublicShareSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
 
 export interface PublishShareRequest {
   package: unknown;
@@ -526,3 +544,194 @@ export async function handleDeleteShare(
 
   return new Response(null, { status: 204, headers: corsHeaders });
 }
+
+interface PopularCursorPayload {
+  downloadCount?: number;
+  dl?: number;
+  viewCount?: number;
+  vw?: number;
+  createdAt?: string;
+  ca?: string;
+  id?: string;
+}
+
+interface RecentCursorPayload {
+  createdAt?: string;
+  ca?: string;
+  id?: string;
+}
+
+function encodeCursor(obj: unknown): string {
+  const jsonStr = JSON.stringify(obj);
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(jsonStr, 'utf-8').toString('base64');
+  }
+  return btoa(jsonStr);
+}
+
+function decodeCursor<T>(cursor: string): T | null {
+  try {
+    let jsonStr: string;
+    if (typeof Buffer !== 'undefined') {
+      jsonStr = Buffer.from(cursor, 'base64').toString('utf-8');
+    } else {
+      jsonStr = atob(cursor);
+    }
+    return JSON.parse(jsonStr) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * GET /api/shares — Discovery feed for public StudyPackages with keyset pagination.
+ */
+export async function handleListPublicShares(
+  _request: Request,
+  env: Env,
+  url: URL,
+  corsHeaders: Record<string, string> = {},
+): Promise<Response> {
+  const db = drizzle(env.DB);
+
+  // 1. Parse Query Parameters
+  const rawQ = url.searchParams.get('q');
+  const q = rawQ ? rawQ.trim().slice(0, 100) : '';
+
+  const sortParam = url.searchParams.get('sort');
+  const sort = sortParam === 'recent' ? 'recent' : 'popular';
+
+  const rawLimit = Number(url.searchParams.get('limit'));
+  const limit = !Number.isNaN(rawLimit) && rawLimit >= 1 ? Math.min(Math.floor(rawLimit), 50) : 20;
+
+  const rawCursor = url.searchParams.get('cursor');
+
+  // 2. Base Security & Privacy Conditions:
+  // - ONLY access_type = 'public'
+  // - NOT expired (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
+  const conditions = [
+    eq(shares.accessType, 'public'),
+    sql`(${shares.expiresAt} IS NULL OR datetime(${shares.expiresAt}) > datetime('now'))`,
+  ];
+
+  // 3. Search Filter (title, description, author)
+  if (q.length >= 1) {
+    const searchPattern = `%${q}%`;
+    conditions.push(
+      sql`(${shares.title} LIKE ${searchPattern} OR ${shares.description} LIKE ${searchPattern} OR ${shares.author} LIKE ${searchPattern})`,
+    );
+  }
+
+  // 4. Cursor Keyset Predicates
+  if (rawCursor) {
+    if (sort === 'popular') {
+      const parsed = decodeCursor<PopularCursorPayload>(rawCursor);
+      const dl = parsed?.dl ?? parsed?.downloadCount;
+      const vw = parsed?.vw ?? parsed?.viewCount;
+      const ca = parsed?.ca ?? parsed?.createdAt;
+      const id = parsed?.id;
+
+      if (typeof dl !== 'number' || typeof vw !== 'number' || typeof ca !== 'string' || typeof id !== 'string') {
+        return json({ error: 'Invalid cursor parameter for popular sort.' }, 400, corsHeaders);
+      }
+
+      conditions.push(
+        sql`(
+          (${shares.downloadCount} < ${dl}) OR
+          (${shares.downloadCount} = ${dl} AND ${shares.viewCount} < ${vw}) OR
+          (${shares.downloadCount} = ${dl} AND ${shares.viewCount} = ${vw} AND ${shares.createdAt} < ${ca}) OR
+          (${shares.downloadCount} = ${dl} AND ${shares.viewCount} = ${vw} AND ${shares.createdAt} = ${ca} AND ${shares.id} < ${id})
+        )`,
+      );
+    } else {
+      // sort === 'recent'
+      const parsed = decodeCursor<RecentCursorPayload>(rawCursor);
+      const ca = parsed?.ca ?? parsed?.createdAt;
+      const id = parsed?.id;
+
+      if (typeof ca !== 'string' || typeof id !== 'string') {
+        return json({ error: 'Invalid cursor parameter for recent sort.' }, 400, corsHeaders);
+      }
+
+      conditions.push(
+        sql`(
+          (${shares.createdAt} < ${ca}) OR
+          (${shares.createdAt} = ${ca} AND ${shares.id} < ${id})
+        )`,
+      );
+    }
+  }
+
+  // 5. Query execution with limit + 1
+  const query = db
+    .select({
+      id: shares.id,
+      format: shares.format,
+      schemaVersion: shares.schemaVersion,
+      title: shares.title,
+      description: shares.description,
+      author: shares.author,
+      viewCount: shares.viewCount,
+      downloadCount: shares.downloadCount,
+      createdAt: shares.createdAt,
+    })
+    .from(shares)
+    .where(and(...conditions));
+
+  const rows = sort === 'popular'
+    ? await query
+        .orderBy(desc(shares.downloadCount), desc(shares.viewCount), desc(shares.createdAt), desc(shares.id))
+        .limit(limit + 1)
+    : await query
+        .orderBy(desc(shares.createdAt), desc(shares.id))
+        .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const itemsRows = hasMore ? rows.slice(0, limit) : rows;
+
+  const items: PublicShareSummary[] = itemsRows.map((row) => ({
+    id: row.id,
+    format: 'lcpack',
+    schemaVersion: row.schemaVersion,
+    title: row.title,
+    description: row.description ?? undefined,
+    author: row.author ?? undefined,
+    viewCount: row.viewCount,
+    downloadCount: row.downloadCount,
+    createdAt: row.createdAt,
+  }));
+
+  let nextCursor: string | null = null;
+  if (hasMore && itemsRows.length > 0) {
+    const lastItem = itemsRows[itemsRows.length - 1];
+    if (sort === 'popular') {
+      nextCursor = encodeCursor({
+        downloadCount: lastItem.downloadCount,
+        dl: lastItem.downloadCount,
+        viewCount: lastItem.viewCount,
+        vw: lastItem.viewCount,
+        createdAt: lastItem.createdAt,
+        ca: lastItem.createdAt,
+        id: lastItem.id,
+      });
+    } else {
+      nextCursor = encodeCursor({
+        createdAt: lastItem.createdAt,
+        ca: lastItem.createdAt,
+        id: lastItem.id,
+      });
+    }
+  }
+
+  const responseBody: ListPublicSharesResponse = {
+    items,
+    nextCursor,
+    hasMore,
+  };
+
+  return json(responseBody, 200, {
+    'Cache-Control': 'no-store',
+    ...corsHeaders,
+  });
+}
+

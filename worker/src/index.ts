@@ -45,6 +45,7 @@ import {
   handleCreateShare,
   handleDeleteShare,
   handleGetShare,
+  handleListPublicShares,
   handleTrackShareDownload,
 } from './shares';
 
@@ -661,8 +662,11 @@ export default {
       return handleSyncPull(request, env, corsHeaders);
     }
 
-    // /api/shares — Publish a new StudyPackage share snapshot
+    // /api/shares — Discovery feed (GET) or Publish a new StudyPackage share snapshot (POST)
     if (parts[0] === "api" && parts[1] === "shares" && parts.length === 2) {
+      if (request.method === "GET" || request.method === "HEAD") {
+        return handleListPublicShares(request, env, url, corsHeaders);
+      }
       if (request.method === "POST") {
         return handleCreateShare(request, env, corsHeaders);
       }

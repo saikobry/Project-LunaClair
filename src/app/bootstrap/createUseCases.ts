@@ -59,6 +59,8 @@ import {
     FetchPublishedShareUseCase,
     TrackShareDownloadUseCase,
     DeletePublishedShareUseCase,
+    ListPublicSharesUseCase,
+    ClonePublishedShareUseCase,
     SyncEngine,
     syncStatusStore,
     GetSyncStatusUseCase,
@@ -201,6 +203,12 @@ export function createUseCases(repositories: Repositories) {
             fetchPublishedShare: new FetchPublishedShareUseCase(repositories.shareTransport),
             trackShareDownload: new TrackShareDownloadUseCase(repositories.shareTransport),
             deletePublishedShare: new DeletePublishedShareUseCase(repositories.shareTransport),
+            listPublicShares: new ListPublicSharesUseCase(repositories.shareTransport),
+            clonePublishedShare: new ClonePublishedShareUseCase(
+                new FetchPublishedShareUseCase(repositories.shareTransport),
+                new ImportStudyPackageUseCase(repositories.db),
+                new TrackShareDownloadUseCase(repositories.shareTransport),
+            ),
         },
         sync: {
             syncEngine,

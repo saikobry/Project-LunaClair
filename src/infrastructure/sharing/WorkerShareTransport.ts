@@ -218,6 +218,55 @@ export class WorkerShareTransport implements ShareTransport {
       throw new ShareHttpError(response.status, `HTTP ${response.status}`, errorBody);
     }
   }
+
+  async listPublicShares(
+    params: import('../../domain/sharing/sharing.types').ListPublicSharesParams = {},
+    signal?: AbortSignal,
+  ): Promise<import('../../domain/sharing/sharing.types').ListPublicSharesResult> {
+    const searchParams = new URLSearchParams();
+    if (params.q) searchParams.set('q', params.q);
+    if (params.sort) searchParams.set('sort', params.sort);
+    if (params.limit) searchParams.set('limit', String(params.limit));
+    if (params.cursor) searchParams.set('cursor', params.cursor);
+
+    const queryString = searchParams.toString();
+    const url = `${this.baseUrl}/shares${queryString ? `?${queryString}` : ''}`;
+
+    let response: Response;
+    try {
+      response = await this.getFetch()(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal,
+      });
+    } catch (err) {
+      if (err instanceof ShareHttpError) {
+        throw err;
+      }
+      throw new ShareNetworkError(
+        `Failed to list public shares: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      );
+    }
+
+    if (!response.ok) {
+      let errorBody: unknown;
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = undefined;
+      }
+      const message =
+        errorBody && typeof errorBody === 'object' && 'error' in errorBody
+          ? String((errorBody as { error: string }).error)
+          : `HTTP ${response.status} ${response.statusText}`;
+      throw new ShareHttpError(response.status, message, errorBody);
+    }
+
+    return (await response.json()) as import('../../domain/sharing/sharing.types').ListPublicSharesResult;
+  }
 }
 
 export const workerShareTransport = new WorkerShareTransport();

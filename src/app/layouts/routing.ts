@@ -7,6 +7,7 @@
  */
 export type AppRoute =
   | { kind: 'library' }
+  | { kind: 'explore'; initialFilter?: 'all' | 'official' | 'community' }
   | { kind: 'available' }
   | { kind: 'analytics' }
   | { kind: 'preview'; materialId: string }
@@ -25,8 +26,10 @@ export function routeToUrl(route: AppRoute): string {
   switch (route.kind) {
     case 'library':
       return '/';
+    case 'explore':
+      return '/explore';
     case 'available':
-      return '/available';
+      return '/explore';
     case 'analytics':
       return '/analytics';
     case 'import':
@@ -105,9 +108,14 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
     return { kind: 'terms' };
   }
 
-  // /available
+  // /explore
+  if (url.pathname === '/explore') {
+    return { kind: 'explore' };
+  }
+
+  // /available (legacy alias to explore)
   if (url.pathname === '/available') {
-    return { kind: 'available' };
+    return { kind: 'explore' };
   }
 
   // /analytics
