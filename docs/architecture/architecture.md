@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 7 (Analytics & Learning Insights)
+**Version:** Phase 11 (Collaboration & Sharing)
 
 ## Documentation Structure
 
@@ -30,45 +30,61 @@ src/
 
 ### `src/app/`
 
-Application-level orchestration: root shell layout, configuration constants, React providers, and the composition root (`createRepositories`, `createUseCases`, `createApplication`).
+Application-level orchestration: root shell layout (`AppShell`, `AppSidebar`, `ShellRoutes`, `MaterialWorkspace`), configuration constants, React providers (`AppProviders`, `ApplicationProvider`, `FocusModeProvider`), and the composition root (`createRepositories`, `createUseCases`, `createApplication`).
 
 ### `src/application/`
 
-Framework-agnostic use cases coordinate domain contracts. A use case never imports React, TanStack Query, Dexie, browser APIs, or UI components. React hooks call use cases directly for mutations; repositories remain available to query hooks during migration.
+Framework-agnostic use cases coordinate domain contracts between presentation and persistence. A use case never imports React, TanStack Query, Dexie, browser APIs, or UI components. React hooks call use cases directly for write mutations; query hooks read from repositories via dependency injection. Use cases span `quiz/`, `quiz-management/`, `library/`, `subject/`, `reader/`, `content/`, `flashcards/`, `analytics/`, `ai/`, `generator/`, `importer/`, `package/`, `sharing/`, and `sync/`.
 
 ### `src/domain/`
 
-Pure business domain models, engines, and services. Domain modules have zero React or UI dependencies. Subdomains include `reader/`, `quiz/`, `library/`, `flashcards/`, and `analytics/` (streak, activity calendar, mastery ranking, retention maturity/forecast, and overview aggregation).
+Pure business domain models, engines, and services. Domain modules have zero React or UI dependencies. Subdomains include `reader/`, `quiz/`, `library/`, `flashcards/`, `analytics/` (streak, activity calendar, mastery ranking, retention maturity/forecast, and overview aggregation), `ai/`, `importer/`, `sync/` (concurrency evaluation, reconcilers, LWW comparators), `package/` (`.lcpack` specification, validators, UUID remappers, inspectors), and `sharing/` (`ShareTransport` ports and access control types).
 
 ### `src/infrastructure/`
 
-Database persistence infrastructure (`src/infrastructure/database/`): Dexie database, schema versioning, startup lifecycle, migrators, seed data, and concrete repository implementations (`DexieAnalyticsRepository`, `DexieQuizSessionRepository`, `DexieFlashcardReviewRepository`, etc.).
+Database persistence infrastructure (`src/infrastructure/database/`): Dexie database (Schema v11), startup lifecycle, migrators, seed data, and concrete repository implementations (`DexieAnalyticsRepository`, `DexieQuizSessionRepository`, `DexieFlashcardReviewRepository`, `DexieAiChatRepository`, `DexieImportAssetRepository`, `DexieSyncQueueRepository`, `DexieSyncStateRepository`, `DexieConflictDraftRepository`, etc.). API & gateway adapters include `WorkerAiAdapter`, `WorkerSyncTransport`, `WorkerShareTransport`, `PdfjsImporter`, and `TesseractExtractor`.
 
 ### `src/features/`
 
 Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through the approved direct module paths defined by ADR-010; internal feature paths remain private.
 
-Active features include `catalog/` (materials, subjects, terms, and available catalog/import surfaces), `reader/`, `quiz/`, `quiz-management/`, `flashcards/`, `writer/`, and `analytics/` (Learning insights dashboard, KPI metrics, retention breakdown, review forecast, topic mastery, and 52-week activity heatmap). Reserved boundaries include `importer/` and `generator/`.
+Active features include:
+- `catalog/` — Library, Subject workspaces, Term management, and Explore Discovery Hub (`/explore`).
+- `reader/` — Markdown reader with persistent highlights, drawing canvas, and table of contents.
+- `quiz/` — 5-question-type assessment engine and interactive quiz player with atomic submission.
+- `quiz-management/` — Question Bank authoring, visual Quiz Canvas builder, and type editors.
+- `flashcards/` — Spaced repetition study mode (SM-2) with 3D flip card player.
+- `writer/` — Lexical WYSIWYG authoring engine with lossless Markdown transformation.
+- `analytics/` — Learning insights dashboard with KPI metrics, retention breakdown, review forecast, mastery matrix, and 52-week activity heatmap.
+- `ai/` — Grounded AI Study Assistant with streaming chat drawer (`Llama 3.3 70B`) and Reader selection actions.
+- `generator/` — AI Question & Flashcard synthesis dialogs with draft persistence.
+- `importer/` — 5-step content ingestion wizard with PDF extraction and OCR fallback.
+- `sync/` — Cloud synchronization status pill and conflict resolution modal.
+- `package/` — Portable Study Package (`.lcpack`) import/export, cloud share link publishing, and shared package landing screen.
 
 ### `src/shared/`
 
 Reusable domain-agnostic types, constants, utility functions, design tokens, and UI/infrastructure primitives. Business capability code remains in its owning feature.
 
-## Cloud Sync & Content Layer (Cloudflare D1)
+## Cloud Sync & Content Layer (Cloudflare D1 & Workers)
 
-- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as both the **study content store** (materials & figures) and the future **cloud sync layer** (Phase 10).
+- The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as the **study content store** (materials & figures), the **cloud sync replication layer** (Phase 10), and the **cloud sharing link store** (Phase 11).
 - Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~1.5 MB.
 - D1 is only reachable through the `api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema lives as versioned migrations in `worker/migrations/`; canonical markdown files live in `content/materials/` and are seeded via `scripts/seed-materials.mjs`.
-- The library catalog (subjects, terms, subject-term links, materials metadata) is D1-delivered: canonical JSON at `content/catalog/` seeded via `scripts/seed-catalog.mjs`, served as one public snapshot at `GET /api/catalog`. Quiz content (questions/quizzes) follows the same pattern: `content/quiz/` → `scripts/seed-quiz.mjs` → `GET /api/quiz`.
-- **Catalog-first, user-selected library model.** The app does not auto-hydrate D1 into Dexie on boot — a fresh install starts with an empty library. The remote catalog is fetched on demand (TanStack Query → `GET /api/catalog`, SW runtime-cached) and surfaced as Available Materials (`/available`); the user explicitly imports materials (`ImportMaterialUseCase` → atomic `LibraryImportService` write of subject/term links, material, document markdown in the `documentContents` Dexie store, and questions/quizzes from `GET /api/quiz`). `HybridDocumentRepository` serves imported content from Dexie first, API second. Figures remain SW-cached. **D1 = canonical catalog; Dexie = user's local selection/working state; Service Worker Cache Storage = network cache, never library membership.**
-- The Worker's `GET /health` endpoint verifies D1 connectivity.
+- The library catalog (subjects, terms, subject-term links, materials metadata) is D1-delivered: canonical JSON at `content/catalog/` seeded via `scripts/seed-catalog.mjs`, served as one public snapshot at `GET /api/catalog`. Quiz content follows the same pattern: `content/quiz/` → `scripts/seed-quiz.mjs` → `GET /api/quiz`.
+- **Explore & Catalog-first model.** The app does not auto-hydrate D1 into Dexie on boot — a fresh install starts with an empty library. Coursework and community study packs are surfaced via the **Explore Hub** (`/explore`); users explicitly import materials into their local Dexie library.
+- Cloud synchronization uses a transactional outbox (`syncQueue`), single SQL atomic CAS versioning, LWW recency comparisons, and an exponential backoff single-flight `SyncEngine`.
+- Public and protected share links are stored in D1 with salted PBKDF2/SHA-256 passcode hashes and download telemetry counters.
 
 ## Application Workflow Boundaries
 
 - **Quiz Lifecycle:** `StartQuizSessionUseCase → SubmitQuizSessionUseCase` is the quiz lifecycle. Submission grades immutable session snapshots through `AssessmentService`, persists the result, completes the session as one application operation, and invalidates analytics queries.
 - **Flashcard Lifecycle:** `RecordFlashcardReviewUseCase` updates spaced-repetition card intervals/ease/lapses and invalidates analytics queries.
-- **Analytics Orchestration:** `DexieAnalyticsRepository` retrieves raw IndexedDB records concurrently across stores (`quizSessions`, `flashcardReviews`, `questions`, `materials`, `subjects`) and dispatches pure calculation engines in `domain/analytics/` (`computeStudyOverview`, `computeCardMaturity`, `computeReviewForecast`, `computeSubjectMasteries`, `buildActivityCalendar`). Use cases (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase`) deliver clean view models to TanStack Query and UI components. Material association checks and subject-term orchestration likewise live in application use cases, while repositories perform persistence only.
+- **Analytics Orchestration:** `DexieAnalyticsRepository` retrieves raw IndexedDB records concurrently across stores (`quizSessions`, `flashcardReviews`, `questions`, `materials`, `subjects`) and dispatches pure calculation engines in `domain/analytics/` (`computeStudyOverview`, `computeCardMaturity`, `computeReviewForecast`, `computeSubjectMasteries`, `buildActivityCalendar`). Use cases (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase`) deliver clean view models to TanStack Query and UI components.
+- **Content Importer:** `ExtractContentUseCase → CommitImportUseCase` converts external PDF/image assets into structured markdown, stores binary blobs in `importAssets`, and registers local study materials.
+- **Cloud Sync:** `TriggerSyncUseCase` runs `SyncEngine` single-flight convergence (pull delta → reconcile → push outbox → pull catchup); divergences create `ConflictDraft` snapshots resolved via `ResolveConflictDraftUseCase`.
+- **Study Packages & Sharing:** `MaterializeStudyPackageUseCase` extracts local entities into portable `.lcpack` bundles; `PublishStudyPackageUseCase` uploads packages to Cloudflare D1; `ClonePublishedShareUseCase` runs `remapStudyPackage` for collision-free UUID generation and commits the cloned package into the local library in a single atomic transaction.
 
 ## Architecture Decision Records (ADRs)
 

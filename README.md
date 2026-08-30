@@ -4,7 +4,7 @@
 
 Project LunaClair is an AI-powered learning platform. The long-term vision is to transform learning materials into structured study datasets that power quizzes, flashcards, practice exams, progress tracking, and other study experiences.
 
-**Current status:** Phase 7 (Analytics & Learning Insights) is complete. Next planned phase is Phase 8 (AI Study Assistant).
+**Current status:** Phase 11 (Collaboration & Sharing) is complete.
 
 ## Tech Stack
 
@@ -16,10 +16,11 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | StyleX | Styling, design tokens |
 | @astryxdesign/core + theme-neutral | UI component kit and theme |
 | TanStack Query | Server-state caching & mutations (`networkMode: 'offlineFirst'`) |
-| Dexie.js | IndexedDB persistence |
+| Dexie.js | IndexedDB persistence (Schema v11) |
 | GSAP | Animation, drag interactions |
 | react-markdown + remark-gfm + rehype-slug | Markdown rendering |
 | vite-plugin-pwa | PWA / offline app shell |
+| Cloudflare Workers + D1 + Workers AI | Edge API, serverless SQLite cloud sync/shares, Llama 3.3 LLM |
 | Vitest + Testing Library | Unit, transformer, fidelity, state & persistence test suite |
 | Playwright | Real-browser E2E acceptance tests |
 
@@ -27,15 +28,18 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 
 | Feature | Status | Scope |
 |---|---|---|
-| `catalog/` | ✅ Implemented | Study content organization — Library (materials), subject workspaces, and term management |
+| `catalog/` | ✅ Implemented | Study content organization — Library, Subject workspaces, Term management, and Explore Discovery Hub (`/explore`) |
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, table of contents |
 | `quiz/` | ✅ Implemented | Assessment engine — 5 question types, quiz player, session flow, subject quiz explorer |
-| `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, per-type editors, publish/archive workflows |
+| `quiz-management/` | ✅ Implemented | Question Bank authoring, visual Quiz Canvas builder, per-type editors, publish/archive workflows |
 | `flashcards/` | ✅ Implemented | SM-2 spaced repetition, 3D flip-card player, rating flow |
 | `writer/` | ✅ Implemented | Lexical WYSIWYG authoring with lossless Markdown transformation |
 | `analytics/` | ✅ Implemented | Study overview KPIs, card maturity distribution, 7-day review forecast, subject mastery matrix, and 52-week activity heatmap |
-| `importer/` | 🔒 Reserved | Content import |
-| `generator/` | 🔒 Reserved | AI content generation |
+| `ai/` | ✅ Implemented | AI Study Assistant — Grounded reading context, streaming chat drawer (`Llama 3.3 70B Instruct`), quick selection actions |
+| `generator/` | ✅ Implemented | AI Content Generator — Automated synthesis for 5 question types and flashcards with draft persistence |
+| `importer/` | ✅ Implemented | Content Importer — 5-step wizard, hybrid PDF.js + Tesseract OCR extraction, dual-pane Lexical review |
+| `sync/` | ✅ Implemented | Cloud Synchronization — Transactional outbox, hybrid D1 replication, offline convergence, conflict resolution modal |
+| `package/` | ✅ Implemented | Collaboration & Sharing — Portable `.lcpack` bundles, cloud share links (`/share/:id`, `/s/:code`), passcode protection |
 
 ## Repository Structure
 
