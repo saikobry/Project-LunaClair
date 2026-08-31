@@ -121,17 +121,19 @@ export class DexieAiChatRepository implements AiChatRepository {
         .equals('streaming')
         .toArray();
 
-      for (const msg of streaming) {
-        await this.database.aiMessages.update(msg.id, {
-          status: 'error',
-          metadata: {
-            ...msg.metadata,
-            errorCode: 'INTERRUPTED',
-            errorMessage: 'Generation was interrupted.',
-          },
-        });
-      }
+      if (streaming.length === 0) return 0;
 
+      const updatedMessages = streaming.map((msg) => ({
+        ...msg,
+        status: 'error' as const,
+        metadata: {
+          ...msg.metadata,
+          errorCode: 'INTERRUPTED',
+          errorMessage: 'Generation was interrupted.',
+        },
+      }));
+
+      await this.database.aiMessages.bulkPut(updatedMessages);
       return streaming.length;
     });
   }

@@ -88,7 +88,7 @@ export { ListPublicSharesUseCase } from './use-cases/sharing/ListPublicSharesUse
 export { ClonePublishedShareUseCase } from './use-cases/sharing/ClonePublishedShareUseCase';
 export type { ClonePublishedShareInput, ClonePublishedShareResult } from './use-cases/sharing/ClonePublishedShareUseCase';
 
-export { serializePackageToBlob, serializePackageToJson } from '../infrastructure/package/StudyPackageSerializer';
+export { serializePackageToBlob, serializePackageToJson } from '../domain/package/StudyPackageSerializer';
 
 export {
   SyncEngine,

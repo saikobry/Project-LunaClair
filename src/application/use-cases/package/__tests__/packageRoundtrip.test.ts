@@ -8,10 +8,8 @@ import { DexieQuizRepository } from '../../../../infrastructure/database/reposit
 import { DexieImportAssetRepository } from '../../../../infrastructure/database/repositories/DexieImportAssetRepository';
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
-import {
-  parsePackageFromJson,
-  serializePackageToJson,
-} from '../../../../infrastructure/package';
+import { parsePackageFromJson } from '../../../../infrastructure/package/StudyPackageParser';
+import { serializePackageToJson } from '../../../../domain/package/StudyPackageSerializer';
 import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../../domain/reader/DocumentContentRepository';
 import type { Question } from '../../../../domain/quiz/Question';

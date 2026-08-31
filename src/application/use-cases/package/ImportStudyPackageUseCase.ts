@@ -2,7 +2,7 @@ import type { LunaClairDatabase } from '../../../infrastructure/database/LunaCla
 import type { LocalIdGenerator, StudyPackage } from '../../../domain/package/package.types';
 import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
 import { remapStudyPackage } from '../../../domain/package/remapStudyPackage';
-import { base64ToBlob } from '../../../infrastructure/package/StudyPackageSerializer';
+import { base64ToBlob } from '../../../domain/package/StudyPackageSerializer';
 import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
 import type { ImportAssetRecord } from '../../../infrastructure/database/LunaClairDatabase';

@@ -526,10 +526,12 @@ export default {
       }
 
       const clientSystemMsgs = body.messages
-        .filter((m) => m.role === "system" && typeof m.content === "string")
-        .map((m) => (m.content as string).trim())
-        .filter(Boolean)
-        .join("\n\n");
+        .flatMap((m) =>
+          m.role === 'system' && typeof m.content === 'string' && m.content.trim()
+            ? [m.content.trim()]
+            : []
+        )
+        .join('\n\n');
 
       const effectiveSystemPrompt = clientSystemMsgs
         ? `${systemPrompt}\n\n--- TASK SPECIFIC INSTRUCTIONS ---\n${clientSystemMsgs}`

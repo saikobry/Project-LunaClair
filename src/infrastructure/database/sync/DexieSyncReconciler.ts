@@ -1,24 +1,12 @@
 import type { LunaClairDatabase, HighlightRecord } from '../LunaClairDatabase';
 import type { ReviewState } from '../../../domain/flashcards/scheduler';
 import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import {
-  createSyncStateKey,
-  compareLwwTimestamps,
-  reconcileDocument,
-  reconcileTimestampLww,
-  reconcileFlashcardReview,
-  reconcileQuizSession,
-  type DocumentSyncPayload,
-  type HighlightSyncPayload,
-  type DrawingSyncPayload,
-  type FlashcardReviewSyncPayload,
-  type QuizSessionSyncPayload,
-  type ConflictDraft,
-  type SyncQueueItem,
-  type SyncPullResponse,
-  type SyncPushRequest,
-  type SyncPushResponse,
-} from '../../../domain/sync';
+import { createSyncStateKey } from '../../../domain/sync/syncIdentity';
+import { compareLwwTimestamps } from '../../../domain/sync/syncVersioning';
+import { reconcileDocument, reconcileTimestampLww, reconcileFlashcardReview, reconcileQuizSession } from '../../../domain/sync/reconcilers';
+import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, FlashcardReviewSyncPayload, QuizSessionSyncPayload } from '../../../domain/sync/SyncEntities';
+import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/sync.types';
+import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/SyncTransport';
 
 export interface ReconcilePullResult {
   appliedCount: number;
@@ -294,90 +282,104 @@ export class DexieSyncReconciler {
       'rw',
       [db.documentContents, db.conflictDrafts, db.syncQueue, db.syncState],
       async () => {
+        // Pre-build index Map for O(1) matching mutation lookup
+        const mutationsByClientMutationId = new Map(
+          pushRequest.mutations.map((m) => [m.clientMutationId, m])
+        );
+
         // 1. Process Accepted Mutations
-        for (const accepted of pushResponse.accepted) {
+        if (pushResponse.accepted.length > 0) {
+          const acceptedMutationIds = pushResponse.accepted.map((a) => a.clientMutationId);
           const queueItems = await db.syncQueue
             .where('clientMutationId')
-            .equals(accepted.clientMutationId)
+            .anyOf(acceptedMutationIds)
             .toArray();
 
-          for (const item of queueItems) {
-            await db.syncQueue.delete(item.id);
+          if (queueItems.length > 0) {
+            await db.syncQueue.bulkDelete(queueItems.map((q) => q.id));
           }
 
-          if (accepted.entityType === 'document' && accepted.newVersion !== undefined) {
-            const localDoc = await db.documentContents.get(accepted.entityId);
-            if (localDoc) {
-              await db.documentContents.put({
-                ...localDoc,
-                version: accepted.newVersion,
-              });
+          for (const accepted of pushResponse.accepted) {
+            if (accepted.entityType === 'document' && accepted.newVersion !== undefined) {
+              const localDoc = await db.documentContents.get(accepted.entityId);
+              if (localDoc) {
+                await db.documentContents.put({
+                  ...localDoc,
+                  version: accepted.newVersion,
+                });
+              }
             }
           }
         }
 
         // 2. Process Divergence Conflicts
-        for (const conflict of pushResponse.conflicts) {
-          const matchingMutation = pushRequest.mutations.find(
-            (m) => m.clientMutationId === conflict.clientMutationId
-          );
-          const localDoc = await db.documentContents.get(conflict.entityId);
-          const serverPayload = (conflict.serverPayload ?? {}) as Partial<DocumentSyncPayload>;
-
-          const localContent =
-            localDoc?.content ??
-            (matchingMutation?.payload as { content?: string } | undefined)?.content ??
-            '';
-
-          const draft: ConflictDraft = {
-            id: crypto.randomUUID(),
-            documentId: conflict.entityId,
-            baseVersion: matchingMutation?.baseVersion ?? 0,
-            serverVersion: conflict.serverVersion,
-            localContent,
-            serverContent: serverPayload.content ?? '',
-            createdAt: new Date().toISOString(),
-          };
-
-          await db.conflictDrafts.put(draft);
-
-          if (serverPayload.content !== undefined) {
-            await db.documentContents.put({
-              documentId: conflict.entityId,
-              title: serverPayload.title ?? localDoc?.title ?? '',
-              content: serverPayload.content ?? '',
-              updatedAt: serverPayload.updatedAt ?? new Date().toISOString(),
-              version: conflict.serverVersion,
-            });
-          }
-
-          const queueItems = await db.syncQueue
+        if (pushResponse.conflicts.length > 0) {
+          const conflictMutationIds = pushResponse.conflicts.map((c) => c.clientMutationId);
+          const conflictQueueItems = await db.syncQueue
             .where('clientMutationId')
-            .equals(conflict.clientMutationId)
+            .anyOf(conflictMutationIds)
             .toArray();
 
-          for (const item of queueItems) {
-            await db.syncQueue.delete(item.id);
+          if (conflictQueueItems.length > 0) {
+            await db.syncQueue.bulkDelete(conflictQueueItems.map((q) => q.id));
+          }
+
+          for (const conflict of pushResponse.conflicts) {
+            const matchingMutation = mutationsByClientMutationId.get(conflict.clientMutationId);
+            const localDoc = await db.documentContents.get(conflict.entityId);
+            const serverPayload = (conflict.serverPayload ?? {}) as Partial<DocumentSyncPayload>;
+
+            const localContent =
+              localDoc?.content ??
+              (matchingMutation?.payload as { content?: string } | undefined)?.content ??
+              '';
+
+            const draft: ConflictDraft = {
+              id: crypto.randomUUID(),
+              documentId: conflict.entityId,
+              baseVersion: matchingMutation?.baseVersion ?? 0,
+              serverVersion: conflict.serverVersion,
+              localContent,
+              serverContent: serverPayload.content ?? '',
+              createdAt: new Date().toISOString(),
+            };
+
+            await db.conflictDrafts.put(draft);
+
+            if (serverPayload.content !== undefined) {
+              await db.documentContents.put({
+                documentId: conflict.entityId,
+                title: serverPayload.title ?? localDoc?.title ?? '',
+                content: serverPayload.content ?? '',
+                updatedAt: serverPayload.updatedAt ?? new Date().toISOString(),
+                version: conflict.serverVersion,
+              });
+            }
           }
         }
 
         // 3. Process Rejected Mutations (Mark status as failed)
         if (pushResponse.rejected && pushResponse.rejected.length > 0) {
-          for (const rejected of pushResponse.rejected) {
-            const queueItems = await db.syncQueue
-              .where('clientMutationId')
-              .equals(rejected.clientMutationId)
-              .toArray();
+          const rejectedMap = new Map(pushResponse.rejected.map((r) => [r.clientMutationId, r]));
+          const rejectedMutationIds = pushResponse.rejected.map((r) => r.clientMutationId);
+          const queueItems = await db.syncQueue
+            .where('clientMutationId')
+            .anyOf(rejectedMutationIds)
+            .toArray();
 
-            for (const item of queueItems) {
-              await db.syncQueue.put({
-                ...item,
-                status: 'failed',
-                retryCount: item.retryCount + 1,
-                lastAttemptAt: new Date().toISOString(),
-                lastError: rejected.reason,
-              });
-            }
+          const updatedQueueItems = queueItems.map((item) => {
+            const rejected = rejectedMap.get(item.clientMutationId);
+            return {
+              ...item,
+              status: 'failed' as const,
+              retryCount: item.retryCount + 1,
+              lastAttemptAt: new Date().toISOString(),
+              lastError: rejected?.reason,
+            };
+          });
+
+          if (updatedQueueItems.length > 0) {
+            await db.syncQueue.bulkPut(updatedQueueItems);
           }
         }
 

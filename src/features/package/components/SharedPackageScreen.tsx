@@ -28,7 +28,7 @@ import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { useToast } from '../../../app/providers/ToastContext';
 import { inspectStudyPackage } from '../../../domain/package/inspectStudyPackage';
-import { serializePackageToBlob } from '../../../application';
+import { serializePackageToBlob } from '../../../domain/package/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 import type { PublishedShare } from '../../../domain/sharing/sharing.types';
 import type { ImportStudyPackageResult } from '../../../application';

@@ -1,4 +1,4 @@
-import type { StudyPackage } from '../../domain/package/package.types';
+import type { StudyPackage } from './package.types';
 
 export const LUNACLAIR_PACKAGE_MIME_TYPE = 'application/vnd.lunaclair.package+json';
 export const PACKAGE_MIME_TYPE = LUNACLAIR_PACKAGE_MIME_TYPE;

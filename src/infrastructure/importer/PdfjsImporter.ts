@@ -18,8 +18,10 @@ export class PdfjsImporter implements ContentImporter {
   }
 
   async extract(file: File, options?: ExtractionOptions): Promise<ExtractionResult> {
-    const pdfjs = await import('pdfjs-dist');
-    const { default: pdfjsWorker } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+    const [pdfjs, { default: pdfjsWorker }] = await Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+    ]);
     pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
     const arrayBuffer = await file.arrayBuffer();

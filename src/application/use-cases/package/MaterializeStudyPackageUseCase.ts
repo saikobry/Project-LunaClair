@@ -13,7 +13,7 @@ import type {
   StudyPackage,
   StudyPackageMetadata,
 } from '../../../domain/package/package.types';
-import { blobToBase64 } from '../../../infrastructure/package/StudyPackageSerializer';
+import { blobToBase64 } from '../../../domain/package/StudyPackageSerializer';
 
 export interface MaterializeStudyPackageInput {
   materialId: string;
@@ -65,12 +65,12 @@ export class MaterializeStudyPackageUseCase {
     const docContent = await this.documentContentRepository.getByDocumentId(material.documentId);
     const rawMarkdown = docContent?.content || '';
 
-    // 3. Fetch related questions and quizzes
-    const questions = await this.questionRepository.getQuestions(materialId);
-    const quizzes = await this.quizRepository.getQuizzes(materialId);
-
-    // 4. Fetch binary asset if present
-    const importedAsset = await this.importAssetRepository.get(materialId);
+    // 3-4. Fetch related data in parallel (questions, quizzes, and asset are independent)
+    const [questions, quizzes, importedAsset] = await Promise.all([
+      this.questionRepository.getQuestions(materialId),
+      this.quizRepository.getQuizzes(materialId),
+      this.importAssetRepository.get(materialId),
+    ]);
 
     // 5. Establish ID translation map (local -> pkg_*)
     const pkgMatId = 'pkg_mat_1' as const;
@@ -95,13 +95,13 @@ export class MaterializeStudyPackageUseCase {
 
     const packageQuizzes: PackageQuiz[] = quizzes.map((quiz, idx) => {
       const pkgQuizId = `pkg_quiz_${idx + 1}` as const;
-      const items: PackageQuizItem[] = quiz.items
-        .filter((item) => qIdMap.has(item.questionId))
-        .map((item) => ({
-          questionId: qIdMap.get(item.questionId)!,
-          order: item.order,
-          points: item.points,
-        }));
+      const items: PackageQuizItem[] = [];
+      for (const item of quiz.items) {
+        const mappedId = qIdMap.get(item.questionId);
+        if (mappedId) {
+          items.push({ questionId: mappedId, order: item.order, points: item.points });
+        }
+      }
 
       return {
         id: pkgQuizId,

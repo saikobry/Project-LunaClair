@@ -1,73 +1,71 @@
-import {
-    AbandonQuizSessionUseCase,
-    AddTermToSubjectUseCase,
-    ArchiveQuestionUseCase,
-    ArchiveQuizUseCase,
-    ClearAnnotationsUseCase,
-    CreateAndAssignTermUseCase,
-    CreateMaterialUseCase,
-    CreateQuestionUseCase,
-    CreateQuizUseCase,
-    CreateSubjectUseCase,
-    CreateTermUseCase,
-    DeleteMaterialUseCase,
-    DeleteSubjectUseCase,
-    DeleteTermUseCase,
-    ImportMaterialUseCase,
-    ImportSubjectUseCase,
-    PublishQuestionUseCase,
-    PublishQuizUseCase,
-    RecordFlashcardReviewUseCase,
-    RemoveImportedMaterialUseCase,
-    RemoveTermFromSubjectUseCase,
-    ReorderSubjectsUseCase,
-    ReorderSubjectTermsUseCase,
-    SaveDrawingUseCase,
-    SaveHighlightUseCase,
-    SaveQuizUseCase,
-    StartQuizSessionUseCase,
-    SubmitQuizSessionUseCase,
-    SyncDefaultTermsUseCase,
-    SyncSubjectTermsUseCase,
-    TouchMaterialUseCase,
-    UnarchiveQuestionUseCase,
-    UnarchiveQuizUseCase,
-    UpdateDocumentContentUseCase,
-    UpdateMaterialUseCase,
-    UpdateQuestionUseCase,
-    UpdateQuizUseCase,
-    UpdateSubjectUseCase,
-    UpdateTermUseCase,
-    GetGlobalAnalyticsUseCase,
-    GetSubjectAnalyticsUseCase,
-    GetMaterialAnalyticsUseCase,
-    SendChatMessageUseCase,
-    GetOrCreateAiThreadUseCase,
-    GetAiThreadMessagesUseCase,
-    DeleteAiThreadUseCase,
-    ClearChatHistoryUseCase,
-    GenerateQuestionsUseCase,
-    BatchCreateQuestionsUseCase,
-    GenerateFlashcardsUseCase,
-    BatchCreateFlashcardsUseCase,
-    ExtractContentUseCase,
-    CommitImportUseCase,
-    CleanupImportWithAiUseCase,
-    MaterializeStudyPackageUseCase,
-    ImportStudyPackageUseCase,
-    PublishStudyPackageUseCase,
-    FetchPublishedShareUseCase,
-    TrackShareDownloadUseCase,
-    DeletePublishedShareUseCase,
-    ListPublicSharesUseCase,
-    ClonePublishedShareUseCase,
-    SyncEngine,
-    syncStatusStore,
-    GetSyncStatusUseCase,
-    GetConflictDraftsUseCase,
-    ResolveConflictDraftUseCase,
-    TriggerSyncUseCase,
-} from '../../application';
+import { AbandonQuizSessionUseCase } from '../../application/use-cases/quiz/AbandonQuizSessionUseCase';
+import { StartQuizSessionUseCase } from '../../application/use-cases/quiz/StartQuizSessionUseCase';
+import { SubmitQuizSessionUseCase } from '../../application/use-cases/quiz/SubmitQuizSessionUseCase';
+import { CreateQuestionUseCase } from '../../application/use-cases/quiz-management/CreateQuestionUseCase';
+import { UpdateQuestionUseCase } from '../../application/use-cases/quiz-management/UpdateQuestionUseCase';
+import { ArchiveQuestionUseCase } from '../../application/use-cases/quiz-management/ArchiveQuestionUseCase';
+import { UnarchiveQuestionUseCase } from '../../application/use-cases/quiz-management/UnarchiveQuestionUseCase';
+import { PublishQuestionUseCase } from '../../application/use-cases/quiz-management/PublishQuestionUseCase';
+import { CreateQuizUseCase } from '../../application/use-cases/quiz-management/CreateQuizUseCase';
+import { UpdateQuizUseCase } from '../../application/use-cases/quiz-management/UpdateQuizUseCase';
+import { ArchiveQuizUseCase } from '../../application/use-cases/quiz-management/ArchiveQuizUseCase';
+import { UnarchiveQuizUseCase } from '../../application/use-cases/quiz-management/UnarchiveQuizUseCase';
+import { PublishQuizUseCase } from '../../application/use-cases/quiz-management/PublishQuizUseCase';
+import { SaveQuizUseCase } from '../../application/use-cases/quiz-management/SaveQuizUseCase';
+import { CreateMaterialUseCase } from '../../application/use-cases/library/CreateMaterialUseCase';
+import { UpdateMaterialUseCase } from '../../application/use-cases/library/UpdateMaterialUseCase';
+import { DeleteMaterialUseCase } from '../../application/use-cases/library/DeleteMaterialUseCase';
+import { ImportMaterialUseCase } from '../../application/use-cases/library/ImportMaterialUseCase';
+import { ImportSubjectUseCase } from '../../application/use-cases/library/ImportSubjectUseCase';
+import { RemoveImportedMaterialUseCase } from '../../application/use-cases/library/RemoveImportedMaterialUseCase';
+import { SyncDefaultTermsUseCase } from '../../application/use-cases/library/SyncDefaultTermsUseCase';
+import { TouchMaterialUseCase } from '../../application/use-cases/library/TouchMaterialUseCase';
+import { CreateSubjectUseCase } from '../../application/use-cases/subject/CreateSubjectUseCase';
+import { UpdateSubjectUseCase } from '../../application/use-cases/subject/UpdateSubjectUseCase';
+import { ReorderSubjectsUseCase } from '../../application/use-cases/subject/ReorderSubjectsUseCase';
+import { DeleteSubjectUseCase } from '../../application/use-cases/subject/DeleteSubjectUseCase';
+import { CreateTermUseCase } from '../../application/use-cases/subject/CreateTermUseCase';
+import { UpdateTermUseCase } from '../../application/use-cases/subject/UpdateTermUseCase';
+import { CreateAndAssignTermUseCase } from '../../application/use-cases/subject/CreateAndAssignTermUseCase';
+import { SyncSubjectTermsUseCase } from '../../application/use-cases/subject/SyncSubjectTermsUseCase';
+import { ReorderSubjectTermsUseCase } from '../../application/use-cases/subject/ReorderSubjectTermsUseCase';
+import { AddTermToSubjectUseCase } from '../../application/use-cases/subject/AddTermToSubjectUseCase';
+import { RemoveTermFromSubjectUseCase } from '../../application/use-cases/subject/RemoveTermFromSubjectUseCase';
+import { DeleteTermUseCase } from '../../application/use-cases/subject/DeleteTermUseCase';
+import { SaveHighlightUseCase } from '../../application/use-cases/reader/SaveHighlightUseCase';
+import { SaveDrawingUseCase } from '../../application/use-cases/reader/SaveDrawingUseCase';
+import { ClearAnnotationsUseCase } from '../../application/use-cases/reader/ClearAnnotationsUseCase';
+import { UpdateDocumentContentUseCase } from '../../application/use-cases/content/UpdateDocumentContentUseCase';
+import { RecordFlashcardReviewUseCase } from '../../application/use-cases/flashcards/RecordFlashcardReviewUseCase';
+import { GetGlobalAnalyticsUseCase } from '../../application/use-cases/analytics/GetGlobalAnalyticsUseCase';
+import { GetSubjectAnalyticsUseCase } from '../../application/use-cases/analytics/GetSubjectAnalyticsUseCase';
+import { GetMaterialAnalyticsUseCase } from '../../application/use-cases/analytics/GetMaterialAnalyticsUseCase';
+import { SendChatMessageUseCase } from '../../application/use-cases/ai/SendChatMessageUseCase';
+import { GetOrCreateAiThreadUseCase } from '../../application/use-cases/ai/GetOrCreateAiThreadUseCase';
+import { GetAiThreadMessagesUseCase } from '../../application/use-cases/ai/GetAiThreadMessagesUseCase';
+import { DeleteAiThreadUseCase } from '../../application/use-cases/ai/DeleteAiThreadUseCase';
+import { ClearChatHistoryUseCase } from '../../application/use-cases/ai/ClearChatHistoryUseCase';
+import { GenerateQuestionsUseCase } from '../../application/use-cases/generator/GenerateQuestionsUseCase';
+import { BatchCreateQuestionsUseCase } from '../../application/use-cases/generator/BatchCreateQuestionsUseCase';
+import { GenerateFlashcardsUseCase } from '../../application/use-cases/generator/GenerateFlashcardsUseCase';
+import { BatchCreateFlashcardsUseCase } from '../../application/use-cases/generator/BatchCreateFlashcardsUseCase';
+import { ExtractContentUseCase } from '../../application/use-cases/importer/ExtractContentUseCase';
+import { CommitImportUseCase } from '../../application/use-cases/importer/CommitImportUseCase';
+import { CleanupImportWithAiUseCase } from '../../application/use-cases/importer/CleanupImportWithAiUseCase';
+import { MaterializeStudyPackageUseCase } from '../../application/use-cases/package/MaterializeStudyPackageUseCase';
+import { ImportStudyPackageUseCase } from '../../application/use-cases/package/ImportStudyPackageUseCase';
+import { PublishStudyPackageUseCase } from '../../application/use-cases/sharing/PublishStudyPackageUseCase';
+import { FetchPublishedShareUseCase } from '../../application/use-cases/sharing/FetchPublishedShareUseCase';
+import { TrackShareDownloadUseCase } from '../../application/use-cases/sharing/TrackShareDownloadUseCase';
+import { DeletePublishedShareUseCase } from '../../application/use-cases/sharing/DeletePublishedShareUseCase';
+import { ListPublicSharesUseCase } from '../../application/use-cases/sharing/ListPublicSharesUseCase';
+import { ClonePublishedShareUseCase } from '../../application/use-cases/sharing/ClonePublishedShareUseCase';
+import { SyncEngine } from '../../application/sync/SyncEngine';
+import { syncStatusStore } from '../../application/sync/SyncStatusStore';
+import { GetSyncStatusUseCase } from '../../application/use-cases/sync/GetSyncStatusUseCase';
+import { GetConflictDraftsUseCase } from '../../application/use-cases/sync/GetConflictDraftsUseCase';
+import { ResolveConflictDraftUseCase } from '../../application/use-cases/sync/ResolveConflictDraftUseCase';
+import { TriggerSyncUseCase } from '../../application/use-cases/sync/TriggerSyncUseCase';
 import type { Repositories } from './createRepositories';
 
 export function createUseCases(repositories: Repositories) {

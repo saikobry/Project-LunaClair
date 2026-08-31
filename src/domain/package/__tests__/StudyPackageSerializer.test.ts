@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { StudyPackage } from '../../../domain/package/package.types';
+import type { StudyPackage } from '../package.types';
 import {
   serializePackageToJson,
   serializePackageToBlob,

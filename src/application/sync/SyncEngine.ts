@@ -1,15 +1,12 @@
 import type { LunaClairDatabase } from '../../infrastructure/database/LunaClairDatabase';
 import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
-import {
-  createSyncStateKey,
-  SyncNetworkError,
-  type SessionCredentials,
-  type SyncPushRequest,
-  type SyncQueueRepository,
-  type SyncRetryPolicy,
-  type SyncStateRepository,
-  type SyncTransport,
-} from '../../domain/sync';
+import { createSyncStateKey } from '../../domain/sync/syncIdentity';
+import { SyncNetworkError } from '../../domain/sync/SyncErrors';
+import type { SessionCredentials } from '../../domain/sync/sync.types';
+import type { SyncPushRequest, SyncTransport } from '../../domain/sync/SyncTransport';
+import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
+import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
+import type { SyncRetryPolicy } from '../../domain/sync/SyncRetryPolicy';
 import { defaultSyncRetryPolicy } from './policies/syncRetryPolicy';
 import type { SyncStatusStore } from './SyncStatusStore';
 

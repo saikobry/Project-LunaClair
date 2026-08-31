@@ -1,14 +1,20 @@
 import type { HighlightItem, DrawingPath } from '../../../domain/reader';
 import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
+import type { SyncQueueItem } from '../../../domain/sync/sync.types';
 import { db, type HighlightRecord, type DrawingRecord } from '../LunaClairDatabase';
 
 export class DexieAnnotationRepository implements AnnotationRepository {
     async getHighlights(documentId: string, signal?: AbortSignal): Promise<HighlightItem[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const records = await db.highlights.where('documentId').equals(documentId).toArray();
-        return records
-            .filter((r) => !r.deletedAt)
-            .map(({ documentId: _d, createdAt: _c, ...item }) => item);
+        const results: HighlightItem[] = [];
+        for (const r of records) {
+            if (!r.deletedAt) {
+                const { documentId: _d, createdAt: _c, ...item } = r;
+                results.push(item);
+            }
+        }
+        return results;
     }
 
     async saveHighlights(documentId: string, highlights: HighlightItem[]): Promise<void> {
@@ -17,14 +23,16 @@ export class DexieAnnotationRepository implements AnnotationRepository {
             const incomingIds = new Set(highlights.map((h) => h.id));
             const now = new Date().toISOString();
 
+            const highlightsToPut: HighlightRecord[] = [];
+            const queueItemsToPut: SyncQueueItem[] = [];
+
             for (const old of existing) {
                 if (!incomingIds.has(old.id) && !old.deletedAt) {
-                    const tombstone: HighlightRecord = {
+                    highlightsToPut.push({
                         ...old,
                         deletedAt: now,
-                    };
-                    await db.highlights.put(tombstone);
-                    await db.syncQueue.put({
+                    });
+                    queueItemsToPut.push({
                         id: crypto.randomUUID(),
                         clientMutationId: crypto.randomUUID(),
                         entityType: 'highlight',
@@ -54,8 +62,8 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     documentId,
                     createdAt: (h as unknown as HighlightRecord).createdAt ?? now,
                 };
-                await db.highlights.put(record);
-                await db.syncQueue.put({
+                highlightsToPut.push(record);
+                queueItemsToPut.push({
                     id: crypto.randomUUID(),
                     clientMutationId: crypto.randomUUID(),
                     entityType: 'highlight',
@@ -76,6 +84,13 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     retryCount: 0,
                 });
             }
+
+            if (highlightsToPut.length > 0) {
+                await db.highlights.bulkPut(highlightsToPut);
+            }
+            if (queueItemsToPut.length > 0) {
+                await db.syncQueue.bulkPut(queueItemsToPut);
+            }
         });
     }
 
@@ -86,9 +101,14 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     async getDrawings(documentId: string, signal?: AbortSignal): Promise<DrawingPath[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const records = await db.drawings.where('documentId').equals(documentId).toArray();
-        return records
-            .filter((r) => !r.deletedAt)
-            .map(({ documentId: _d, createdAt: _c, ...path }) => path);
+        const results: DrawingPath[] = [];
+        for (const r of records) {
+            if (!r.deletedAt) {
+                const { documentId: _d, createdAt: _c, ...path } = r;
+                results.push(path);
+            }
+        }
+        return results;
     }
 
     async saveDrawings(documentId: string, paths: DrawingPath[]): Promise<void> {
@@ -97,14 +117,16 @@ export class DexieAnnotationRepository implements AnnotationRepository {
             const incomingIds = new Set(paths.map((p) => p.id));
             const now = new Date().toISOString();
 
+            const drawingsToPut: DrawingRecord[] = [];
+            const queueItemsToPut: SyncQueueItem[] = [];
+
             for (const old of existing) {
                 if (!incomingIds.has(old.id) && !old.deletedAt) {
-                    const tombstone: DrawingRecord = {
+                    drawingsToPut.push({
                         ...old,
                         deletedAt: now,
-                    };
-                    await db.drawings.put(tombstone);
-                    await db.syncQueue.put({
+                    });
+                    queueItemsToPut.push({
                         id: crypto.randomUUID(),
                         clientMutationId: crypto.randomUUID(),
                         entityType: 'drawing',
@@ -134,8 +156,8 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     documentId,
                     createdAt: (p as unknown as DrawingRecord).createdAt ?? now,
                 };
-                await db.drawings.put(record);
-                await db.syncQueue.put({
+                drawingsToPut.push(record);
+                queueItemsToPut.push({
                     id: crypto.randomUUID(),
                     clientMutationId: crypto.randomUUID(),
                     entityType: 'drawing',
@@ -155,6 +177,13 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     createdAt: now,
                     retryCount: 0,
                 });
+            }
+
+            if (drawingsToPut.length > 0) {
+                await db.drawings.bulkPut(drawingsToPut);
+            }
+            if (queueItemsToPut.length > 0) {
+                await db.syncQueue.bulkPut(queueItemsToPut);
             }
         });
     }
