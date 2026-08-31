@@ -82,10 +82,6 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
       }
 
       try {
-        if (context.infrastructure.repositories.aiChat) {
-          await context.infrastructure.repositories.aiChat.recoverInterruptedMessages();
-        }
-
         const activeThread = await context.useCases.ai.getOrCreateThread.execute({
           materialId,
           mode,

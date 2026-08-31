@@ -36,9 +36,9 @@ export function useSyncStatus(): UseSyncStatusResult {
       } catch {
         // Tolerant to fetch failures during initialization
       }
-    } else if (context?.infrastructure?.repositories?.conflictDraft) {
+    } else if (context?.repositories?.conflictDraft) {
       try {
-        const count = await context.infrastructure.repositories.conflictDraft.count();
+        const count = await context.repositories.conflictDraft.count();
         setConflictCount(count);
       } catch {
         // Tolerant
@@ -57,9 +57,9 @@ export function useSyncStatus(): UseSyncStatusResult {
         } catch {
           // Tolerant
         }
-      } else if (context?.infrastructure?.repositories?.conflictDraft) {
+      } else if (context?.repositories?.conflictDraft) {
         try {
-          const count = await context.infrastructure.repositories.conflictDraft.count();
+          const count = await context.repositories.conflictDraft.count();
           if (!cancelled) setConflictCount(count);
         } catch {
           // Tolerant

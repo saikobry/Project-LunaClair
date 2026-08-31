@@ -14,7 +14,7 @@ export function useSubject(subjectId: string | undefined) {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: catalogQueryKeys.subject(subjectId ?? ''),
-    queryFn: ({ signal }) => context.infrastructure.repositories.subject.getSubjectById(subjectId!, signal),
+    queryFn: ({ signal }) => context.repositories.subject.getSubjectById(subjectId!, signal),
     enabled: !!subjectId,
   });
 

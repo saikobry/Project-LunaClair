@@ -10,7 +10,7 @@ export function useFlashcardReviews(materialId: string) {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: flashcardQueryKeys.reviews(materialId),
         queryFn: async () => {
-            const repository = context.infrastructure.repositories.flashcardReview;
+            const repository = context.repositories.flashcardReview;
             const reviews = await repository.getByMaterial(materialId);
             const map: Record<string, ReviewState> = {};
             for (const r of reviews) {

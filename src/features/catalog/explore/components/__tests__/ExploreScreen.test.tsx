@@ -56,6 +56,14 @@ describe('ExploreScreen', () => {
     queryClient.clear();
 
     mockContext = {
+      repositories: {
+        catalog: {
+          getCatalog: vi.fn().mockResolvedValue(mockOfficialCatalog),
+        },
+        library: {
+          getMaterials: vi.fn().mockResolvedValue([]),
+        },
+      },
       infrastructure: {
         repositories: {
           catalog: {

@@ -17,7 +17,7 @@ export function useLibrary() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: catalogQueryKeys.materials(),
-    queryFn: ({ signal }) => context.infrastructure.repositories.library.getMaterials(signal),
+    queryFn: ({ signal }) => context.repositories.library.getMaterials(signal),
   });
 
   return {

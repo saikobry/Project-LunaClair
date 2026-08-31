@@ -121,6 +121,11 @@ describe('StudyPackagePreviewModal', () => {
     const onConfirmImport = vi.fn().mockResolvedValue(undefined);
 
     const mockContextValue = {
+      repositories: {
+        subject: mockSubjectRepository,
+        subjectTerm: mockSubjectTermRepository,
+        term: mockTermRepository,
+      },
       infrastructure: {
         repositories: {
           subject: mockSubjectRepository,

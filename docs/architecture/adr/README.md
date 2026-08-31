@@ -25,6 +25,7 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-008](ADR-008-shared-ui-vs-components-layering.md) | Shared UI Primitives vs. Composite Components Layering | Accepted | Phase 5 |
 | [ADR-009](ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership and Public Contracts | Superseded by [ADR-010](ADR-010-replace-barrel-based-feature-boundaries.md) | Phase 6 |
 | [ADR-010](ADR-010-replace-barrel-based-feature-boundaries.md) | Replace Barrel-Based Feature Boundaries | Accepted | Phase 6 |
+| [ADR-011](ADR-011-public-application-context-and-cqrs-read-model.md) | Public Application Context, Composition Root Slices, and CQRS Read Model | Accepted | Phase 12 |
 
 ---
 

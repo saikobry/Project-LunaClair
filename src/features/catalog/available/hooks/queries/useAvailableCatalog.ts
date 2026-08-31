@@ -17,7 +17,7 @@ export function useAvailableCatalog() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: catalogQueryKeys.catalog(),
-    queryFn: ({ signal }) => context.infrastructure.repositories.catalog.getCatalog(signal),
+    queryFn: ({ signal }) => context.repositories.catalog.getCatalog(signal),
   });
 
   return {

@@ -167,6 +167,11 @@ describe('SharedPackageScreen', () => {
     const shareId = props.shareId ?? 'share_public_123';
 
     const mockContextValue = {
+      repositories: {
+        subject: mockSubjectRepository,
+        subjectTerm: mockSubjectTermRepository,
+        term: mockTermRepository,
+      },
       infrastructure: {
         repositories: {
           subject: mockSubjectRepository,

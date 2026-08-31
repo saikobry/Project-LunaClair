@@ -18,7 +18,7 @@ export function usePreviewDocument(material: StudyMaterial | null) {
 
   return useQuery({
     queryKey: [...catalogQueryKeys.availableMaterial(material?.id ?? ''), 'document'],
-    queryFn: ({ signal }) => context.infrastructure.repositories.document.getDocumentByMaterial(material!, signal),
+    queryFn: ({ signal }) => context.repositories.document.getDocumentByMaterial(material!, signal),
     enabled: material !== null,
   });
 }

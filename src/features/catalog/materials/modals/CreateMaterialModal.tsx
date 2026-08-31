@@ -1,11 +1,11 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
-import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useTerms } from '../../terms/hooks/queries/useTerms';
 import { styles } from '../../shared/styles/library.stylex';
-import type { Subject, Term } from '../../../../domain/library';
+import type { Subject } from '../../../../domain/library';
 
 const selectStyles = stylex.create({
     select: {
@@ -41,32 +41,19 @@ export default function CreateMaterialModal({
     onSave,
     onClose,
 }: CreateMaterialModalProps) {
-    const context = useContext(ApplicationContext);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
         initialSubjectId ?? null,
     );
     const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
-    const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
-
-    // Resolve terms for the selected subject via SubjectTermRepository
-    useEffect(() => {
-        if (!selectedSubjectId || !context) return;
-        let cancelled = false;
-        context.infrastructure.repositories.subjectTerm.getTermsBySubject(selectedSubjectId).then((terms) => {
-            if (!cancelled) setAvailableTerms(terms);
-        });
-        return () => { cancelled = true; };
-    }, [selectedSubjectId, context]);
+    const { terms: fetchedTerms } = useTerms(selectedSubjectId ?? undefined);
+    const availableTerms = selectedSubjectId ? fetchedTerms : [];
 
     const handleSubjectChange = (value: string) => {
         const newSubjectId = value === '__unassigned__' ? null : value;
         setSelectedSubjectId(newSubjectId);
         setSelectedTermId(null);
-        if (!newSubjectId) {
-            setAvailableTerms([]);
-        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {

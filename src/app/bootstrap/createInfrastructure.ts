@@ -1,3 +1,24 @@
+import type { DocumentRepository } from '../../domain/reader/DocumentRepository';
+import type { CatalogRepository } from '../../domain/library/CatalogRepository';
+import type { QuizContentRepository } from '../../domain/quiz/QuizContentRepository';
+import type { DocumentContentRepository } from '../../domain/reader/DocumentContentRepository';
+import type { AnnotationRepository } from '../../domain/reader/AnnotationRepository';
+import type { LibraryRepository } from '../../domain/library/LibraryRepository';
+import type { QuestionRepository } from '../../domain/quiz/QuestionRepository';
+import type { QuizRepository } from '../../domain/quiz/QuizRepository';
+import type { QuizSessionRepository } from '../../domain/quiz/QuizSessionRepository';
+import type { SubjectRepository } from '../../domain/library/SubjectRepository';
+import type { TermRepository } from '../../domain/library/TermRepository';
+import type { SubjectTermRepository } from '../../domain/library/SubjectTermRepository';
+import type { QuizDraftRepository } from '../../application/quiz-management/drafts/QuizDraftRepository';
+import type { FlashcardReviewRepository } from '../../domain/flashcards/FlashcardReviewRepository';
+import type { AnalyticsRepository } from '../../domain/analytics/AnalyticsRepository';
+import type { AiChatRepository } from '../../domain/ai/AiChatRepository';
+import type { ImportAssetRepository } from '../../domain/importer/ImportAssetRepository';
+import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
+import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
+import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
+
 import { apiCatalogRepository } from '../../infrastructure/api/ApiCatalogRepository';
 import { apiDocumentRepository } from '../../infrastructure/api/ApiDocumentRepository';
 import { apiQuizContentRepository } from '../../infrastructure/api/ApiQuizContentRepository';
@@ -28,14 +49,72 @@ import { dexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyn
 import { workerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
 import { workerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
 import { localStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
-import { db } from '../../infrastructure/database/LunaClairDatabase';
+import { db, type LunaClairDatabase } from '../../infrastructure/database/LunaClairDatabase';
+import type { DexieTermService } from '../../infrastructure/database/services/DexieTermService';
+import type { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
+import type { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
+import type { WorkerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
+import type { WorkerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
+import type { LocalStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
+import type { ImporterRegistry } from '../../domain/importer/ContentImporter';
+import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
+
+/**
+ * Public domain repositories contract exposed to the application layer.
+ * Typed strictly with abstract Domain Ports, keeping features agnostic
+ * of concrete IndexedDB or API adapters.
+ */
+export interface Repositories {
+    document: DocumentRepository;
+    catalog: CatalogRepository;
+    quizContent: QuizContentRepository;
+    documentContent: DocumentContentRepository;
+    annotation: AnnotationRepository;
+    library: LibraryRepository;
+    question: QuestionRepository;
+    quiz: QuizRepository;
+    quizSession: QuizSessionRepository;
+    subject: SubjectRepository;
+    term: TermRepository;
+    subjectTerm: SubjectTermRepository;
+    quizDraft: QuizDraftRepository;
+    flashcardReview: FlashcardReviewRepository;
+    analytics: AnalyticsRepository;
+    aiChat: AiChatRepository;
+    importAsset: ImportAssetRepository;
+    syncQueue: SyncQueueRepository;
+    syncState: SyncStateRepository;
+    conflictDraft: ConflictDraftRepository;
+}
+
+/**
+ * Internal infrastructure bundle encapsulating database, domain services,
+ * network transports, and security providers.
+ */
+export interface Infrastructure {
+    db: LunaClairDatabase;
+    repositories: Repositories;
+    services: {
+        term: DexieTermService;
+        quizEditor: DexieQuizEditorService;
+        libraryImport: DexieLibraryImportService;
+        ai: WorkerAiAdapter;
+    };
+    transports: {
+        sync: WorkerSyncTransport;
+        share: WorkerShareTransport;
+    };
+    providers: {
+        credentials: LocalStorageCredentialsProvider;
+    };
+    importerRegistry: ImporterRegistry;
+    syncReconciler: DexieSyncReconciler;
+}
 
 /**
  * Creates and structures the application's infrastructure layer.
- * Groups concrete database repositories, domain services, network transports,
- * and security providers into explicit, typed namespaces.
  */
-export function createInfrastructure() {
+export function createInfrastructure(): Infrastructure {
     const documentRepository = new HybridDocumentRepository(
         dexieDocumentContentRepository,
         apiDocumentRepository,
@@ -43,30 +122,32 @@ export function createInfrastructure() {
 
     const aiService = new WorkerAiAdapter();
 
+    const repositories: Repositories = {
+        document: documentRepository,
+        catalog: apiCatalogRepository,
+        quizContent: apiQuizContentRepository,
+        documentContent: dexieDocumentContentRepository,
+        annotation: dexieAnnotationRepository,
+        library: dexieLibraryRepository,
+        question: dexieQuestionRepository,
+        quiz: dexieQuizRepository,
+        quizSession: dexieQuizSessionRepository,
+        subject: dexieSubjectRepository,
+        term: dexieTermRepository,
+        subjectTerm: dexieSubjectTermRepository,
+        quizDraft: dexieQuizDraftRepository,
+        flashcardReview: dexieFlashcardReviewRepository,
+        analytics: dexieAnalyticsRepository,
+        aiChat: dexieAiChatRepository,
+        importAsset: dexieImportAssetRepository,
+        syncQueue: dexieSyncQueueRepository,
+        syncState: dexieSyncStateRepository,
+        conflictDraft: dexieConflictDraftRepository,
+    };
+
     return {
         db,
-        repositories: {
-            document: documentRepository,
-            catalog: apiCatalogRepository,
-            quizContent: apiQuizContentRepository,
-            documentContent: dexieDocumentContentRepository,
-            annotation: dexieAnnotationRepository,
-            library: dexieLibraryRepository,
-            question: dexieQuestionRepository,
-            quiz: dexieQuizRepository,
-            quizSession: dexieQuizSessionRepository,
-            subject: dexieSubjectRepository,
-            term: dexieTermRepository,
-            subjectTerm: dexieSubjectTermRepository,
-            quizDraft: dexieQuizDraftRepository,
-            flashcardReview: dexieFlashcardReviewRepository,
-            analytics: dexieAnalyticsRepository,
-            aiChat: dexieAiChatRepository,
-            importAsset: dexieImportAssetRepository,
-            syncQueue: dexieSyncQueueRepository,
-            syncState: dexieSyncStateRepository,
-            conflictDraft: dexieConflictDraftRepository,
-        },
+        repositories,
         services: {
             term: dexieTermService,
             quizEditor: dexieQuizEditorService,
@@ -84,5 +165,3 @@ export function createInfrastructure() {
         syncReconciler: dexieSyncReconciler,
     };
 }
-
-export type Infrastructure = ReturnType<typeof createInfrastructure>;

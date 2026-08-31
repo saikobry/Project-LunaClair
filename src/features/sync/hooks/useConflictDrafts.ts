@@ -27,10 +27,10 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
     if (getConflictDraftsUseCase) {
       return await getConflictDraftsUseCase.execute(documentId);
     }
-    if (context?.infrastructure?.repositories?.conflictDraft) {
+    if (context?.repositories?.conflictDraft) {
       return documentId
-        ? await context.infrastructure.repositories.conflictDraft.getByDocumentId(documentId)
-        : await context.infrastructure.repositories.conflictDraft.getAll();
+        ? await context.repositories.conflictDraft.getByDocumentId(documentId)
+        : await context.repositories.conflictDraft.getAll();
     }
     return [];
   }, [context, documentId, getConflictDraftsUseCase]);
@@ -68,8 +68,8 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
     async (input: ResolveConflictDraftInput) => {
       if (resolveConflictDraftUseCase) {
         await resolveConflictDraftUseCase.execute(input);
-      } else if (context?.infrastructure?.repositories?.conflictDraft) {
-        await context.infrastructure.repositories.conflictDraft.removeConflictDraft(input.draftId);
+      } else if (context?.repositories?.conflictDraft) {
+        await context.repositories.conflictDraft.removeConflictDraft(input.draftId);
       }
       await refetch();
     },

@@ -1,21 +1,31 @@
-import { createInfrastructure, type Infrastructure } from './createInfrastructure';
-import { createUseCases, type UseCases } from './createUseCases';
+import type { Infrastructure, Repositories } from './createInfrastructure';
+import { createInfrastructure } from './createInfrastructure';
+import type { UseCases } from './createUseCases';
+import { createUseCases } from './createUseCases';
 
+/**
+ * Top-level application container exposed to the React UI via ApplicationContext.
+ * Features consume capabilities directly from `repositories` (pure data access)
+ * and `useCases` (application intent & state transitions).
+ *
+ * `infrastructure` remains available for internal bootstrap & shell-level orchestration.
+ */
 export interface Application {
-    infrastructure: Infrastructure;
+    repositories: Repositories;
     useCases: UseCases;
+    infrastructure: Infrastructure;
 }
 
 /**
- * Composition Root of Project LunaClair.
- *
- * Instantiates the infrastructure layer via `createInfrastructure()` and
- * passes it into `createUseCases()` to build the complete application graph.
+ * LunaClair Composition Root.
+ * Composes the entire dependency graph as stable singletons.
  */
 export function createApplication(): Application {
     const infrastructure = createInfrastructure();
+
     return {
-        infrastructure,
+        repositories: infrastructure.repositories,
         useCases: createUseCases(infrastructure),
+        infrastructure,
     };
 }

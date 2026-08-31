@@ -33,7 +33,7 @@ export function useTermUsageCounts() {
     queryFn: async () => {
       const entries = await Promise.all(
         terms.map(async (term) => {
-          const subjectIds = await context.infrastructure.repositories.subjectTerm.getSubjectIdsByTerm(term.id);
+          const subjectIds = await context.repositories.subjectTerm.getSubjectIdsByTerm(term.id);
           return [term.id, subjectIds.length] as const;
         }),
       );

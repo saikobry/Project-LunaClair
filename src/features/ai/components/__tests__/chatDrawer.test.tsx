@@ -14,7 +14,7 @@ import { GetAiThreadMessagesUseCase } from '../../../../application/use-cases/ai
 import { DeleteAiThreadUseCase } from '../../../../application/use-cases/ai/DeleteAiThreadUseCase';
 import { ClearChatHistoryUseCase } from '../../../../application/use-cases/ai/ClearChatHistoryUseCase';
 import type { UseCases } from '../../../../app/bootstrap/createUseCases';
-import type { Infrastructure } from '../../../../app/bootstrap/createInfrastructure';
+import type { Infrastructure, Repositories } from '../../../../app/bootstrap/createInfrastructure';
 
 function createTestHarness(db: LunaClairDatabase, mockAi: MockAiAdapter) {
   const aiChatRepository = new DexieAiChatRepository(db);
@@ -25,6 +25,9 @@ function createTestHarness(db: LunaClairDatabase, mockAi: MockAiAdapter) {
   const clearChatHistory = new ClearChatHistoryUseCase(aiChatRepository);
 
   const contextValue = {
+    repositories: {
+      aiChat: aiChatRepository,
+    } as unknown as Repositories,
     infrastructure: {
       repositories: {
         aiChat: aiChatRepository,

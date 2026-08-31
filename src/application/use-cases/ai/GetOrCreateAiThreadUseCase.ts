@@ -19,6 +19,8 @@ export class GetOrCreateAiThreadUseCase {
   }
 
   async execute(input: GetOrCreateAiThreadInput): Promise<AiThread> {
+    await this.chatRepo.recoverInterruptedMessages();
+
     const existing = await this.chatRepo.findLatestThread(input.materialId, input.mode);
     if (existing) {
       return existing;

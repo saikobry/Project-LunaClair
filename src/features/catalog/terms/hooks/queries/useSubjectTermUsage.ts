@@ -19,7 +19,7 @@ export function useSubjectTermUsage(subjectId: string, terms: Term[]) {
     queryFn: async () => {
       const results = await Promise.all(
         terms.map(async (term) => {
-          const subjectIds = await context.infrastructure.repositories.subjectTerm.getSubjectIdsByTerm(term.id);
+          const subjectIds = await context.repositories.subjectTerm.getSubjectIdsByTerm(term.id);
           return [term.id, subjectIds.length] as const;
         }),
       );

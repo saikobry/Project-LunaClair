@@ -1,11 +1,11 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
-import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { useTerms } from '../../terms/hooks/queries/useTerms';
 import { styles } from '../../shared/styles/library.stylex';
-import type { Subject, Term } from '../../../../domain/library';
+import type { Subject } from '../../../../domain/library';
 
 const selectStyles = stylex.create({
   select: {
@@ -46,7 +46,6 @@ export default function EditMaterialModal({
   onSave,
   onClose,
 }: EditMaterialModalProps) {
-  const context = useContext(ApplicationContext);
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
@@ -55,17 +54,8 @@ export default function EditMaterialModal({
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     initialTermId ?? null,
   );
-  const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
-
-  // Resolve terms for the selected subject via SubjectTermRepository
-  useEffect(() => {
-    if (!selectedSubjectId || !context) return;
-    let cancelled = false;
-    context.infrastructure.repositories.subjectTerm.getTermsBySubject(selectedSubjectId).then((terms) => {
-      if (!cancelled) setAvailableTerms(terms);
-    });
-    return () => { cancelled = true; };
-  }, [selectedSubjectId, context]);
+  const { terms: fetchedTerms } = useTerms(selectedSubjectId ?? undefined);
+  const availableTerms = selectedSubjectId ? fetchedTerms : [];
 
   // Reset term when subject changes and the current term doesn't belong to the new subject
   const handleSubjectChange = (value: string) => {
@@ -73,9 +63,6 @@ export default function EditMaterialModal({
     setSelectedSubjectId(newSubjectId);
     // Clear term when subject changes — availableTerms will re-fetch
     setSelectedTermId(null);
-    if (!newSubjectId) {
-      setAvailableTerms([]);
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -104,6 +104,17 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
 
   function renderWriterTab(materialId = 'mat-1') {
     const mockAppContext: ApplicationContextValue = {
+      repositories: {
+        document: hybridDocRepo,
+        documentContent: localDocRepo,
+        library: {
+          getMaterials: async () => [sampleMaterial1, sampleMaterial2],
+          getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
+          createMaterial: vi.fn(),
+          updateMaterial: vi.fn(),
+          deleteMaterial: vi.fn(),
+        } as any,
+      } as any,
       infrastructure: {
         repositories: {
           document: hybridDocRepo,
@@ -271,6 +282,17 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
       <QueryClientProvider client={queryClient}>
         <ApplicationContext.Provider
           value={{
+            repositories: {
+              document: hybridDocRepo,
+              documentContent: localDocRepo,
+              library: {
+                getMaterials: async () => [sampleMaterial1, sampleMaterial2],
+                getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
+                createMaterial: vi.fn(),
+                updateMaterial: vi.fn(),
+                deleteMaterial: vi.fn(),
+              } as any,
+            } as any,
             infrastructure: {
               repositories: {
                 document: hybridDocRepo,
