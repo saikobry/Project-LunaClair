@@ -9,7 +9,7 @@ import {
 } from 'lexical';
 import { Undo2, Redo2 } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
-import { toolbarStyles } from './toolbarStyles';
+import { toolbarStyles } from './toolbar.stylex';
 
 export function WriterToolbarHistory() {
   const [editor] = useLexicalComposerContext();

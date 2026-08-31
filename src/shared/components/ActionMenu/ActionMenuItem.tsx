@@ -2,7 +2,7 @@ import {
   DropdownMenuItem,
   type DropdownMenuItemProps,
 } from '@astryxdesign/core/DropdownMenu';
-import { menuItemStyles } from './menuItemStyles';
+import { menuItemStyles } from './menuItem.stylex';
 
 export interface ActionMenuItemProps extends DropdownMenuItemProps {}
 

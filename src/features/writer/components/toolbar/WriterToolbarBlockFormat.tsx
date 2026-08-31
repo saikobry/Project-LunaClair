@@ -18,7 +18,7 @@ import {
 } from '@lexical/list';
 import { $createCodeNode } from '@lexical/code';
 import * as stylex from '@stylexjs/stylex';
-import { toolbarStyles } from './toolbarStyles';
+import { toolbarStyles } from './toolbar.stylex';
 
 const blockTypeToBlockName: Record<string, string> = {
   paragraph: 'Normal Text',

@@ -5,7 +5,7 @@ import {
 } from 'lexical';
 import { Indent, Outdent } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
-import { toolbarStyles } from './toolbarStyles';
+import { toolbarStyles } from './toolbar.stylex';
 
 export function WriterToolbarIndents() {
   const [editor] = useLexicalComposerContext();

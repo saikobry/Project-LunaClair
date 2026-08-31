@@ -19,7 +19,7 @@ import { $isCodeNode } from '@lexical/code';
 import { $isLinkNode } from '@lexical/link';
 import { $getNearestNodeOfType } from '@lexical/utils';
 import * as stylex from '@stylexjs/stylex';
-import { toolbarStyles } from './toolbar/toolbarStyles';
+import { toolbarStyles } from './toolbar/toolbar.stylex';
 import { WriterToolbarHistory } from './toolbar/WriterToolbarHistory';
 import { WriterToolbarBlockFormat } from './toolbar/WriterToolbarBlockFormat';
 import { WriterToolbarInlineFormat } from './toolbar/WriterToolbarInlineFormat';

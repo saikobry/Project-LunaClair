@@ -8,7 +8,7 @@ import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontal
 import { Table as TableIcon, Image as ImageIcon, Minus } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { $createImageNode } from '../../nodes/ImageNode';
-import { toolbarStyles } from './toolbarStyles';
+import { toolbarStyles } from './toolbar.stylex';
 
 export function WriterToolbarInserts() {
   const [editor] = useLexicalComposerContext();

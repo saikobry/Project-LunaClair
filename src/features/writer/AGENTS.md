@@ -10,7 +10,7 @@ LunaClair Writer is the WYSIWYG authoring and study material editing engine buil
 - `components/WriterEditor.tsx` — Lexical editor core wrapper with `RichTextPlugin`, `HistoryPlugin`, `ListPlugin`, `TablePlugin`, `LinkPlugin`, `MarkdownShortcutPlugin`, and `OnChangePlugin`.
 - `components/UnsavedChangesModal.tsx` — Confirmation dialog intercepting material navigation when dirty unsaved changes are present in the active editor.
 - `components/WriterToolbar.tsx` — Modular formatting toolbar composing subcomponents for history, block types, inline styles, indentation, and insert actions.
-- `components/toolbar/` — Granular toolbar subcomponents and StyleX styles (`WriterToolbarHistory`, `WriterToolbarBlockFormat`, `WriterToolbarInlineFormat`, `WriterToolbarIndents`, `WriterToolbarInserts`, `toolbarStyles.ts`).
+- `components/toolbar/` — Granular toolbar subcomponents and StyleX styles (`WriterToolbarHistory`, `WriterToolbarBlockFormat`, `WriterToolbarInlineFormat`, `WriterToolbarIndents`, `WriterToolbarInserts`, `toolbar.stylex.ts`).
 - `hooks/mutations/useUpdateDocumentContent.ts` — TanStack Query mutation hook delegating document updates to `context.useCases.content.updateDocumentContent` and invalidating reader caches.
 - `nodes/standardNodes.ts` — Standard Lexical node registry (`HeadingNode`, `QuoteNode`, `ListNode`, `ListItemNode`, `TableNode`, `TableRowNode`, `TableCellNode`, `LinkNode`, `AutoLinkNode`, `CodeNode`, `CodeHighlightNode`, `HorizontalRuleNode`, `ImageNode`).
 - `nodes/ImageNode.tsx` — DecoratorNode for standard markdown images (`![alt](src)`).

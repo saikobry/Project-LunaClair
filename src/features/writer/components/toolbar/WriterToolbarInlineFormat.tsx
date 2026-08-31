@@ -3,7 +3,7 @@ import { FORMAT_TEXT_COMMAND } from 'lexical';
 import { TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { Bold, Italic, Underline, Strikethrough, Code, Link } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
-import { toolbarStyles } from './toolbarStyles';
+import { toolbarStyles } from './toolbar.stylex';
 
 export interface InlineFormatState {
   isBold: boolean;

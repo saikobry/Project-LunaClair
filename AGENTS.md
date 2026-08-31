@@ -174,6 +174,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - No CI, no tests, no formatting config (beyond oxlint).
 - Commit messages: use `commit-message` skill (`.agents/skills/commit-message/SKILL.md`) — generates conventional commits from staged changes.
 - React code quality: use `react-doctor` skill (`.agents/skills/react-doctor/SKILL.md`) — scans for React anti-patterns, performance, security, architecture, accessibility. Run after any React code changes.
+- StyleX file-naming convention: when StyleX rules are extracted from component files, they must strictly follow the `*.stylex.ts` naming format (e.g. `library.stylex.ts`, `toolbar.stylex.ts`) rather than suffix notation (`*Styles.ts`), ensuring compatibility with Vite/StyleX compiler transforms and clear codebase visual indexing.
 - Architecture chronicle: use `architecture-chronicle` skill (`.agents/skills/architecture-chronicle/SKILL.md`) — generates long-term engineering chronicles capturing architecture, data flows, migrations, and system evolution after a phase.
 - Community questions: use `community-question` skill (`.agents/skills/community-question/SKILL.md`) — drafts self-contained, paste-ready forum questions grounded in the actual codebase when the user wants outside opinions on a design or architecture decision.
 - No `prettier`, `eslint`, or `biome`. Do not add them without asking.
