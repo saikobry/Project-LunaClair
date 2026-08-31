@@ -826,7 +826,7 @@ export function QuizCanvasQuestionList({
                     gridRef={gridRef}
                     canvasBodyRef={canvasBodyRef}
                     cardWrapperMapRef={wrapperEls}
-                    collapsedHeights={collapsedHeightsRef.current}
+                    collapsedHeightsRef={collapsedHeightsRef}
                     errors={errors}
                     gutter={GUTTER}
                     collapsedHeightFallback={COMPACT_HEIGHT}

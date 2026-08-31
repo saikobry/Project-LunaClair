@@ -28,29 +28,46 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
     context?.useCases?.sync?.resolveConflictDraft ??
     context?.useCases?.resolveConflictDraftUseCase;
 
+  const fetchDrafts = useCallback(async () => {
+    if (getConflictDraftsUseCase) {
+      return await getConflictDraftsUseCase.execute(documentId);
+    }
+    if (context?.conflictDraftRepository) {
+      return documentId
+        ? await context.conflictDraftRepository.getByDocumentId(documentId)
+        : await context.conflictDraftRepository.getAll();
+    }
+    return [];
+  }, [context, documentId, getConflictDraftsUseCase]);
+
   const refetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      if (getConflictDraftsUseCase) {
-        const result = await getConflictDraftsUseCase.execute(documentId);
-        setDrafts(result);
-      } else if (context?.conflictDraftRepository) {
-        const result = documentId
-          ? await context.conflictDraftRepository.getByDocumentId(documentId)
-          : await context.conflictDraftRepository.getAll();
-        setDrafts(result);
-      }
+      const result = await fetchDrafts();
+      setDrafts(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }
-  }, [context, documentId, getConflictDraftsUseCase]);
+  }, [fetchDrafts]);
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    let cancelled = false;
+    async function load() {
+      try {
+        const result = await fetchDrafts();
+        if (!cancelled) setDrafts(result);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDrafts]);
 
   const resolveDraft = useCallback(
     async (input: ResolveConflictDraftInput) => {

@@ -32,13 +32,16 @@ export class SyncStatusStore {
       ...DEFAULT_SYNC_STATUS,
       ...initialStatus,
     };
+    this.getState = this.getState.bind(this);
+    this.setState = this.setState.bind(this);
+    this.subscribe = this.subscribe.bind(this);
   }
 
   /**
    * Retrieves the current immutable snapshot of synchronization status.
    */
   getState(): SyncStatus {
-    return { ...this.currentStatus };
+    return this.currentStatus;
   }
 
   /**
@@ -79,8 +82,10 @@ export class SyncStatusStore {
     syncQueueRepo: SyncQueueRepository,
     stateKey: string
   ): Promise<void> {
-    const syncState = await syncStateRepo.getSyncState(stateKey);
-    const pendingCount = await syncQueueRepo.countPending();
+    const [syncState, pendingCount] = await Promise.all([
+      syncStateRepo.getSyncState(stateKey),
+      syncQueueRepo.countPending(),
+    ]);
 
     const isOffline =
       typeof navigator !== 'undefined' &&

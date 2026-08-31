@@ -59,10 +59,7 @@ export default function EditMaterialModal({
 
   // Resolve terms for the selected subject via SubjectTermRepository
   useEffect(() => {
-    if (!selectedSubjectId || !context) {
-      setAvailableTerms([]);
-      return;
-    }
+    if (!selectedSubjectId || !context) return;
     let cancelled = false;
     context.subjectTermRepository.getTermsBySubject(selectedSubjectId).then((terms) => {
       if (!cancelled) setAvailableTerms(terms);
@@ -76,6 +73,9 @@ export default function EditMaterialModal({
     setSelectedSubjectId(newSubjectId);
     // Clear term when subject changes — availableTerms will re-fetch
     setSelectedTermId(null);
+    if (!newSubjectId) {
+      setAvailableTerms([]);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

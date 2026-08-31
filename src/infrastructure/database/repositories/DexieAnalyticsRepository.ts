@@ -109,7 +109,7 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
         const sanitizedSessions = materialSessions.map((session) => ({
             ...session,
             questionSnapshots: Object.fromEntries(
-                Object.entries(session.questionSnapshots || {}).filter(([_, q]) => q.materialId === materialId),
+                Object.entries(session.questionSnapshots || {}).filter(([, q]) => q.materialId === materialId),
             ),
             answers: session.answers.filter((a) => {
                 const q = session.questionSnapshots?.[a.questionId];

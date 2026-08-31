@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ApplicationContext, type ApplicationContextValue } from './ApplicationContext';
 import { createApplication } from '../bootstrap/createApplication';
 
@@ -12,14 +12,13 @@ interface ApplicationProviderProps {
  * recreate across re-renders.
  */
 export function ApplicationProvider({ children }: ApplicationProviderProps) {
-  const ref = useRef<ApplicationContextValue | null>(null);
-  if (!ref.current) {
+  const [value] = useState<ApplicationContextValue>(() => {
     const application = createApplication();
-    ref.current = { ...application, ...application.repositories };
-  }
+    return { ...application, ...application.repositories };
+  });
 
   return (
-    <ApplicationContext.Provider value={ref.current}>
+    <ApplicationContext.Provider value={value}>
       {children}
     </ApplicationContext.Provider>
   );

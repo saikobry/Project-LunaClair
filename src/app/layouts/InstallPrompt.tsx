@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Download, Share, Smartphone } from 'lucide-react';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
@@ -44,18 +44,18 @@ export function InstallPrompt({
     () => localStorage.getItem(STORAGE_KEYS.settings.installDismissed) === '1',
   );
   // Visit gate: eligible from the second distinct browser session onward.
-  // Set once on mount from localStorage — never resynced to props.
-  const [visitEligible, setVisitEligible] = useState(false);
-
-  // Count browser sessions once per session (refresh doesn't re-count, and
-  // the sessionStorage guard also absorbs StrictMode's double effect).
-  useEffect(() => {
-    if (sessionStorage.getItem(STORAGE_KEYS.session.visitMarked)) return;
-    sessionStorage.setItem(STORAGE_KEYS.session.visitMarked, '1');
+  // Initialized once from storage — session count updated synchronously on first session render.
+  const [visitEligible] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (!sessionStorage.getItem(STORAGE_KEYS.session.visitMarked)) {
+      sessionStorage.setItem(STORAGE_KEYS.session.visitMarked, '1');
+      const current = Number.parseInt(localStorage.getItem(STORAGE_KEYS.settings.visitCount) ?? '0', 10);
+      localStorage.setItem(STORAGE_KEYS.settings.visitCount, String(current + 1));
+      return current + 1 >= 2;
+    }
     const current = Number.parseInt(localStorage.getItem(STORAGE_KEYS.settings.visitCount) ?? '0', 10);
-    localStorage.setItem(STORAGE_KEYS.settings.visitCount, String(current + 1));
-    setVisitEligible(current + 1 >= 2);
-  }, []);
+    return current >= 2;
+  });
 
   // Visibility is derived during render — nothing is synced to props.
   const show =

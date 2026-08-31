@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
   AlertTriangle,
@@ -298,24 +298,18 @@ export function ConflictDraftsModal({
   const [mergedText, setMergedText] = useState('');
   const [isResolving, setIsResolving] = useState(false);
 
-  const activeDraft: ConflictDraft | undefined = drafts[currentIndex];
+  const safeIndex = drafts.length > 0 ? Math.min(currentIndex, drafts.length - 1) : 0;
+  const activeDraft: ConflictDraft | undefined = drafts[safeIndex];
 
   const activeDraftId = activeDraft?.id;
   const initialMergedContent = activeDraft?.localContent || activeDraft?.serverContent || '';
 
-  useEffect(() => {
-    if (activeDraftId) {
-      setMergedText(initialMergedContent);
-      setIsMerging(false);
-    }
-  }, [activeDraftId, initialMergedContent]);
-
-  // Adjust index if out of bounds after a resolution
-  useEffect(() => {
-    if (drafts.length > 0 && currentIndex >= drafts.length) {
-      setCurrentIndex(drafts.length - 1);
-    }
-  }, [drafts.length, currentIndex]);
+  const [prevDraftId, setPrevDraftId] = useState(activeDraftId);
+  if (activeDraftId !== prevDraftId) {
+    setPrevDraftId(activeDraftId);
+    setMergedText(initialMergedContent);
+    setIsMerging(false);
+  }
 
   if (!isOpen) return null;
 

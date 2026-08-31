@@ -53,7 +53,7 @@ export interface MaterialWriterTabProps {
 export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
   // Internal active ID — held until an unsaved-switch is confirmed or cancelled
   const [activeMaterialId, setActiveMaterialId] = useState<string>(materialId);
-  const pendingSwitchMaterialIdRef = useRef<string | null>(null);
+  const [pendingSwitchMaterialId, setPendingSwitchMaterialId] = useState<string | null>(null);
   const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
 
   const { material, isLoading: isMaterialLoading } = useMaterial(activeMaterialId);
@@ -81,18 +81,18 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
     isDirtyRef.current = isDirty;
   }, [isDirty]);
 
-  // --- Intercept prop materialId changes when active editor is dirty ---
-  useEffect(() => {
-    if (materialId !== activeMaterialId) {
-      if (isDirty) {
-        pendingSwitchMaterialIdRef.current = materialId;
-        setShowUnsavedModal(true);
-      } else {
-        setActiveMaterialId(materialId);
-        setIsHydrated(false);
-      }
+  // --- Adjust active material or trigger unsaved modal during render ---
+  const [prevMaterialId, setPrevMaterialId] = useState(materialId);
+  if (materialId !== prevMaterialId) {
+    setPrevMaterialId(materialId);
+    if (!isDirty) {
+      setActiveMaterialId(materialId);
+      setIsHydrated(false);
+    } else {
+      setPendingSwitchMaterialId(materialId);
+      setShowUnsavedModal(true);
     }
-  }, [materialId, activeMaterialId, isDirty]);
+  }
 
   // --- Hydrate draft from server document ---
   // The WriterEditor key changes with activeMaterialId, causing a remount.
@@ -118,10 +118,8 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
       doc.content !== lastSavedMarkdownRef.current
     ) {
       lastSavedMarkdownRef.current = doc.content;
-      if (!isDirtyRef.current) {
-        setDraftMarkdown(doc.content);
-        setEditorKey((k) => k + 1);
-      }
+      setDraftMarkdown(doc.content);
+      setEditorKey((k) => k + 1);
     }
   }, [doc, isHydrated]);
 
@@ -170,17 +168,17 @@ export function MaterialWriterTab({ materialId }: MaterialWriterTabProps) {
 
   const handleStay = useCallback(() => {
     setShowUnsavedModal(false);
-    pendingSwitchMaterialIdRef.current = null;
+    setPendingSwitchMaterialId(null);
   }, []);
 
   const handleConfirmDiscardAndSwitch = useCallback(() => {
     setShowUnsavedModal(false);
-    if (pendingSwitchMaterialIdRef.current) {
-      setActiveMaterialId(pendingSwitchMaterialIdRef.current);
-      pendingSwitchMaterialIdRef.current = null;
+    if (pendingSwitchMaterialId) {
+      setActiveMaterialId(pendingSwitchMaterialId);
+      setPendingSwitchMaterialId(null);
       setIsHydrated(false);
     }
-  }, []);
+  }, [pendingSwitchMaterialId]);
 
   const handleCopyMarkdown = useCallback(async () => {
     try {

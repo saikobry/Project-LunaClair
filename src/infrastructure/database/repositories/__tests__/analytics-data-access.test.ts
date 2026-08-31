@@ -1,12 +1,12 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '../LunaClairDatabase';
-import { DexieQuizSessionRepository } from './DexieQuizSessionRepository';
-import { DexieFlashcardReviewRepository } from './DexieFlashcardReviewRepository';
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import type { ReviewState } from '../../../domain/flashcards/scheduler';
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
+import { db } from '../../LunaClairDatabase';
+import { DexieQuizSessionRepository } from '../DexieQuizSessionRepository';
+import { DexieFlashcardReviewRepository } from '../DexieFlashcardReviewRepository';
+import type { QuizSession } from '../../../../domain/quiz/QuizSession';
+import type { ReviewState } from '../../../../domain/flashcards/scheduler';
+import type { Question } from '../../../../domain/quiz/Question';
+import type { Quiz } from '../../../../domain/quiz/Quiz';
 
 describe('Phase 7A / Commit 1 — Analytics Data Access Foundations', () => {
     let quizSessionRepo: DexieQuizSessionRepository;

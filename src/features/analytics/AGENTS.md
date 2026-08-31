@@ -31,7 +31,7 @@ Provides learning insights, performance telemetry, spaced-repetition retention m
 
 ## Verification
 
-- `npm run test:run` — Unit, integration, and UI state tests (`src/features/analytics/tests/AnalyticsScreen.test.tsx`).
+- `npm run test:run` — Unit, integration, and UI state tests (`src/features/analytics/__tests__/AnalyticsScreen.test.tsx`).
 - `npm run build` — TypeScript compile and Vite production bundle.
 - `npm run lint` — Oxlint static boundary analysis.
 

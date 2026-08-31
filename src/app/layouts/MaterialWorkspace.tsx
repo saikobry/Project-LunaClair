@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState, lazy, Suspense } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
 import type { AppRoute } from './AppShell';
@@ -7,7 +7,6 @@ import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSub
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';
 import { useDocument } from '../../features/reader/hooks/useDocument';
 import { useExportStudyPackage } from '../../features/package/hooks/useExportStudyPackage';
-import { ShareStudyPackageModal } from '../../features/package/components/ShareStudyPackageModal';
 import { Page } from '../../shared/ui/Page/Page';
 import { Button } from '../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -16,13 +15,25 @@ import { AnimatedTabPanel } from '../../shared/ui/AnimatedTabPanel/AnimatedTabPa
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import ReaderScreen from '../../features/reader/ReaderScreen';
-import { MaterialWriterTab } from '../../features/writer/components/MaterialWriterTab';
-import QuizScreen from '../../features/quiz/QuizScreen';
-import QuizManagementScreen from '../../features/quiz-management/QuizManagementScreen';
-import { FlashcardScreen } from '../../features/flashcards/FlashcardScreen';
-import { AiChatDrawer, type SelectionContext } from '../../features/ai/components/AiChatDrawer';
 import { AiDrawerToggleButton } from '../../features/ai/components/AiDrawerToggleButton';
 import { extractSectionContext } from '../../features/ai/lib/aiContextExtractor';
+import type { SelectionContext } from '../../features/ai/components/AiChatDrawer';
+
+// Lazy load secondary workspace tabs and modals
+const MaterialWriterTab = lazy(() =>
+  import('../../features/writer/components/MaterialWriterTab').then((m) => ({ default: m.MaterialWriterTab })),
+);
+const QuizScreen = lazy(() => import('../../features/quiz/QuizScreen'));
+const QuizManagementScreen = lazy(() => import('../../features/quiz-management/QuizManagementScreen'));
+const FlashcardScreen = lazy(() =>
+  import('../../features/flashcards/FlashcardScreen').then((m) => ({ default: m.FlashcardScreen })),
+);
+const AiChatDrawer = lazy(() =>
+  import('../../features/ai/components/AiChatDrawer').then((m) => ({ default: m.AiChatDrawer })),
+);
+const ShareStudyPackageModal = lazy(() =>
+  import('../../features/package/components/ShareStudyPackageModal').then((m) => ({ default: m.ShareStudyPackageModal })),
+);
 
 const styles = stylex.create({
   loading: {
@@ -215,47 +226,63 @@ export default function MaterialWorkspace({
           />
         )}
         {activeTab === 'write' && (
-          <MaterialWriterTab
-            materialId={materialId}
-          />
+          <Suspense fallback={<WorkspaceSkeleton />}>
+            <MaterialWriterTab
+              materialId={materialId}
+            />
+          </Suspense>
         )}
         {activeTab === 'quiz' && (
-          <QuizScreen
-            quizId=""
-            materialIds={[materialId]}
-            onExit={() => onNavigate({ kind: 'library' })}
-            onOpenManagement={() => handleTabChange('manage')}
-            embedded
-          />
+          <Suspense fallback={<WorkspaceSkeleton />}>
+            <QuizScreen
+              quizId=""
+              materialIds={[materialId]}
+              onExit={() => onNavigate({ kind: 'library' })}
+              onOpenManagement={() => handleTabChange('manage')}
+              embedded
+            />
+          </Suspense>
         )}
         {activeTab === 'flashcards' && (
-          <FlashcardScreen
-            materialId={materialId}
-          />
+          <Suspense fallback={<WorkspaceSkeleton />}>
+            <FlashcardScreen
+              materialId={materialId}
+            />
+          </Suspense>
         )}
         {activeTab === 'manage' && (
-          <QuizManagementScreen
-            materialId={materialId}
-            onNavigate={onNavigate}
-          />
+          <Suspense fallback={<WorkspaceSkeleton />}>
+            <QuizManagementScreen
+              materialId={materialId}
+              onNavigate={onNavigate}
+            />
+          </Suspense>
         )}
       </AnimatedTabPanel>
 
-      <AiChatDrawer
-        isOpen={isAiOpen}
-        onClose={() => setIsAiOpen(false)}
-        materialId={materialId}
-        documentContext={doc?.content}
-        selectionContext={selectionContext}
-        onClearSelectionContext={() => setSelectionContext(null)}
-      />
+      {isAiOpen && (
+        <Suspense fallback={null}>
+          <AiChatDrawer
+            isOpen={isAiOpen}
+            onClose={() => setIsAiOpen(false)}
+            materialId={materialId}
+            documentContext={doc?.content}
+            selectionContext={selectionContext}
+            onClearSelectionContext={() => setSelectionContext(null)}
+          />
+        </Suspense>
+      )}
 
-      <ShareStudyPackageModal
-        isOpen={isShareOpen}
-        onClose={() => setIsShareOpen(false)}
-        materialId={materialId}
-        materialTitle={material.title}
-      />
+      {isShareOpen && (
+        <Suspense fallback={null}>
+          <ShareStudyPackageModal
+            isOpen={isShareOpen}
+            onClose={() => setIsShareOpen(false)}
+            materialId={materialId}
+            materialTitle={material.title}
+          />
+        </Suspense>
+      )}
     </Page>
   );
 }

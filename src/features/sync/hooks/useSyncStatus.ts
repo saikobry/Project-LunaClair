@@ -1,6 +1,6 @@
-import { useState, useEffect, useContext, useCallback } from 'react';
+import { useState, useEffect, useContext, useCallback, useSyncExternalStore } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import { syncStatusStore, type SyncStatus } from '../../../application/sync/SyncStatusStore';
+import { syncStatusStore } from '../../../application/sync/SyncStatusStore';
 
 export interface UseSyncStatusResult {
   state: 'idle' | 'syncing' | 'offline' | 'error';
@@ -19,18 +19,18 @@ export function useSyncStatus(): UseSyncStatusResult {
   const context = useContext(ApplicationContext);
   const store = context?.useCases?.sync?.syncStatusStore ?? syncStatusStore;
 
-  const [status, setStatus] = useState<SyncStatus>(() => store.getState());
+  const status = useSyncExternalStore(
+    (notify) => store.subscribe(notify),
+    () => store.getState(),
+    () => store.getState(),
+  );
   const [conflictCount, setConflictCount] = useState<number>(0);
 
   const getConflictDraftsUseCase =
     context?.useCases?.sync?.getConflictDrafts ??
     context?.useCases?.getConflictDraftsUseCase;
 
-  const triggerSyncUseCase =
-    context?.useCases?.sync?.triggerSync ??
-    context?.useCases?.triggerSyncUseCase;
-
-  const refreshConflictCount = useCallback(async () => {
+  const loadConflicts = useCallback(async () => {
     if (getConflictDraftsUseCase) {
       try {
         const drafts = await getConflictDraftsUseCase.execute();
@@ -48,30 +48,50 @@ export function useSyncStatus(): UseSyncStatusResult {
     }
   }, [context, getConflictDraftsUseCase]);
 
-  // Subscribe to store updates
+  // Refresh conflict count on mount and whenever store updates
   useEffect(() => {
-    setStatus(store.getState());
-    void refreshConflictCount();
+    let cancelled = false;
+    async function update() {
+      if (getConflictDraftsUseCase) {
+        try {
+          const drafts = await getConflictDraftsUseCase.execute();
+          if (!cancelled) setConflictCount(drafts.length);
+        } catch {
+          // Tolerant
+        }
+      } else if (context?.conflictDraftRepository) {
+        try {
+          const count = await context.conflictDraftRepository.count();
+          if (!cancelled) setConflictCount(count);
+        } catch {
+          // Tolerant
+        }
+      }
+    }
 
-    const unsubscribe = store.subscribe((nextStatus: SyncStatus) => {
-      setStatus(nextStatus);
-      void refreshConflictCount();
+    void update();
+    const unsubscribe = store.subscribe(() => {
+      void update();
     });
 
-    return unsubscribe;
-  }, [store, refreshConflictCount]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [context, store, getConflictDraftsUseCase]);
 
   const triggerSync = useCallback(async () => {
-    if (triggerSyncUseCase) {
-      await triggerSyncUseCase.execute();
+    const useCase = context?.useCases?.sync?.triggerSync ?? context?.useCases?.triggerSyncUseCase;
+    if (useCase) {
+      await useCase.execute();
     } else if (context?.useCases?.sync?.syncEngine && context?.credentialsProvider) {
       const creds = await context.credentialsProvider.getCredentials();
       if (creds) {
         await context.useCases.sync.syncEngine.sync(creds);
       }
     }
-    await refreshConflictCount();
-  }, [context, triggerSyncUseCase, refreshConflictCount]);
+    await loadConflicts();
+  }, [context, loadConflicts]);
 
   return {
     state: status.state,

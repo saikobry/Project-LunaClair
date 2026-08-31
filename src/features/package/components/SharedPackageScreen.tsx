@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
   BookOpen,
@@ -372,33 +372,24 @@ export function SharedPackageScreen({
   const { subjects } = useSubjects();
   const { terms } = useTerms(selectedSubjectId || undefined);
 
-  const loadShare = useCallback(
-    async (codeToUse?: string) => {
-      if (codeToUse !== undefined) {
-        setIsUnlocking(true);
-      } else {
-        setStatus('loading');
-      }
-      setPasscodeError(null);
-      setErrorMessage(null);
-
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
       try {
         const fetchedShare = await context.useCases.sharing.fetchPublishedShare.execute({
           shareId,
-          passcode: codeToUse,
         });
+        if (cancelled) return;
         setShare(fetchedShare);
         setStatus('ready');
       } catch (err: unknown) {
+        if (cancelled) return;
         const isPasscodeError =
           (err as { status?: number })?.status === 401 ||
           (err instanceof Error && /passcode|401|unauthorized/i.test(err.message));
 
         if (isPasscodeError) {
           setStatus('locked');
-          if (codeToUse !== undefined) {
-            setPasscodeError('Incorrect passcode. Please try again.');
-          }
         } else {
           setStatus('error');
           const httpStatus = (err as { status?: number })?.status;
@@ -414,24 +405,59 @@ export function SharedPackageScreen({
             );
           }
         }
-      } finally {
-        setIsUnlocking(false);
       }
-    },
-    [context, shareId],
-  );
+    }
 
-  useEffect(() => {
-    loadShare();
-  }, [loadShare]);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [context, shareId]);
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passcode.trim()) {
+    const code = passcode.trim();
+    if (!code) {
       setPasscodeError('Please enter a passcode.');
       return;
     }
-    await loadShare(passcode.trim());
+    setIsUnlocking(true);
+    setPasscodeError(null);
+    setErrorMessage(null);
+
+    try {
+      const fetchedShare = await context.useCases.sharing.fetchPublishedShare.execute({
+        shareId,
+        passcode: code,
+      });
+      setShare(fetchedShare);
+      setStatus('ready');
+    } catch (err: unknown) {
+      const isPasscodeError =
+        (err as { status?: number })?.status === 401 ||
+        (err instanceof Error && /passcode|401|unauthorized/i.test(err.message));
+
+      if (isPasscodeError) {
+        setStatus('locked');
+        setPasscodeError('Incorrect passcode. Please try again.');
+      } else {
+        setStatus('error');
+        const httpStatus = (err as { status?: number })?.status;
+        if (httpStatus === 404) {
+          setErrorMessage('This shared study package could not be found or has been deleted.');
+        } else if (httpStatus === 410) {
+          setErrorMessage('This shared study package has expired.');
+        } else {
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : 'An unexpected error occurred while loading the shared package.',
+          );
+        }
+      }
+    } finally {
+      setIsUnlocking(false);
+    }
   };
 
   const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

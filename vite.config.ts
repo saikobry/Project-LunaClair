@@ -113,4 +113,50 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react/') || id.includes('react-dom/') || id.includes('scheduler/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            if (id.includes('dexie')) {
+              return 'vendor-dexie';
+            }
+            if (id.includes('gsap')) {
+              return 'vendor-gsap';
+            }
+            if (id.includes('lexical') || id.includes('@lexical')) {
+              return 'vendor-lexical';
+            }
+            if (id.includes('@astryxdesign') || id.includes('@stylexjs')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (
+              id.includes('unified') ||
+              id.includes('remark') ||
+              id.includes('rehype') ||
+              id.includes('micromark') ||
+              id.includes('unist') ||
+              id.includes('mdast') ||
+              id.includes('hast') ||
+              id.includes('vfile')
+            ) {
+              return 'vendor-markdown';
+            }
+            if (id.includes('canvas-confetti') || id.includes('diff/')) {
+              return 'vendor-utils';
+            }
+          }
+        },
+      },
+    },
+  },
 })

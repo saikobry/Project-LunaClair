@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Wifi, WifiOff } from 'lucide-react';
 
@@ -22,7 +22,18 @@ interface BannerPosition {
  * - on recovery  → transient "You're back online" chip, auto-hides after ~3s
  */
 export default function OfflineBanner() {
-  const [isOnline, setIsOnline] = useState<boolean>(() => navigator.onLine);
+  const isOnline = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener('offline', notify);
+      window.addEventListener('online', notify);
+      return () => {
+        window.removeEventListener('offline', notify);
+        window.removeEventListener('online', notify);
+      };
+    },
+    () => (typeof navigator !== 'undefined' ? navigator.onLine : true),
+    () => true,
+  );
   const [showRecovered, setShowRecovered] = useState(false);
   const wasOffline = useRef(false);
 
@@ -50,18 +61,6 @@ export default function OfflineBanner() {
   const bannerRef = useRef<HTMLDivElement>(null);
   const collapseTimerRef = useRef<number | null>(null);
 
-  // Connectivity events
-  useEffect(() => {
-    const handleOffline = () => setIsOnline(false);
-    const handleOnline = () => setIsOnline(true);
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
-    return () => {
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, []);
-
   // Recovery flash
   useEffect(() => {
     if (isOnline) {
@@ -70,17 +69,20 @@ export default function OfflineBanner() {
         const timer = window.setTimeout(() => setShowRecovered(false), 3000);
         return () => window.clearTimeout(timer);
       }
-      setShowRecovered(false);
     } else {
       wasOffline.current = true;
-      setShowRecovered(false);
     }
   }, [isOnline]);
+
+  const [prevOnline, setPrevOnline] = useState(isOnline);
+  if (isOnline !== prevOnline) {
+    setPrevOnline(isOnline);
+    setIsCollapsed(false);
+  }
 
   // Auto-collapse timer when offline
   useEffect(() => {
     if (!isOnline) {
-      setIsCollapsed(false);
       if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
       collapseTimerRef.current = window.setTimeout(() => {
         setIsCollapsed(true);

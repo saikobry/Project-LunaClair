@@ -60,6 +60,8 @@ export function useDraftAutosave<T>({
         }
     }, []);
 
+    const runPersistRef = useRef<() => Promise<void> | undefined>(undefined);
+
     const runPersist = useCallback(async () => {
         const current = draftRef.current;
         if (current == null || !dirtyRef.current) return;
@@ -79,11 +81,15 @@ export function useDraftAutosave<T>({
             .finally(() => {
                 inflightRef.current = null;
                 // A change landed while persisting — flush again.
-                if (dirtyRef.current) void runPersist();
+                if (dirtyRef.current) void runPersistRef.current?.();
             });
         inflightRef.current = run;
         return run;
     }, [clearTimer]);
+
+    useEffect(() => {
+        runPersistRef.current = runPersist;
+    });
 
     const schedule = useCallback(() => {
         dirtyRef.current = true;

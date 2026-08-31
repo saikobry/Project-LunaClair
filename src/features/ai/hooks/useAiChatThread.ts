@@ -73,42 +73,46 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     setIsStreaming(false);
   }, []);
 
-  // Hydrate thread and messages from Dexie
-  const loadThreadAndMessages = useCallback(async () => {
-    if (!context?.useCases.ai) return;
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Recover any orphaned streaming messages first
-      if (context.repositories.aiChatRepository) {
-        await context.repositories.aiChatRepository.recoverInterruptedMessages();
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!context?.useCases.ai) {
+        if (!cancelled) setIsLoading(false);
+        return;
       }
 
-      const activeThread = await context.useCases.ai.getOrCreateThread.execute({
-        materialId,
-        mode,
-      });
-      setThread(activeThread);
+      try {
+        if (context.repositories.aiChatRepository) {
+          await context.repositories.aiChatRepository.recoverInterruptedMessages();
+        }
 
-      const history = await context.useCases.ai.getThreadMessages.execute({
-        threadId: activeThread.id,
-      });
-      setMessages(history);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load chat history';
-      setError({ code: 'LOAD_ERROR', message });
-    } finally {
-      setIsLoading(false);
+        const activeThread = await context.useCases.ai.getOrCreateThread.execute({
+          materialId,
+          mode,
+        });
+        if (cancelled) return;
+        setThread(activeThread);
+
+        const history = await context.useCases.ai.getThreadMessages.execute({
+          threadId: activeThread.id,
+        });
+        if (cancelled) return;
+        setMessages(history);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : 'Failed to load chat history';
+        setError({ code: 'LOAD_ERROR', message });
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-  }, [context, materialId, mode]);
 
-  useEffect(() => {
-    loadThreadAndMessages();
+    void load();
     return () => {
+      cancelled = true;
       abort();
     };
-  }, [loadThreadAndMessages, abort]);
+  }, [context, materialId, mode, abort]);
 
   const reloadMessages = useCallback(async () => {
     if (!thread || !context?.useCases.ai) return;

@@ -1,9 +1,10 @@
-import { useState, type ReactNode, type RefObject } from 'react';
+import { useState, createElement, type ReactNode, type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { GripVertical, Link2 } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
 import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 import { Selector } from '../../../shared/ui/Selector/Selector';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
@@ -272,6 +273,16 @@ interface QuizCanvasQuestionCardProps {
  * the drag trigger for the GSAP `Draggable` instance owned by
  * `QuizCanvasQuestionList`.
  */
+interface CanvasQuestionEditorProps {
+    type: QuestionType;
+    payload: QuestionAnswerPayload;
+    onChange: (payload: QuestionAnswerPayload) => void;
+}
+
+function CanvasQuestionEditor({ type, payload, onChange }: CanvasQuestionEditorProps) {
+    return createElement(getQuestionEditor(type), { value: payload as never, onChange: (p: never) => onChange(p) });
+}
+
 export function QuizCanvasQuestionCard({
     item,
     index,
@@ -287,7 +298,6 @@ export function QuizCanvasQuestionCard({
     // While being dragged, an active card renders as a clean collapsed summary
     // (no clipped editor) and re-expands once the drag ends.
     const effectiveIsActive = isActive && !isDragging;
-    const EditorComponent = getQuestionEditor(item.type);
 
     // Open state lives here (not in the drawer) so the root onClick below can
     // reset it on activation; the toggle button lives in the drawer.
@@ -442,9 +452,10 @@ export function QuizCanvasQuestionCard({
                         required
                         rows={2}
                     />
-                    <EditorComponent
-                        value={item.payload as never}
-                        onChange={(payload: never) => onChange({ payload })}
+                    <CanvasQuestionEditor
+                        type={item.type}
+                        payload={item.payload}
+                        onChange={(payload) => onChange({ payload })}
                     />
 
                     <QuizCanvasAnswerMetadataDrawer

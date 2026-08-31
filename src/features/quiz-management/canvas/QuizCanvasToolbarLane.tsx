@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
@@ -109,6 +109,7 @@ export interface QuizCanvasToolbarLaneProps {
      * `QuizCanvasQuestionList.settleLayout` for inactive, error-free cards.
      */
     collapsedHeights?: Map<string, number>;
+    collapsedHeightsRef?: RefObject<Map<string, number>> | Map<string, number>;
     /** Current save-validation errors keyed by tempId — drives the callout bump. */
     errors?: QuizDraftErrors | null;
     /** Inter-card gap (px) — `QuizCanvasQuestionList`'s GUTTER. */
@@ -162,6 +163,7 @@ function useRestingTarget(params: {
     effectiveIndex: number;
     errors?: QuizDraftErrors | null;
     collapsedHeights?: Map<string, number>;
+    collapsedHeightsRef?: RefObject<Map<string, number>> | Map<string, number>;
     collapsedHeightFallback: number;
     gutter: number;
     gridRef?: RefObject<HTMLDivElement | null>;
@@ -175,6 +177,7 @@ function useRestingTarget(params: {
         effectiveIndex,
         errors,
         collapsedHeights,
+        collapsedHeightsRef,
         collapsedHeightFallback,
         gutter,
         gridRef,
@@ -188,17 +191,20 @@ function useRestingTarget(params: {
         const gridNode = gridRef?.current;
         if (!bodyNode || !gridNode) return 0;
         const gridTop = gridNode.getBoundingClientRect().top - bodyNode.getBoundingClientRect().top;
+        const heightMap = collapsedHeightsRef && 'current' in collapsedHeightsRef
+            ? collapsedHeightsRef.current
+            : ((collapsedHeightsRef as Map<string, number>) ?? collapsedHeights);
         let y = gridTop;
         for (let k = 0; k < effectiveIndex; k += 1) {
             const card = itemsRef.current[k];
             const cardErrors = errors?.items[card.tempId] ?? [];
-            const base = collapsedHeights?.get(card.tempId) ?? collapsedHeightFallback;
+            const base = heightMap?.get(card.tempId) ?? collapsedHeightFallback;
             y += base + (cardErrors.length > 0 ? estimateCalloutHeight(cardErrors) : 0) + gutter;
         }
         return Math.max(0, y);
         // Deps: state/props + `itemsRef` (stable ref threaded through `params`,
         // listed for react-doctor/exhaustive-deps; never changes identity).
-    }, [effectiveIndex, errors, collapsedHeights, collapsedHeightFallback, gutter, gridRef, canvasBodyRef, itemsRef]);
+    }, [effectiveIndex, errors, collapsedHeights, collapsedHeightsRef, collapsedHeightFallback, gutter, gridRef, canvasBodyRef, itemsRef]);
 
     // Latest-callback ref — lets the pin evaluator (and the pinviz visualizer)
     // read the freshest resting target WITHOUT re-arming their rAF/observer
@@ -1075,6 +1081,7 @@ export function QuizCanvasToolbarLane({
     canvasBodyRef,
     cardWrapperMapRef,
     collapsedHeights,
+    collapsedHeightsRef,
     errors,
     gutter = 20,
     collapsedHeightFallback = 116,
@@ -1111,19 +1118,16 @@ export function QuizCanvasToolbarLane({
 
     const isDragging = draggingId !== null;
 
-    const [isMobile, setIsMobile] = useState(() =>
-        typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false,
+    const isMobile = useSyncExternalStore(
+        (notify) => {
+            if (typeof window === 'undefined') return () => {};
+            const query = window.matchMedia('(max-width: 639px)');
+            query.addEventListener('change', notify);
+            return () => query.removeEventListener('change', notify);
+        },
+        () => (typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false),
+        () => false,
     );
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const query = window.matchMedia('(max-width: 639px)');
-        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-        setIsMobile(query.matches);
-
-        query.addEventListener('change', handler);
-        return () => query.removeEventListener('change', handler);
-    }, []);
 
     const activeIndex = items.findIndex((item) => item.tempId === activeCardId);
     const isMetaCard = activeCardId === null || activeIndex === -1;
@@ -1176,6 +1180,7 @@ export function QuizCanvasToolbarLane({
         effectiveIndex,
         errors,
         collapsedHeights,
+        collapsedHeightsRef,
         collapsedHeightFallback,
         gutter,
         gridRef,

@@ -52,10 +52,7 @@ export default function CreateMaterialModal({
 
     // Resolve terms for the selected subject via SubjectTermRepository
     useEffect(() => {
-        if (!selectedSubjectId || !context) {
-            setAvailableTerms([]);
-            return;
-        }
+        if (!selectedSubjectId || !context) return;
         let cancelled = false;
         context.subjectTermRepository.getTermsBySubject(selectedSubjectId).then((terms) => {
             if (!cancelled) setAvailableTerms(terms);
@@ -67,6 +64,9 @@ export default function CreateMaterialModal({
         const newSubjectId = value === '__unassigned__' ? null : value;
         setSelectedSubjectId(newSubjectId);
         setSelectedTermId(null);
+        if (!newSubjectId) {
+            setAvailableTerms([]);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, createElement } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { Question, QuestionDifficulty, QuestionStatus } from '../../../domain/quiz/Question';
 import type { QuestionType } from '../../../domain/quiz/QuestionType';
@@ -71,6 +71,16 @@ function hasUserData(payload: QuestionAnswerPayload): boolean {
         return payload.blanks.some((b: string) => b.trim().length > 0);
     }
     return false;
+}
+
+interface DynamicQuestionEditorProps {
+    type: QuestionType;
+    value: QuestionAnswerPayload;
+    onChange: (payload: QuestionAnswerPayload) => void;
+}
+
+function DynamicQuestionEditor({ type, value, onChange }: DynamicQuestionEditorProps) {
+    return createElement(getQuestionEditor(type), { value: value as never, onChange: onChange as never });
 }
 
 export function QuestionEditorDialog({
@@ -148,8 +158,6 @@ export function QuestionEditorDialog({
         onClose();
     };
 
-    const EditorComponent = getQuestionEditor(type);
-
     return (
         <>
             <Dialog
@@ -195,9 +203,10 @@ export function QuestionEditorDialog({
                     />
 
                     <div {...stylex.props(styles.editorSection)}>
-                        <EditorComponent
-                            value={payload as never}
-                            onChange={setPayload as never}
+                        <DynamicQuestionEditor
+                            type={type}
+                            value={payload}
+                            onChange={setPayload}
                         />
                     </div>
 
