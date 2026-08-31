@@ -22,7 +22,8 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 - `layouts/` — Structural Frame & Page Containers:
   - `layouts/AppShell.tsx` — Thin composition root: wires `useAppRoute`, `useShellFocusMode`, `useFocusModeMotion` (GSAP rail/FAB animation), `AppSidebar`, `<ShellRoutes>`, and mounts transient overlays from `overlays/`.
-  - `layouts/AppSidebar.tsx` — Global navigation rail (desktop sidebar, tablet rail, mobile bottom dock) with GSAP sliding active pill, sync status pill, and brand footer.
+  - `layouts/AppSidebar.tsx` — Global navigation rail (desktop sidebar, tablet rail, mobile bottom dock) orchestrating navigation links and sub-components.
+  - `layouts/sidebar/` — Modular sidebar pieces: `sidebar.stylex.ts` (StyleX layout rules), `usePillIndicator.ts` (GSAP active pill animation), `useFocusModeMorph.ts` (GSAP collapse morph), `SidebarFooter.tsx` (brand card + `SyncStatusPill` + Focus trigger), and `InstallRow.tsx` (PWA install affordance).
   - `layouts/MaterialWorkspace.tsx` — Composite material workspace (Read / Write / Quiz / Flashcards / Manage tab bar) orchestrating reader, writer, quiz, flashcard, and AI chat features.
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
