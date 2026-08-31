@@ -21,9 +21,14 @@ Application-level orchestration: the root shell layout, composition root & DI fa
   - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Preview / Terms / Analytics / Subject / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
 
 - `layouts/` — Structural Frame & Page Containers:
-  - `layouts/AppShell.tsx` — Thin composition root: wires `useAppRoute`, `useShellFocusMode`, `useFocusModeMotion` (GSAP rail/FAB animation), `AppSidebar`, `<ShellRoutes>`, and mounts transient overlays from `overlays/`.
-  - `layouts/AppSidebar.tsx` — Global navigation rail (desktop sidebar, tablet rail, mobile bottom dock) orchestrating navigation links and sub-components.
-  - `layouts/sidebar/` — Modular sidebar pieces: `sidebar.stylex.ts` (StyleX layout rules), `usePillIndicator.ts` (GSAP active pill animation), `useFocusModeMorph.ts` (GSAP collapse morph), `SidebarFooter.tsx` (brand card + `SyncStatusPill` + Focus trigger), and `InstallRow.tsx` (PWA install affordance).
+  - `layouts/AppShell.tsx` — Thin composition root: wires `useAppRoute`, `useShellFocusMode`, `useFocusModeMotion` (GSAP rail layout animation), `AppHeader`, `AppSidebar`, `<ShellRoutes>`, and mounts transient overlays from `overlays/`.
+  - `layouts/AppHeader.tsx` — Global Top Bar (`height: 52px`, `zIndex: 110`): renders brand identity (Logo, Project LunaClair, `v0.2.0` badge) on the left, and global actions/status (PWA install affordance, `SyncStatusPill`) on the right.
+  - `layouts/AppSidebar.tsx` — Viewport navigation router: delegates to `DesktopSidebar`, `TabletRail`, and `MobileBottomDock`.
+  - `layouts/navigation/` — Viewport navigation slices:
+    - `navigation/DesktopSidebar.tsx` & `navigation/DesktopTrapezoidButton.tsx` — 240px vertical sidebar with Option A $240\times58\text{px}$ rounded trapezoid drawer continuously morphing into the $44\times44\text{px}$ corner restore button.
+    - `navigation/TabletRail.tsx` — 60px floating vertical icon rail with in-place link fade and vertical collapse into the $44\times44\text{px}$ corner card.
+    - `navigation/MobileBottomDock.tsx` — 60px floating horizontal bottom dock with in-place link fade and horizontal contraction into the $44\times44\text{px}$ corner card.
+    - `navigation/navigation.types.ts` — Shared viewport navigation types and active states.
   - `layouts/MaterialWorkspace.tsx` — Composite material workspace (Read / Write / Quiz / Flashcards / Manage tab bar) orchestrating reader, writer, quiz, flashcard, and AI chat features.
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
@@ -40,7 +45,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 - `bootstrap.ts` runs once at app startup (from `App.tsx` `useEffect`) — it initializes the database layer via `DatabaseInitializer`. No auto-hydration: the catalog is fetched independently when the Available UI requires it, and materials are imported on user action.
 - `AppShell.tsx` mounts `OfflineBanner` as global chrome. TanStack Query's `networkMode: 'offlineFirst'` default for queries and mutations (set in `providers/AppProviders.tsx`) is a hard requirement for offline operation.
 - Route state lives in `useAppRoute` via the `AppRoute` union. Navigation helpers live in `src/app/routing/routing.ts`.
-- Focus Mode contract: `useShellFocusMode` owns `isFocusMode` (initialized from `localStorage`, persisted on every toggle) and `AppShell` passes `isFocusMode` + `onToggleFocusMode` to `AppSidebar`. `Cmd+B` (macOS) / `Ctrl+B` (Windows/Linux) toggles it from any page.
+- Focus Mode contract: `useShellFocusMode` owns `isFocusMode` (initialized from `localStorage`, persisted on every toggle) and `AppShell` passes `isFocusMode` + `onToggleFocusMode` to `AppSidebar`. `Cmd+B` (macOS) / `Ctrl+B` (Windows/Linux) toggles it from any page. On desktop, `useFocusModeMotion` collapses the rail to `width: 0` (so main content fills the full viewport) while keeping `opacity: 1` and applying `pointer-events: none` — the `DesktopSidebar` handles its own focus-mode visuals internally (fade links, transparent bg, morph trapezoid to a44×44 pill). The trapezoid button's `focusModeButton` style sets `pointer-events: auto` to remain clickable through the rail. On tablet/mobile, the rail stays visible and `FocusRestoreFAB` provides the exit affordance.
 - Query hooks access domain repositories through DI context (`context.repositories.*`, ADR-011). Mutation hooks and domain workflows call `ApplicationContext.useCases.*` and never import concrete implementations directly. Shell-level bootstrap coordinates infrastructure via `context.infrastructure.*`.
 - First-run onboarding contract: one-time per browser, skippable, rendered as a native `<dialog>`. Syncs default terms via `SyncDefaultTermsUseCase` on Finish AND Skip.
 
