@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useEffect, useState, lazy, Suspense } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
-import type { AppRoute } from './AppShell';
+import type { AppRoute } from '../routing/routing';
 import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
 import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
 import { useTerm } from '../../features/catalog/terms/hooks/queries/useTerm';

@@ -4,7 +4,7 @@ import LibraryScreen from '../../features/catalog/materials/components/LibrarySc
 import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import type { AppRoute } from './routing';
-import MaterialWorkspace from './MaterialWorkspace';
+import MaterialWorkspace from '../layouts/MaterialWorkspace';
 
 // Route-level code-splitting for heavy screens
 const ExploreScreen = lazy(() => import('../../features/catalog/explore/components/ExploreScreen'));

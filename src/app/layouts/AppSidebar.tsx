@@ -2,12 +2,12 @@ import { useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { Home, BookText, GraduationCap, Tag, Focus, Download, TrendingUp, FileUp, Compass } from 'lucide-react';
-import type { AppRoute } from '../AppShell';
-import { useSubject } from '../../../features/catalog/subjects/hooks/queries/useSubject';
-import { useMaterial } from '../../../features/catalog/materials/hooks/queries/useMaterial';
-import { SyncStatusPill } from '../../../features/sync/components/SyncStatusPill';
-import { isIOS, isStandalone } from '../installDetection';
-import logoSvg from '../../../assets/logo.svg';
+import type { AppRoute } from '../routing/routing';
+import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
+import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
+import { SyncStatusPill } from '../../features/sync/components/SyncStatusPill';
+import { isIOS, isStandalone } from '../overlays/installDetection';
+import logoSvg from '../../assets/logo.svg';
 
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 const mobile = '@media (max-width: 768px)';

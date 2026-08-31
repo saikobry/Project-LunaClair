@@ -1,9 +1,8 @@
 /**
- * AppShell routing — the `AppRoute` union and its URL serialization.
+ * App routing — the `AppRoute` union and its URL serialization.
  *
- * Kept separate from the shell component so `AppShell` stays focused on
- * layout, state, and Focus Mode motion. Feature components that need the
- * `AppRoute` type import it (type-only) via the `AppShell` re-export.
+ * Defines the public navigation contracts consumed by AppShell,
+ * the router view dispatcher, and feature components.
  */
 export type AppRoute =
   | { kind: 'library' }
@@ -88,7 +87,6 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
     const subjectId = url.searchParams.get('subject') ?? undefined;
     return { kind: 'workspace', workspace: 'material', materialId: materialMatch[1], activeTab: tab, subjectId };
   }
-
 
   // /subjects/:subjectId
   const subjectMatch = url.pathname.match(/^\/subjects\/([^/]+)$/);

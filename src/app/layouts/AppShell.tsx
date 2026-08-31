@@ -4,13 +4,13 @@ import * as stylex from '@stylexjs/stylex';
 import { FocusModeProvider } from '../providers/FocusModeContext';
 import { ApplicationContext } from '../providers/ApplicationContext';
 import logoSvg from '../../assets/logo.svg';
-import type { AppRoute } from './routing';
-import { AppSidebar } from './AppSidebar/AppSidebar';
-import OfflineBanner from './OfflineBanner';
-import { InstallPrompt, InstallInstructionsDialog } from './InstallPrompt';
-import { OnboardingTutorial } from './OnboardingTutorial';
-import { ShellRoutes } from './ShellRoutes';
-import { useAppRoute } from './useAppRoute';
+import type { AppRoute } from '../routing/routing';
+import { AppSidebar } from './AppSidebar';
+import OfflineBanner from '../overlays/OfflineBanner';
+import { InstallPrompt, InstallInstructionsDialog } from '../overlays/InstallPrompt';
+import { OnboardingTutorial } from '../overlays/OnboardingTutorial';
+import { ShellRoutes } from '../routing/ShellRoutes';
+import { useAppRoute } from '../routing/useAppRoute';
 import { useShellFocusMode } from './useShellFocusMode';
 
 // Re-export for components that consume the route type via the shell.
