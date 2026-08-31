@@ -14,7 +14,7 @@ export function useGlobalAnalytics() {
             if (useCase) {
                 return useCase.execute(signal);
             }
-            const repo = context.analyticsRepository ?? context.repositories?.analyticsRepository;
+            const repo = context.infrastructure.repositories.analytics;
             return repo.getGlobalAnalytics(signal);
         },
     });

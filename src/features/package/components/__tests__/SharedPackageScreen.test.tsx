@@ -167,6 +167,13 @@ describe('SharedPackageScreen', () => {
     const shareId = props.shareId ?? 'share_public_123';
 
     const mockContextValue = {
+      infrastructure: {
+        repositories: {
+          subject: mockSubjectRepository,
+          subjectTerm: mockSubjectTermRepository,
+          term: mockTermRepository,
+        },
+      },
       useCases: {
         sharing: {
           fetchPublishedShare: { execute: mockFetchPublishedShare },
@@ -176,9 +183,6 @@ describe('SharedPackageScreen', () => {
           importStudyPackage: { execute: mockImportStudyPackage },
         },
       },
-      subjectRepository: mockSubjectRepository,
-      subjectTermRepository: mockSubjectTermRepository,
-      termRepository: mockTermRepository,
     } as unknown as ApplicationContextValue;
 
     const utils = render(

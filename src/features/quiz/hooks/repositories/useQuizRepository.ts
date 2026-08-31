@@ -8,5 +8,5 @@ export function useQuizRepository(): QuizRepository {
     if (!context) {
         throw new Error('useQuizRepository must be used within a <ApplicationProvider>');
     }
-    return context.quizRepository;
+    return context.infrastructure.repositories.quiz;
 }

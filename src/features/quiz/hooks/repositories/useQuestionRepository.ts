@@ -8,5 +8,5 @@ export function useQuestionRepository(): QuestionRepository {
     if (!context) {
         throw new Error('useQuestionRepository must be used within a <ApplicationProvider>');
     }
-    return context.questionRepository;
+    return context.infrastructure.repositories.question;
 }

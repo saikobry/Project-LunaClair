@@ -56,11 +56,15 @@ describe('ExploreScreen', () => {
     queryClient.clear();
 
     mockContext = {
-      catalogRepository: {
-        getCatalog: vi.fn().mockResolvedValue(mockOfficialCatalog),
-      },
-      libraryRepository: {
-        getMaterials: vi.fn().mockResolvedValue([]),
+      infrastructure: {
+        repositories: {
+          catalog: {
+            getCatalog: vi.fn().mockResolvedValue(mockOfficialCatalog),
+          },
+          library: {
+            getMaterials: vi.fn().mockResolvedValue([]),
+          },
+        },
       },
       useCases: {
         sharing: {

@@ -30,8 +30,12 @@ import { workerShareTransport } from '../../infrastructure/sharing/WorkerShareTr
 import { localStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
 import { db } from '../../infrastructure/database/LunaClairDatabase';
 
-export function createRepositories() {
-    // Reader resolves imported content from Dexie first, API second.
+/**
+ * Creates and structures the application's infrastructure layer.
+ * Groups concrete database repositories, domain services, network transports,
+ * and security providers into explicit, typed namespaces.
+ */
+export function createInfrastructure() {
     const documentRepository = new HybridDocumentRepository(
         dexieDocumentContentRepository,
         apiDocumentRepository,
@@ -41,36 +45,44 @@ export function createRepositories() {
 
     return {
         db,
-        documentRepository,
-        catalogRepository: apiCatalogRepository,
-        quizContentRepository: apiQuizContentRepository,
-        documentContentRepository: dexieDocumentContentRepository,
-        libraryImportService: dexieLibraryImportService,
-        annotationRepository: dexieAnnotationRepository,
-        libraryRepository: dexieLibraryRepository,
-        questionRepository: dexieQuestionRepository,
-        quizRepository: dexieQuizRepository,
-        quizSessionRepository: dexieQuizSessionRepository,
-        subjectRepository: dexieSubjectRepository,
-        termRepository: dexieTermRepository,
-        subjectTermRepository: dexieSubjectTermRepository,
-        termService: dexieTermService,
-        quizDraftRepository: dexieQuizDraftRepository,
-        quizEditorService: dexieQuizEditorService,
-        flashcardReviewRepository: dexieFlashcardReviewRepository,
-        analyticsRepository: dexieAnalyticsRepository,
-        aiChatRepository: dexieAiChatRepository,
-        aiService,
+        repositories: {
+            document: documentRepository,
+            catalog: apiCatalogRepository,
+            quizContent: apiQuizContentRepository,
+            documentContent: dexieDocumentContentRepository,
+            annotation: dexieAnnotationRepository,
+            library: dexieLibraryRepository,
+            question: dexieQuestionRepository,
+            quiz: dexieQuizRepository,
+            quizSession: dexieQuizSessionRepository,
+            subject: dexieSubjectRepository,
+            term: dexieTermRepository,
+            subjectTerm: dexieSubjectTermRepository,
+            quizDraft: dexieQuizDraftRepository,
+            flashcardReview: dexieFlashcardReviewRepository,
+            analytics: dexieAnalyticsRepository,
+            aiChat: dexieAiChatRepository,
+            importAsset: dexieImportAssetRepository,
+            syncQueue: dexieSyncQueueRepository,
+            syncState: dexieSyncStateRepository,
+            conflictDraft: dexieConflictDraftRepository,
+        },
+        services: {
+            term: dexieTermService,
+            quizEditor: dexieQuizEditorService,
+            libraryImport: dexieLibraryImportService,
+            ai: aiService,
+        },
+        transports: {
+            sync: workerSyncTransport,
+            share: workerShareTransport,
+        },
+        providers: {
+            credentials: localStorageCredentialsProvider,
+        },
         importerRegistry: createDefaultImporterRegistry(),
-        importAssetRepository: dexieImportAssetRepository,
-        syncQueueRepository: dexieSyncQueueRepository,
-        syncStateRepository: dexieSyncStateRepository,
-        conflictDraftRepository: dexieConflictDraftRepository,
-        dexieSyncReconciler,
-        workerSyncTransport,
-        shareTransport: workerShareTransport,
-        credentialsProvider: localStorageCredentialsProvider,
+        syncReconciler: dexieSyncReconciler,
     };
 }
 
-export type Repositories = ReturnType<typeof createRepositories>;
+export type Infrastructure = ReturnType<typeof createInfrastructure>;

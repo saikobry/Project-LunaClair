@@ -13,30 +13,32 @@ import { UnarchiveQuizUseCase } from '../../../application/use-cases/quiz-manage
 import { PublishQuizUseCase } from '../../../application/use-cases/quiz-management/PublishQuizUseCase';
 import { SaveQuizUseCase } from '../../../application/use-cases/quiz-management/SaveQuizUseCase';
 import { RecordFlashcardReviewUseCase } from '../../../application/use-cases/flashcards/RecordFlashcardReviewUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createQuizUseCases(repositories: Repositories) {
+export function createQuizUseCases(infrastructure: Infrastructure) {
+    const { repositories, services } = infrastructure;
+
     return {
         flashcards: {
-            recordReview: new RecordFlashcardReviewUseCase(repositories.flashcardReviewRepository),
+            recordReview: new RecordFlashcardReviewUseCase(repositories.flashcardReview),
         },
         quiz: {
-            startSession: new StartQuizSessionUseCase(repositories.quizSessionRepository),
-            submitSession: new SubmitQuizSessionUseCase(repositories.quizSessionRepository),
-            abandonSession: new AbandonQuizSessionUseCase(repositories.quizSessionRepository),
+            startSession: new StartQuizSessionUseCase(repositories.quizSession),
+            submitSession: new SubmitQuizSessionUseCase(repositories.quizSession),
+            abandonSession: new AbandonQuizSessionUseCase(repositories.quizSession),
         },
         quizManagement: {
-            createQuestion: new CreateQuestionUseCase(repositories.questionRepository),
-            updateQuestion: new UpdateQuestionUseCase(repositories.questionRepository),
-            archiveQuestion: new ArchiveQuestionUseCase(repositories.questionRepository),
-            unarchiveQuestion: new UnarchiveQuestionUseCase(repositories.questionRepository),
-            publishQuestion: new PublishQuestionUseCase(repositories.questionRepository),
-            createQuiz: new CreateQuizUseCase(repositories.quizRepository),
-            updateQuiz: new UpdateQuizUseCase(repositories.quizRepository),
-            archiveQuiz: new ArchiveQuizUseCase(repositories.quizRepository),
-            unarchiveQuiz: new UnarchiveQuizUseCase(repositories.quizRepository),
-            publishQuiz: new PublishQuizUseCase(repositories.quizRepository),
-            saveQuiz: new SaveQuizUseCase(repositories.questionRepository, repositories.quizEditorService),
+            createQuestion: new CreateQuestionUseCase(repositories.question),
+            updateQuestion: new UpdateQuestionUseCase(repositories.question),
+            archiveQuestion: new ArchiveQuestionUseCase(repositories.question),
+            unarchiveQuestion: new UnarchiveQuestionUseCase(repositories.question),
+            publishQuestion: new PublishQuestionUseCase(repositories.question),
+            createQuiz: new CreateQuizUseCase(repositories.quiz),
+            updateQuiz: new UpdateQuizUseCase(repositories.quiz),
+            archiveQuiz: new ArchiveQuizUseCase(repositories.quiz),
+            unarchiveQuiz: new UnarchiveQuizUseCase(repositories.quiz),
+            publishQuiz: new PublishQuizUseCase(repositories.quiz),
+            saveQuiz: new SaveQuizUseCase(repositories.question, services.quizEditor),
         },
     };
 }

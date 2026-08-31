@@ -6,26 +6,28 @@ import { TrackShareDownloadUseCase } from '../../../application/use-cases/sharin
 import { DeletePublishedShareUseCase } from '../../../application/use-cases/sharing/DeletePublishedShareUseCase';
 import { ListPublicSharesUseCase } from '../../../application/use-cases/sharing/ListPublicSharesUseCase';
 import { ClonePublishedShareUseCase } from '../../../application/use-cases/sharing/ClonePublishedShareUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createPackageUseCases(repositories: Repositories) {
+export function createPackageUseCases(infrastructure: Infrastructure) {
+    const { repositories, transports, db } = infrastructure;
+
     const materializeStudyPackage = new MaterializeStudyPackageUseCase(
-        repositories.libraryRepository,
-        repositories.documentContentRepository,
-        repositories.questionRepository,
-        repositories.quizRepository,
-        repositories.importAssetRepository,
+        repositories.library,
+        repositories.documentContent,
+        repositories.question,
+        repositories.quiz,
+        repositories.importAsset,
     );
 
-    const importStudyPackage = new ImportStudyPackageUseCase(repositories.db);
-    const fetchPublishedShare = new FetchPublishedShareUseCase(repositories.shareTransport);
-    const trackShareDownload = new TrackShareDownloadUseCase(repositories.shareTransport);
-    const deletePublishedShare = new DeletePublishedShareUseCase(repositories.shareTransport);
-    const listPublicShares = new ListPublicSharesUseCase(repositories.shareTransport);
+    const importStudyPackage = new ImportStudyPackageUseCase(db);
+    const fetchPublishedShare = new FetchPublishedShareUseCase(transports.share);
+    const trackShareDownload = new TrackShareDownloadUseCase(transports.share);
+    const deletePublishedShare = new DeletePublishedShareUseCase(transports.share);
+    const listPublicShares = new ListPublicSharesUseCase(transports.share);
 
     const publishStudyPackage = new PublishStudyPackageUseCase(
         materializeStudyPackage,
-        repositories.shareTransport,
+        transports.share,
     );
 
     const clonePublishedShare = new ClonePublishedShareUseCase(

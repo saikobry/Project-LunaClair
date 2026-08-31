@@ -14,5 +14,5 @@ export function useAnnotationRepository(): AnnotationRepository {
             'useAnnotationRepository must be used within a <ApplicationProvider>',
         );
     }
-    return context.annotationRepository;
+    return context.infrastructure.repositories.annotation;
 }

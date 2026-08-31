@@ -1,16 +1,18 @@
 import { ExtractContentUseCase } from '../../../application/use-cases/importer/ExtractContentUseCase';
 import { CommitImportUseCase } from '../../../application/use-cases/importer/CommitImportUseCase';
 import { CleanupImportWithAiUseCase } from '../../../application/use-cases/importer/CleanupImportWithAiUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createImporterUseCases(repositories: Repositories) {
+export function createImporterUseCases(infrastructure: Infrastructure) {
+    const { repositories, services, importerRegistry } = infrastructure;
+
     return {
-        extractContent: new ExtractContentUseCase(repositories.importerRegistry),
+        extractContent: new ExtractContentUseCase(importerRegistry),
         commitImport: new CommitImportUseCase(
-            repositories.libraryRepository,
-            repositories.documentContentRepository,
-            repositories.importAssetRepository,
+            repositories.library,
+            repositories.documentContent,
+            repositories.importAsset,
         ),
-        cleanupWithAi: new CleanupImportWithAiUseCase(repositories.aiService),
+        cleanupWithAi: new CleanupImportWithAiUseCase(services.ai),
     };
 }

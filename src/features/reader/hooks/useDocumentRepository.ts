@@ -14,5 +14,5 @@ export function useDocumentRepository(): DocumentRepository {
             'useDocumentRepository must be used within a <ApplicationProvider>',
         );
     }
-    return context.documentRepository;
+    return context.infrastructure.repositories.document;
 }

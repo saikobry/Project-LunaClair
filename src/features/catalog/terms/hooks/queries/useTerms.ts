@@ -21,8 +21,8 @@ export function useTerms(subjectId?: string | undefined) {
       : catalogQueryKeys.terms(),
     queryFn: ({ signal }) =>
       subjectId
-        ? context.subjectTermRepository.getTermsBySubject(subjectId, signal)
-        : context.termRepository.getTerms(signal),
+        ? context.infrastructure.repositories.subjectTerm.getTermsBySubject(subjectId, signal)
+        : context.infrastructure.repositories.term.getTerms(signal),
     enabled: true,
   });
 

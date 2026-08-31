@@ -90,7 +90,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
 
     const { data: bankQuestions = [] } = useQuery({
         queryKey: ['assessment', 'questions', materialId],
-        queryFn: ({ signal }) => context.questionRepository.getQuestions(materialId, signal),
+        queryFn: ({ signal }) => context.infrastructure.repositories.question.getQuestions(materialId, signal),
     });
 
     // ── Seed the canvas and detect a recoverable draft ──
@@ -99,17 +99,17 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         (async () => {
             let recoverable: QuizDraft | null = null;
             if (quizId) {
-                recoverable = await context.quizDraftRepository.getDraftForQuiz(quizId);
+                recoverable = await context.infrastructure.repositories.quizDraft.getDraftForQuiz(quizId);
             } else {
-                const latest = await context.quizDraftRepository.getDraftForMaterial(materialId);
+                const latest = await context.infrastructure.repositories.quizDraft.getDraftForMaterial(materialId);
                 recoverable = latest && !latest.quizId ? latest : null;
             }
 
             let seed: QuizDraft;
             if (quizId) {
-                const quiz = await context.quizRepository.getQuizById(quizId);
+                const quiz = await context.infrastructure.repositories.quiz.getQuizById(quizId);
                 if (quiz) {
-                    const questions = await context.questionRepository.getQuestionsByIds(quiz.questionIds);
+                    const questions = await context.infrastructure.repositories.question.getQuestionsByIds(quiz.questionIds);
                     seed = createQuizDraftFromQuiz(quiz, questions);
                 } else {
                     seed = createEmptyQuizDraft(materialId, quizId);
@@ -134,7 +134,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
     const persistDraft = useCallback(
         (candidate: QuizDraft) => {
             if (!candidate.isDirty) return Promise.resolve();
-            return context.quizDraftRepository.saveDraft(candidate);
+            return context.infrastructure.repositories.quizDraft.saveDraft(candidate);
         },
         [context],
     );
@@ -221,7 +221,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
                 return;
             }
             // UI editor lifecycle: drop the crash-recovery draft, refresh caches.
-            await context.quizDraftRepository.deleteDraft(draft.draftId);
+            await context.infrastructure.repositories.quizDraft.deleteDraft(draft.draftId);
             void queryClient.invalidateQueries({ queryKey: ['assessment'] });
             showToast('Quiz saved to catalog', { intent: 'success' });
             canvas.commitSaved(result.quizId);
@@ -261,7 +261,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
 
     const handleDiscard = useCallback(async () => {
         if (!recovery) return;
-        await context.quizDraftRepository.deleteDraft(recovery.draftId);
+        await context.infrastructure.repositories.quizDraft.deleteDraft(recovery.draftId);
         setRecovery(null);
     }, [recovery, context]);
 

@@ -17,7 +17,7 @@ export function useAvailableMaterial(materialId: string | undefined) {
 
   return useQuery({
     queryKey: catalogQueryKeys.availableMaterial(materialId ?? ''),
-    queryFn: ({ signal }) => context.catalogRepository.getMaterial(materialId!, signal),
+    queryFn: ({ signal }) => context.infrastructure.repositories.catalog.getMaterial(materialId!, signal),
     enabled: !!materialId,
   });
 }

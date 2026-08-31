@@ -4,27 +4,29 @@ import { GetSyncStatusUseCase } from '../../../application/use-cases/sync/GetSyn
 import { GetConflictDraftsUseCase } from '../../../application/use-cases/sync/GetConflictDraftsUseCase';
 import { ResolveConflictDraftUseCase } from '../../../application/use-cases/sync/ResolveConflictDraftUseCase';
 import { TriggerSyncUseCase } from '../../../application/use-cases/sync/TriggerSyncUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createSyncUseCases(repositories: Repositories) {
+export function createSyncUseCases(infrastructure: Infrastructure) {
+    const { db, transports, syncReconciler, repositories, providers } = infrastructure;
+
     const syncEngine = new SyncEngine(
-        repositories.db,
-        repositories.workerSyncTransport,
-        repositories.dexieSyncReconciler,
-        repositories.syncQueueRepository,
-        repositories.syncStateRepository,
+        db,
+        transports.sync,
+        syncReconciler,
+        repositories.syncQueue,
+        repositories.syncState,
         syncStatusStore,
     );
 
     const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
-    const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraftRepository);
+    const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraft);
     const resolveConflictDraft = new ResolveConflictDraftUseCase(
-        repositories.db,
-        repositories.conflictDraftRepository,
+        db,
+        repositories.conflictDraft,
     );
     const triggerSync = new TriggerSyncUseCase(
         syncEngine,
-        repositories.credentialsProvider,
+        providers.credentials,
     );
 
     return {

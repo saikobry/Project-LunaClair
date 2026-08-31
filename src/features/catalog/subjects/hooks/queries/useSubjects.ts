@@ -13,7 +13,7 @@ export function useSubjects() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: catalogQueryKeys.subjects(),
-    queryFn: ({ signal }) => context.subjectRepository.getSubjects(signal),
+    queryFn: ({ signal }) => context.infrastructure.repositories.subject.getSubjects(signal),
   });
 
   const subjects = useMemo(

@@ -7,15 +7,12 @@ interface ApplicationProviderProps {
 }
 
 /**
- * Provides all domain repositories and application services to feature
- * hooks via React context. Instances are stable singletons that never
- * recreate across re-renders.
+ * Provides all domain repositories, infrastructure services, and application
+ * use cases to feature hooks via React context. Instances are stable singletons
+ * that never recreate across re-renders.
  */
 export function ApplicationProvider({ children }: ApplicationProviderProps) {
-  const [value] = useState<ApplicationContextValue>(() => {
-    const application = createApplication();
-    return { ...application, ...application.repositories };
-  });
+  const [value] = useState<ApplicationContextValue>(() => createApplication());
 
   return (
     <ApplicationContext.Provider value={value}>

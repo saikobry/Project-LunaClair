@@ -7,22 +7,24 @@ import { GenerateQuestionsUseCase } from '../../../application/use-cases/generat
 import { BatchCreateQuestionsUseCase } from '../../../application/use-cases/generator/BatchCreateQuestionsUseCase';
 import { GenerateFlashcardsUseCase } from '../../../application/use-cases/generator/GenerateFlashcardsUseCase';
 import { BatchCreateFlashcardsUseCase } from '../../../application/use-cases/generator/BatchCreateFlashcardsUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createAiUseCases(repositories: Repositories) {
+export function createAiUseCases(infrastructure: Infrastructure) {
+    const { repositories, services } = infrastructure;
+
     return {
         ai: {
-            sendChatMessage: new SendChatMessageUseCase(repositories.aiService, repositories.aiChatRepository),
-            getOrCreateThread: new GetOrCreateAiThreadUseCase(repositories.aiChatRepository),
-            getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChatRepository),
-            deleteThread: new DeleteAiThreadUseCase(repositories.aiChatRepository),
-            clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChatRepository),
+            sendChatMessage: new SendChatMessageUseCase(services.ai, repositories.aiChat),
+            getOrCreateThread: new GetOrCreateAiThreadUseCase(repositories.aiChat),
+            getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChat),
+            deleteThread: new DeleteAiThreadUseCase(repositories.aiChat),
+            clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChat),
         },
         generator: {
-            generateQuestions: new GenerateQuestionsUseCase(repositories.aiService),
-            batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.questionRepository),
-            generateFlashcards: new GenerateFlashcardsUseCase(repositories.aiService),
-            batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.questionRepository),
+            generateQuestions: new GenerateQuestionsUseCase(services.ai),
+            batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.question),
+            generateFlashcards: new GenerateFlashcardsUseCase(services.ai),
+            batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.question),
         },
     };
 }

@@ -36,9 +36,9 @@ export function useSyncStatus(): UseSyncStatusResult {
       } catch {
         // Tolerant to fetch failures during initialization
       }
-    } else if (context?.conflictDraftRepository) {
+    } else if (context?.infrastructure?.repositories?.conflictDraft) {
       try {
-        const count = await context.conflictDraftRepository.count();
+        const count = await context.infrastructure.repositories.conflictDraft.count();
         setConflictCount(count);
       } catch {
         // Tolerant
@@ -57,9 +57,9 @@ export function useSyncStatus(): UseSyncStatusResult {
         } catch {
           // Tolerant
         }
-      } else if (context?.conflictDraftRepository) {
+      } else if (context?.infrastructure?.repositories?.conflictDraft) {
         try {
-          const count = await context.conflictDraftRepository.count();
+          const count = await context.infrastructure.repositories.conflictDraft.count();
           if (!cancelled) setConflictCount(count);
         } catch {
           // Tolerant
@@ -82,8 +82,8 @@ export function useSyncStatus(): UseSyncStatusResult {
     const useCase = context?.useCases?.sync?.triggerSync;
     if (useCase) {
       await useCase.execute();
-    } else if (context?.useCases?.sync?.syncEngine && context?.credentialsProvider) {
-      const creds = await context.credentialsProvider.getCredentials();
+    } else if (context?.useCases?.sync?.syncEngine && context?.infrastructure?.providers?.credentials) {
+      const creds = await context.infrastructure.providers.credentials.getCredentials();
       if (creds) {
         await context.useCases.sync.syncEngine.sync(creds);
       }

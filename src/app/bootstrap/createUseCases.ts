@@ -6,18 +6,18 @@ import { createAiUseCases } from './use-cases/createAiUseCases';
 import { createImporterUseCases } from './use-cases/createImporterUseCases';
 import { createPackageUseCases } from './use-cases/createPackageUseCases';
 import { createSyncUseCases } from './use-cases/createSyncUseCases';
-import type { Repositories } from './createRepositories';
+import type { Infrastructure } from './createInfrastructure';
 
 /**
  * Root composition factory for application use cases.
  * Delegates domain slice construction to dedicated modular factories.
  */
-export function createUseCases(repositories: Repositories) {
-    const quizSlices = createQuizUseCases(repositories);
-    const librarySlices = createLibraryUseCases(repositories);
-    const readerSlices = createReaderUseCases(repositories);
-    const aiSlices = createAiUseCases(repositories);
-    const packageSlices = createPackageUseCases(repositories);
+export function createUseCases(infrastructure: Infrastructure) {
+    const quizSlices = createQuizUseCases(infrastructure);
+    const librarySlices = createLibraryUseCases(infrastructure);
+    const readerSlices = createReaderUseCases(infrastructure);
+    const aiSlices = createAiUseCases(infrastructure);
+    const packageSlices = createPackageUseCases(infrastructure);
 
     return {
         flashcards: quizSlices.flashcards,
@@ -27,13 +27,13 @@ export function createUseCases(repositories: Repositories) {
         subject: librarySlices.subject,
         reader: readerSlices.reader,
         content: readerSlices.content,
-        analytics: createAnalyticsUseCases(repositories),
+        analytics: createAnalyticsUseCases(infrastructure),
         ai: aiSlices.ai,
         generator: aiSlices.generator,
-        importer: createImporterUseCases(repositories),
+        importer: createImporterUseCases(infrastructure),
         package: packageSlices.package,
         sharing: packageSlices.sharing,
-        sync: createSyncUseCases(repositories),
+        sync: createSyncUseCases(infrastructure),
     };
 }
 

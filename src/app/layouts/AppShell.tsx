@@ -202,7 +202,7 @@ export default function AppShell() {
   // Initialize background cloud auto-synchronization on application mount
   useEffect(() => {
     const syncEngine = appContext?.useCases?.sync?.syncEngine;
-    const credsProvider = appContext?.repositories?.credentialsProvider;
+    const credsProvider = appContext?.infrastructure?.providers?.credentials;
     if (syncEngine && credsProvider) {
       let cleanup: (() => void) | undefined;
       void credsProvider.getCredentials().then((credentials) => {

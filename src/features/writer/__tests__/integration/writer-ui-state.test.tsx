@@ -104,15 +104,17 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
 
   function renderWriterTab(materialId = 'mat-1') {
     const mockAppContext: ApplicationContextValue = {
-      repositories: {
-        documentRepository: hybridDocRepo,
-        documentContentRepository: localDocRepo,
-        libraryRepository: {
-          getMaterials: async () => [sampleMaterial1, sampleMaterial2],
-          getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
-          createMaterial: vi.fn(),
-          updateMaterial: vi.fn(),
-          deleteMaterial: vi.fn(),
+      infrastructure: {
+        repositories: {
+          document: hybridDocRepo,
+          documentContent: localDocRepo,
+          library: {
+            getMaterials: async () => [sampleMaterial1, sampleMaterial2],
+            getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
+            createMaterial: vi.fn(),
+            updateMaterial: vi.fn(),
+            deleteMaterial: vi.fn(),
+          } as any,
         } as any,
       } as any,
       useCases: {
@@ -120,16 +122,7 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
           updateDocumentContent: new UpdateDocumentContentUseCase(localDocRepo),
         },
       } as any,
-      documentRepository: hybridDocRepo,
-      documentContentRepository: localDocRepo,
-      libraryRepository: {
-        getMaterials: async () => [sampleMaterial1, sampleMaterial2],
-        getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
-        createMaterial: vi.fn(),
-        updateMaterial: vi.fn(),
-        deleteMaterial: vi.fn(),
-      } as any,
-    } as any;
+    };
 
     return render(
       <QueryClientProvider client={queryClient}>
@@ -278,15 +271,17 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
       <QueryClientProvider client={queryClient}>
         <ApplicationContext.Provider
           value={{
-            repositories: {
-              documentRepository: hybridDocRepo,
-              documentContentRepository: localDocRepo,
-              libraryRepository: {
-                getMaterials: async () => [sampleMaterial1, sampleMaterial2],
-                getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
-                createMaterial: vi.fn(),
-                updateMaterial: vi.fn(),
-                deleteMaterial: vi.fn(),
+            infrastructure: {
+              repositories: {
+                document: hybridDocRepo,
+                documentContent: localDocRepo,
+                library: {
+                  getMaterials: async () => [sampleMaterial1, sampleMaterial2],
+                  getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
+                  createMaterial: vi.fn(),
+                  updateMaterial: vi.fn(),
+                  deleteMaterial: vi.fn(),
+                } as any,
               } as any,
             } as any,
             useCases: {
@@ -294,16 +289,7 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
                 updateDocumentContent: new UpdateDocumentContentUseCase(localDocRepo),
               },
             } as any,
-            documentRepository: hybridDocRepo,
-            documentContentRepository: localDocRepo,
-            libraryRepository: {
-              getMaterials: async () => [sampleMaterial1, sampleMaterial2],
-              getMaterialById: async (id: string) => (id === 'mat-1' ? sampleMaterial1 : id === 'mat-2' ? sampleMaterial2 : null),
-              createMaterial: vi.fn(),
-              updateMaterial: vi.fn(),
-              deleteMaterial: vi.fn(),
-            } as any,
-          } as any}
+          }}
         >
           <MaterialWriterTab materialId="mat-2" />
         </ApplicationContext.Provider>

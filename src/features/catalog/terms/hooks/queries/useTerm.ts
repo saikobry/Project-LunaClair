@@ -14,7 +14,7 @@ export function useTerm(termId: string | undefined) {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: catalogQueryKeys.term(termId ?? ''),
-    queryFn: ({ signal }) => context.termRepository.getTermById(termId!, signal),
+    queryFn: ({ signal }) => context.infrastructure.repositories.term.getTermById(termId!, signal),
     enabled: !!termId,
   });
 

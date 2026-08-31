@@ -18,33 +18,35 @@ import { ReorderSubjectTermsUseCase } from '../../../application/use-cases/subje
 import { AddTermToSubjectUseCase } from '../../../application/use-cases/subject/AddTermToSubjectUseCase';
 import { RemoveTermFromSubjectUseCase } from '../../../application/use-cases/subject/RemoveTermFromSubjectUseCase';
 import { DeleteTermUseCase } from '../../../application/use-cases/subject/DeleteTermUseCase';
-import type { Repositories } from '../createRepositories';
+import type { Infrastructure } from '../createInfrastructure';
 
-export function createLibraryUseCases(repositories: Repositories) {
+export function createLibraryUseCases(infrastructure: Infrastructure) {
+    const { repositories, services } = infrastructure;
+
     return {
         library: {
-            createMaterial: new CreateMaterialUseCase(repositories.libraryRepository, repositories.subjectTermRepository),
-            updateMaterial: new UpdateMaterialUseCase(repositories.libraryRepository, repositories.subjectTermRepository),
-            deleteMaterial: new DeleteMaterialUseCase(repositories.libraryRepository),
-            touchMaterial: new TouchMaterialUseCase(repositories.libraryRepository),
-            importMaterial: new ImportMaterialUseCase(repositories.catalogRepository, repositories.quizContentRepository, repositories.documentRepository, repositories.libraryImportService),
-            importSubject: new ImportSubjectUseCase(repositories.catalogRepository, repositories.libraryRepository, repositories.quizContentRepository, repositories.documentRepository, repositories.libraryImportService),
-            removeImportedMaterial: new RemoveImportedMaterialUseCase(repositories.libraryImportService),
-            syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.catalogRepository, repositories.termRepository),
+            createMaterial: new CreateMaterialUseCase(repositories.library, repositories.subjectTerm),
+            updateMaterial: new UpdateMaterialUseCase(repositories.library, repositories.subjectTerm),
+            deleteMaterial: new DeleteMaterialUseCase(repositories.library),
+            touchMaterial: new TouchMaterialUseCase(repositories.library),
+            importMaterial: new ImportMaterialUseCase(repositories.catalog, repositories.quizContent, repositories.document, services.libraryImport),
+            importSubject: new ImportSubjectUseCase(repositories.catalog, repositories.library, repositories.quizContent, repositories.document, services.libraryImport),
+            removeImportedMaterial: new RemoveImportedMaterialUseCase(services.libraryImport),
+            syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.catalog, repositories.term),
         },
         subject: {
-            createSubject: new CreateSubjectUseCase(repositories.subjectRepository),
-            updateSubject: new UpdateSubjectUseCase(repositories.subjectRepository),
-            reorderSubjects: new ReorderSubjectsUseCase(repositories.subjectRepository),
-            deleteSubject: new DeleteSubjectUseCase(repositories.subjectRepository, repositories.libraryRepository),
-            createTerm: new CreateTermUseCase(repositories.termRepository),
-            updateTerm: new UpdateTermUseCase(repositories.termRepository),
-            deleteTerm: new DeleteTermUseCase(repositories.termRepository),
-            createAndAssignTerm: new CreateAndAssignTermUseCase(repositories.termService),
-            syncTerms: new SyncSubjectTermsUseCase(repositories.subjectTermRepository, repositories.termRepository),
-            reorderTerms: new ReorderSubjectTermsUseCase(repositories.subjectTermRepository),
-            addTerm: new AddTermToSubjectUseCase(repositories.subjectTermRepository),
-            removeTerm: new RemoveTermFromSubjectUseCase(repositories.subjectTermRepository),
+            createSubject: new CreateSubjectUseCase(repositories.subject),
+            updateSubject: new UpdateSubjectUseCase(repositories.subject),
+            reorderSubjects: new ReorderSubjectsUseCase(repositories.subject),
+            deleteSubject: new DeleteSubjectUseCase(repositories.subject, repositories.library),
+            createTerm: new CreateTermUseCase(repositories.term),
+            updateTerm: new UpdateTermUseCase(repositories.term),
+            deleteTerm: new DeleteTermUseCase(repositories.term),
+            createAndAssignTerm: new CreateAndAssignTermUseCase(services.term),
+            syncTerms: new SyncSubjectTermsUseCase(repositories.subjectTerm, repositories.term),
+            reorderTerms: new ReorderSubjectTermsUseCase(repositories.subjectTerm),
+            addTerm: new AddTermToSubjectUseCase(repositories.subjectTerm),
+            removeTerm: new RemoveTermFromSubjectUseCase(repositories.subjectTerm),
         },
     };
 }

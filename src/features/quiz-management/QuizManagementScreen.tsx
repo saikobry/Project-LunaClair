@@ -71,12 +71,12 @@ export default function QuizManagementScreen({ materialId, onNavigate }: QuizMan
 
     const { data: questions = [], isLoading: questionsLoading } = useQuery({
         queryKey: ['assessment', 'questions', materialId],
-        queryFn: ({ signal }) => context.questionRepository.getQuestions(materialId, signal),
+        queryFn: ({ signal }) => context.infrastructure.repositories.question.getQuestions(materialId, signal),
     });
 
     const { data: quizzes = [], isLoading: quizzesLoading } = useQuery({
         queryKey: ['assessment', 'quizzes', materialId],
-        queryFn: ({ signal }) => context.quizRepository.getQuizzes(materialId, signal),
+        queryFn: ({ signal }) => context.infrastructure.repositories.quiz.getQuizzes(materialId, signal),
     });
 
     const questionMgmt = useQuestionManagement();

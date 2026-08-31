@@ -61,7 +61,7 @@ export default function EditMaterialModal({
   useEffect(() => {
     if (!selectedSubjectId || !context) return;
     let cancelled = false;
-    context.subjectTermRepository.getTermsBySubject(selectedSubjectId).then((terms) => {
+    context.infrastructure.repositories.subjectTerm.getTermsBySubject(selectedSubjectId).then((terms) => {
       if (!cancelled) setAvailableTerms(terms);
     });
     return () => { cancelled = true; };
