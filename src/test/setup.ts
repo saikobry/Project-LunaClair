@@ -61,7 +61,40 @@ if (typeof HTMLDialogElement !== 'undefined') {
   };
 }
 
+// Polyfill localStorage for Node.js 26 / JSDOM environment
+const storageStore = new Map<string, string>();
+const localStorageMock: Storage = {
+  getItem: (key: string) => storageStore.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    storageStore.set(key, String(value));
+  },
+  removeItem: (key: string) => {
+    storageStore.delete(key);
+  },
+  clear: () => {
+    storageStore.clear();
+  },
+  key: (index: number) => Array.from(storageStore.keys())[index] ?? null,
+  get length() {
+    return storageStore.size;
+  },
+};
+
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+    configurable: true,
+  });
+}
+
 // Automatically clean up DOM after each test
 afterEach(() => {
   cleanup();
 });
+

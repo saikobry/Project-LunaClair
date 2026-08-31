@@ -4,6 +4,7 @@
   "main": "worker/src/index.ts",
   "compatibility_date": "2026-07-30",
   "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": "dist",
 
   // Comma-separated allowlist of browser origins; empty = local dev defaults.
   "vars": {
