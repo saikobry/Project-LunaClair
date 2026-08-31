@@ -26,9 +26,7 @@ export function useSyncStatus(): UseSyncStatusResult {
   );
   const [conflictCount, setConflictCount] = useState<number>(0);
 
-  const getConflictDraftsUseCase =
-    context?.useCases?.sync?.getConflictDrafts ??
-    context?.useCases?.getConflictDraftsUseCase;
+  const getConflictDraftsUseCase = context?.useCases?.sync?.getConflictDrafts;
 
   const loadConflicts = useCallback(async () => {
     if (getConflictDraftsUseCase) {
@@ -81,7 +79,7 @@ export function useSyncStatus(): UseSyncStatusResult {
   }, [context, store, getConflictDraftsUseCase]);
 
   const triggerSync = useCallback(async () => {
-    const useCase = context?.useCases?.sync?.triggerSync ?? context?.useCases?.triggerSyncUseCase;
+    const useCase = context?.useCases?.sync?.triggerSync;
     if (useCase) {
       await useCase.execute();
     } else if (context?.useCases?.sync?.syncEngine && context?.credentialsProvider) {

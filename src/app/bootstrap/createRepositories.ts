@@ -69,7 +69,6 @@ export function createRepositories() {
         dexieSyncReconciler,
         workerSyncTransport,
         shareTransport: workerShareTransport,
-        localStorageCredentialsProvider,
         credentialsProvider: localStorageCredentialsProvider,
     };
 }

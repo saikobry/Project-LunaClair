@@ -20,13 +20,8 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getConflictDraftsUseCase =
-    context?.useCases?.sync?.getConflictDrafts ??
-    context?.useCases?.getConflictDraftsUseCase;
-
-  const resolveConflictDraftUseCase =
-    context?.useCases?.sync?.resolveConflictDraft ??
-    context?.useCases?.resolveConflictDraftUseCase;
+  const getConflictDraftsUseCase = context?.useCases?.sync?.getConflictDrafts;
+  const resolveConflictDraftUseCase = context?.useCases?.sync?.resolveConflictDraft;
 
   const fetchDrafts = useCallback(async () => {
     if (getConflictDraftsUseCase) {
