@@ -90,4 +90,3 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
 
 /** Singleton instance of DexieConflictDraftRepository */
 export const dexieConflictDraftRepository = new DexieConflictDraftRepository();
-

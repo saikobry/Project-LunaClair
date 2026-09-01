@@ -28,4 +28,3 @@ export function MaterialDetailsView({ candidates, onUpdateTitle, onCommit }: Mat
     </div>
   );
 }
-

@@ -162,4 +162,3 @@ export interface SyncPullResponse {
   hasMore: boolean;
   changes: SyncChangeItem[];
 }
-

@@ -431,4 +431,3 @@ export default function SubjectTermList({ terms, onReorder, onRemove }: SubjectT
     </div>
   );
 }
-

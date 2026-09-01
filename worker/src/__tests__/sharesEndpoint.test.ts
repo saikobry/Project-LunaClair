@@ -819,4 +819,3 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
     });
   });
 });
-

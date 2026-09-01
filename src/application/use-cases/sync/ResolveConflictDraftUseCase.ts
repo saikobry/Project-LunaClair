@@ -21,4 +21,3 @@ export class ResolveConflictDraftUseCase {
     await this.conflictDraftRepo.resolveConflict(input);
   }
 }
-

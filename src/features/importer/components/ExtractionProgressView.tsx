@@ -25,4 +25,3 @@ export function ExtractionProgressView({ candidates }: ExtractionProgressViewPro
     </div>
   );
 }
-

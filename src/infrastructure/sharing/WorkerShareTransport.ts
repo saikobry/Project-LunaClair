@@ -270,4 +270,3 @@ export class WorkerShareTransport implements ShareTransport {
 }
 
 export const workerShareTransport = new WorkerShareTransport();
-

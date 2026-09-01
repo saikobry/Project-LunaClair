@@ -27,4 +27,3 @@ export function ImportFileCard({ candidate, onRemove }: ImportFileCardProps) {
     </div>
   );
 }
-

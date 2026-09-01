@@ -124,4 +124,3 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
     </div>
   );
 }
-

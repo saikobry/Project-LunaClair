@@ -99,5 +99,3 @@ export type {
   ReconcilePullResult,
   ApplyPushResult,
 } from './SyncReconciler';
-
-

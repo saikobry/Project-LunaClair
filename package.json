@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "clean:whitespace": "powershell -ExecutionPolicy Bypass -File scripts/clean-whitespace.ps1",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

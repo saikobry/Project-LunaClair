@@ -11,4 +11,3 @@ export type {
   AnnotationMode,
   DrawingTool,
 } from './annotation.types';
-

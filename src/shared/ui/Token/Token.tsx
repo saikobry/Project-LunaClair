@@ -63,4 +63,3 @@ export function Token({ onRemove, ...props }: TokenProps) {
 }
 
 Token.displayName = 'Token';
-

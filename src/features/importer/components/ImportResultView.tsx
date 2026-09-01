@@ -70,4 +70,3 @@ export function ImportResultView({ createdMaterials, onImportAnother, onOpenMate
     </div>
   );
 }
-

@@ -92,6 +92,7 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 | Dev server | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
+| Clean trailing whitespace | `npm run clean:whitespace` |
 | Test (Unit & Integration) | `npm run test:run` / `npm run test` / `npm run test:coverage` |
 | Test (E2E Acceptance) | `npm run test:e2e` |
 | Regenerate PWA icons | `npm run generate:pwa-assets` |

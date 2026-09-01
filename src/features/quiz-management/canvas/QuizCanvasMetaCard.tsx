@@ -111,4 +111,3 @@ export const QuizCanvasMetaCard = forwardRef<HTMLDivElement, QuizCanvasMetaCardP
         );
     },
 );
-

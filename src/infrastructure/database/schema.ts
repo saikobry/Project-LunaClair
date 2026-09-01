@@ -113,4 +113,3 @@ export const SCHEMA_V11 = {
 } as const;
 
 export const DB_NAME = 'lunaclair-db';
-

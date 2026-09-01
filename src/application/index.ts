@@ -109,6 +109,3 @@ export {
   TriggerSyncUseCase,
   type TriggerSyncInput,
 } from './sync';
-
-
-

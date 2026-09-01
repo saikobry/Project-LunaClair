@@ -19,4 +19,3 @@ export class TrackShareDownloadUseCase {
     return this.shareTransport.trackDownload(shareId, signal);
   }
 }
-

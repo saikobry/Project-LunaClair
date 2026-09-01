@@ -211,4 +211,3 @@ describe('useAiChatThread', () => {
     expect(reloadedResult.current.messages[3].status).toBe('complete');
   });
 });
-

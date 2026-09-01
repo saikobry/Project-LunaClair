@@ -73,4 +73,3 @@ export interface ShareTransport {
   delete(shareId: string, authToken?: string, signal?: AbortSignal): Promise<void>;
   listPublicShares(params?: ListPublicSharesParams, signal?: AbortSignal): Promise<ListPublicSharesResult>;
 }
-

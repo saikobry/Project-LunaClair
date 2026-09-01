@@ -97,4 +97,3 @@ if (typeof window !== 'undefined') {
 afterEach(() => {
   cleanup();
 });
-

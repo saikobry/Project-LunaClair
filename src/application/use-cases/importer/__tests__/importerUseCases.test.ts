@@ -161,4 +161,3 @@ describe('ImageImporter format support', () => {
     expect(importer.supports(pdfFile)).toBe(false);
   });
 });
-

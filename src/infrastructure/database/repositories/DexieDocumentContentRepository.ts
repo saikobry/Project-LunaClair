@@ -74,4 +74,3 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
 
 /** Singleton instance shared across the application composition root. */
 export const dexieDocumentContentRepository = new DexieDocumentContentRepository();
-

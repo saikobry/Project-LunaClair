@@ -734,4 +734,3 @@ export async function handleListPublicShares(
     ...corsHeaders,
   });
 }
-
