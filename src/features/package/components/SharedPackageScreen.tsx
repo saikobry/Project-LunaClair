@@ -31,7 +31,7 @@ import { inspectStudyPackage } from '../../../domain/package/inspectStudyPackage
 import { serializePackageToBlob } from '../../../domain/package/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 import type { PublishedShare } from '../../../domain/sharing/sharing.types';
-import type { ImportStudyPackageResult } from '../../../application';
+import type { ImportStudyPackageResult } from '../../../application/use-cases/package/ImportStudyPackageUseCase';
 import { useSubjects } from '../../catalog/subjects/hooks/queries/useSubjects';
 import { useTerms } from '../../catalog/terms/hooks/queries/useTerms';
 

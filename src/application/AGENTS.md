@@ -14,7 +14,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 - `use-cases/content/` owns document content persistence workflows (`UpdateDocumentContentUseCase` — updates local markdown representation in Dexie without coupling to UI features or library discovery).
 - `use-cases/flashcards/` owns spaced-repetition review state transitions and persistence coordination (`RecordFlashcardReviewUseCase`).
 - `use-cases/analytics/` owns analytics coordination workflows (`GetGlobalAnalyticsUseCase`, `GetSubjectAnalyticsUseCase`, `GetMaterialAnalyticsUseCase` — delegates raw data aggregation and calculations via `AnalyticsRepository` port).
-- `use-cases/ai/` owns AI prompt/context construction, streamed chat execution with atomic turn persistence (`SendChatMessageUseCase`, `AiContextBuilder`), and thread lifecycle management (`GetOrCreateAiThreadUseCase`, `GetAiThreadMessagesUseCase`, `DeleteAiThreadUseCase`, `ClearChatHistoryUseCase`).
+- `use-cases/ai/` owns AI prompt/context orchestration, streamed chat execution with atomic turn persistence (`SendChatMessageUseCase`), and thread lifecycle management (`GetOrCreateAiThreadUseCase`, `GetAiThreadMessagesUseCase`, `DeleteAiThreadUseCase`, `ClearChatHistoryUseCase`).
 - `use-cases/generator/` owns AI structured content synthesis workflows (`GenerateQuestionsUseCase`, `BatchCreateQuestionsUseCase`, `GenerateFlashcardsUseCase`, `BatchCreateFlashcardsUseCase`) coordinating `AiService.generateStructured`, section-bounded context extraction, strict domain draft validators, and atomic batch persistence to `QuestionRepository.createQuestionsBatch` with default `status: 'draft'`.
 - `use-cases/importer/` owns content extraction and import orchestration (`ExtractContentUseCase` — resolves format importer, executes extraction, and applies multi-pass Markdown conversion; `CommitImportUseCase` — generates material/document IDs, sets metadata, persists original file blob to `importAssets`, and atomically registers material with `materials` and `documentContents` stores; `CleanupImportWithAiUseCase` — opt-in AI markdown cleanup returning dual-version original/cleaned diff).
 - `use-cases/package/` owns study package materialization and import orchestration (`MaterializeStudyPackageUseCase` — extracts canonical material, questions, quizzes, and assets from repositories, strips personal learning/sync histories, assigns package-scoped `pkg_*` identifiers, rewires `lc-asset://` markdown URIs; `ImportStudyPackageUseCase` — validates package graph, executes collision-free ID remapping, and delegates atomic persistence to `StudyPackageImportService`).
@@ -38,6 +38,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 
 - Keep persistence details in repository implementations.
 - Keep grading pure in `AssessmentService`; submission coordinates grading and completion.
+- Testing convention: Strictly one test file per use case (`<UseCaseName>.ts` $\leftrightarrow$ `__tests__/<UseCaseName>.test.ts`). Tests assert application orchestration boundaries, domain invariants, and failure propagation using pure domain port mocks (zero live IndexedDB or network dependencies).
 
 ## Verification
 

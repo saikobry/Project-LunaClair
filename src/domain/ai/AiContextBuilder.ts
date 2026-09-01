@@ -1,4 +1,4 @@
-import type { AiDocumentContext, AiSelectionContext } from '../../../domain/ai/ai.types';
+import type { AiDocumentContext, AiSelectionContext } from './ai.types';
 
 export interface BuildDocumentContextOptions {
   id?: string;
@@ -16,6 +16,7 @@ export interface BuildSelectionContextOptions {
 
 /**
  * Centralized context assembler for AI interactions across Reader, Writer, and Quiz.
+ * Enforces character limits and sanitization to prevent context window overflow.
  */
 export class AiContextBuilder {
   private static readonly DEFAULT_MAX_DOC_CHARS = 16000;

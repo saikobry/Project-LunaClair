@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { QuizSession } from '../../../../domain/quiz/QuizSession';
 import type { CreateSessionInput } from '../../../../domain/quiz/QuizSessionRepository';
-import type { SubmitQuizSessionOutput } from '../../../../application';
+import type { SubmitQuizSessionOutput } from '../../../../application/use-cases/quiz/SubmitQuizSessionUseCase';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 

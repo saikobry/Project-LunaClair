@@ -7,7 +7,7 @@ import type {
   AiTutorMode,
   AiUsage,
 } from '../../../domain/ai/ai.types';
-import { AiContextBuilder } from './AiContextBuilder';
+import { AiContextBuilder } from '../../../domain/ai/AiContextBuilder';
 
 export interface SendChatMessageInput {
   /** Optional ID of the thread to auto-persist user and assistant message turns. */
