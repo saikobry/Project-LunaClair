@@ -1,5 +1,20 @@
 import type { ConflictDraft } from '../sync.types';
 
+export type ResolveConflictInput =
+  | {
+      draftId: string;
+      resolution: 'keep_server';
+    }
+  | {
+      draftId: string;
+      resolution: 'keep_local';
+    }
+  | {
+      draftId: string;
+      resolution: 'merge';
+      mergedContent: string;
+    };
+
 export interface ConflictDraftRepository {
   /**
    * Persists a newly created conflict draft for a diverged document.
@@ -30,4 +45,9 @@ export interface ConflictDraftRepository {
    * Deletes a resolved or discarded conflict draft.
    */
   removeConflictDraft(id: string): Promise<void>;
+
+  /**
+   * Resolves a diverged document conflict draft atomically.
+   */
+  resolveConflict(input: ResolveConflictInput): Promise<void>;
 }

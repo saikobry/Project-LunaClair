@@ -48,7 +48,7 @@ describe('Application Sync Use Cases', () => {
       };
       await conflictRepo.saveConflictDraft(draft);
 
-      const useCase = new ResolveConflictDraftUseCase(testDb, conflictRepo);
+      const useCase = new ResolveConflictDraftUseCase(conflictRepo);
       await useCase.execute({
         draftId: 'draft-server-1',
         resolution: 'keep_server',
@@ -74,7 +74,7 @@ describe('Application Sync Use Cases', () => {
       };
       await conflictRepo.saveConflictDraft(draft);
 
-      const useCase = new ResolveConflictDraftUseCase(testDb, conflictRepo);
+      const useCase = new ResolveConflictDraftUseCase(conflictRepo);
       await useCase.execute({
         draftId: 'draft-local-1',
         resolution: 'keep_local',
@@ -117,7 +117,7 @@ describe('Application Sync Use Cases', () => {
       };
       await conflictRepo.saveConflictDraft(draft);
 
-      const useCase = new ResolveConflictDraftUseCase(testDb, conflictRepo);
+      const useCase = new ResolveConflictDraftUseCase(conflictRepo);
       await useCase.execute({
         draftId: 'draft-merge-1',
         resolution: 'merge',
@@ -141,7 +141,7 @@ describe('Application Sync Use Cases', () => {
     });
 
     it('throws error when draftId is not found', async () => {
-      const useCase = new ResolveConflictDraftUseCase(testDb, conflictRepo);
+      const useCase = new ResolveConflictDraftUseCase(conflictRepo);
       await expect(
         useCase.execute({
           draftId: 'non-existent-draft',
@@ -151,7 +151,7 @@ describe('Application Sync Use Cases', () => {
     });
 
     it('throws error when draftId is empty', async () => {
-      const useCase = new ResolveConflictDraftUseCase(testDb, conflictRepo);
+      const useCase = new ResolveConflictDraftUseCase(conflictRepo);
       await expect(
         useCase.execute({
           draftId: '',

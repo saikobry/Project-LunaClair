@@ -1,5 +1,3 @@
-import type { LunaClairDatabase } from '../../infrastructure/database/LunaClairDatabase';
-import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { createSyncStateKey } from '../../domain/sync/syncIdentity';
 import { SyncNetworkError } from '../../domain/sync/SyncErrors';
 import type { SessionCredentials } from '../../domain/sync/sync.types';
@@ -7,13 +5,13 @@ import type { SyncPushRequest, SyncTransport } from '../../domain/sync/SyncTrans
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 import type { SyncRetryPolicy } from '../../domain/sync/SyncRetryPolicy';
+import type { SyncReconciler } from '../../domain/sync/SyncReconciler';
 import { defaultSyncRetryPolicy } from './policies/syncRetryPolicy';
 import type { SyncStatusStore } from './SyncStatusStore';
 
 export interface SyncEngineDependencies {
-  db: LunaClairDatabase;
   transport: SyncTransport;
-  reconciler: DexieSyncReconciler;
+  reconciler: SyncReconciler;
   queueRepo: SyncQueueRepository;
   stateRepo: SyncStateRepository;
   statusStore: SyncStatusStore;
@@ -25,9 +23,8 @@ export interface SyncEngineDependencies {
  * outbox push batching, and reactive status store updates.
  */
 export class SyncEngine {
-  private readonly db: LunaClairDatabase;
   private readonly transport: SyncTransport;
-  private readonly reconciler: DexieSyncReconciler;
+  private readonly reconciler: SyncReconciler;
   private readonly queueRepo: SyncQueueRepository;
   private readonly stateRepo: SyncStateRepository;
   private readonly statusStore: SyncStatusStore;
@@ -38,34 +35,30 @@ export class SyncEngine {
 
   constructor(dependencies: SyncEngineDependencies);
   constructor(
-    db: LunaClairDatabase,
     transport: SyncTransport,
-    reconciler: DexieSyncReconciler,
+    reconciler: SyncReconciler,
     queueRepo: SyncQueueRepository,
     stateRepo: SyncStateRepository,
     statusStore: SyncStatusStore,
     retryPolicy?: SyncRetryPolicy
   );
   constructor(
-    dbOrDeps: LunaClairDatabase | SyncEngineDependencies,
-    transport?: SyncTransport,
-    reconciler?: DexieSyncReconciler,
+    depsOrTransport: SyncEngineDependencies | SyncTransport,
+    reconciler?: SyncReconciler,
     queueRepo?: SyncQueueRepository,
     stateRepo?: SyncStateRepository,
     statusStore?: SyncStatusStore,
     retryPolicy?: SyncRetryPolicy
   ) {
-    if ('db' in dbOrDeps && 'transport' in dbOrDeps) {
-      this.db = dbOrDeps.db;
-      this.transport = dbOrDeps.transport;
-      this.reconciler = dbOrDeps.reconciler;
-      this.queueRepo = dbOrDeps.queueRepo;
-      this.stateRepo = dbOrDeps.stateRepo;
-      this.statusStore = dbOrDeps.statusStore;
-      this.retryPolicy = dbOrDeps.retryPolicy ?? defaultSyncRetryPolicy;
+    if ('transport' in depsOrTransport) {
+      this.transport = depsOrTransport.transport;
+      this.reconciler = depsOrTransport.reconciler;
+      this.queueRepo = depsOrTransport.queueRepo;
+      this.stateRepo = depsOrTransport.stateRepo;
+      this.statusStore = depsOrTransport.statusStore;
+      this.retryPolicy = depsOrTransport.retryPolicy ?? defaultSyncRetryPolicy;
     } else {
-      this.db = dbOrDeps;
-      this.transport = transport!;
+      this.transport = depsOrTransport;
       this.reconciler = reconciler!;
       this.queueRepo = queueRepo!;
       this.stateRepo = stateRepo!;
@@ -192,7 +185,6 @@ export class SyncEngine {
     while (hasMore) {
       const pullResponse = await this.transport.pull(credentials, cursor, 100);
       const reconcileResult = await this.reconciler.reconcilePullBatch(
-        this.db,
         credentials.userId,
         credentials.deviceId,
         cursor,
@@ -244,7 +236,6 @@ export class SyncEngine {
       pushedCount += pending.length;
 
       await this.reconciler.applyPushResult(
-        this.db,
         credentials.userId,
         credentials.deviceId,
         pushRequest,
@@ -267,58 +258,6 @@ export class SyncEngine {
     }
 
     return { cursor, pushedCount };
-  }
-
-  /**
-   * Sets up automatic background synchronization triggers:
-   * - online event listener
-   * - visibilitychange event listener (when document becomes visible, with 10s cooldown)
-   * - periodic interval timer (only polls when tab is visible, default: every 60s)
-   *
-   * Returns a cleanup unsubscribe function.
-   */
-  startAutoSync(credentials: SessionCredentials, intervalMs: number = 60000): () => void {
-    let lastFocusSyncTime = 0;
-
-    const onOnline = () => {
-      void this.sync(credentials);
-    };
-
-    const onVisibilityChange = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        const now = Date.now();
-        // 10-second cooldown on tab-focus triggers to avoid rapid refetching
-        if (now - lastFocusSyncTime > 10000) {
-          lastFocusSyncTime = now;
-          void this.sync(credentials);
-        }
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', onOnline);
-    }
-
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibilityChange);
-    }
-
-    const timerId = setInterval(() => {
-      // Pause periodic timer when tab is in background / hidden
-      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
-        void this.sync(credentials);
-      }
-    }, intervalMs);
-
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', onOnline);
-      }
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibilityChange);
-      }
-      clearInterval(timerId);
-    };
   }
 
   public getRetryPolicy(): SyncRetryPolicy {

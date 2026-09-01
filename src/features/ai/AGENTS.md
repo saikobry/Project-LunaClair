@@ -8,14 +8,14 @@ AI Study Assistant interface embedded in `MaterialWorkspace`, providing grounded
 
 - `components/` — UI presentation: `AiChatDrawer`, `AiDrawerToggleButton`, `AiChatMessage`, `AiChatMessageList`, `AiChatInput`, `AiModeSelector`, `AiStreamingIndicator`.
 - `hooks/` — Chat stream token hook (`useAiStreamChat`), thread management & reload persistence (`useAiChatThread`).
-- `lib/` — Grounded section context extraction (`extractSectionContext`, `buildGroundedPrompt`).
+- `lib/` — Grounded prompt construction (`buildGroundedPrompt`), consuming pure domain context extractor from `src/domain/ai/extractSectionContext`.
 
 ## Local Contracts
 
 - `AiChatDrawer` is hosted exclusively at the workspace level in `MaterialWorkspace`.
-- Section context extraction bounds prompt tokens to current headings and selections.
+- Section context extraction bounds prompt tokens to current headings and selections via `src/domain/ai/extractSectionContext`.
 - Conversation state persists locally in IndexedDB (`aiThreads`, `aiMessages`).
-- Cross-feature consumers import direct paths (e.g. `ai/components/AiChatDrawer`, `ai/lib/aiContextExtractor`).
+- Cross-feature consumers import direct paths (e.g. `ai/components/AiChatDrawer`).
 
 ## Verification
 

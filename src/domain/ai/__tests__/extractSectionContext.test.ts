@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractSectionContext } from '../aiContextExtractor';
+import { extractSectionContext } from '../extractSectionContext';
 
 describe('aiContextExtractor', () => {
   const sampleMarkdown = `

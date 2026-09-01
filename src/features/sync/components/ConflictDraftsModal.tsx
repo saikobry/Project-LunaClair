@@ -320,11 +320,18 @@ export function ConflictDraftsModal({
 
     setIsResolving(true);
     try {
-      await resolveDraft({
-        draftId: activeDraft.id,
-        resolution,
-        mergedContent: resolution === 'merge' ? mergedText : undefined,
-      });
+      if (resolution === 'merge') {
+        await resolveDraft({
+          draftId: activeDraft.id,
+          resolution: 'merge',
+          mergedContent: mergedText,
+        });
+      } else {
+        await resolveDraft({
+          draftId: activeDraft.id,
+          resolution,
+        });
+      }
 
       // If this was the last remaining draft, close modal
       if (drafts.length <= 1) {

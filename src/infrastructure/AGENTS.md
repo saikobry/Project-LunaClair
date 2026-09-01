@@ -19,6 +19,8 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
   - `deviceId.ts` → `getOrCreateDeviceId()` (generates or retrieves stable device UUID persisted under `lunaclair.device_id`)
   - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider` (persists credentials under `lunaclair.session_credentials` with default guest identity fallback)
+- `browser/` — Browser environment adapters:
+  - `BrowserSyncLifecycle.ts` → Environment integration binding `window.online`, `document.visibilitychange`, and interval triggers to the synchronization engine.
 - `sharing/` — Concrete Cloudflare Worker HTTP share transport adapter:
   - `WorkerShareTransport.ts` → `ShareTransport` (handles header injection, passcode headers `X-Share-Passcode`, network error mapping to `ShareNetworkError`, and HTTP status mapping to `ShareHttpError`)
 - `importer/` — Concrete content importer adapters and factory:
@@ -52,11 +54,13 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `transactionalOutbox.ts` → `runSyncableTransaction` (atomic Dexie entity mutation and outbox queue persistence within a single read-write transaction)
   - `DexieSyncQueueRepository.ts` → `SyncQueueRepository` (`syncQueue` outbox mutations: enqueue, chronological peekPending, retryCount and error tracking in updateStatus, remove, countPending)
   - `DexieSyncStateRepository.ts` → `SyncStateRepository` (`syncState` checkpoint key `userId:deviceId` query and persistence)
-  - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository` (`conflictDrafts` divergence snapshots: saveConflictDraft, getByDocumentId, getById, removeConflictDraft)
+  - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository` (`conflictDrafts` divergence snapshots: saveConflictDraft, getByDocumentId, getById, removeConflictDraft, resolveConflict)
+  - `DexieSyncReconciler.ts` → `SyncReconciler` (coordinates atomic pull batch reconciliation and push outcome application across Dexie tables)
 - `database/services/` — Concrete application service implementations:
   - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
   - `DexieQuizEditorService` → `QuizEditorService` (atomic quiz authoring save across `questions` + `quizzes` stores; conditional `questionVersion` bumps; re-snapshots `questionVersion` into quiz items; normalizes `tags` through domain `normalizeTags` on question create/update)
   - `DexieLibraryImportService` → `LibraryImportService` (atomic import/removal across `subjects`, `terms`, `subjectTerms`, `materials`, `questions`, `quizzes`, `documentContents` stores)
+  - `DexieStudyPackageImportService` → `StudyPackageImportService` (atomic multi-store package imports across `materials`, `documentContents`, `questions`, `quizzes`, and `importAssets`)
 
 ## Local Contracts
 

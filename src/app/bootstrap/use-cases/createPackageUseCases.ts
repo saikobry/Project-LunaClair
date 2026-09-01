@@ -9,7 +9,7 @@ import { ClonePublishedShareUseCase } from '../../../application/use-cases/shari
 import type { Infrastructure } from '../createInfrastructure';
 
 export function createPackageUseCases(infrastructure: Infrastructure) {
-    const { repositories, transports, db } = infrastructure;
+    const { repositories, transports, services } = infrastructure;
 
     const materializeStudyPackage = new MaterializeStudyPackageUseCase(
         repositories.library,
@@ -19,7 +19,7 @@ export function createPackageUseCases(infrastructure: Infrastructure) {
         repositories.importAsset,
     );
 
-    const importStudyPackage = new ImportStudyPackageUseCase(db);
+    const importStudyPackage = new ImportStudyPackageUseCase(services.studyPackageImport);
     const fetchPublishedShare = new FetchPublishedShareUseCase(transports.share);
     const trackShareDownload = new TrackShareDownloadUseCase(transports.share);
     const deletePublishedShare = new DeletePublishedShareUseCase(transports.share);

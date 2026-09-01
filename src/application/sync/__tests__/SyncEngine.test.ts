@@ -38,7 +38,7 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     testDb = new LunaClairDatabase();
     await testDb.open();
 
-    reconciler = new DexieSyncReconciler();
+    reconciler = new DexieSyncReconciler(testDb);
     queueRepo = new DexieSyncQueueRepository(testDb);
     stateRepo = new DexieSyncStateRepository(testDb);
     conflictRepo = new DexieConflictDraftRepository(testDb);
@@ -120,7 +120,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     vi.mocked(mockTransport.push).mockResolvedValueOnce(push1);
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -199,7 +198,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
       .mockResolvedValueOnce(emptyPull);
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -251,7 +249,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     });
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -276,7 +273,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     vi.mocked(mockTransport.pull).mockImplementationOnce(() => delayedPullPromise);
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -316,7 +312,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     });
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -357,7 +352,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     );
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -421,7 +415,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     });
 
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -448,16 +441,8 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     expect(updatedDoc?.content).toBe('# Server Authoritative Content v3');
   });
 
-  it('sets up and cleans up auto-sync listeners and timers', () => {
-    const windowAddSpy = vi.spyOn(window, 'addEventListener');
-    const windowRemoveSpy = vi.spyOn(window, 'removeEventListener');
-    const docAddSpy = vi.spyOn(document, 'addEventListener');
-    const docRemoveSpy = vi.spyOn(document, 'removeEventListener');
-    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
-    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
-
+  it('returns retry policy correctly', () => {
     const engine = new SyncEngine({
-      db: testDb,
       transport: mockTransport,
       reconciler,
       queueRepo,
@@ -465,17 +450,8 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
       statusStore,
     });
 
-    const cleanup = engine.startAutoSync(credentials, 30000);
-
-    expect(windowAddSpy).toHaveBeenCalledWith('online', expect.any(Function));
-    expect(docAddSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
-
-    cleanup();
-
-    expect(windowRemoveSpy).toHaveBeenCalledWith('online', expect.any(Function));
-    expect(docRemoveSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
-    expect(clearIntervalSpy).toHaveBeenCalled();
+    expect(engine.getRetryPolicy()).toBeDefined();
+    expect(engine.getRetryPolicy().maxRetries).toBe(5);
   });
 });
 

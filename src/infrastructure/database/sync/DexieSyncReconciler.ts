@@ -1,4 +1,4 @@
-import type { LunaClairDatabase, HighlightRecord } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase, type HighlightRecord } from '../LunaClairDatabase';
 import type { ReviewState } from '../../../domain/flashcards/scheduler';
 import type { QuizSession } from '../../../domain/quiz/QuizSession';
 import { createSyncStateKey } from '../../../domain/sync/syncIdentity';
@@ -7,17 +7,9 @@ import { reconcileDocument, reconcileTimestampLww, reconcileFlashcardReview, rec
 import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, FlashcardReviewSyncPayload, QuizSessionSyncPayload } from '../../../domain/sync/SyncEntities';
 import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/sync.types';
 import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/SyncTransport';
+import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/SyncReconciler';
 
-export interface ReconcilePullResult {
-  appliedCount: number;
-  conflictCount: number;
-  newCursor: number;
-}
-
-export interface ApplyPushResult {
-  acceptedCount: number;
-  conflictCount: number;
-}
+export type { ReconcilePullResult, ApplyPushResult };
 
 /**
  * Transactional sync reconciler for Dexie / IndexedDB.
@@ -25,7 +17,13 @@ export interface ApplyPushResult {
  * Coordinates atomic batch pull reconciliation and push outcome application
  * across local database tables, outbox mutations, and conflict draft records.
  */
-export class DexieSyncReconciler {
+export class DexieSyncReconciler implements SyncReconciler {
+  private readonly db: LunaClairDatabase;
+
+  constructor(database: LunaClairDatabase = defaultDb) {
+    this.db = database;
+  }
+
   /**
    * Reconciles a server pull response batch into Dexie within a single read-write transaction.
    *
@@ -40,12 +38,41 @@ export class DexieSyncReconciler {
    * - `syncQueue`
    */
   async reconcilePullBatch(
+    userId: string,
+    deviceId: string,
+    currentCursor: number,
+    pullResponse: SyncPullResponse
+  ): Promise<ReconcilePullResult>;
+  async reconcilePullBatch(
     db: LunaClairDatabase,
     userId: string,
     deviceId: string,
-    _currentCursor: number,
+    currentCursor: number,
     pullResponse: SyncPullResponse
+  ): Promise<ReconcilePullResult>;
+  async reconcilePullBatch(
+    dbOrUserId: LunaClairDatabase | string,
+    userIdOrDeviceId?: string,
+    deviceIdOrCurrentCursor?: string | number,
+    currentCursorOrPullResponse?: number | SyncPullResponse,
+    maybePullResponse?: SyncPullResponse
   ): Promise<ReconcilePullResult> {
+    let db: LunaClairDatabase;
+    let userId: string;
+    let deviceId: string;
+    let pullResponse: SyncPullResponse;
+
+    if (typeof dbOrUserId === 'string') {
+      db = this.db;
+      userId = dbOrUserId;
+      deviceId = userIdOrDeviceId!;
+      pullResponse = currentCursorOrPullResponse as SyncPullResponse;
+    } else {
+      db = dbOrUserId;
+      userId = userIdOrDeviceId!;
+      deviceId = deviceIdOrCurrentCursor as string;
+      pullResponse = maybePullResponse!;
+    }
     return await db.transaction(
       'rw',
       [
@@ -272,12 +299,44 @@ export class DexieSyncReconciler {
    * - `syncState`
    */
   async applyPushResult(
+    userId: string,
+    deviceId: string,
+    pushRequest: SyncPushRequest,
+    pushResponse: SyncPushResponse
+  ): Promise<ApplyPushResult>;
+  async applyPushResult(
     db: LunaClairDatabase,
     userId: string,
     deviceId: string,
     pushRequest: SyncPushRequest,
     pushResponse: SyncPushResponse
+  ): Promise<ApplyPushResult>;
+  async applyPushResult(
+    dbOrUserId: LunaClairDatabase | string,
+    userIdOrDeviceId?: string,
+    deviceIdOrPushRequest?: string | SyncPushRequest,
+    pushRequestOrPushResponse?: SyncPushRequest | SyncPushResponse,
+    maybePushResponse?: SyncPushResponse
   ): Promise<ApplyPushResult> {
+    let db: LunaClairDatabase;
+    let userId: string;
+    let deviceId: string;
+    let pushRequest: SyncPushRequest;
+    let pushResponse: SyncPushResponse;
+
+    if (typeof dbOrUserId === 'string') {
+      db = this.db;
+      userId = dbOrUserId;
+      deviceId = userIdOrDeviceId!;
+      pushRequest = deviceIdOrPushRequest as SyncPushRequest;
+      pushResponse = pushRequestOrPushResponse as SyncPushResponse;
+    } else {
+      db = dbOrUserId;
+      userId = userIdOrDeviceId!;
+      deviceId = deviceIdOrPushRequest as string;
+      pushRequest = pushRequestOrPushResponse as SyncPushRequest;
+      pushResponse = maybePushResponse!;
+    }
     return await db.transaction(
       'rw',
       [db.documentContents, db.conflictDrafts, db.syncQueue, db.syncState],

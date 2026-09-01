@@ -6,6 +6,7 @@ import { DexieDocumentContentRepository } from '../../../../infrastructure/datab
 import { DexieQuestionRepository } from '../../../../infrastructure/database/repositories/DexieQuestionRepository';
 import { DexieQuizRepository } from '../../../../infrastructure/database/repositories/DexieQuizRepository';
 import { DexieImportAssetRepository } from '../../../../infrastructure/database/repositories/DexieImportAssetRepository';
+import { DexieStudyPackageImportService } from '../../../../infrastructure/database/services/DexieStudyPackageImportService';
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
 import { parsePackageFromJson } from '../../../../infrastructure/package/StudyPackageParser';
@@ -64,7 +65,7 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
       assetRepo,
     );
 
-    importUseCase = new ImportStudyPackageUseCase(db);
+    importUseCase = new ImportStudyPackageUseCase(new DexieStudyPackageImportService(db));
   });
 
   afterEach(async () => {

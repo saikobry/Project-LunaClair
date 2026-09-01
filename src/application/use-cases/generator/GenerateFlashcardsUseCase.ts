@@ -4,7 +4,7 @@ import type {
   GeneratedFlashcardDraft,
 } from '../../../domain/generator/generator.types';
 import { validateFlashcardsDraftArray } from '../../../domain/generator/validation/questionDraftValidation';
-import { extractSectionContext } from '../../../features/ai/lib/aiContextExtractor';
+import { extractSectionContext } from '../../../domain/ai/extractSectionContext';
 
 export class GenerateFlashcardsUseCase {
   private readonly aiService: AiService;

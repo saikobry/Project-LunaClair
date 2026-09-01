@@ -7,10 +7,9 @@ import { TriggerSyncUseCase } from '../../../application/use-cases/sync/TriggerS
 import type { Infrastructure } from '../createInfrastructure';
 
 export function createSyncUseCases(infrastructure: Infrastructure) {
-    const { db, transports, syncReconciler, repositories, providers } = infrastructure;
+    const { transports, syncReconciler, repositories, providers } = infrastructure;
 
     const syncEngine = new SyncEngine(
-        db,
         transports.sync,
         syncReconciler,
         repositories.syncQueue,
@@ -21,7 +20,6 @@ export function createSyncUseCases(infrastructure: Infrastructure) {
     const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
     const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraft);
     const resolveConflictDraft = new ResolveConflictDraftUseCase(
-        db,
         repositories.conflictDraft,
     );
     const triggerSync = new TriggerSyncUseCase(

@@ -41,6 +41,7 @@ import { dexieQuizEditorService } from '../../infrastructure/database/services/D
 import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
 import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
 import { dexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
+import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/createExtractors';
 import { dexieSyncQueueRepository } from '../../infrastructure/database/sync/DexieSyncQueueRepository';
 import { dexieSyncStateRepository } from '../../infrastructure/database/sync/DexieSyncStateRepository';
@@ -98,6 +99,7 @@ export interface Infrastructure {
         term: DexieTermService;
         quizEditor: DexieQuizEditorService;
         libraryImport: DexieLibraryImportService;
+        studyPackageImport: DexieStudyPackageImportService;
         ai: WorkerAiAdapter;
     };
     transports: {
@@ -152,6 +154,7 @@ export function createInfrastructure(): Infrastructure {
             term: dexieTermService,
             quizEditor: dexieQuizEditorService,
             libraryImport: dexieLibraryImportService,
+            studyPackageImport: new DexieStudyPackageImportService(db),
             ai: aiService,
         },
         transports: {

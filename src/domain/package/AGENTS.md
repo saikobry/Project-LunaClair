@@ -7,10 +7,11 @@ Pure domain contracts, types, validators, remappers, and inspection engines for 
 ## Ownership
 
 - `package.types.ts` — Canonical domain interfaces (`StudyPackage`, `StudyPackageMetadata`, `PackageMaterial`, `PackageQuestion`, `PackageQuizItem`, `PackageQuiz`, `PackageFlashcard`, `PackageAsset`, `LocalIdGenerator`, `RemappedStudyPackage`, `PackageValidationResult`, `StudyPackageSummary`, `PackageInspection`).
+- `StudyPackageImportService.ts` — Domain application port for atomic multi-store package imports using platform-neutral primitives (`dataBase64`).
 - `validateStudyPackage.ts` — Pure structural, referential, prefix, and schema integrity validator for incoming untrusted package payloads.
 - `remapStudyPackage.ts` — Pure relational remapping engine generating collision-free local UUIDs, rewiring foreign key relationships, and re-targeting embedded markdown asset URIs.
 - `inspectStudyPackage.ts` — Pure metadata and metrics aggregation engine for package inspection and preview screens.
-- `index.ts` — Module entrypoint re-exporting all package types and pure domain utilities.
+- `index.ts` — Module entrypoint re-exporting all package types, ports, and pure domain utilities.
 
 ## Local Contracts
 

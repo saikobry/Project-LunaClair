@@ -91,6 +91,13 @@ export {
 // Repository Contracts
 export type { SyncQueueRepository } from './repositories/SyncQueueRepository';
 export type { SyncStateRepository } from './repositories/SyncStateRepository';
-export type { ConflictDraftRepository } from './repositories/ConflictDraftRepository';
+export type { ConflictDraftRepository, ResolveConflictInput } from './repositories/ConflictDraftRepository';
+
+// Reconciliation Port
+export type {
+  SyncReconciler,
+  ReconcilePullResult,
+  ApplyPushResult,
+} from './SyncReconciler';
 
 

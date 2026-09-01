@@ -1,11 +1,12 @@
-import type { LunaClairDatabase } from '../../../infrastructure/database/LunaClairDatabase';
 import type { LocalIdGenerator, StudyPackage } from '../../../domain/package/package.types';
 import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
 import { remapStudyPackage } from '../../../domain/package/remapStudyPackage';
-import { base64ToBlob } from '../../../domain/package/StudyPackageSerializer';
 import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
-import type { ImportAssetRecord } from '../../../infrastructure/database/LunaClairDatabase';
+import type {
+  StudyPackageImportService,
+  ImportStudyPackageAsset,
+} from '../../../domain/package/StudyPackageImportService';
 
 export interface ImportStudyPackageInput {
   package: StudyPackage | unknown;
@@ -23,19 +24,19 @@ export interface ImportStudyPackageResult {
 }
 
 /**
- * Use case to validate, remap, and atomically import a StudyPackage into local Dexie storage.
+ * Use case to validate, remap, and atomically import a StudyPackage into local storage.
  *
  * Invariants:
  * - Pre-validation: Input must pass all schema and relational checks before storage is touched.
  * - Collision-Free: Every import generates a fresh, collision-free local UUID identity mapping.
- * - Atomic Transaction: All materials, document contents, questions, quizzes, and assets commit in a single Dexie transaction.
+ * - Atomic Transaction: All materials, document contents, questions, quizzes, and assets commit in a single transaction via StudyPackageImportService.
  * - Failure Isolation: If validation or transaction fails, local library remains 100% untouched.
  */
 export class ImportStudyPackageUseCase {
-  private readonly db: LunaClairDatabase;
+  private readonly importService: StudyPackageImportService;
 
-  constructor(db: LunaClairDatabase) {
-    this.db = db;
+  constructor(importService: StudyPackageImportService) {
+    this.importService = importService;
   }
 
   async execute(input: ImportStudyPackageInput): Promise<ImportStudyPackageResult> {
@@ -51,7 +52,7 @@ export class ImportStudyPackageUseCase {
     const remapped = remapStudyPackage(validPackage, input.idGenerator);
     const now = new Date().toISOString();
 
-    // 3. Prepare Dexie records
+    // 3. Prepare records
     const materialRecords: StudyMaterial[] = remapped.materials.map((mat) => ({
       id: mat.id,
       title: mat.title,
@@ -71,42 +72,22 @@ export class ImportStudyPackageUseCase {
       updatedAt: now,
     }));
 
-    const assetRecords: ImportAssetRecord[] = remapped.assets.map((asset) => ({
+    const assetRecords: ImportStudyPackageAsset[] = remapped.assets.map((asset) => ({
       materialId: asset.materialId || (remapped.materials[0]?.id ?? ''),
-      blob: base64ToBlob(asset.dataBase64, asset.mimeType),
-      mimeType: asset.mimeType,
       filename: asset.filename,
+      mimeType: asset.mimeType,
+      dataBase64: asset.dataBase64,
       importedAt: now,
     }));
 
-    // 4. Atomic Dexie transaction across all canonical tables
-    await this.db.transaction(
-      'rw',
-      [
-        this.db.materials,
-        this.db.documentContents,
-        this.db.questions,
-        this.db.quizzes,
-        this.db.importAssets,
-      ],
-      async () => {
-        if (materialRecords.length > 0) {
-          await this.db.materials.bulkPut(materialRecords);
-        }
-        if (documentContentRecords.length > 0) {
-          await this.db.documentContents.bulkPut(documentContentRecords);
-        }
-        if (remapped.questions.length > 0) {
-          await this.db.questions.bulkPut(remapped.questions);
-        }
-        if (remapped.quizzes.length > 0) {
-          await this.db.quizzes.bulkPut(remapped.quizzes);
-        }
-        if (assetRecords.length > 0) {
-          await this.db.importAssets.bulkPut(assetRecords);
-        }
-      },
-    );
+    // 4. Delegate atomic multi-entity transaction to domain port
+    await this.importService.importStudyPackage({
+      materials: materialRecords,
+      documentContents: documentContentRecords,
+      questions: remapped.questions,
+      quizzes: remapped.quizzes,
+      assets: assetRecords,
+    });
 
     return {
       materialIds: materialRecords.map((m) => m.id),

@@ -12,6 +12,7 @@ import { OnboardingTutorial } from '../overlays/OnboardingTutorial';
 import { ShellRoutes } from '../routing/ShellRoutes';
 import { useAppRoute } from '../routing/useAppRoute';
 import { useShellFocusMode } from './useShellFocusMode';
+import { BrowserSyncLifecycle } from '../../infrastructure/browser/BrowserSyncLifecycle';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };
@@ -154,7 +155,10 @@ export default function AppShell() {
       let cleanup: (() => void) | undefined;
       void credsProvider.getCredentials().then((credentials) => {
         if (credentials) {
-          cleanup = syncEngine.startAutoSync(credentials);
+          const lifecycle = new BrowserSyncLifecycle({
+            onTrigger: () => syncEngine.sync(credentials),
+          });
+          cleanup = lifecycle.start();
         }
       });
       return () => {
