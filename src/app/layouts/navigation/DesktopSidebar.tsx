@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Home, BookText, GraduationCap, Tag, TrendingUp, FileUp, Compass } from 'lucide-react';
 import gsap from 'gsap';

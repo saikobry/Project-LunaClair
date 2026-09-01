@@ -38,7 +38,7 @@ const styles = stylex.create({
     borderStyle: 'solid',
     cursor: 'pointer',
     userSelect: 'none',
-    transition: 'all 0.15s ease',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     backgroundColor: 'transparent',
     fontFamily: 'inherit',
     outline: 'none',
@@ -53,9 +53,10 @@ const styles = stylex.create({
     },
   },
   pillCompact: {
-    paddingLeft: 6,
-    paddingRight: 6,
+    paddingLeft: 5,
+    paddingRight: 5,
     justifyContent: 'center',
+    gap: 0,
   },
   synced: {
     color: '#10b981',

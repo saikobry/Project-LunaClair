@@ -103,6 +103,7 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     zIndex: 110,
+    pointerEvents: 'none',
   },
   rail: {
     width: 240,
