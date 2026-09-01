@@ -52,7 +52,9 @@ Reserved domains:
 
 ## Work Guidance
 
-(No specific standards yet. Filter from root AGENTS.md applies.)
+- Domain tests must be 100% pure, deterministic unit tests with zero mocks (`vi.fn()`) — instantiate real classes and test observable input/output contracts.
+- Testing convention: Strictly one test file per domain logic unit (`<UnitName>.ts` $\leftrightarrow$ `__tests__/<UnitName>.test.ts`).
+- Spaced repetition, due dates, and timestamp comparisons must always supply a fixed reference instant (e.g. `new Date('2026-09-01T12:00:00.000Z')`), never non-deterministic `new Date()`.
 
 ## Verification
 
