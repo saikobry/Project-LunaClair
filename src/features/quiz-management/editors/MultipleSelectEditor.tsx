@@ -3,7 +3,7 @@ import { Plus, X } from 'lucide-react';
 import type { MultipleSelectPayload } from '../../../domain/quiz/AnswerPayload';
 import { useStableListKeys } from '../../../shared/hooks/useStableListKeys';
 import { Button } from '../../../shared/ui/Button/Button';
-import { CorrectAnswerIndicator } from '../../../shared/ui/CorrectAnswerIndicator/CorrectAnswerIndicator';
+import { CorrectAnswerIndicator } from '../components/CorrectAnswerIndicator/CorrectAnswerIndicator';
 import { Input } from '../../../shared/ui/Input';
 
 const styles = stylex.create({

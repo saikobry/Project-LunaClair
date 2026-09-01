@@ -23,11 +23,11 @@ describe('fileDownload utilities', () => {
     });
 
     it('returns default fallback for empty or whitespace-only inputs', () => {
-      expect(sanitizeFilename('')).toBe('study-package');
-      expect(sanitizeFilename('   ')).toBe('study-package');
-      expect(sanitizeFilename('...')).toBe('study-package');
-      expect(sanitizeFilename(null as unknown as string)).toBe('study-package');
-      expect(sanitizeFilename(undefined as unknown as string)).toBe('study-package');
+      expect(sanitizeFilename('')).toBe('download');
+      expect(sanitizeFilename('   ')).toBe('download');
+      expect(sanitizeFilename('...')).toBe('download');
+      expect(sanitizeFilename(null as unknown as string)).toBe('download');
+      expect(sanitizeFilename(undefined as unknown as string)).toBe('download');
     });
 
     it('returns custom fallback when specified', () => {

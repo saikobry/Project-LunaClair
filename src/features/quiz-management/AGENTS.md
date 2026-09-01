@@ -28,6 +28,7 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 
 - No cross-feature imports — this feature does not import from `src/features/quiz/`
 - Query repository access via application context; mutations call `context.useCases.quizManagement`
+- **Quiz Draft Repository Exception (CQRS):** `useQuizCanvasEditor` directly calls `context.repositories.quizDraft.saveDraft()` and `.deleteDraft()` for crash-recovery draft autosaving. This is an intentional architectural exception — quiz drafts are ephemeral editor state, not business entities. Creating `SaveQuizDraftUseCase` / `DeleteQuizDraftUseCase` wrappers would add no meaningful domain behavior. The primary save path (`handleSave`) correctly routes through `SaveQuizUseCase`.
 - Query keys match the assessment namespace: `['assessment', 'questions', materialId]` and `['assessment', 'quizzes', materialId]`
 - `QuestionStatus` lifecycle: `draft` → `published` → `archived`
 - `QuizStatus` lifecycle: `draft` → `published` → `archived`

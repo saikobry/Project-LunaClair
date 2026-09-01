@@ -3,7 +3,7 @@
  * Replaces invalid filesystem characters (<>:"/\\|?*), strips control characters,
  * trims leading/trailing spaces and dots, and returns a safe fallback if empty.
  */
-export function sanitizeFilename(name: string, fallback = 'study-package'): string {
+export function sanitizeFilename(name: string, fallback = 'download'): string {
   if (!name || typeof name !== 'string') {
     return fallback;
   }

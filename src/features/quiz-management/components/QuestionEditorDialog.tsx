@@ -13,7 +13,7 @@ import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
-import { normalizeTags } from '../../../domain/quiz/tags';
+import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../domain/quiz/tags';
 
 const styles = stylex.create({
     form: {
@@ -242,6 +242,10 @@ export function QuestionEditorDialog({
                         tags={tags}
                         onChange={setTags}
                         placeholder="Type a tag and press Enter…"
+                        splitInput={splitTagInput}
+                        mergeTags={mergeTags}
+                        tagKey={tagKey}
+                        normalizeTags={(tags) => normalizeTags(tags) ?? []}
                     />
                 </div>
             </Dialog>

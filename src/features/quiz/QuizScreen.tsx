@@ -10,7 +10,7 @@ import { QuizResultView } from './components/QuizResultView';
 import { QuizStartView } from './components/QuizStartView';
 import { Page } from '../../shared/ui/Page';
 import { Button } from '../../shared/ui/Button/Button';
-import { QuestionSkeleton } from '../../shared/ui/Skeleton/Skeleton';
+import { QuestionSkeleton } from './components/QuestionSkeleton';
 import { useToast } from '../../app/providers/ToastContext';
 
 const styles = stylex.create({

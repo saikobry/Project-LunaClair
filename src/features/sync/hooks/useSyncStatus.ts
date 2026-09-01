@@ -36,15 +36,8 @@ export function useSyncStatus(): UseSyncStatusResult {
       } catch {
         // Tolerant to fetch failures during initialization
       }
-    } else if (context?.repositories?.conflictDraft) {
-      try {
-        const count = await context.repositories.conflictDraft.count();
-        setConflictCount(count);
-      } catch {
-        // Tolerant
-      }
     }
-  }, [context, getConflictDraftsUseCase]);
+  }, [getConflictDraftsUseCase]);
 
   // Refresh conflict count on mount and whenever store updates
   useEffect(() => {
@@ -54,13 +47,6 @@ export function useSyncStatus(): UseSyncStatusResult {
         try {
           const drafts = await getConflictDraftsUseCase.execute();
           if (!cancelled) setConflictCount(drafts.length);
-        } catch {
-          // Tolerant
-        }
-      } else if (context?.repositories?.conflictDraft) {
-        try {
-          const count = await context.repositories.conflictDraft.count();
-          if (!cancelled) setConflictCount(count);
         } catch {
           // Tolerant
         }
@@ -76,17 +62,12 @@ export function useSyncStatus(): UseSyncStatusResult {
       cancelled = true;
       unsubscribe();
     };
-  }, [context, store, getConflictDraftsUseCase]);
+  }, [store, getConflictDraftsUseCase]);
 
   const triggerSync = useCallback(async () => {
     const useCase = context?.useCases?.sync?.triggerSync;
     if (useCase) {
       await useCase.execute();
-    } else if (context?.useCases?.sync?.syncEngine && context?.infrastructure?.providers?.credentials) {
-      const creds = await context.infrastructure.providers.credentials.getCredentials();
-      if (creds) {
-        await context.useCases.sync.syncEngine.sync(creds);
-      }
     }
     await loadConflicts();
   }, [context, loadConflicts]);

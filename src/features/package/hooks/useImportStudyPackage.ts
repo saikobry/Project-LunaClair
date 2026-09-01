@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { useToast } from '../../../app/providers/ToastContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
-import { parsePackageFromBlob } from '../../../shared/utils/studyPackageParser';
+import { parseJsonFromBlob } from '../../../shared/utils/jsonBlobParser';
 import type { StudyPackage } from '../../../domain/package/package.types';
 import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
 import type { ImportOptions } from '../components/StudyPackagePreviewModal';
@@ -36,7 +36,7 @@ export function useImportStudyPackage(): UseImportStudyPackageResult {
     async (file: Blob | File): Promise<boolean> => {
       setErrorMessage(null);
       try {
-        const raw = await parsePackageFromBlob(file);
+        const raw = await parseJsonFromBlob(file);
         const validation = validateStudyPackage(raw);
 
         if (!validation.isValid) {

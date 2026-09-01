@@ -27,13 +27,8 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
     if (getConflictDraftsUseCase) {
       return await getConflictDraftsUseCase.execute(documentId);
     }
-    if (context?.repositories?.conflictDraft) {
-      return documentId
-        ? await context.repositories.conflictDraft.getByDocumentId(documentId)
-        : await context.repositories.conflictDraft.getAll();
-    }
     return [];
-  }, [context, documentId, getConflictDraftsUseCase]);
+  }, [documentId, getConflictDraftsUseCase]);
 
   const refetch = useCallback(async () => {
     try {
@@ -68,12 +63,10 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
     async (input: ResolveConflictDraftInput) => {
       if (resolveConflictDraftUseCase) {
         await resolveConflictDraftUseCase.execute(input);
-      } else if (context?.repositories?.conflictDraft) {
-        await context.repositories.conflictDraft.removeConflictDraft(input.draftId);
       }
       await refetch();
     },
-    [context, resolveConflictDraftUseCase, refetch]
+    [resolveConflictDraftUseCase, refetch]
   );
 
   return {

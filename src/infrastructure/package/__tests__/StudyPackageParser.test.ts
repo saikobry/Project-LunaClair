@@ -14,7 +14,7 @@ describe('StudyPackageParser', () => {
   });
 
   it('throws descriptive error on malformed JSON', () => {
-    expect(() => parsePackageFromJson('{ invalid json')).toThrow('Failed to parse .lcpack JSON');
+    expect(() => parsePackageFromJson('{ invalid json')).toThrow('Failed to parse JSON');
   });
 
   it('parses package from Blob', async () => {

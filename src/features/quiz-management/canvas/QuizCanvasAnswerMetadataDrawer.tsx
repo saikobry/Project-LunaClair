@@ -8,6 +8,7 @@ import { Button } from '../../../shared/ui/Button/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
+import { mergeTags, normalizeTags, splitTagInput, tagKey } from '../../../domain/quiz/tags';
 
 const styles = stylex.create({
     drawerContainer: {
@@ -242,6 +243,10 @@ export function QuizCanvasAnswerMetadataDrawer({
                             onChange={(tags) => onChange({ tags })}
                             size="sm"
                             placeholder="Type a tag and press Enter…"
+                            splitInput={splitTagInput}
+                            mergeTags={mergeTags}
+                            tagKey={tagKey}
+                            normalizeTags={(tags) => normalizeTags(tags) ?? []}
                         />
                     </div>
                 </div>
