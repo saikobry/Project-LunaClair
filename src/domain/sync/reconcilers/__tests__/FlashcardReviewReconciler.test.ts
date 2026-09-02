@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reconcileFlashcardReview } from '../FlashcardReviewReconciler';
-import type { FlashcardReviewSyncPayload } from '../../SyncEntities';
+import type { FlashcardReviewSyncPayload } from '../../models/SyncEntities';
 
 describe('FlashcardReviewReconciler (Model A: Deterministic Spaced Repetition Merge)', () => {
     const remoteReview: FlashcardReviewSyncPayload = {

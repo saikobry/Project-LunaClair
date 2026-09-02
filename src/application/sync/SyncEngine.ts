@@ -1,11 +1,11 @@
-import { createSyncStateKey } from '../../domain/sync/syncIdentity';
-import { SyncNetworkError } from '../../domain/sync/SyncErrors';
-import type { SessionCredentials } from '../../domain/sync/sync.types';
-import type { SyncPushRequest, SyncTransport } from '../../domain/sync/SyncTransport';
+import { createSyncStateKey } from '../../domain/sync/utils/syncIdentity';
+import { SyncNetworkError } from '../../domain/sync/errors/SyncErrors';
+import type { SessionCredentials } from '../../domain/sync/models/sync.types';
+import type { SyncPushRequest, SyncTransport } from '../../domain/sync/services/SyncTransport';
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
-import type { SyncRetryPolicy } from '../../domain/sync/SyncRetryPolicy';
-import type { SyncReconciler } from '../../domain/sync/SyncReconciler';
+import type { SyncRetryPolicy } from '../../domain/sync/policies/SyncRetryPolicy';
+import type { SyncReconciler } from '../../domain/sync/services/SyncReconciler';
 import { defaultSyncRetryPolicy } from './policies/syncRetryPolicy';
 import type { SyncStatusStore } from './SyncStatusStore';
 

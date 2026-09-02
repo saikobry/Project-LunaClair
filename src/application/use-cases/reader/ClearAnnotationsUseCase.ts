@@ -1,4 +1,4 @@
-import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
+import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
 
 export class ClearAnnotationsUseCase {
     private readonly annotations: AnnotationRepository;

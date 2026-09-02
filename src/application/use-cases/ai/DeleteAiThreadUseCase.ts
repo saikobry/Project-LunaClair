@@ -1,4 +1,4 @@
-import type { AiChatRepository } from '../../../domain/ai/AiChatRepository';
+import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
 
 export interface DeleteAiThreadInput {
   threadId: string;

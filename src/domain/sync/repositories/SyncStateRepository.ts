@@ -1,4 +1,4 @@
-import type { SyncState } from '../sync.types';
+import type { SyncState } from '../models/sync.types';
 
 export interface SyncStateRepository {
   /**

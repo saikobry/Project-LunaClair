@@ -11,7 +11,7 @@ import {
   ChevronUp,
   Trash2,
 } from 'lucide-react';
-import type { AnnotationMode, DrawingTool } from '../../../domain/reader';
+import type { AnnotationMode, DrawingTool } from '../../../domain/reader/models/annotation.types';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { useDraggableToolbar } from '../hooks/useDraggableToolbar';

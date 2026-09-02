@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SyncStatusStore } from '../SyncStatusStore';
-import type { SyncQueueRepository, SyncStateRepository, SyncState } from '../../../domain/sync';
+import type { SyncQueueRepository } from '../../../domain/sync/repositories/SyncQueueRepository';
+import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
+import type { SyncState } from '../../../domain/sync/models/sync.types';
 
 describe('SyncStatusStore', () => {
   it('manages observable state and notifies subscribers on setState', () => {

@@ -1,6 +1,6 @@
 import type { Worker } from 'tesseract.js';
-import type { ExtractionOptions } from '../../domain/importer/ContentImporter';
-import type { ExtractionResult, PageExtraction } from '../../domain/importer/importer.types';
+import type { ExtractionOptions } from '../../domain/importer/services/ContentImporter';
+import type { ExtractionResult, PageExtraction } from '../../domain/importer/models/importer.types';
 
 export class TesseractExtractor {
   private workerPromise: Promise<Worker> | null = null;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { importerStyles } from '../styles/importer.stylex';
-import type { ImportCandidate } from '../../../domain/importer/importer.types';
+import type { ImportCandidate } from '../../../domain/importer/models/importer.types';
 import { WriterEditor } from '../../writer/components/WriterEditor';
 import MarkdownViewer from '../../reader/components/MarkdownViewer';
 import { useAiCleanup } from '../hooks/useAiCleanup';

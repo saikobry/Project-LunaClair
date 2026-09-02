@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import type { TrueFalsePayload } from '../../../domain/quiz/AnswerPayload';
+import type { TrueFalsePayload } from '../../../domain/quiz/models/AnswerPayload';
 import { CorrectAnswerIndicator } from '../components/CorrectAnswerIndicator/CorrectAnswerIndicator';
 
 const styles = stylex.create({

@@ -1,6 +1,6 @@
 import type { AppRoute } from '../../routing/routing';
-import type { Subject } from '../../../domain/library/Subject';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
+import type { Subject } from '../../../domain/library/models/Subject';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 
 export type NavActiveSection =
   | 'library'

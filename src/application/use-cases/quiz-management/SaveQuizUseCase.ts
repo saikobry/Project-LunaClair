@@ -1,7 +1,7 @@
-import type { Question } from '../../../domain/quiz/Question';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
-import type { QuestionRepository } from '../../../domain/quiz/QuestionRepository';
-import type { QuizEditorService, QuizEditorQuestionChange } from '../../../domain/quiz/QuizEditorService';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
+import type { QuestionRepository } from '../../../domain/quiz/repositories/QuestionRepository';
+import type { QuizEditorService, QuizEditorQuestionChange } from '../../../domain/quiz/services/QuizEditorService';
 import type { QuizDraft } from '../../quiz-management/drafts/QuizDraft';
 import { validateQuizDraft, type QuizDraftErrors } from '../../quiz-management/drafts/quizDraftValidation';
 

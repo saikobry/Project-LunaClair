@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { Play, HelpCircle, Layers } from 'lucide-react';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { Question } from '../../../domain/quiz/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { Question } from '../../../domain/quiz/models/Question';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Card } from '../../../shared/ui/Card/Card';
 

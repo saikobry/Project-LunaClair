@@ -1,4 +1,4 @@
-import type { Question } from '../../../domain/quiz/Question';
+import type { Question } from '../../../domain/quiz/models/Question';
 import { MultipleChoiceQuestion } from './MultipleChoiceQuestion';
 import { MultipleSelectQuestion } from './MultipleSelectQuestion';
 import { TrueFalseQuestion } from './TrueFalseQuestion';

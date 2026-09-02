@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { BatchCreateQuestionsUseCase } from '../BatchCreateQuestionsUseCase';
-import type { QuestionRepository, CreateQuestionInput } from '../../../../domain/quiz/QuestionRepository';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { GeneratedQuestionDraft } from '../../../../domain/generator/generator.types';
+import type { QuestionRepository, CreateQuestionInput } from '../../../../domain/quiz/repositories/QuestionRepository';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
 
 describe('BatchCreateQuestionsUseCase', () => {
   const mockDrafts: GeneratedQuestionDraft[] = [

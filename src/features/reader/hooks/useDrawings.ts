@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { DrawingPath } from '../../../domain/reader';
+import type { DrawingPath } from '../../../domain/reader/models/annotation.types';
 import { readerQueryKeys } from '../queries/readerQueryKeys';
 import { useAnnotationRepository } from './useAnnotationRepository';
 import { useSaveDrawings } from './mutations/useSaveDrawings';

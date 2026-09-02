@@ -2,7 +2,7 @@ import type {
   ShareTransport,
   ListPublicSharesParams,
   ListPublicSharesResult,
-} from '../../../domain/sharing/sharing.types';
+} from '../../../domain/sharing/models/sharing.types';
 
 export class ListPublicSharesUseCase {
   private readonly shareTransport: ShareTransport;

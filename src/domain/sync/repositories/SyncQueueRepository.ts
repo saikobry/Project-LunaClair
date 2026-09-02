@@ -1,4 +1,4 @@
-import type { SyncQueueItem, SyncStatus } from '../sync.types';
+import type { SyncQueueItem, SyncStatus } from '../models/sync.types';
 
 export interface SyncQueueRepository {
   /**

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import type { StudyMaterial } from '../../../../domain/library';
-import type { Subject } from '../../../../domain/library';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Subject } from '../../../../domain/library/models/Subject';
 import type { QuizLaunchRequest } from '../../../quiz/types/quizFeature.types';
 import { useSubjects } from '../../subjects/hooks/queries/useSubjects';
 import { useCreateSubject } from '../../subjects/hooks/mutations/useCreateSubject';

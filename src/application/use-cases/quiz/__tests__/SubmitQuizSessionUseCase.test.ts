@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SubmitQuizSessionUseCase } from '../SubmitQuizSessionUseCase';
-import type { QuizSession } from '../../../../domain/quiz/QuizSession';
-import type { QuizSessionRepository } from '../../../../domain/quiz/QuizSessionRepository';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
+import type { QuizSessionRepository } from '../../../../domain/quiz/repositories/QuizSessionRepository';
+import type { Question } from '../../../../domain/quiz/models/Question';
 
 describe('SubmitQuizSessionUseCase', () => {
     const multipleChoiceQ: Question = {

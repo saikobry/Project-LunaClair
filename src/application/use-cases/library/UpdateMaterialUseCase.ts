@@ -1,6 +1,6 @@
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { LibraryRepository, UpdateMaterialInput } from '../../../domain/library/LibraryRepository';
-import type { SubjectTermRepository } from '../../../domain/library/SubjectTermRepository';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { LibraryRepository, UpdateMaterialInput } from '../../../domain/library/repositories/LibraryRepository';
+import type { SubjectTermRepository } from '../../../domain/library/repositories/SubjectTermRepository';
 
 export class UpdateMaterialUseCase {
     private readonly library: LibraryRepository; private readonly subjectTerms: SubjectTermRepository;

@@ -1,6 +1,6 @@
-import type { CatalogRepository } from '../../../domain/library/CatalogRepository';
-import type { Term } from '../../../domain/library/Term';
-import type { TermRepository } from '../../../domain/library/TermRepository';
+import type { CatalogRepository } from '../../../domain/library/repositories/CatalogRepository';
+import type { Term } from '../../../domain/library/models/Term';
+import type { TermRepository } from '../../../domain/library/repositories/TermRepository';
 
 export interface SyncDefaultTermsResult {
     synced: boolean;

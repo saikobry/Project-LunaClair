@@ -4,7 +4,7 @@ import {
   createSyncRetryPolicy,
   DEFAULT_SYNC_RETRY_OPTIONS,
 } from '../policies/syncRetryPolicy';
-import { SyncNetworkError, SyncHttpError } from '../../../domain/sync';
+import { SyncNetworkError, SyncHttpError } from '../../../domain/sync/errors/SyncErrors';
 
 describe('SyncRetryPolicy & calculateRetryDelay', () => {
   it('exposes standard DEFAULT_SYNC_RETRY_OPTIONS', () => {

@@ -1,5 +1,6 @@
 import type { SyncEngine } from '../../sync/SyncEngine';
-import type { SessionCredentials, SessionCredentialsProvider } from '../../../domain/sync';
+import type { SessionCredentials } from '../../../domain/sync/models/sync.types';
+import type { SessionCredentialsProvider } from '../../../domain/sync/services/SessionCredentialsProvider';
 
 export interface TriggerSyncInput {
   credentials?: SessionCredentials;

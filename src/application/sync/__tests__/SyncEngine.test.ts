@@ -9,14 +9,9 @@ import { DexieSyncStateRepository } from '../../../infrastructure/database/sync/
 import { DexieConflictDraftRepository } from '../../../infrastructure/database/sync/DexieConflictDraftRepository';
 import { SyncEngine } from '../SyncEngine';
 import { SyncStatusStore } from '../SyncStatusStore';
-import {
-  SyncNetworkError,
-  type SessionCredentials,
-  type SyncPullResponse,
-  type SyncPushResponse,
-  type SyncQueueItem,
-  type SyncTransport,
-} from '../../../domain/sync';
+import { SyncNetworkError } from '../../../domain/sync/errors/SyncErrors';
+import { type SessionCredentials, type SyncPullResponse, type SyncPushResponse, type SyncQueueItem } from '../../../domain/sync/models/sync.types';
+import { type SyncTransport } from '../../../domain/sync/services/SyncTransport';
 
 describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
   let testDb: LunaClairDatabase;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, Edit2, AlertCircle, Layers } from 'lucide-react';
-import type { GeneratedFlashcardDraft } from '../../../domain/generator/generator.types';
+import type { GeneratedFlashcardDraft } from '../../../domain/generator/models/generator.types';
 
 const styles = stylex.create({
   card: {

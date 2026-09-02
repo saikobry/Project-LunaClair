@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SaveQuizUseCase } from '../SaveQuizUseCase';
-import type { QuestionRepository } from '../../../../domain/quiz/QuestionRepository';
-import type { QuizEditorService, SaveQuizToRepositoryInput } from '../../../../domain/quiz/QuizEditorService';
+import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
+import type { QuizEditorService, SaveQuizToRepositoryInput } from '../../../../domain/quiz/services/QuizEditorService';
 import type { QuizDraft } from '../../../quiz-management/drafts/QuizDraft';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 
 describe('SaveQuizUseCase', () => {
     const sampleExistingQuestion: Question = {

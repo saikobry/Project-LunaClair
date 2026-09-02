@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
+import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
 
 /**
  * Thin React adapter for question authoring use cases.

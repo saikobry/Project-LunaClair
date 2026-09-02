@@ -1,7 +1,7 @@
 import type { FetchPublishedShareUseCase } from './FetchPublishedShareUseCase';
 import type { ImportStudyPackageUseCase, ImportStudyPackageResult } from '../package/ImportStudyPackageUseCase';
 import type { TrackShareDownloadUseCase } from './TrackShareDownloadUseCase';
-import type { PublishedShare } from '../../../domain/sharing/sharing.types';
+import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
 
 export interface ClonePublishedShareInput {
   shareId: string;

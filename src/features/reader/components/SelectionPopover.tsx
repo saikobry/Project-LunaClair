@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Trash2, X, Sparkles, Lightbulb, BookOpen } from 'lucide-react';
-import type { HighlightColor } from '../../../domain/reader';
+import type { HighlightColor } from '../../../domain/reader/models/annotation.types';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { HIGHLIGHT_COLORS } from '../constants/annotationDefaults';
 

@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useConflictDrafts } from '../hooks/useConflictDrafts';
-import type { ConflictDraft } from '../../../domain/sync/sync.types';
+import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 
 export interface ConflictDraftsModalProps {
   isOpen: boolean;

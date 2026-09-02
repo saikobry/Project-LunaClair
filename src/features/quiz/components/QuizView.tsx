@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
-import type { Question } from '../../../domain/quiz/Question';
-import type { QuizMode } from '../../../domain/quiz/QuizMode';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { QuizMode } from '../../../domain/quiz/models/QuizMode';
 import type { AnswerValue } from './QuestionRenderer';
 import { QuestionRenderer } from './QuestionRenderer';
 import { Button } from '../../../shared/ui/Button/Button';

@@ -5,7 +5,7 @@ import { MultipleSelectStrategy } from '../MultipleSelectStrategy';
 import { TrueFalseStrategy } from '../TrueFalseStrategy';
 import { IdentificationStrategy } from '../IdentificationStrategy';
 import { FillBlankStrategy } from '../FillBlankStrategy';
-import type { QuestionType } from '../../QuestionType';
+import type { QuestionType } from '../../models/QuestionType';
 
 describe('QuestionStrategyResolver', () => {
     it('resolves the correct strategy instance for all five question types', () => {

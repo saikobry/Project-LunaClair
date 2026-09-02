@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { StudyMaterial } from '../../../domain/library';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import { readerQueryKeys } from '../queries/readerQueryKeys';
 import { useDocumentRepository } from './useDocumentRepository';
 

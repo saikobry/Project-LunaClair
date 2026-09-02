@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { StudyMaterial } from '../../../../../domain/library';
+import type { StudyMaterial } from '../../../../../domain/library/models/StudyMaterial';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { useToast } from '../../../../../app/providers/ToastContext';
 import { useLibraryRepository } from '../useLibraryRepository';

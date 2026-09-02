@@ -4,7 +4,7 @@ import Dexie from 'dexie';
 import { DB_NAME } from '../../schema';
 import { LunaClairDatabase } from '../../LunaClairDatabase';
 import { runSyncableTransaction, type SyncableMutationInput } from '../transactionalOutbox';
-import type { ImportedDocumentContent } from '../../../../domain/reader';
+import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 
 describe('Transactional Outbox Pattern (runSyncableTransaction)', () => {
     let testDb: LunaClairDatabase;

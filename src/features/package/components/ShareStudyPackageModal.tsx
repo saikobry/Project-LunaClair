@@ -14,7 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { usePublishStudyPackage } from '../hooks/usePublishStudyPackage';
-import type { ShareAccessType } from '../../../domain/sharing/sharing.types';
+import type { ShareAccessType } from '../../../domain/sharing/models/sharing.types';
 
 export interface ShareStudyPackageModalProps {
   isOpen: boolean;

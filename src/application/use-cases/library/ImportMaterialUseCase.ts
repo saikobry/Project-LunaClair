@@ -1,8 +1,8 @@
-import type { CatalogRepository } from '../../../domain/library/CatalogRepository';
-import type { LibraryImportService } from '../../../domain/library/LibraryImportService';
-import type { QuizContentRepository } from '../../../domain/quiz/QuizContentRepository';
-import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
-import type { DocumentRepository } from '../../../domain/reader/DocumentRepository';
+import type { CatalogRepository } from '../../../domain/library/repositories/CatalogRepository';
+import type { LibraryImportService } from '../../../domain/library/services/LibraryImportService';
+import type { QuizContentRepository } from '../../../domain/quiz/repositories/QuizContentRepository';
+import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { DocumentRepository } from '../../../domain/reader/repositories/DocumentRepository';
 
 /**
  * Imports one material from the remote catalog into the local library.

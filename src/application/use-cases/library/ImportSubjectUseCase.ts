@@ -1,11 +1,11 @@
-import type { CatalogRepository } from '../../../domain/library/CatalogRepository';
-import type { LibraryRepository } from '../../../domain/library/LibraryRepository';
-import type { LibraryImportService, ImportMaterialInput } from '../../../domain/library/LibraryImportService';
-import type { QuizContentRepository } from '../../../domain/quiz/QuizContentRepository';
-import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
-import type { DocumentRepository } from '../../../domain/reader/DocumentRepository';
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
+import type { CatalogRepository } from '../../../domain/library/repositories/CatalogRepository';
+import type { LibraryRepository } from '../../../domain/library/repositories/LibraryRepository';
+import type { LibraryImportService, ImportMaterialInput } from '../../../domain/library/services/LibraryImportService';
+import type { QuizContentRepository } from '../../../domain/quiz/repositories/QuizContentRepository';
+import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { DocumentRepository } from '../../../domain/reader/repositories/DocumentRepository';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
 
 export interface ImportSubjectResult {
     subjectId: string;

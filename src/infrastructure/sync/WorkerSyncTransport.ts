@@ -1,8 +1,8 @@
-import { SyncHttpError, SyncNetworkError, SyncProtocolError } from '../../domain/sync/SyncErrors';
-import type { SessionCredentials } from '../../domain/sync/sync.types';
-import type { SyncEntityType, SyncOperation } from '../../domain/sync/sync.types';
-import type { SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncTransport } from '../../domain/sync/SyncTransport';
-import type { SyncCursor } from '../../domain/sync/sync.types';
+import { SyncHttpError, SyncNetworkError, SyncProtocolError } from '../../domain/sync/errors/SyncErrors';
+import type { SessionCredentials } from '../../domain/sync/models/sync.types';
+import type { SyncEntityType, SyncOperation } from '../../domain/sync/models/sync.types';
+import type { SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncTransport } from '../../domain/sync/services/SyncTransport';
+import type { SyncCursor } from '../../domain/sync/models/sync.types';
 
 const VALID_ENTITY_TYPES = new Set<SyncEntityType>([
   'document',

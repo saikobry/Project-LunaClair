@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GetMaterialAnalyticsUseCase } from '../GetMaterialAnalyticsUseCase';
-import type { AnalyticsRepository } from '../../../../domain/analytics/AnalyticsRepository';
-import type { MaterialAnalytics } from '../../../../domain/analytics/analytics.types';
+import type { AnalyticsRepository } from '../../../../domain/analytics/repositories/AnalyticsRepository';
+import type { MaterialAnalytics } from '../../../../domain/analytics/models/analytics.types';
 
 describe('GetMaterialAnalyticsUseCase', () => {
     const mockMaterialAnalytics: MaterialAnalytics = {

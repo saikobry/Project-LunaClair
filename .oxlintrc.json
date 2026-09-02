@@ -17,8 +17,9 @@
                 "group": [
                   "**/infrastructure/**",
                   "**/infrastructure",
-                  "**/services/**",
-                  "**/services",
+                  "src/services/**",
+                  "src/services",
+                  "**/services/legacy/**",
                   "@/infrastructure/**",
                   "@/services/**"
                 ],

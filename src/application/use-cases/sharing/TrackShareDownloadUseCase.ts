@@ -1,7 +1,7 @@
 /**
  * Application use case to record download metrics on a published share.
  */
-import type { ShareTransport } from '../../../domain/sharing/sharing.types';
+import type { ShareTransport } from '../../../domain/sharing/models/sharing.types';
 
 export interface TrackShareDownloadInput {
   shareId: string;

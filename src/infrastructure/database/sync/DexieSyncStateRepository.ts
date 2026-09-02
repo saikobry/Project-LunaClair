@@ -1,5 +1,5 @@
 import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
-import type { SyncState } from '../../../domain/sync/sync.types';
+import type { SyncState } from '../../../domain/sync/models/sync.types';
 import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 
 /**

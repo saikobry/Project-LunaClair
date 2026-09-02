@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { Term } from '../../../../../domain/library';
+import type { Term } from '../../../../../domain/library/models/Term';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { ApplicationContext } from '../../../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../../../shared/utils/contextGuard';

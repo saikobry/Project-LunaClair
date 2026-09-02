@@ -1,4 +1,4 @@
-import type { ContentImporter, ImporterRegistry } from '../../domain/importer/ContentImporter';
+import type { ContentImporter, ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import { PdfjsImporter } from './PdfjsImporter';
 import { ImageImporter } from './ImageImporter';
 import type { TesseractExtractor } from './TesseractExtractor';

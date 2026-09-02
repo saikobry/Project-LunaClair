@@ -1,8 +1,8 @@
-import type { LibraryRepository } from '../../../domain/library/LibraryRepository';
-import type { DocumentContentRepository } from '../../../domain/reader/DocumentContentRepository';
-import type { QuestionRepository } from '../../../domain/quiz/QuestionRepository';
-import type { QuizRepository } from '../../../domain/quiz/QuizRepository';
-import type { ImportAssetRepository } from '../../../domain/importer/ImportAssetRepository';
+import type { LibraryRepository } from '../../../domain/library/repositories/LibraryRepository';
+import type { DocumentContentRepository } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { QuestionRepository } from '../../../domain/quiz/repositories/QuestionRepository';
+import type { QuizRepository } from '../../../domain/quiz/repositories/QuizRepository';
+import type { ImportAssetRepository } from '../../../domain/importer/repositories/ImportAssetRepository';
 import type {
   PackageAsset,
   PackageFlashcard,
@@ -12,8 +12,8 @@ import type {
   PackageQuizItem,
   StudyPackage,
   StudyPackageMetadata,
-} from '../../../domain/package/package.types';
-import { blobToBase64 } from '../../../domain/package/StudyPackageSerializer';
+} from '../../../domain/package/models/package.types';
+import { blobToBase64 } from '../../../domain/package/engines/StudyPackageSerializer';
 
 export interface MaterializeStudyPackageInput {
   materialId: string;

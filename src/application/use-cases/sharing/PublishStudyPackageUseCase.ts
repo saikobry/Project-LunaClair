@@ -6,7 +6,7 @@ import type {
   PublishShareOptions,
   PublishShareResult,
   ShareTransport,
-} from '../../../domain/sharing/sharing.types';
+} from '../../../domain/sharing/models/sharing.types';
 
 export interface PublishStudyPackageInput extends PublishShareOptions {
   materialId: string;

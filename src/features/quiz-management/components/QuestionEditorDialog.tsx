@@ -1,9 +1,9 @@
 import { useState, useCallback, createElement } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import type { Question, QuestionDifficulty, QuestionStatus } from '../../../domain/quiz/Question';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
-import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
+import type { Question, QuestionDifficulty, QuestionStatus } from '../../../domain/quiz/models/Question';
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
+import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input/Input';
@@ -13,7 +13,7 @@ import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
-import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../domain/quiz/tags';
+import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../domain/quiz/utils/tags';
 
 const styles = stylex.create({
     form: {

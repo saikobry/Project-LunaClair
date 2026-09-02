@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CleanupImportWithAiUseCase } from '../CleanupImportWithAiUseCase';
-import type { AiService } from '../../../../domain/ai/AiService';
-import type { AiStreamEvent } from '../../../../domain/ai/ai.types';
+import type { AiService } from '../../../../domain/ai/services/AiService';
+import type { AiStreamEvent } from '../../../../domain/ai/models/ai.types';
 
 describe('CleanupImportWithAiUseCase', () => {
     it('streams cleaned markdown and returns both original and cleaned versions', async () => {

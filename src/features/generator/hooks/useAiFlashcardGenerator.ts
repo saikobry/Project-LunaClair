@@ -3,8 +3,8 @@ import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type {
   GenerateFlashcardsRequest,
   GeneratedFlashcardDraft,
-} from '../../../domain/generator/generator.types';
-import type { Question } from '../../../domain/quiz/Question';
+} from '../../../domain/generator/models/generator.types';
+import type { Question } from '../../../domain/quiz/models/Question';
 
 export type FlashcardGeneratorStatus =
   | 'idle'

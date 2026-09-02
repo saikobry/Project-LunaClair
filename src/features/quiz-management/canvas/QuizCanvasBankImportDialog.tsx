@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import type { Question } from '../../../domain/quiz/Question';
+import type { Question } from '../../../domain/quiz/models/Question';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Checkbox } from '../../../shared/ui/Checkbox/Checkbox';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, X } from 'lucide-react';
-import type { IdentificationPayload } from '../../../domain/quiz/AnswerPayload';
+import type { IdentificationPayload } from '../../../domain/quiz/models/AnswerPayload';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input';
 

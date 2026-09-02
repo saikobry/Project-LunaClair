@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { Question } from '../../../domain/quiz/Question';
+import type { Question } from '../../../domain/quiz/models/Question';
 
 interface IdentificationQuestionProps {
     question: Question;

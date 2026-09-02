@@ -5,7 +5,7 @@ import { useToast } from '../../../app/providers/ToastContext';
 import type {
   PublishShareResult,
   ShareAccessType,
-} from '../../../domain/sharing/sharing.types';
+} from '../../../domain/sharing/models/sharing.types';
 
 export interface PublishOptions {
   accessType?: ShareAccessType;

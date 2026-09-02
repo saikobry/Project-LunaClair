@@ -23,18 +23,18 @@ import {
     type MetadataRecord,
     type ImportAssetRecord,
 } from '../LunaClairDatabase';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import type { Subject } from '../../../domain/library/Subject';
-import type { Term } from '../../../domain/library/Term';
-import type { SubjectTerm } from '../../../domain/library/SubjectTerm';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { Subject } from '../../../domain/library/models/Subject';
+import type { Term } from '../../../domain/library/models/Term';
+import type { SubjectTerm } from '../../../domain/library/models/SubjectTerm';
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import type { ReviewState } from '../../../domain/flashcards/scheduler';
-import type { ImportedDocumentContent } from '../../../domain/reader';
-import type { AiThread, AiMessageRecord } from '../../../domain/ai/ai.types';
-import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sync/sync.types';
+import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
+import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { AiThread, AiMessageRecord } from '../../../domain/ai/models/ai.types';
+import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sync/models/sync.types';
 
 describe('Dexie Schema v11 & Non-Destructive Migration', () => {
     beforeEach(async () => {

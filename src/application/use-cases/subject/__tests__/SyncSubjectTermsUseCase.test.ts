@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SyncSubjectTermsUseCase } from '../SyncSubjectTermsUseCase';
-import type { SubjectTermRepository } from '../../../../domain/library/SubjectTermRepository';
-import type { TermRepository } from '../../../../domain/library/TermRepository';
-import type { Term } from '../../../../domain/library/Term';
+import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
+import type { TermRepository } from '../../../../domain/library/repositories/TermRepository';
+import type { Term } from '../../../../domain/library/models/Term';
 
 describe('SyncSubjectTermsUseCase', () => {
     const knownTerm1: Term = {

@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { QuizMode } from '../../../../domain/quiz/QuizMode';
-import type { QuizResult } from '../../../../domain/quiz/AssessmentService';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { QuizMode } from '../../../../domain/quiz/models/QuizMode';
+import type { QuizResult } from '../../../../domain/quiz/services/AssessmentService';
 import type { QuizFlowState, QuizLaunchRequest } from '../../types/quizFeature.types';
 import type { AnswerValue } from '../../components/QuestionRenderer';
 import { useQuizLoader } from './useQuizLoader';

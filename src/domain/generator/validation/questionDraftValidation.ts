@@ -1,7 +1,7 @@
-import type { GeneratedQuestionDraft, GeneratedFlashcardDraft } from '../generator.types';
-import type { QuestionType } from '../../quiz/QuestionType';
-import type { QuestionDifficulty } from '../../quiz/Question';
-import type { QuestionAnswerPayload } from '../../quiz/AnswerPayload';
+import type { GeneratedQuestionDraft, GeneratedFlashcardDraft } from '../models/generator.types';
+import type { QuestionType } from '../../quiz/models/QuestionType';
+import type { QuestionDifficulty } from '../../quiz/models/Question';
+import type { QuestionAnswerPayload } from '../../quiz/models/AnswerPayload';
 
 const VALID_QUESTION_TYPES: Set<QuestionType> = new Set([
   'multiple_choice',

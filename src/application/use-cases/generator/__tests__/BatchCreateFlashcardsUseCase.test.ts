@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BatchCreateFlashcardsUseCase } from '../BatchCreateFlashcardsUseCase';
-import type { QuestionRepository } from '../../../../domain/quiz/QuestionRepository';
-import type { GeneratedFlashcardDraft } from '../../../../domain/generator/generator.types';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
+import type { GeneratedFlashcardDraft } from '../../../../domain/generator/models/generator.types';
+import type { Question } from '../../../../domain/quiz/models/Question';
 
 describe('BatchCreateFlashcardsUseCase', () => {
     const mockCreatedQuestions: Question[] = [

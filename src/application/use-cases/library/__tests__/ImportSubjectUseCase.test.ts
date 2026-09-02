@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ImportSubjectUseCase } from '../ImportSubjectUseCase';
-import type { CatalogRepository, CatalogSnapshot } from '../../../../domain/library/CatalogRepository';
-import type { LibraryRepository } from '../../../../domain/library/LibraryRepository';
-import type { LibraryImportService } from '../../../../domain/library/LibraryImportService';
-import type { QuizContentRepository } from '../../../../domain/quiz/QuizContentRepository';
-import type { DocumentRepository } from '../../../../domain/reader/DocumentRepository';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { Subject } from '../../../../domain/library/Subject';
-import type { Term } from '../../../../domain/library/Term';
+import type { CatalogRepository, CatalogSnapshot } from '../../../../domain/library/repositories/CatalogRepository';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { LibraryImportService } from '../../../../domain/library/services/LibraryImportService';
+import type { QuizContentRepository } from '../../../../domain/quiz/repositories/QuizContentRepository';
+import type { DocumentRepository } from '../../../../domain/reader/repositories/DocumentRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Subject } from '../../../../domain/library/models/Subject';
+import type { Term } from '../../../../domain/library/models/Term';
 
 describe('ImportSubjectUseCase', () => {
     const mockSubject: Subject = {

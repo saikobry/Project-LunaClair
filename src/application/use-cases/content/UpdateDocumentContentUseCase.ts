@@ -1,7 +1,7 @@
 import type {
   DocumentContentRepository,
   ImportedDocumentContent,
-} from '../../../domain/reader/DocumentContentRepository';
+} from '../../../domain/reader/repositories/DocumentContentRepository';
 
 export interface UpdateDocumentContentInput {
   documentId: string;

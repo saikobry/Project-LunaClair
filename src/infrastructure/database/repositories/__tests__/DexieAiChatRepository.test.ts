@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../LunaClairDatabase';
 import { DexieAiChatRepository } from '../DexieAiChatRepository';
-import type { AiMessageRecord, AiThread } from '../../../../domain/ai/ai.types';
+import type { AiMessageRecord, AiThread } from '../../../../domain/ai/models/ai.types';
 
 describe('DexieAiChatRepository & Schema v9', () => {
   let db: LunaClairDatabase;

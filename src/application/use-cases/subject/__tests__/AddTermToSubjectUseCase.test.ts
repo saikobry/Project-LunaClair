@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AddTermToSubjectUseCase } from '../AddTermToSubjectUseCase';
-import type { SubjectTermRepository } from '../../../../domain/library/SubjectTermRepository';
+import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
 
 describe('AddTermToSubjectUseCase', () => {
     it('delegates adding term to subject via SubjectTermRepository', async () => {

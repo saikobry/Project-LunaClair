@@ -1,9 +1,9 @@
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type {
     LibraryRepository,
     CreateMaterialInput,
     UpdateMaterialInput,
-} from '../../../domain/library/LibraryRepository';
+} from '../../../domain/library/repositories/LibraryRepository';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

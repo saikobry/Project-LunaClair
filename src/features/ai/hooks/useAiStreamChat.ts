@@ -4,7 +4,7 @@ import type {
   AiChatMessage,
   AiTutorMode,
   AiUsage,
-} from '../../../domain/ai/ai.types';
+} from '../../../domain/ai/models/ai.types';
 
 export interface SendAiMessageOptions {
   document?: {

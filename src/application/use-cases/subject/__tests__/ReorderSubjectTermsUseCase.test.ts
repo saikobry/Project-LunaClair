@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReorderSubjectTermsUseCase } from '../ReorderSubjectTermsUseCase';
-import type { SubjectTermRepository } from '../../../../domain/library/SubjectTermRepository';
-import type { Term } from '../../../../domain/library/Term';
+import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
+import type { Term } from '../../../../domain/library/models/Term';
 
 describe('ReorderSubjectTermsUseCase', () => {
     const term1: Term = {

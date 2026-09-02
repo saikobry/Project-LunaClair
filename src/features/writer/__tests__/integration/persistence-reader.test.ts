@@ -4,10 +4,10 @@ import { db } from '../../../../infrastructure/database/LunaClairDatabase';
 import { DexieDocumentContentRepository } from '../../../../infrastructure/database/repositories/DexieDocumentContentRepository';
 import { HybridDocumentRepository } from '../../../../infrastructure/api/HybridDocumentRepository';
 import { UpdateDocumentContentUseCase } from '../../../../application/use-cases/content/UpdateDocumentContentUseCase';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { Document } from '../../../../domain/reader/Document';
-import type { DocumentRepository } from '../../../../domain/reader/DocumentRepository';
-import { DocumentNotFoundError } from '../../../../domain/reader/DocumentNotFoundError';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Document } from '../../../../domain/reader/models/Document';
+import type { DocumentRepository } from '../../../../domain/reader/repositories/DocumentRepository';
+import { DocumentNotFoundError } from '../../../../domain/reader/errors/DocumentNotFoundError';
 
 class MockRemoteDocumentRepository implements DocumentRepository {
   private remoteDocs = new Map<string, Document>();

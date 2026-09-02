@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reconcileDocument } from '../DocumentReconciler';
-import type { DocumentSyncPayload } from '../../SyncEntities';
-import type { SyncQueueItem } from '../../sync.types';
+import type { DocumentSyncPayload } from '../../models/SyncEntities';
+import type { SyncQueueItem } from '../../models/sync.types';
 
 describe('DocumentReconciler (Model C: Optimistic Concurrency & Conflict Branching)', () => {
     const remoteDoc: DocumentSyncPayload = {

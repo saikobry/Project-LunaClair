@@ -1,4 +1,4 @@
-import type { ImportedAsset, ImportAssetRepository } from '../../../domain/importer/ImportAssetRepository';
+import type { ImportedAsset, ImportAssetRepository } from '../../../domain/importer/repositories/ImportAssetRepository';
 import { db } from '../LunaClairDatabase';
 
 /**

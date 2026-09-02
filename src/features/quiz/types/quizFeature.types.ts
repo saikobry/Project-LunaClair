@@ -1,4 +1,4 @@
-import type { QuizMode } from '../../../domain/quiz/QuizMode';
+import type { QuizMode } from '../../../domain/quiz/models/QuizMode';
 
 /**
  * Serializable discriminated navigation contract for launching quiz sessions.

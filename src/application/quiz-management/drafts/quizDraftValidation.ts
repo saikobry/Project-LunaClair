@@ -1,5 +1,5 @@
 import type { QuizDraft, QuestionDraft } from './QuizDraft';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
 
 /**
  * Structured validation errors for a `QuizDraft`.

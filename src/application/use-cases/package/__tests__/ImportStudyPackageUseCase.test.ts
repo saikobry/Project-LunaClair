@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
-import type { StudyPackageImportService } from '../../../../domain/package/StudyPackageImportService';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { StudyPackageImportService } from '../../../../domain/package/services/StudyPackageImportService';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('ImportStudyPackageUseCase', () => {
     const validPackage: StudyPackage = {

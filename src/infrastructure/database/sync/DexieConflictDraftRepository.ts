@@ -1,5 +1,5 @@
 import type { ConflictDraftRepository, ResolveConflictInput } from '../../../domain/sync/repositories/ConflictDraftRepository';
-import type { ConflictDraft } from '../../../domain/sync/sync.types';
+import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 import { runSyncableTransaction } from './transactionalOutbox';
 

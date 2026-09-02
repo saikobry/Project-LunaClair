@@ -1,8 +1,8 @@
 import type {
   StudyPackageImportService,
   ImportStudyPackageRecords,
-} from '../../../domain/package/StudyPackageImportService';
-import { base64ToBlob } from '../../../domain/package/StudyPackageSerializer';
+} from '../../../domain/package/services/StudyPackageImportService';
+import { base64ToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
 import { db as defaultDb, type LunaClairDatabase, type ImportAssetRecord } from '../LunaClairDatabase';
 
 /**

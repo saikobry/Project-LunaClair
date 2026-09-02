@@ -1,5 +1,5 @@
-import type { SubjectRepository, UpdateSubjectInput } from '../../../domain/library/SubjectRepository';
-import type { Subject } from '../../../domain/library/Subject';
+import type { SubjectRepository, UpdateSubjectInput } from '../../../domain/library/repositories/SubjectRepository';
+import type { Subject } from '../../../domain/library/models/Subject';
 
 export class UpdateSubjectUseCase {
     private readonly subjects: SubjectRepository;

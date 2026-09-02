@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { importerStyles } from '../styles/importer.stylex';
-import type { ImportCandidate } from '../../../domain/importer/importer.types';
+import type { ImportCandidate } from '../../../domain/importer/models/importer.types';
 
 interface MaterialDetailsViewProps {
   candidates: ImportCandidate[];

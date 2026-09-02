@@ -1,7 +1,5 @@
-import type {
-  SyncQueueRepository,
-  SyncStateRepository,
-} from '../../domain/sync';
+import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
+import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 
 export interface SyncStatus {
   state: 'idle' | 'syncing' | 'offline' | 'error';

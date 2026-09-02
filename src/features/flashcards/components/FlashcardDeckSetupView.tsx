@@ -1,11 +1,11 @@
 import * as stylex from '@stylexjs/stylex';
 import { Layers, Play, Clock, Sparkles, Filter, Package, Share2 } from 'lucide-react';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { Question } from '../../../domain/quiz/Question';
-import type { ReviewState } from '../../../domain/flashcards/scheduler';
-import { isDue } from '../../../domain/flashcards/scheduler';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
+import { isDue } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
-import type { DeckStudyMode } from '../../../domain/flashcards/deck';
+import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
 import { useState } from 'react';
 
 const styles = stylex.create({

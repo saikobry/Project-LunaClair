@@ -1,13 +1,13 @@
 import { db as defaultDb, type LunaClairDatabase, type HighlightRecord } from '../LunaClairDatabase';
-import type { ReviewState } from '../../../domain/flashcards/scheduler';
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import { createSyncStateKey } from '../../../domain/sync/syncIdentity';
-import { compareLwwTimestamps } from '../../../domain/sync/syncVersioning';
+import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
+import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import { createSyncStateKey } from '../../../domain/sync/utils/syncIdentity';
+import { compareLwwTimestamps } from '../../../domain/sync/utils/syncVersioning';
 import { reconcileDocument, reconcileTimestampLww, reconcileFlashcardReview, reconcileQuizSession } from '../../../domain/sync/reconcilers';
-import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, FlashcardReviewSyncPayload, QuizSessionSyncPayload } from '../../../domain/sync/SyncEntities';
-import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/sync.types';
-import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/SyncTransport';
-import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/SyncReconciler';
+import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, FlashcardReviewSyncPayload, QuizSessionSyncPayload } from '../../../domain/sync/models/SyncEntities';
+import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/models/sync.types';
+import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/services/SyncTransport';
+import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/services/SyncReconciler';
 
 export type { ReconcilePullResult, ApplyPushResult };
 

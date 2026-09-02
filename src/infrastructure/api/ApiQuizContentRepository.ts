@@ -1,4 +1,4 @@
-import type { QuizContentRepository, QuizContentSnapshot } from '../../domain/quiz/QuizContentRepository';
+import type { QuizContentRepository, QuizContentSnapshot } from '../../domain/quiz/repositories/QuizContentRepository';
 
 /**
  * Concrete implementation of `QuizContentRepository` backed by the LunaClair

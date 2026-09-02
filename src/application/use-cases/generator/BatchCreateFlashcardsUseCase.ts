@@ -1,9 +1,9 @@
-import type { Question, QuestionStatus } from '../../../domain/quiz/Question';
+import type { Question, QuestionStatus } from '../../../domain/quiz/models/Question';
 import type {
   QuestionRepository,
   CreateQuestionInput,
-} from '../../../domain/quiz/QuestionRepository';
-import type { GeneratedFlashcardDraft } from '../../../domain/generator/generator.types';
+} from '../../../domain/quiz/repositories/QuestionRepository';
+import type { GeneratedFlashcardDraft } from '../../../domain/generator/models/generator.types';
 
 export interface BatchCreateFlashcardsInput {
   materialId: string;

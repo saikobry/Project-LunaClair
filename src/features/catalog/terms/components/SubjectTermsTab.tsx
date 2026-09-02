@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Layers, Link2, Plus } from 'lucide-react';
-import type { Term } from '../../../../domain/library';
+import type { Term } from '../../../../domain/library/models/Term';
 import { useTerms } from '../hooks/queries/useTerms';
 import { useLibrary } from '../../materials/hooks/queries/useLibrary';
 import { Button } from '../../../../shared/ui/Button/Button';

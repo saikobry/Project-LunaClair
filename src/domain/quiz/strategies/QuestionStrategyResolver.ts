@@ -1,4 +1,4 @@
-import type { QuestionType } from '../QuestionType';
+import type { QuestionType } from '../models/QuestionType';
 import type { QuestionStrategy } from './QuestionStrategy';
 import { MultipleChoiceStrategy } from './MultipleChoiceStrategy';
 import { MultipleSelectStrategy } from './MultipleSelectStrategy';

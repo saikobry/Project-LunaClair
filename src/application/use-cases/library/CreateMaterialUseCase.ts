@@ -1,6 +1,6 @@
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { CreateMaterialInput, LibraryRepository } from '../../../domain/library/LibraryRepository';
-import type { SubjectTermRepository } from '../../../domain/library/SubjectTermRepository';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { CreateMaterialInput, LibraryRepository } from '../../../domain/library/repositories/LibraryRepository';
+import type { SubjectTermRepository } from '../../../domain/library/repositories/SubjectTermRepository';
 
 async function validateAssociation(input: { subjectId?: string; termId?: string }, subjectTerms: SubjectTermRepository) {
     if (!input.termId) return;

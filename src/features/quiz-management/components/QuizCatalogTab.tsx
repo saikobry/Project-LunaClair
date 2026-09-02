@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, EyeOff, Eye } from 'lucide-react';
-import type { Quiz, QuizStatus } from '../../../domain/quiz/Quiz';
+import type { Quiz, QuizStatus } from '../../../domain/quiz/models/Quiz';
 import type { AppRoute } from '../../../app/layouts/AppShell';
 import { Button } from '../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';

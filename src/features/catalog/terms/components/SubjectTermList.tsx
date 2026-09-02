@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp, GripVertical, Unlink } from 'lucide-react';
-import type { Term } from '../../../../domain/library';
+import type { Term } from '../../../../domain/library/models/Term';
 import { IconButton } from '../../../../shared/ui/IconButton';
 
 gsap.registerPlugin(Draggable);

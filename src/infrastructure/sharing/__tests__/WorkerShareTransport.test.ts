@@ -4,7 +4,7 @@ import {
   ShareNetworkError,
   WorkerShareTransport,
 } from '../WorkerShareTransport';
-import type { StudyPackage } from '../../../domain/package/package.types';
+import type { StudyPackage } from '../../../domain/package/models/package.types';
 
 describe('WorkerShareTransport', () => {
   const mockPackage: StudyPackage = {

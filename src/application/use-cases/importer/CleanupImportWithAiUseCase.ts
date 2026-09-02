@@ -1,5 +1,5 @@
-import type { AiService } from '../../../domain/ai/AiService';
-import type { AiChatMessage } from '../../../domain/ai/ai.types';
+import type { AiService } from '../../../domain/ai/services/AiService';
+import type { AiChatMessage } from '../../../domain/ai/models/ai.types';
 
 export interface AiCleanupResult {
   /** The original Markdown (unchanged) */

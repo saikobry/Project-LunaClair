@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WorkerAiAdapter } from '../WorkerAiAdapter';
 import { MockAiAdapter } from '../MockAiAdapter';
-import type { AiChatRequest, AiStreamEvent } from '../../../domain/ai/ai.types';
+import type { AiChatRequest, AiStreamEvent } from '../../../domain/ai/models/ai.types';
 
 describe('WorkerAiAdapter', () => {
   const originalFetch = globalThis.fetch;

@@ -6,7 +6,7 @@ import { LunaClairDatabase } from '../../LunaClairDatabase';
 import { DexieSyncQueueRepository } from '../DexieSyncQueueRepository';
 import { DexieSyncStateRepository } from '../DexieSyncStateRepository';
 import { DexieConflictDraftRepository } from '../DexieConflictDraftRepository';
-import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../../domain/sync/sync.types';
+import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../../domain/sync/models/sync.types';
 
 describe('Dexie Sync Repositories', () => {
     let testDb: LunaClairDatabase;

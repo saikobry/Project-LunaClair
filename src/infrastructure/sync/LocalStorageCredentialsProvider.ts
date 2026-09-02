@@ -1,7 +1,5 @@
-import type {
-  SessionCredentials,
-  SessionCredentialsProvider,
-} from '../../domain/sync';
+import type { SessionCredentials } from '../../domain/sync/models/sync.types';
+import type { SessionCredentialsProvider } from '../../domain/sync/services/SessionCredentialsProvider';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 import { getOrCreateDeviceId } from './deviceId';
 

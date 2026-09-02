@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { HighlightItem, HighlightColor } from '../../../domain/reader';
+import type { HighlightItem, HighlightColor } from '../../../domain/reader/models/annotation.types';
 import { restoreRange } from '../utils/selection';
 import { readerQueryKeys } from '../queries/readerQueryKeys';
 import { useAnnotationRepository } from './useAnnotationRepository';

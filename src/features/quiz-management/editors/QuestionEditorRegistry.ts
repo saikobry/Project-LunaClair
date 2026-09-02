@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
 import { MultipleChoiceEditor } from './MultipleChoiceEditor';
 import { MultipleSelectEditor } from './MultipleSelectEditor';
 import { TrueFalseEditor } from './TrueFalseEditor';

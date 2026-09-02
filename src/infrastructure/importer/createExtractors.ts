@@ -1,4 +1,4 @@
-import type { ImporterRegistry } from '../../domain/importer/ContentImporter';
+import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import { createImporterRegistry } from './DefaultImporterRegistry';
 import { tesseractExtractor, type TesseractExtractor } from './TesseractExtractor';
 

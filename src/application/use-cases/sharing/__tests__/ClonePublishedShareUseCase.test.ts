@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ClonePublishedShareUseCase } from '../ClonePublishedShareUseCase';
-import type { PublishedShare } from '../../../../domain/sharing/sharing.types';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { PublishedShare } from '../../../../domain/sharing/models/sharing.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('ClonePublishedShareUseCase', () => {
     const mockPackage: StudyPackage = {

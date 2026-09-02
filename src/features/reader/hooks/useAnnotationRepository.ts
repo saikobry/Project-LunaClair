@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
+import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
 
 /**
  * Dependency injection hook that returns the AnnotationRepository from context.

@@ -10,7 +10,7 @@ import {
   Trash2,
   ArrowUpDown,
 } from 'lucide-react';
-import type { Subject } from '../../../../domain/library';
+import type { Subject } from '../../../../domain/library/models/Subject';
 import { Card } from '../../../../shared/ui/Card';
 import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
 

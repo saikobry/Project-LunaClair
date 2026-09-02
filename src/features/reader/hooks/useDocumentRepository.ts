@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { DocumentRepository } from '../../../domain/reader/DocumentRepository';
+import type { DocumentRepository } from '../../../domain/reader/repositories/DocumentRepository';
 
 /**
  * Dependency injection hook that returns the DocumentRepository from context.

@@ -1,5 +1,5 @@
-import type { TermRepository, UpdateTermInput } from '../../../domain/library/TermRepository';
-import type { Term } from '../../../domain/library/Term';
+import type { TermRepository, UpdateTermInput } from '../../../domain/library/repositories/TermRepository';
+import type { Term } from '../../../domain/library/models/Term';
 
 export class UpdateTermUseCase {
     private readonly terms: TermRepository;

@@ -1,7 +1,7 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
-import type { ContentImporter, ExtractionOptions } from '../../domain/importer/ContentImporter';
-import type { ExtractionResult, PageExtraction } from '../../domain/importer/importer.types';
+import type { ContentImporter, ExtractionOptions } from '../../domain/importer/services/ContentImporter';
+import type { ExtractionResult, PageExtraction } from '../../domain/importer/models/importer.types';
 import type { TesseractExtractor } from './TesseractExtractor';
 
 export class PdfjsImporter implements ContentImporter {

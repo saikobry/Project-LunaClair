@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ShareStudyPackageModal } from '../ShareStudyPackageModal';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import type { PublishShareResult } from '../../../../domain/sharing/sharing.types';
+import type { PublishShareResult } from '../../../../domain/sharing/models/sharing.types';
 
 const showToastMock = vi.fn();
 vi.mock('../../../../app/providers/ToastContext', () => ({

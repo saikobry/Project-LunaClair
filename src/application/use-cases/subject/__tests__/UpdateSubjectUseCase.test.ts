@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UpdateSubjectUseCase } from '../UpdateSubjectUseCase';
-import type { SubjectRepository, UpdateSubjectInput } from '../../../../domain/library/SubjectRepository';
-import type { Subject } from '../../../../domain/library/Subject';
+import type { SubjectRepository, UpdateSubjectInput } from '../../../../domain/library/repositories/SubjectRepository';
+import type { Subject } from '../../../../domain/library/models/Subject';
 
 describe('UpdateSubjectUseCase', () => {
     const mockSubject: Subject = {

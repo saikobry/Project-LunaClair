@@ -1,4 +1,4 @@
-import type { HighlightColor } from '../../../domain/reader';
+import type { HighlightColor } from '../../../domain/reader/models/annotation.types';
 
 export const BRUSH_COLORS: { name: string; hex: string }[] = [
   { name: 'Red', hex: '#ef4444' },

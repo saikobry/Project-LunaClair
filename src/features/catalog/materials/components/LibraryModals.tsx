@@ -1,5 +1,5 @@
-import type { StudyMaterial } from '../../../../domain/library';
-import type { Subject } from '../../../../domain/library';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Subject } from '../../../../domain/library/models/Subject';
 import EditMaterialModal from '../modals/EditMaterialModal';
 import EditSubjectModal from '../../subjects/modals/EditSubjectModal';
 import CreateSubjectModal from '../../subjects/modals/CreateSubjectModal';

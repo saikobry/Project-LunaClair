@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GetSubjectAnalyticsUseCase } from '../GetSubjectAnalyticsUseCase';
-import type { AnalyticsRepository } from '../../../../domain/analytics/AnalyticsRepository';
-import type { SubjectMastery } from '../../../../domain/analytics/analytics.types';
+import type { AnalyticsRepository } from '../../../../domain/analytics/repositories/AnalyticsRepository';
+import type { SubjectMastery } from '../../../../domain/analytics/models/analytics.types';
 
 describe('GetSubjectAnalyticsUseCase', () => {
     const mockSubjectMastery: SubjectMastery = {

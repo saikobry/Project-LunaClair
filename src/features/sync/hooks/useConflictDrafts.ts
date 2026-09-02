@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { ConflictDraft } from '../../../domain/sync/sync.types';
+import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 import type { ResolveConflictDraftInput } from '../../../application/use-cases/sync/ResolveConflictDraftUseCase';
 
 export interface UseConflictDraftsResult {

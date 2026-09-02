@@ -1,4 +1,4 @@
-import type { Quiz } from '../../../domain/quiz/Quiz';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
 
 export interface QuizTreeNodeQuiz {
     id: string;

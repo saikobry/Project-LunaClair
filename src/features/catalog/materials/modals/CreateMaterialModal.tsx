@@ -5,7 +5,7 @@ import { Input } from '../../../../shared/ui/Input';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { useTerms } from '../../terms/hooks/queries/useTerms';
 import { styles } from '../../shared/styles/library.stylex';
-import type { Subject } from '../../../../domain/library';
+import type { Subject } from '../../../../domain/library/models/Subject';
 
 const selectStyles = stylex.create({
     select: {

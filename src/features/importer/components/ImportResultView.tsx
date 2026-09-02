@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { importerStyles } from '../styles/importer.stylex';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 
 interface ImportResultViewProps {
   createdMaterials: StudyMaterial[];

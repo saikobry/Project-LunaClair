@@ -1,4 +1,4 @@
-import { AiGenerationError, type AiStructuredOutputValidator } from '../../../domain/ai/ai.types';
+import { AiGenerationError, type AiStructuredOutputValidator } from '../../../domain/ai/models/ai.types';
 
 /**
  * Strips markdown code fences (e.g. ```json ... ```) from raw LLM output.

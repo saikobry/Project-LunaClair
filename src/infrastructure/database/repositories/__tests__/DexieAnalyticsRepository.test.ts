@@ -2,12 +2,12 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../../LunaClairDatabase';
 import { DexieAnalyticsRepository } from '../DexieAnalyticsRepository';
-import type { Subject } from '../../../../domain/library/Subject';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
-import type { QuizSession } from '../../../../domain/quiz/QuizSession';
-import type { ReviewState } from '../../../../domain/flashcards/scheduler';
+import type { Subject } from '../../../../domain/library/models/Subject';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
+import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
+import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
 
 describe('DexieAnalyticsRepository Integration', () => {
     let repo: DexieAnalyticsRepository;

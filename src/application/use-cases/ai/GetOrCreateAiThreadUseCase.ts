@@ -1,5 +1,5 @@
-import type { AiChatRepository } from '../../../domain/ai/AiChatRepository';
-import type { AiThread, AiTutorMode } from '../../../domain/ai/ai.types';
+import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
+import type { AiThread, AiTutorMode } from '../../../domain/ai/models/ai.types';
 
 export interface GetOrCreateAiThreadInput {
   materialId?: string;

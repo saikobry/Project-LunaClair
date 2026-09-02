@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GetGlobalAnalyticsUseCase } from '../GetGlobalAnalyticsUseCase';
-import type { AnalyticsRepository } from '../../../../domain/analytics/AnalyticsRepository';
-import type { GlobalAnalytics } from '../../../../domain/analytics/analytics.types';
+import type { AnalyticsRepository } from '../../../../domain/analytics/repositories/AnalyticsRepository';
+import type { GlobalAnalytics } from '../../../../domain/analytics/models/analytics.types';
 
 describe('GetGlobalAnalyticsUseCase', () => {
     const mockGlobalAnalytics: GlobalAnalytics = {

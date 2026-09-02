@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LocalStorageCredentialsProvider } from '../LocalStorageCredentialsProvider';
 import { getOrCreateDeviceId } from '../deviceId';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
-import type { SessionCredentials } from '../../../domain/sync';
+import type { SessionCredentials } from '../../../domain/sync/models/sync.types';
 
 describe('LocalStorageCredentialsProvider & deviceId', () => {
   let provider: LocalStorageCredentialsProvider;

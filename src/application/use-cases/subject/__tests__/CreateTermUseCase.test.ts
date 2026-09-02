@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CreateTermUseCase } from '../CreateTermUseCase';
-import type { TermRepository, CreateTermInput } from '../../../../domain/library/TermRepository';
-import type { Term } from '../../../../domain/library/Term';
+import type { TermRepository, CreateTermInput } from '../../../../domain/library/repositories/TermRepository';
+import type { Term } from '../../../../domain/library/models/Term';
 
 describe('CreateTermUseCase', () => {
     const mockTerm: Term = {

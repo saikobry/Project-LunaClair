@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reconcileQuizSession } from '../QuizSessionReconciler';
-import type { QuizSessionSyncPayload } from '../../SyncEntities';
+import type { QuizSessionSyncPayload } from '../../models/SyncEntities';
 
 describe('QuizSessionReconciler (Model B: Append-Only Immutable History)', () => {
     const remoteSession: QuizSessionSyncPayload = {

@@ -1,5 +1,5 @@
-import type { FlashcardReviewRepository } from '../../../domain/flashcards/FlashcardReviewRepository';
-import { review, type Rating, type ReviewState } from '../../../domain/flashcards/scheduler';
+import type { FlashcardReviewRepository } from '../../../domain/flashcards/repositories/FlashcardReviewRepository';
+import { review, type Rating, type ReviewState } from '../../../domain/flashcards/engines/scheduler';
 
 export interface RecordFlashcardReviewInput {
     key: string;

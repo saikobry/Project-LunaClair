@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RemoveTermFromSubjectUseCase } from '../RemoveTermFromSubjectUseCase';
-import type { SubjectTermRepository } from '../../../../domain/library/SubjectTermRepository';
+import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
 
 describe('RemoveTermFromSubjectUseCase', () => {
     it('delegates removing term from subject via SubjectTermRepository', async () => {

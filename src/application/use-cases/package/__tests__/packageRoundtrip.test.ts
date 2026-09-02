@@ -10,15 +10,15 @@ import { DexieStudyPackageImportService } from '../../../../infrastructure/datab
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
 import { parsePackageFromJson } from '../../../../infrastructure/package/StudyPackageParser';
-import { serializePackageToJson } from '../../../../domain/package/StudyPackageSerializer';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { ImportedDocumentContent } from '../../../../domain/reader/DocumentContentRepository';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
+import { serializePackageToJson } from '../../../../domain/package/engines/StudyPackageSerializer';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 import type { ImportAssetRecord } from '../../../../infrastructure/database/LunaClairDatabase';
-import type { QuizSession } from '../../../../domain/quiz/QuizSession';
-import type { ReviewState } from '../../../../domain/flashcards/scheduler';
-import type { SyncQueueItem } from '../../../../domain/sync/sync.types';
+import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
+import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
+import type { SyncQueueItem } from '../../../../domain/sync/models/sync.types';
 
 describe('StudyPackage E2E Roundtrip & Isolation', () => {
   let libraryRepo: DexieLibraryRepository;

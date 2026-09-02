@@ -1,9 +1,9 @@
-import type { Subject } from '../../../domain/library/Subject';
+import type { Subject } from '../../../domain/library/models/Subject';
 import type {
     SubjectRepository,
     CreateSubjectInput,
     UpdateSubjectInput,
-} from '../../../domain/library/SubjectRepository';
+} from '../../../domain/library/repositories/SubjectRepository';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

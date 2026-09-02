@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SharedPackageScreen } from '../SharedPackageScreen';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../../app/providers/ToastContext';
-import type { StudyPackage } from '../../../../domain/package/package.types';
-import type { PublishedShare } from '../../../../domain/sharing/sharing.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
+import type { PublishedShare } from '../../../../domain/sharing/models/sharing.types';
 import * as fileDownloadModule from '../../../../shared/utils/fileDownload';
 
 vi.mock('../../../../shared/utils/fileDownload', async (importOriginal) => {

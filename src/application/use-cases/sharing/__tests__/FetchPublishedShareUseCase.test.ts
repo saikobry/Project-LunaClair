@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FetchPublishedShareUseCase } from '../FetchPublishedShareUseCase';
-import type { PublishedShare, ShareTransport } from '../../../../domain/sharing/sharing.types';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { PublishedShare, ShareTransport } from '../../../../domain/sharing/models/sharing.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('FetchPublishedShareUseCase', () => {
     const mockPackage: StudyPackage = {

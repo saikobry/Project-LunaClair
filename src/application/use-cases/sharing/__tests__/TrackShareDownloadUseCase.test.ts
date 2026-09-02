@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TrackShareDownloadUseCase } from '../TrackShareDownloadUseCase';
-import type { ShareTransport } from '../../../../domain/sharing/sharing.types';
+import type { ShareTransport } from '../../../../domain/sharing/models/sharing.types';
 
 describe('TrackShareDownloadUseCase', () => {
     it('delegates trackDownload to ShareTransport with string shareId', async () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PublishStudyPackageUseCase } from '../PublishStudyPackageUseCase';
 import type { MaterializeStudyPackageUseCase } from '../../package/MaterializeStudyPackageUseCase';
-import type { ShareTransport } from '../../../../domain/sharing/sharing.types';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { ShareTransport } from '../../../../domain/sharing/models/sharing.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('PublishStudyPackageUseCase', () => {
     const mockPackage: StudyPackage = {

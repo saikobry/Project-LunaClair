@@ -1,4 +1,4 @@
-import type { ConflictDraftRepository, ResolveConflictInput } from '../../../domain/sync';
+import type { ConflictDraftRepository, ResolveConflictInput } from '../../../domain/sync/repositories/ConflictDraftRepository';
 
 export type ResolveConflictDraftInput = ResolveConflictInput;
 

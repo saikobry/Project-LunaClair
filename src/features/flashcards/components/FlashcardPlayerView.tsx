@@ -1,8 +1,8 @@
 import * as stylex from '@stylexjs/stylex';
 import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import { RotateCw, X, Check, HelpCircle, AlertCircle, Award } from 'lucide-react';
-import type { Flashcard, FlashcardType } from '../../../domain/flashcards/Card';
-import type { Rating } from '../../../domain/flashcards/scheduler';
+import type { Flashcard, FlashcardType } from '../../../domain/flashcards/models/Flashcard';
+import type { Rating } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 
 const TYPE_LABEL_MAP: Record<FlashcardType, string> = {

@@ -1,4 +1,4 @@
-import type { Question } from '../Question';
+import type { Question } from '../models/Question';
 
 export interface GradeResult {
     isCorrect: boolean;

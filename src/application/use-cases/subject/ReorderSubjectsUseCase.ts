@@ -1,4 +1,4 @@
-import type { SubjectRepository } from '../../../domain/library/SubjectRepository';
+import type { SubjectRepository } from '../../../domain/library/repositories/SubjectRepository';
 
 export class ReorderSubjectsUseCase {
     private readonly subjects: SubjectRepository;

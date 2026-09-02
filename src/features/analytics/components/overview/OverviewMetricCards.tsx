@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { Flame, Target, CheckCircle2, Layers } from 'lucide-react';
-import type { StudyOverviewMetrics } from '../../../../domain/analytics/analytics.types';
+import type { StudyOverviewMetrics } from '../../../../domain/analytics/models/analytics.types';
 import { Card } from '../../../../shared/ui/Card/Card';
 
 const styles = stylex.create({

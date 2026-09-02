@@ -52,8 +52,10 @@ Reserved domains:
 
 ## Work Guidance
 
+- **Uniform Domain Organization (ADR-013)**: Domain code is strictly organized into authorized responsibility subdirectories (`models/`, `repositories/`, `services/`, `engines/`, `context/`, `strategies/`, `reconcilers/`, `validation/`, `policies/`, `factories/`, `errors/`, `utils/`).
+- **Domain Barrels Prohibited (ADR-010 / ADR-013)**: No `index.ts` barrel files are permitted in `src/domain/`. All consumers import directly from concrete module paths.
+- **Primary Unit Test Discoverability & Colocation (ADR-012)**: Every testable domain behavior unit possesses a dedicated primary unit-test file named after the unit (`<UnitName>.ts` $\leftrightarrow$ `__tests__/<UnitName>.test.ts`), colocated within a `__tests__/` directory inside the specific responsibility folder where the tested unit resides.
 - Domain tests must be 100% pure, deterministic unit tests with zero mocks (`vi.fn()`) — instantiate real classes and test observable input/output contracts.
-- Testing convention: Strictly one test file per domain logic unit (`<UnitName>.ts` $\leftrightarrow$ `__tests__/<UnitName>.test.ts`).
 - Spaced repetition, due dates, and timestamp comparisons must always supply a fixed reference instant (e.g. `new Date('2026-09-01T12:00:00.000Z')`), never non-deterministic `new Date()`.
 
 ## Verification

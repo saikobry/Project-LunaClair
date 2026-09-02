@@ -1,5 +1,5 @@
-import type { Question } from '../Question';
-import type { FillBlankPayload } from '../AnswerPayload';
+import type { Question } from '../models/Question';
+import type { FillBlankPayload } from '../models/AnswerPayload';
 import type { QuestionStrategy, GradeResult } from './QuestionStrategy';
 
 export class FillBlankStrategy implements QuestionStrategy {

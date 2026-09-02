@@ -1,4 +1,4 @@
-import type { ConflictDraft } from '../sync.types';
+import type { ConflictDraft } from '../models/sync.types';
 
 export type ResolveConflictInput =
   | {

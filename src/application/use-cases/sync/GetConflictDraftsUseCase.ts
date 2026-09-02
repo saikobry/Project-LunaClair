@@ -1,4 +1,5 @@
-import type { ConflictDraft, ConflictDraftRepository } from '../../../domain/sync';
+import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
+import type { ConflictDraftRepository } from '../../../domain/sync/repositories/ConflictDraftRepository';
 
 export interface GetConflictDraftsInput {
   documentId?: string;

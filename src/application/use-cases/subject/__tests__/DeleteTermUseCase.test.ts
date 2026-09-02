@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DeleteTermUseCase } from '../DeleteTermUseCase';
-import type { TermRepository } from '../../../../domain/library/TermRepository';
+import type { TermRepository } from '../../../../domain/library/repositories/TermRepository';
 
 describe('DeleteTermUseCase', () => {
     it('delegates deletion to TermRepository', async () => {

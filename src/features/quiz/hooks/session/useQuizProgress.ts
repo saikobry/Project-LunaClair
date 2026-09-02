@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { Question } from '../../../../domain/quiz/models/Question';
 import type { AnswerValue } from '../../components/QuestionRenderer';
 
 export interface QuizProgressState {

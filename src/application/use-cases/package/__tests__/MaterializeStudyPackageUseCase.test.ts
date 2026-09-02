@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
-import type { LibraryRepository } from '../../../../domain/library/LibraryRepository';
-import type { DocumentContentRepository } from '../../../../domain/reader/DocumentContentRepository';
-import type { QuestionRepository } from '../../../../domain/quiz/QuestionRepository';
-import type { QuizRepository } from '../../../../domain/quiz/QuizRepository';
-import type { ImportAssetRepository } from '../../../../domain/importer/ImportAssetRepository';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { DocumentContentRepository } from '../../../../domain/reader/repositories/DocumentContentRepository';
+import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
+import type { QuizRepository } from '../../../../domain/quiz/repositories/QuizRepository';
+import type { ImportAssetRepository } from '../../../../domain/importer/repositories/ImportAssetRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 
 describe('MaterializeStudyPackageUseCase', () => {
     const mockMaterial: StudyMaterial = {

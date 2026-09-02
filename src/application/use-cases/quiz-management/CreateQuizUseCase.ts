@@ -1,6 +1,6 @@
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { CreateQuizInput, QuizRepository } from '../../../domain/quiz/QuizRepository';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { CreateQuizInput, QuizRepository } from '../../../domain/quiz/repositories/QuizRepository';
 
 export class CreateQuizUseCase {
     private readonly quizzes: QuizRepository;

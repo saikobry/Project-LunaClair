@@ -1,8 +1,8 @@
 /**
  * Application use case to fetch and validate a published StudyPackage from the cloud.
  */
-import type { PublishedShare, ShareTransport } from '../../../domain/sharing/sharing.types';
-import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
+import type { PublishedShare, ShareTransport } from '../../../domain/sharing/models/sharing.types';
+import { validateStudyPackage } from '../../../domain/package/engines/validateStudyPackage';
 
 export interface FetchPublishedShareInput {
   shareId: string;

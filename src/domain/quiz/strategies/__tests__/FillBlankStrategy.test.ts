@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FillBlankStrategy } from '../FillBlankStrategy';
-import type { Question } from '../../Question';
+import type { Question } from '../../models/Question';
 
 describe('FillBlankStrategy', () => {
     const strategy = new FillBlankStrategy();

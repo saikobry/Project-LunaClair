@@ -1,6 +1,6 @@
-import type { HighlightItem, DrawingPath } from '../../../domain/reader';
-import type { AnnotationRepository } from '../../../domain/reader/AnnotationRepository';
-import type { SyncQueueItem } from '../../../domain/sync/sync.types';
+import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
+import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
+import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { db, type HighlightRecord, type DrawingRecord } from '../LunaClairDatabase';
 
 export class DexieAnnotationRepository implements AnnotationRepository {

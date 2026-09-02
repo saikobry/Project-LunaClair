@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { useExportStudyPackage } from '../useExportStudyPackage';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 import * as fileDownloadUtils from '../../../../shared/utils/fileDownload';
 
 const showToastMock = vi.fn();

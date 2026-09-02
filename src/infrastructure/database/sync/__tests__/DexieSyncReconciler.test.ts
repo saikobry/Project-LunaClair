@@ -4,12 +4,7 @@ import Dexie from 'dexie';
 import { DB_NAME } from '../../schema';
 import { LunaClairDatabase } from '../../LunaClairDatabase';
 import { DexieSyncReconciler } from '../DexieSyncReconciler';
-import type {
-  SyncPullResponse,
-  SyncPushRequest,
-  SyncPushResponse,
-  SyncQueueItem,
-} from '../../../../domain/sync';
+import type { SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncQueueItem } from '../../../../domain/sync/models/sync.types';
 
 describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
   let testDb: LunaClairDatabase;

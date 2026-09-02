@@ -1,13 +1,13 @@
-import type { AiService } from '../../../domain/ai/AiService';
-import type { AiChatRepository } from '../../../domain/ai/AiChatRepository';
+import type { AiService } from '../../../domain/ai/services/AiService';
+import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
 import type {
   AiChatMessage,
   AiMessageRecord,
   AiStreamEvent,
   AiTutorMode,
   AiUsage,
-} from '../../../domain/ai/ai.types';
-import { AiContextBuilder } from '../../../domain/ai/AiContextBuilder';
+} from '../../../domain/ai/models/ai.types';
+import { AiContextBuilder } from '../../../domain/ai/context/AiContextBuilder';
 
 export interface SendChatMessageInput {
   /** Optional ID of the thread to auto-persist user and assistant message turns. */

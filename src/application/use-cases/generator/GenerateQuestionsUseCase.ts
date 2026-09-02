@@ -1,10 +1,10 @@
-import type { AiService } from '../../../domain/ai/AiService';
+import type { AiService } from '../../../domain/ai/services/AiService';
 import type {
   GenerateQuestionsRequest,
   GeneratedQuestionDraft,
-} from '../../../domain/generator/generator.types';
+} from '../../../domain/generator/models/generator.types';
 import { validateQuestionsDraftArray } from '../../../domain/generator/validation/questionDraftValidation';
-import { extractSectionContext } from '../../../domain/ai/extractSectionContext';
+import { extractSectionContext } from '../../../domain/ai/context/extractSectionContext';
 
 export class GenerateQuestionsUseCase {
   private readonly aiService: AiService;

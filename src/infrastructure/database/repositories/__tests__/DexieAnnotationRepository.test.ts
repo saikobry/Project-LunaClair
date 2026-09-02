@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../LunaClairDatabase';
 import { DexieAnnotationRepository } from '../DexieAnnotationRepository';
-import type { HighlightItem, DrawingPath } from '../../../../domain/reader';
+import type { HighlightItem, DrawingPath } from '../../../../domain/reader/models/annotation.types';
 
 describe('DexieAnnotationRepository Tombstone Filtering', () => {
     let repo: DexieAnnotationRepository;

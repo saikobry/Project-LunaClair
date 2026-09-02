@@ -5,7 +5,7 @@ import { useToast } from '../../../../app/providers/ToastContext';
 import type { QuizDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
 import { createEmptyQuizDraft, createQuizDraftFromQuiz } from '../../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizDraftErrors } from '../../../../application/quiz-management/drafts/quizDraftValidation';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { Question } from '../../../../domain/quiz/models/Question';
 import { useDraftAutosave, type DraftAutosaveStatus } from '../../../../shared/hooks/useDraftAutosave';
 import { useQuizCanvas, type QuizCanvas } from './useQuizCanvas';
 

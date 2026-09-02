@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UpdateDocumentContentUseCase } from '../UpdateDocumentContentUseCase';
-import type { DocumentContentRepository } from '../../../../domain/reader/DocumentContentRepository';
+import type { DocumentContentRepository } from '../../../../domain/reader/repositories/DocumentContentRepository';
 
 describe('UpdateDocumentContentUseCase', () => {
     it('updates markdown content record in documentContentRepository', async () => {

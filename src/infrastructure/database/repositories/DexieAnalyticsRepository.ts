@@ -1,13 +1,13 @@
-import type { AnalyticsRepository } from '../../../domain/analytics/AnalyticsRepository';
+import type { AnalyticsRepository } from '../../../domain/analytics/repositories/AnalyticsRepository';
 import type {
     GlobalAnalytics,
     SubjectMastery,
     MaterialAnalytics,
-} from '../../../domain/analytics/analytics.types';
-import { computeStudyOverview } from '../../../domain/analytics/overviewEngine';
-import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/retentionEngine';
-import { computeSubjectMasteries, computeTopicMastery } from '../../../domain/analytics/masteryEngine';
-import { buildActivityCalendar } from '../../../domain/analytics/activityEngine';
+} from '../../../domain/analytics/models/analytics.types';
+import { computeStudyOverview } from '../../../domain/analytics/engines/overviewEngine';
+import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/engines/retentionEngine';
+import { computeSubjectMasteries, computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
+import { buildActivityCalendar } from '../../../domain/analytics/engines/activityEngine';
 import { db } from '../LunaClairDatabase';
 
 export class DexieAnalyticsRepository implements AnalyticsRepository {

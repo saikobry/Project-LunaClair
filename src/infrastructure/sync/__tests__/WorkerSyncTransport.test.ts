@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  SyncHttpError,
-  SyncNetworkError,
-  SyncProtocolError,
-  type SessionCredentials,
-  type SyncPullResponse,
-  type SyncPushRequest,
-  type SyncPushResponse,
-} from '../../../domain/sync';
+import { SyncHttpError, SyncNetworkError, SyncProtocolError } from '../../../domain/sync/errors/SyncErrors';
+import { type SessionCredentials, type SyncPullResponse, type SyncPushRequest, type SyncPushResponse } from '../../../domain/sync/models/sync.types';
 import { WorkerSyncTransport } from '../WorkerSyncTransport';
 
 describe('WorkerSyncTransport', () => {

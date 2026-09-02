@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DeletePublishedShareUseCase } from '../DeletePublishedShareUseCase';
-import type { ShareTransport } from '../../../../domain/sharing/sharing.types';
+import type { ShareTransport } from '../../../../domain/sharing/models/sharing.types';
 
 describe('DeletePublishedShareUseCase', () => {
     it('delegates deletion to ShareTransport with shareId and authToken', async () => {

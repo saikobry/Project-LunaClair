@@ -4,7 +4,7 @@ import {
   DEFAULT_SYNC_RETRY_OPTIONS,
   type SyncRetryPolicy,
   type SyncRetryPolicyOptions,
-} from '../../../domain/sync/SyncRetryPolicy';
+} from '../../../domain/sync/policies/SyncRetryPolicy';
 
 export {
   calculateRetryDelay,

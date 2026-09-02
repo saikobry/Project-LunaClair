@@ -3,12 +3,12 @@ import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { ChevronRight } from 'lucide-react';
 import type { QuestionDraft } from '../../../application/quiz-management/drafts/QuizDraft';
-import type { QuestionDifficulty } from '../../../domain/quiz/Question';
+import type { QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import { Button } from '../../../shared/ui/Button/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
-import { mergeTags, normalizeTags, splitTagInput, tagKey } from '../../../domain/quiz/tags';
+import { mergeTags, normalizeTags, splitTagInput, tagKey } from '../../../domain/quiz/utils/tags';
 
 const styles = stylex.create({
     drawerContainer: {

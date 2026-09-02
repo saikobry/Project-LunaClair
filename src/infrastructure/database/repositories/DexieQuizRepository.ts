@@ -1,9 +1,9 @@
-import type { Quiz } from '../../../domain/quiz/Quiz';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type {
     QuizRepository,
     CreateQuizInput,
     UpdateQuizInput,
-} from '../../../domain/quiz/QuizRepository';
+} from '../../../domain/quiz/repositories/QuizRepository';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

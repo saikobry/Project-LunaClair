@@ -1,10 +1,10 @@
-import type { ImporterRegistry, ExtractionOptions } from '../../../domain/importer/ContentImporter';
+import type { ImporterRegistry, ExtractionOptions } from '../../../domain/importer/services/ContentImporter';
 import type {
   ImportCandidate,
   ImportSource,
   ImportError,
   ImportMetadata,
-} from '../../../domain/importer/importer.types';
+} from '../../../domain/importer/models/importer.types';
 import { convertToMarkdown } from '../../../domain/importer/markdownConverter';
 
 export class ExtractContentUseCase {

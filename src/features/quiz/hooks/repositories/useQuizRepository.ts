@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
-import type { QuizRepository } from '../../../../domain/quiz/QuizRepository';
+import type { QuizRepository } from '../../../../domain/quiz/repositories/QuizRepository';
 
 /** DI hook returning the QuizRepository from context. */
 export function useQuizRepository(): QuizRepository {

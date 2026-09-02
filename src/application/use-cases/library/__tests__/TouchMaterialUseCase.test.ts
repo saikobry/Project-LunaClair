@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TouchMaterialUseCase } from '../TouchMaterialUseCase';
-import type { LibraryRepository, UpdateMaterialInput } from '../../../../domain/library/LibraryRepository';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
+import type { LibraryRepository, UpdateMaterialInput } from '../../../../domain/library/repositories/LibraryRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 describe('TouchMaterialUseCase', () => {
     it('updates lastOpenedAt timestamp within current time window', async () => {

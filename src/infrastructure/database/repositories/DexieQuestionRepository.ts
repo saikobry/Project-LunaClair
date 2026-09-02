@@ -1,10 +1,10 @@
-import type { Question } from '../../../domain/quiz/Question';
+import type { Question } from '../../../domain/quiz/models/Question';
 import type {
     QuestionRepository,
     CreateQuestionInput,
     UpdateQuestionInput,
-} from '../../../domain/quiz/QuestionRepository';
-import { normalizeTags } from '../../../domain/quiz/tags';
+} from '../../../domain/quiz/repositories/QuestionRepository';
+import { normalizeTags } from '../../../domain/quiz/utils/tags';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

@@ -37,8 +37,7 @@ Framework-agnostic use cases coordinating domain contracts between React adapter
 ## Work Guidance
 
 - Keep persistence details in repository implementations.
-- Keep grading pure in `AssessmentService`; submission coordinates grading and completion.
-- Testing convention: Strictly one test file per use case (`<UseCaseName>.ts` $\leftrightarrow$ `__tests__/<UseCaseName>.test.ts`). Tests assert application orchestration boundaries, domain invariants, and failure propagation using pure domain port mocks (zero live IndexedDB or network dependencies).
+- **Primary Unit Test Discoverability & Colocation (ADR-012)**: Each application use case has a dedicated, clearly identifiable primary unit-test file named after the use case (`<UseCaseName>.ts` $\leftrightarrow$ `__tests__/<UseCaseName>.test.ts`). Tests assert application orchestration boundaries, domain invariants, and failure propagation using pure domain port mocks (zero live IndexedDB or network dependencies). Supplementary specialized suites are authorized alongside primary unit tests when testing complex interactions.
 
 ## Verification
 

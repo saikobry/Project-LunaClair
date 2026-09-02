@@ -1,4 +1,4 @@
-import type { PageExtraction } from '../importer.types';
+import type { PageExtraction } from '../models/importer.types';
 import { runNormalizationPass } from './normalizationPass';
 import { runPageAnchorPass } from './pageAnchorPass';
 import { runStructurePass } from './structurePass';

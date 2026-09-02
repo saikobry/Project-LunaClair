@@ -1,6 +1,6 @@
-import { assessmentService, type QuizResult } from '../../../domain/quiz/AssessmentService';
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import type { QuizSessionRepository } from '../../../domain/quiz/QuizSessionRepository';
+import { assessmentService, type QuizResult } from '../../../domain/quiz/services/AssessmentService';
+import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { QuizSessionRepository } from '../../../domain/quiz/repositories/QuizSessionRepository';
 
 export interface SubmitQuizSessionInput {
     sessionId: string;

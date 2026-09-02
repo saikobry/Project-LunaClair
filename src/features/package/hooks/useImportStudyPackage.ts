@@ -4,8 +4,8 @@ import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { useToast } from '../../../app/providers/ToastContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { parseJsonFromBlob } from '../../../shared/utils/jsonBlobParser';
-import type { StudyPackage } from '../../../domain/package/package.types';
-import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
+import type { StudyPackage } from '../../../domain/package/models/package.types';
+import { validateStudyPackage } from '../../../domain/package/engines/validateStudyPackage';
 import type { ImportOptions } from '../components/StudyPackagePreviewModal';
 
 export interface UseImportStudyPackageResult {

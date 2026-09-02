@@ -1,12 +1,12 @@
-import type { LocalIdGenerator, StudyPackage } from '../../../domain/package/package.types';
-import { validateStudyPackage } from '../../../domain/package/validateStudyPackage';
-import { remapStudyPackage } from '../../../domain/package/remapStudyPackage';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
+import type { LocalIdGenerator, StudyPackage } from '../../../domain/package/models/package.types';
+import { validateStudyPackage } from '../../../domain/package/engines/validateStudyPackage';
+import { remapStudyPackage } from '../../../domain/package/engines/remapStudyPackage';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type {
   StudyPackageImportService,
   ImportStudyPackageAsset,
-} from '../../../domain/package/StudyPackageImportService';
+} from '../../../domain/package/services/StudyPackageImportService';
 
 export interface ImportStudyPackageInput {
   package: StudyPackage | unknown;

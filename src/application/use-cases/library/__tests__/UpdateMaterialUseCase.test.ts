@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UpdateMaterialUseCase } from '../UpdateMaterialUseCase';
-import type { LibraryRepository } from '../../../../domain/library/LibraryRepository';
-import type { SubjectTermRepository } from '../../../../domain/library/SubjectTermRepository';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 describe('UpdateMaterialUseCase', () => {
     const existingMaterial: StudyMaterial = {

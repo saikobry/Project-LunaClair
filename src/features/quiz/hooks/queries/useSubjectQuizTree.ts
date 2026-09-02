@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../types/quizTree.types';
 import { useLibrary } from '../../../catalog/materials/hooks/queries/useLibrary';
 import { useTerms } from '../../../catalog/terms/hooks/queries/useTerms';

@@ -16,7 +16,7 @@ import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import ReaderScreen from '../../features/reader/ReaderScreen';
 import { AiDrawerToggleButton } from '../../features/ai/components/AiDrawerToggleButton';
-import { extractSectionContext } from '../../domain/ai/extractSectionContext';
+import { extractSectionContext } from '../../domain/ai/context/extractSectionContext';
 import type { SelectionContext } from '../../features/ai/components/AiChatDrawer';
 
 // Lazy load secondary workspace tabs and modals

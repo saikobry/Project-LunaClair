@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AiChatMessage } from '../AiChatMessage';
 import { AiChatMessageList } from '../AiChatMessageList';
-import type { AiMessageRecord } from '../../../../domain/ai/ai.types';
+import type { AiMessageRecord } from '../../../../domain/ai/models/ai.types';
 
 describe('AI Message Rendering & Message List', () => {
   describe('AiChatMessage', () => {

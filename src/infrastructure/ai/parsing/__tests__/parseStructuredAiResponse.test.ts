@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseStructuredAiResponse } from '../parseStructuredAiResponse';
-import { AiGenerationError, type AiStructuredOutputValidator } from '../../../../domain/ai/ai.types';
+import { AiGenerationError, type AiStructuredOutputValidator } from '../../../../domain/ai/models/ai.types';
 
 describe('parseStructuredAiResponse', () => {
   interface SampleItem {

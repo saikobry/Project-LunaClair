@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SaveDrawingUseCase } from '../SaveDrawingUseCase';
-import type { AnnotationRepository } from '../../../../domain/reader/AnnotationRepository';
+import type { AnnotationRepository } from '../../../../domain/reader/repositories/AnnotationRepository';
 
 describe('SaveDrawingUseCase', () => {
     const createMockRepo = (): AnnotationRepository => ({

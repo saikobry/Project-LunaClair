@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { FileQuestion, FileText, PenTool } from 'lucide-react';
-import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
-import type { AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/annotation.types';
+import { DocumentNotFoundError } from '../../domain/reader/errors/DocumentNotFoundError';
+import type { AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/models/annotation.types';
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import { Button } from '../../shared/ui/Button/Button';

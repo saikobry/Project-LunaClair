@@ -1,5 +1,5 @@
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import type { CreateSessionInput, QuizSessionRepository } from '../../../domain/quiz/QuizSessionRepository';
+import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { CreateSessionInput, QuizSessionRepository } from '../../../domain/quiz/repositories/QuizSessionRepository';
 
 export class StartQuizSessionUseCase {
     private readonly sessions: QuizSessionRepository;

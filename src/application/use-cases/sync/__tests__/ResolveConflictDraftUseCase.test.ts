@@ -5,7 +5,7 @@ import { DB_NAME } from '../../../../infrastructure/database/schema';
 import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
 import { DexieConflictDraftRepository } from '../../../../infrastructure/database/sync/DexieConflictDraftRepository';
 import { ResolveConflictDraftUseCase } from '../ResolveConflictDraftUseCase';
-import type { ConflictDraft } from '../../../../domain/sync';
+import type { ConflictDraft } from '../../../../domain/sync/models/sync.types';
 
 describe('ResolveConflictDraftUseCase', () => {
     let testDb: LunaClairDatabase;

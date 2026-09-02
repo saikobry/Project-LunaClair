@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TrueFalseStrategy } from '../TrueFalseStrategy';
-import type { Question } from '../../Question';
+import type { Question } from '../../models/Question';
 
 describe('TrueFalseStrategy', () => {
     const strategy = new TrueFalseStrategy();

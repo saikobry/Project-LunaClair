@@ -1,5 +1,5 @@
-import type { AnalyticsRepository } from '../../../domain/analytics/AnalyticsRepository';
-import type { MaterialAnalytics } from '../../../domain/analytics/analytics.types';
+import type { AnalyticsRepository } from '../../../domain/analytics/repositories/AnalyticsRepository';
+import type { MaterialAnalytics } from '../../../domain/analytics/models/analytics.types';
 
 export class GetMaterialAnalyticsUseCase {
     private readonly analytics: AnalyticsRepository;

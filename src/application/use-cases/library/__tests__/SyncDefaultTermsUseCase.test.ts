@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SyncDefaultTermsUseCase } from '../SyncDefaultTermsUseCase';
-import type { CatalogRepository, CatalogSnapshot } from '../../../../domain/library/CatalogRepository';
-import type { TermRepository } from '../../../../domain/library/TermRepository';
-import type { Term } from '../../../../domain/library/Term';
+import type { CatalogRepository, CatalogSnapshot } from '../../../../domain/library/repositories/CatalogRepository';
+import type { TermRepository } from '../../../../domain/library/repositories/TermRepository';
+import type { Term } from '../../../../domain/library/models/Term';
 
 describe('SyncDefaultTermsUseCase', () => {
     const catalogPrelim: Term = {

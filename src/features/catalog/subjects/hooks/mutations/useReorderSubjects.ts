@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../../../app/providers/ApplicationContext';
-import type { Subject } from '../../../../../domain/library';
+import type { Subject } from '../../../../../domain/library/models/Subject';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { useToast } from '../../../../../app/providers/ToastContext';
 import { useContextOrThrow } from '../../../../../shared/utils/contextGuard';

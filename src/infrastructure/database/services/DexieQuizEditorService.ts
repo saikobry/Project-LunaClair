@@ -1,11 +1,11 @@
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz, QuizQuestion } from '../../../domain/quiz/Quiz';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz, QuizQuestion } from '../../../domain/quiz/models/Quiz';
 import type {
     QuizEditorService,
     SaveQuizToRepositoryInput,
     SaveQuizToRepositoryResult,
-} from '../../../domain/quiz/QuizEditorService';
-import { normalizeTags } from '../../../domain/quiz/tags';
+} from '../../../domain/quiz/services/QuizEditorService';
+import { normalizeTags } from '../../../domain/quiz/utils/tags';
 import { db } from '../LunaClairDatabase';
 
 function generateQuestionId(): string {

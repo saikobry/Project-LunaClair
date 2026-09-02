@@ -1,5 +1,5 @@
-import type { DocumentSyncPayload } from '../SyncEntities';
-import type { ConflictDraft, EntityVersion, SyncMutation, SyncQueueItem } from '../sync.types';
+import type { DocumentSyncPayload } from '../models/SyncEntities';
+import type { ConflictDraft, EntityVersion, SyncMutation, SyncQueueItem } from '../models/sync.types';
 
 export interface LocalDocumentState {
   documentId: string;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PublishQuestionUseCase } from '../PublishQuestionUseCase';
-import type { QuestionRepository } from '../../../../domain/quiz/QuestionRepository';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
+import type { Question } from '../../../../domain/quiz/models/Question';
 
 describe('PublishQuestionUseCase', () => {
     const mockQuestion: Question = {

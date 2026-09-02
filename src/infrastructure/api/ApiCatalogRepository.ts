@@ -2,7 +2,7 @@ import type {
     CatalogRepository,
     CatalogSnapshot,
     MaterialResolution,
-} from '../../domain/library/CatalogRepository';
+} from '../../domain/library/repositories/CatalogRepository';
 
 /**
  * Concrete implementation of `CatalogRepository` backed by the LunaClair API.

@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import type { CardMaturityBreakdown } from '../../../../domain/analytics/analytics.types';
+import type { CardMaturityBreakdown } from '../../../../domain/analytics/models/analytics.types';
 import { Card } from '../../../../shared/ui/Card/Card';
 
 const styles = stylex.create({

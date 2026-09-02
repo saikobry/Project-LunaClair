@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
-import type { Question } from '../../../../domain/quiz/Question';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
+import type { Question } from '../../../../domain/quiz/models/Question';
 import type { QuizLaunchRequest } from '../../types/quizFeature.types';
-import { createVirtualQuizFromQuizzes } from '../../../../domain/quiz/virtualQuiz';
+import { createVirtualQuizFromQuizzes } from '../../../../domain/quiz/factories/virtualQuiz';
 import { useQuizRepository } from '../repositories/useQuizRepository';
 import { useQuestionRepository } from '../repositories/useQuestionRepository';
 import { assessmentQueryKeys } from '../../queries/assessmentQueryKeys';

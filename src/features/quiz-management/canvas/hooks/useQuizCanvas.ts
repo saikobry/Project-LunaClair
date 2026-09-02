@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import type { QuizDraft, QuestionDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
 import { makeDraftTempId } from '../../../../application/quiz-management/drafts/QuizDraft';
-import type { Question } from '../../../../domain/quiz/Question';
-import type { QuestionType } from '../../../../domain/quiz/QuestionType';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import type { QuestionType } from '../../../../domain/quiz/models/QuestionType';
 import { createDefaultPayload } from '../../editors/QuestionEditorRegistry';
 
 /**

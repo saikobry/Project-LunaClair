@@ -1,5 +1,5 @@
-import type { Question } from '../Question';
-import type { TrueFalsePayload } from '../AnswerPayload';
+import type { Question } from '../models/Question';
+import type { TrueFalsePayload } from '../models/AnswerPayload';
 import type { QuestionStrategy, GradeResult } from './QuestionStrategy';
 
 export class TrueFalseStrategy implements QuestionStrategy {

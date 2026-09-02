@@ -4,7 +4,7 @@ import type {
     SyncEntityType,
     SyncOperation,
     SyncQueueItem,
-} from '../../../domain/sync/sync.types';
+} from '../../../domain/sync/models/sync.types';
 
 export interface SyncableMutationInput<TPayload> {
     entityType: SyncEntityType;

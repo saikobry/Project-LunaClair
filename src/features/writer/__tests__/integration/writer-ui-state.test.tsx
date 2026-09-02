@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { MaterialWriterTab } from '../../components/MaterialWriterTab';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
-import type { Document } from '../../../../domain/reader/Document';
-import type { DocumentContentRepository, ImportedDocumentContent } from '../../../../domain/reader/DocumentContentRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Document } from '../../../../domain/reader/models/Document';
+import type { DocumentContentRepository, ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import { UpdateDocumentContentUseCase } from '../../../../application/use-cases/content/UpdateDocumentContentUseCase';
 import { HybridDocumentRepository } from '../../../../infrastructure/api/HybridDocumentRepository';
 

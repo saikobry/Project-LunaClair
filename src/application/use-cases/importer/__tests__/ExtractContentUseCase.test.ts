@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ExtractContentUseCase } from '../ExtractContentUseCase';
-import type { ImporterRegistry, ContentImporter } from '../../../../domain/importer/ContentImporter';
-import type { ExtractionResult } from '../../../../domain/importer/importer.types';
+import type { ImporterRegistry, ContentImporter } from '../../../../domain/importer/services/ContentImporter';
+import type { ExtractionResult } from '../../../../domain/importer/models/importer.types';
 
 describe('ExtractContentUseCase', () => {
     it('extracts content and converts to markdown', async () => {

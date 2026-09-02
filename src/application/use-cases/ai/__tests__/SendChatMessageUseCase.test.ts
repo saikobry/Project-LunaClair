@@ -4,7 +4,7 @@ import { SendChatMessageUseCase } from '../SendChatMessageUseCase';
 import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
 import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
-import type { AiStreamEvent } from '../../../../domain/ai/ai.types';
+import type { AiStreamEvent } from '../../../../domain/ai/models/ai.types';
 
 describe('SendChatMessageUseCase', () => {
   let db: LunaClairDatabase;

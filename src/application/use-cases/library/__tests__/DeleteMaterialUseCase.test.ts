@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DeleteMaterialUseCase } from '../DeleteMaterialUseCase';
-import type { LibraryRepository } from '../../../../domain/library/LibraryRepository';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
 
 describe('DeleteMaterialUseCase', () => {
     it('delegates deletion to LibraryRepository', async () => {

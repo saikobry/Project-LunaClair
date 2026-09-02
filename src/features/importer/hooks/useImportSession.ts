@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ImportSession, ImportCandidate } from '../../../domain/importer/importer.types';
+import type { ImportSession, ImportCandidate } from '../../../domain/importer/models/importer.types';
 import { useImporterContext } from './useImporterContext';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import { catalogQueryKeys } from '../../catalog/queries/catalogQueryKeys';
 
 export function useImportSession() {

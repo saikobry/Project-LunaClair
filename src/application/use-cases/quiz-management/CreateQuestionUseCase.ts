@@ -1,5 +1,5 @@
-import type { Question } from '../../../domain/quiz/Question';
-import type { CreateQuestionInput, QuestionRepository } from '../../../domain/quiz/QuestionRepository';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { CreateQuestionInput, QuestionRepository } from '../../../domain/quiz/repositories/QuestionRepository';
 
 export class CreateQuestionUseCase {
     private readonly questions: QuestionRepository;

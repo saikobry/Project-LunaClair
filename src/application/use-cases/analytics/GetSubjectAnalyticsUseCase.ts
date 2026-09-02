@@ -1,5 +1,5 @@
-import type { AnalyticsRepository } from '../../../domain/analytics/AnalyticsRepository';
-import type { SubjectMastery } from '../../../domain/analytics/analytics.types';
+import type { AnalyticsRepository } from '../../../domain/analytics/repositories/AnalyticsRepository';
+import type { SubjectMastery } from '../../../domain/analytics/models/analytics.types';
 
 export class GetSubjectAnalyticsUseCase {
     private readonly analytics: AnalyticsRepository;

@@ -1,4 +1,4 @@
-import type { AiService } from '../../domain/ai/AiService';
+import type { AiService } from '../../domain/ai/services/AiService';
 import {
   AiGenerationError,
   type AiChatMessage,
@@ -6,7 +6,7 @@ import {
   type AiStreamEvent,
   type AiGenerationRequest,
   type AiStructuredOutputValidator,
-} from '../../domain/ai/ai.types';
+} from '../../domain/ai/models/ai.types';
 import { parseStructuredAiResponse } from './parsing/parseStructuredAiResponse';
 
 export interface WorkerAiAdapterOptions {

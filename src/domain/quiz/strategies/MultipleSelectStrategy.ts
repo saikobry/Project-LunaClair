@@ -1,5 +1,5 @@
-import type { Question } from '../Question';
-import type { MultipleSelectPayload } from '../AnswerPayload';
+import type { Question } from '../models/Question';
+import type { MultipleSelectPayload } from '../models/AnswerPayload';
 import type { QuestionStrategy, GradeResult } from './QuestionStrategy';
 
 export class MultipleSelectStrategy implements QuestionStrategy {

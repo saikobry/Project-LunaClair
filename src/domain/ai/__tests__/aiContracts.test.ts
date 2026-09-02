@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { AiChatMessage, AiChatRequest, AiStreamEvent } from '../ai.types';
-import type { AiService } from '../AiService';
+import type { AiChatMessage, AiChatRequest, AiStreamEvent } from '../models/ai.types';
+import type { AiService } from '../services/AiService';
 
 describe('AI Domain Contracts', () => {
   it('instantiates valid domain chat request and messages', () => {

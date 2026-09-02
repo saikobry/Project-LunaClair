@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useImportStudyPackage } from '../useImportStudyPackage';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../../app/providers/ToastContext';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('useImportStudyPackage', () => {
   const mockValidPackage: StudyPackage = {

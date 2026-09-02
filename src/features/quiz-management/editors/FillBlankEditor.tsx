@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import type { FillBlankPayload } from '../../../domain/quiz/AnswerPayload';
+import type { FillBlankPayload } from '../../../domain/quiz/models/AnswerPayload';
 import { Input } from '../../../shared/ui/Input';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 

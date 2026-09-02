@@ -1,11 +1,11 @@
-import type { QuizSession } from '../../../domain/quiz/QuizSession';
-import type { SubmittedAnswer } from '../../../domain/quiz/Answer';
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
+import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { SubmittedAnswer } from '../../../domain/quiz/models/Answer';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type {
     QuizSessionRepository,
     CreateSessionInput,
-} from '../../../domain/quiz/QuizSessionRepository';
+} from '../../../domain/quiz/repositories/QuizSessionRepository';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { analyticsQueryKeys } from '../../queries/analyticsQueryKeys';
-import type { GlobalAnalytics } from '../../../../domain/analytics/analytics.types';
+import type { GlobalAnalytics } from '../../../../domain/analytics/models/analytics.types';
 
 export function useGlobalAnalytics() {
     const context = useContextOrThrow(ApplicationContext, 'useGlobalAnalytics');

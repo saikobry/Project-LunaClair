@@ -1,20 +1,20 @@
-import type { DocumentRepository } from '../../domain/reader/DocumentRepository';
-import type { CatalogRepository } from '../../domain/library/CatalogRepository';
-import type { QuizContentRepository } from '../../domain/quiz/QuizContentRepository';
-import type { DocumentContentRepository } from '../../domain/reader/DocumentContentRepository';
-import type { AnnotationRepository } from '../../domain/reader/AnnotationRepository';
-import type { LibraryRepository } from '../../domain/library/LibraryRepository';
-import type { QuestionRepository } from '../../domain/quiz/QuestionRepository';
-import type { QuizRepository } from '../../domain/quiz/QuizRepository';
-import type { QuizSessionRepository } from '../../domain/quiz/QuizSessionRepository';
-import type { SubjectRepository } from '../../domain/library/SubjectRepository';
-import type { TermRepository } from '../../domain/library/TermRepository';
-import type { SubjectTermRepository } from '../../domain/library/SubjectTermRepository';
+import type { DocumentRepository } from '../../domain/reader/repositories/DocumentRepository';
+import type { CatalogRepository } from '../../domain/library/repositories/CatalogRepository';
+import type { QuizContentRepository } from '../../domain/quiz/repositories/QuizContentRepository';
+import type { DocumentContentRepository } from '../../domain/reader/repositories/DocumentContentRepository';
+import type { AnnotationRepository } from '../../domain/reader/repositories/AnnotationRepository';
+import type { LibraryRepository } from '../../domain/library/repositories/LibraryRepository';
+import type { QuestionRepository } from '../../domain/quiz/repositories/QuestionRepository';
+import type { QuizRepository } from '../../domain/quiz/repositories/QuizRepository';
+import type { QuizSessionRepository } from '../../domain/quiz/repositories/QuizSessionRepository';
+import type { SubjectRepository } from '../../domain/library/repositories/SubjectRepository';
+import type { TermRepository } from '../../domain/library/repositories/TermRepository';
+import type { SubjectTermRepository } from '../../domain/library/repositories/SubjectTermRepository';
 import type { QuizDraftRepository } from '../../application/quiz-management/drafts/QuizDraftRepository';
-import type { FlashcardReviewRepository } from '../../domain/flashcards/FlashcardReviewRepository';
-import type { AnalyticsRepository } from '../../domain/analytics/AnalyticsRepository';
-import type { AiChatRepository } from '../../domain/ai/AiChatRepository';
-import type { ImportAssetRepository } from '../../domain/importer/ImportAssetRepository';
+import type { FlashcardReviewRepository } from '../../domain/flashcards/repositories/FlashcardReviewRepository';
+import type { AnalyticsRepository } from '../../domain/analytics/repositories/AnalyticsRepository';
+import type { AiChatRepository } from '../../domain/ai/repositories/AiChatRepository';
+import type { ImportAssetRepository } from '../../domain/importer/repositories/ImportAssetRepository';
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
@@ -57,7 +57,7 @@ import type { DexieLibraryImportService } from '../../infrastructure/database/se
 import type { WorkerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
 import type { WorkerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
 import type { LocalStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
-import type { ImporterRegistry } from '../../domain/importer/ContentImporter';
+import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 
 /**

@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter, Sparkles } from 'lucide-react';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
-import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/Question';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/QuestionRepository';
+import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input/Input';
 import { Card } from '../../../shared/ui/Card/Card';
@@ -248,7 +248,7 @@ const STATUS_RANK: Record<string, number> = { published: 0, draft: 1, archived: 
 
 interface QuestionBankTabProps {
     questions: Question[];
-    quizzes?: import('../../../domain/quiz/Quiz').Quiz[];
+    quizzes?: import('../../../domain/quiz/models/Quiz').Quiz[];
     materialId: string;
     materialTitle?: string;
     documentMarkdown?: string;

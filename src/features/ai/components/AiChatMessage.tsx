@@ -6,7 +6,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
 import { Bot, User, AlertCircle, RotateCcw } from 'lucide-react';
-import type { AiMessageRecord } from '../../../domain/ai/ai.types';
+import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { aiSanitizeSchema } from '../lib/aiMarkdown';
 import { AiStreamingIndicator } from './AiStreamingIndicator';
 

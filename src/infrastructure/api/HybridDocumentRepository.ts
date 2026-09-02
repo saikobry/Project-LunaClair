@@ -1,8 +1,8 @@
-import type { StudyMaterial } from '../../domain/library/StudyMaterial';
-import type { Document } from '../../domain/reader/Document';
-import type { DocumentRepository } from '../../domain/reader/DocumentRepository';
-import type { DocumentContentRepository } from '../../domain/reader/DocumentContentRepository';
-import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
+import type { StudyMaterial } from '../../domain/library/models/StudyMaterial';
+import type { Document } from '../../domain/reader/models/Document';
+import type { DocumentRepository } from '../../domain/reader/repositories/DocumentRepository';
+import type { DocumentContentRepository } from '../../domain/reader/repositories/DocumentContentRepository';
+import { DocumentNotFoundError } from '../../domain/reader/errors/DocumentNotFoundError';
 
 /**
  * `DocumentRepository` that serves imported document content from Dexie first

@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { usePublishStudyPackage } from '../usePublishStudyPackage';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import type { PublishShareResult } from '../../../../domain/sharing/sharing.types';
+import type { PublishShareResult } from '../../../../domain/sharing/models/sharing.types';
 
 const showToastMock = vi.fn();
 vi.mock('../../../../app/providers/ToastContext', () => ({

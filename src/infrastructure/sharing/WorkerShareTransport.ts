@@ -6,8 +6,8 @@ import type {
   PublishShareOptions,
   PublishShareResult,
   ShareTransport,
-} from '../../domain/sharing/sharing.types';
-import type { StudyPackage } from '../../domain/package/package.types';
+} from '../../domain/sharing/models/sharing.types';
+import type { StudyPackage } from '../../domain/package/models/package.types';
 
 export class ShareNetworkError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -220,9 +220,9 @@ export class WorkerShareTransport implements ShareTransport {
   }
 
   async listPublicShares(
-    params: import('../../domain/sharing/sharing.types').ListPublicSharesParams = {},
+    params: import('../../domain/sharing/models/sharing.types').ListPublicSharesParams = {},
     signal?: AbortSignal,
-  ): Promise<import('../../domain/sharing/sharing.types').ListPublicSharesResult> {
+  ): Promise<import('../../domain/sharing/models/sharing.types').ListPublicSharesResult> {
     const searchParams = new URLSearchParams();
     if (params.q) searchParams.set('q', params.q);
     if (params.sort) searchParams.set('sort', params.sort);
@@ -265,7 +265,7 @@ export class WorkerShareTransport implements ShareTransport {
       throw new ShareHttpError(response.status, message, errorBody);
     }
 
-    return (await response.json()) as import('../../domain/sharing/sharing.types').ListPublicSharesResult;
+    return (await response.json()) as import('../../domain/sharing/models/sharing.types').ListPublicSharesResult;
   }
 }
 

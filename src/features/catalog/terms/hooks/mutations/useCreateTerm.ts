@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../../../app/providers/ApplicationContext';
-import type { CreateTermInput } from '../../../../../domain/library';
+import type { CreateTermInput } from '../../../../../domain/library/repositories/TermRepository';
 import { catalogQueryKeys } from '../../../queries/catalogQueryKeys';
 import { useToast } from '../../../../../app/providers/ToastContext';
 import { useContextOrThrow } from '../../../../../shared/utils/contextGuard';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type RefObject } from 'react';
-import type { HighlightItem, AnnotationMode } from '../../../domain/reader';
+import type { HighlightItem, AnnotationMode } from '../../../domain/reader/models/annotation.types';
 import { getOffsetsOfRange } from '../utils/selection';
 import type { PopoverState } from '../types';
 

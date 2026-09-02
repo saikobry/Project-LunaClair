@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StudyPackagePreviewModal, type ImportOptions } from '../StudyPackagePreviewModal';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import type { StudyPackage } from '../../../../domain/package/package.types';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
 describe('StudyPackagePreviewModal', () => {
   const mockPackage: StudyPackage = {

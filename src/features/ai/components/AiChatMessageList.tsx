@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowDown, Bot, Sparkles, HelpCircle, BookOpen, Lightbulb } from 'lucide-react';
-import type { AiMessageRecord } from '../../../domain/ai/ai.types';
+import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { AiChatMessage } from './AiChatMessage';
 import { useAiAutoScroll } from '../hooks/useAiAutoScroll';
 

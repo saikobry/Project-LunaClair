@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { useToast } from '../../../app/providers/ToastContext';
-import { serializePackageToBlob } from '../../../domain/package/StudyPackageSerializer';
+import { serializePackageToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 
 export interface UseExportStudyPackageOptions {

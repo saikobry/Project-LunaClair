@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RecordFlashcardReviewUseCase } from '../RecordFlashcardReviewUseCase';
-import type { FlashcardReviewRepository } from '../../../../domain/flashcards/FlashcardReviewRepository';
-import type { ReviewState } from '../../../../domain/flashcards/scheduler';
+import type { FlashcardReviewRepository } from '../../../../domain/flashcards/repositories/FlashcardReviewRepository';
+import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
 
 describe('RecordFlashcardReviewUseCase', () => {
     const fixedNow = new Date('2026-09-01T12:00:00.000Z');

@@ -1,4 +1,4 @@
-import type { Question } from '../../../domain/quiz/Question';
+import type { Question } from '../../../domain/quiz/models/Question';
 
 interface TrueFalseQuestionProps {
     question: Question;

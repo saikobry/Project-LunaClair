@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GenerateQuestionsUseCase } from '../GenerateQuestionsUseCase';
 import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
-import type { GeneratedQuestionDraft } from '../../../../domain/generator/generator.types';
+import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
 
 describe('GenerateQuestionsUseCase', () => {
   const sampleMaterialMarkdown = `

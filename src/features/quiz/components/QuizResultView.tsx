@@ -3,8 +3,8 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import * as stylex from '@stylexjs/stylex';
 import { RotateCcw, CheckCircle2, XCircle, LayoutGrid, Home } from 'lucide-react';
-import type { Question } from '../../../domain/quiz/Question';
-import type { QuizResult } from '../../../domain/quiz/AssessmentService';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { QuizResult } from '../../../domain/quiz/services/AssessmentService';
 import { Button } from '../../../shared/ui/Button/Button';
 
 const styles = stylex.create({

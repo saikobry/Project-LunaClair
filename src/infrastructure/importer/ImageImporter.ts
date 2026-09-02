@@ -1,5 +1,5 @@
-import type { ContentImporter, ExtractionOptions } from '../../domain/importer/ContentImporter';
-import type { ExtractionResult } from '../../domain/importer/importer.types';
+import type { ContentImporter, ExtractionOptions } from '../../domain/importer/services/ContentImporter';
+import type { ExtractionResult } from '../../domain/importer/models/importer.types';
 import type { TesseractExtractor } from './TesseractExtractor';
 
 export class ImageImporter implements ContentImporter {

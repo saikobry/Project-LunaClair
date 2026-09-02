@@ -1,7 +1,7 @@
-import type { Question, QuestionDifficulty } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
+import type { Question, QuestionDifficulty } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
 
 /**
  * Application Session DTOs for the quiz canvas authoring workflow.

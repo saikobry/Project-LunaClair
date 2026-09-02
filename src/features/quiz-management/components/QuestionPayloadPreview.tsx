@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import type { QuestionAnswerPayload } from '../../../domain/quiz/AnswerPayload';
+import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
 
 const styles = stylex.create({
     detailLabel: {

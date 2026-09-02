@@ -1,8 +1,8 @@
-import type { LibraryRepository, CreateMaterialInput } from '../../../domain/library/LibraryRepository';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { DocumentContentRepository, ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
-import type { ImportAssetRepository, ImportedAsset } from '../../../domain/importer/ImportAssetRepository';
-import type { ImportMetadata } from '../../../domain/importer/importer.types';
+import type { LibraryRepository, CreateMaterialInput } from '../../../domain/library/repositories/LibraryRepository';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { DocumentContentRepository, ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { ImportAssetRepository, ImportedAsset } from '../../../domain/importer/repositories/ImportAssetRepository';
+import type { ImportMetadata } from '../../../domain/importer/models/importer.types';
 
 export interface CommitImportInput {
   /** User-reviewed title */

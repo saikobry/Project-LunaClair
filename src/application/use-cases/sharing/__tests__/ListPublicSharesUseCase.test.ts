@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ListPublicSharesUseCase } from '../ListPublicSharesUseCase';
-import type { ShareTransport } from '../../../../domain/sharing/sharing.types';
+import type { ShareTransport } from '../../../../domain/sharing/models/sharing.types';
 
 describe('ListPublicSharesUseCase', () => {
     it('calls shareTransport.listPublicShares with search/filter parameters', async () => {

@@ -1,9 +1,9 @@
-import type { Term } from '../../../domain/library/Term';
-import type { SubjectTerm } from '../../../domain/library/SubjectTerm';
+import type { Term } from '../../../domain/library/models/Term';
+import type { SubjectTerm } from '../../../domain/library/models/SubjectTerm';
 import type {
     TermService,
     CreateAndAssignTermResult,
-} from '../../../domain/library/TermService';
+} from '../../../domain/library/services/TermService';
 import { db } from '../LunaClairDatabase';
 
 function generateId(): string {

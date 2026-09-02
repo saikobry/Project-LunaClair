@@ -1,5 +1,5 @@
 import type { SyncQueueRepository } from '../../../domain/sync/repositories/SyncQueueRepository';
-import type { SyncQueueItem, SyncStatus } from '../../../domain/sync/sync.types';
+import type { SyncQueueItem, SyncStatus } from '../../../domain/sync/models/sync.types';
 import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 
 /**

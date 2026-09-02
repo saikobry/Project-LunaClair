@@ -1,9 +1,9 @@
-import type { AiChatRepository } from '../../../domain/ai/AiChatRepository';
+import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
 import type {
   AiMessageRecord,
   AiThread,
   AiTutorMode,
-} from '../../../domain/ai/ai.types';
+} from '../../../domain/ai/models/ai.types';
 import { db, type LunaClairDatabase } from '../LunaClairDatabase';
 
 /**

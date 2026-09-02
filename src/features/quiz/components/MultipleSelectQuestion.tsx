@@ -1,5 +1,5 @@
-import type { Question } from '../../../domain/quiz/Question';
-import type { MultipleSelectPayload } from '../../../domain/quiz/AnswerPayload';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { MultipleSelectPayload } from '../../../domain/quiz/models/AnswerPayload';
 
 interface MultipleSelectQuestionProps {
     question: Question;

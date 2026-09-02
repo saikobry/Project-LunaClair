@@ -1,4 +1,4 @@
-import type { QuizSessionRepository } from '../../../domain/quiz/QuizSessionRepository';
+import type { QuizSessionRepository } from '../../../domain/quiz/repositories/QuizSessionRepository';
 
 export class AbandonQuizSessionUseCase {
     private readonly sessions: QuizSessionRepository;

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApplicationContext, type ApplicationContextValue } from '../../../app/providers/ApplicationContext';
 import { AnalyticsScreen } from '../AnalyticsScreen';
-import type { GlobalAnalytics } from '../../../domain/analytics/analytics.types';
+import type { GlobalAnalytics } from '../../../domain/analytics/models/analytics.types';
 
 describe('AnalyticsScreen Component & UI State Tests', () => {
     let queryClient: QueryClient;

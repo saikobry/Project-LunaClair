@@ -1,8 +1,8 @@
 import { useContext } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/QuizRepository';
-import type { Question } from '../../../domain/quiz/Question';
+import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/repositories/QuizRepository';
+import type { Question } from '../../../domain/quiz/models/Question';
 
 /**
  * Hook managing quiz creation/editing, version pinning, and question associations.

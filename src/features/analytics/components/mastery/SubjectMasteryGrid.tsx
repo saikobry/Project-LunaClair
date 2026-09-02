@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import type { SubjectMastery } from '../../../../domain/analytics/analytics.types';
+import type { SubjectMastery } from '../../../../domain/analytics/models/analytics.types';
 import { SubjectMasteryCard } from './SubjectMasteryCard';
 
 const styles = stylex.create({

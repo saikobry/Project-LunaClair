@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
-import type { QuestionType } from '../../../domain/quiz/QuestionType';
-import type { QuestionDifficulty } from '../../../domain/quiz/Question';
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import type { QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import { Button } from '../../../shared/ui/Button/Button';
 import { GeneratedQuestionPreviewCard } from './GeneratedQuestionPreviewCard';
 import { useAiQuestionGenerator } from '../hooks/useAiQuestionGenerator';

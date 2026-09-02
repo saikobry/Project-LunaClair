@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConflictDraftsModal } from '../ConflictDraftsModal';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
-import type { ConflictDraft } from '../../../../domain/sync/sync.types';
+import type { ConflictDraft } from '../../../../domain/sync/models/sync.types';
 
 describe('ConflictDraftsModal', () => {
   const mockDrafts: ConflictDraft[] = [

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RemoveImportedMaterialUseCase } from '../RemoveImportedMaterialUseCase';
-import type { LibraryImportService } from '../../../../domain/library/LibraryImportService';
+import type { LibraryImportService } from '../../../../domain/library/services/LibraryImportService';
 
 describe('RemoveImportedMaterialUseCase', () => {
     it('delegates deletion of local material, quiz content, and document to libraryImport service', async () => {

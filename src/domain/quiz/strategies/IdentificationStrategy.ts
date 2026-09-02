@@ -1,5 +1,5 @@
-import type { Question } from '../Question';
-import type { IdentificationPayload } from '../AnswerPayload';
+import type { Question } from '../models/Question';
+import type { IdentificationPayload } from '../models/AnswerPayload';
 import type { QuestionStrategy, GradeResult } from './QuestionStrategy';
 
 export class IdentificationStrategy implements QuestionStrategy {

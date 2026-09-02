@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { Award, AlertCircle } from 'lucide-react';
-import type { SubjectMastery } from '../../../../domain/analytics/analytics.types';
+import type { SubjectMastery } from '../../../../domain/analytics/models/analytics.types';
 import { Card } from '../../../../shared/ui/Card/Card';
 
 const styles = stylex.create({

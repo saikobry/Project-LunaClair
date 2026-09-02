@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ClearAnnotationsUseCase } from '../ClearAnnotationsUseCase';
-import type { AnnotationRepository } from '../../../../domain/reader/AnnotationRepository';
+import type { AnnotationRepository } from '../../../../domain/reader/repositories/AnnotationRepository';
 
 describe('ClearAnnotationsUseCase', () => {
     const createMockRepo = (): AnnotationRepository => ({

@@ -1,6 +1,6 @@
-import type { Term } from '../../../domain/library/Term';
-import type { SubjectTermView } from '../../../domain/library/SubjectTerm';
-import type { SubjectTermRepository } from '../../../domain/library/SubjectTermRepository';
+import type { Term } from '../../../domain/library/models/Term';
+import type { SubjectTermView } from '../../../domain/library/models/SubjectTerm';
+import type { SubjectTermRepository } from '../../../domain/library/repositories/SubjectTermRepository';
 import { db } from '../LunaClairDatabase';
 
 export class DexieSubjectTermRepository implements SubjectTermRepository {

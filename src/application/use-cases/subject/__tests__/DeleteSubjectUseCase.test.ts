@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DeleteSubjectUseCase } from '../DeleteSubjectUseCase';
-import type { SubjectRepository } from '../../../../domain/library/SubjectRepository';
-import type { LibraryRepository } from '../../../../domain/library/LibraryRepository';
-import type { StudyMaterial } from '../../../../domain/library/StudyMaterial';
+import type { SubjectRepository } from '../../../../domain/library/repositories/SubjectRepository';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 describe('DeleteSubjectUseCase', () => {
     const matLinked: StudyMaterial = {

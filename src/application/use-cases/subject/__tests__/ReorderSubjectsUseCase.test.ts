@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReorderSubjectsUseCase } from '../ReorderSubjectsUseCase';
-import type { SubjectRepository } from '../../../../domain/library/SubjectRepository';
+import type { SubjectRepository } from '../../../../domain/library/repositories/SubjectRepository';
 
 describe('ReorderSubjectsUseCase', () => {
     it('delegates ordered ID array to SubjectRepository', async () => {

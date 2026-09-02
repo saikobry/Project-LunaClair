@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TriggerSyncUseCase } from '../TriggerSyncUseCase';
 import type { SyncEngine } from '../../../sync/SyncEngine';
-import type { SessionCredentials, SessionCredentialsProvider } from '../../../../domain/sync';
+import type { SessionCredentials } from '../../../../domain/sync/models/sync.types';
+import type { SessionCredentialsProvider } from '../../../../domain/sync/services/SessionCredentialsProvider';
 
 describe('TriggerSyncUseCase', () => {
     let mockSyncEngine: SyncEngine;

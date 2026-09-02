@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, Layers, Link2, Plus, FolderX } from 'lucide-react';
 import type { AppRoute } from '../../../../app/layouts/AppShell';
 import type { QuizLaunchRequest } from '../../../quiz/types/quizFeature.types';
-import type { StudyMaterial } from '../../../../domain/library';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import { useSubject } from '../hooks/queries/useSubject';
 import { useSubjects } from '../hooks/queries/useSubjects';
 import { useTerms } from '../../terms/hooks/queries/useTerms';

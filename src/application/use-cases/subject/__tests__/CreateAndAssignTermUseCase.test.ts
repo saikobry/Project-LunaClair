@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CreateAndAssignTermUseCase } from '../CreateAndAssignTermUseCase';
-import type { TermService, CreateAndAssignTermResult } from '../../../../domain/library/TermService';
+import type { TermService, CreateAndAssignTermResult } from '../../../../domain/library/services/TermService';
 
 describe('CreateAndAssignTermUseCase', () => {
     it('creates term and assigns to subject via TermService', async () => {

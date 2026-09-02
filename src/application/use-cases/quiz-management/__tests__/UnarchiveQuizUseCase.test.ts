@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UnarchiveQuizUseCase } from '../UnarchiveQuizUseCase';
-import type { QuizRepository } from '../../../../domain/quiz/QuizRepository';
-import type { Quiz } from '../../../../domain/quiz/Quiz';
+import type { QuizRepository } from '../../../../domain/quiz/repositories/QuizRepository';
+import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 
 describe('UnarchiveQuizUseCase', () => {
     const mockQuiz: Quiz = {

@@ -1,4 +1,4 @@
-import type { LibraryImportService } from '../../../domain/library/LibraryImportService';
+import type { LibraryImportService } from '../../../domain/library/services/LibraryImportService';
 
 /**
  * Removes one material from the local library.

@@ -1,7 +1,7 @@
 /**
  * Application use case to delete a published StudyPackage from the cloud.
  */
-import type { ShareTransport } from '../../../domain/sharing/sharing.types';
+import type { ShareTransport } from '../../../domain/sharing/models/sharing.types';
 
 export interface DeletePublishedShareInput {
   shareId: string;

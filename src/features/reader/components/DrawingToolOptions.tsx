@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Eraser, Undo2 } from 'lucide-react';
-import type { DrawingTool } from '../../../domain/reader';
+import type { DrawingTool } from '../../../domain/reader/models/annotation.types';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../constants/annotationDefaults';
 

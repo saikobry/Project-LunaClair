@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MultipleSelectStrategy } from '../MultipleSelectStrategy';
-import type { Question } from '../../Question';
+import type { Question } from '../../models/Question';
 
 describe('MultipleSelectStrategy', () => {
     const strategy = new MultipleSelectStrategy();

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AbandonQuizSessionUseCase } from '../AbandonQuizSessionUseCase';
-import type { QuizSession } from '../../../../domain/quiz/QuizSession';
-import type { QuizSessionRepository } from '../../../../domain/quiz/QuizSessionRepository';
+import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
+import type { QuizSessionRepository } from '../../../../domain/quiz/repositories/QuizSessionRepository';
 
 describe('AbandonQuizSessionUseCase', () => {
     it('deletes session when status is in_progress', async () => {

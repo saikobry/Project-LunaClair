@@ -5,7 +5,7 @@ import type {
   AiThread,
   AiTutorMode,
   AiUsage,
-} from '../../../domain/ai/ai.types';
+} from '../../../domain/ai/models/ai.types';
 
 export interface UseAiChatThreadOptions {
   /** Optional study material ID. If undefined, operates on the global assistant thread. */

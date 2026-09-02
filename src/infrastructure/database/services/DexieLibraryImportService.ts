@@ -1,11 +1,11 @@
-import type { LibraryImportService, ImportMaterialInput } from '../../../domain/library/LibraryImportService';
-import type { Subject } from '../../../domain/library/Subject';
-import type { Term } from '../../../domain/library/Term';
-import type { SubjectTerm } from '../../../domain/library/SubjectTerm';
-import type { StudyMaterial } from '../../../domain/library/StudyMaterial';
-import type { Question } from '../../../domain/quiz/Question';
-import type { Quiz } from '../../../domain/quiz/Quiz';
-import type { ImportedDocumentContent } from '../../../domain/reader/DocumentContentRepository';
+import type { LibraryImportService, ImportMaterialInput } from '../../../domain/library/services/LibraryImportService';
+import type { Subject } from '../../../domain/library/models/Subject';
+import type { Term } from '../../../domain/library/models/Term';
+import type { SubjectTerm } from '../../../domain/library/models/SubjectTerm';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
+import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import { db } from '../LunaClairDatabase';
 
 /**

@@ -1,5 +1,5 @@
-import type { QuestionDifficulty } from '../../domain/quiz/Question';
-import type { QuestionType } from '../../domain/quiz/QuestionType';
+import type { QuestionDifficulty } from '../../domain/quiz/models/Question';
+import type { QuestionType } from '../../domain/quiz/models/QuestionType';
 
 /**
  * Badge appearance per question type and difficulty — the single source of

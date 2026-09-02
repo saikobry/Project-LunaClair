@@ -1,4 +1,4 @@
-import type { PageExtraction } from '../importer.types';
+import type { PageExtraction } from '../models/importer.types';
 
 /**
  * Given an array of PageExtraction, joins text with page anchors.

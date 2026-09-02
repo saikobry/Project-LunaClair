@@ -1,7 +1,7 @@
-import type { StudyMaterial } from '../../domain/library';
-import type { Document } from '../../domain/reader';
-import type { DocumentRepository } from '../../domain/reader/DocumentRepository';
-import { DocumentNotFoundError } from '../../domain/reader/DocumentNotFoundError';
+import type { StudyMaterial } from '../../domain/library/models/StudyMaterial';
+import type { Document } from '../../domain/reader/models/Document';
+import type { DocumentRepository } from '../../domain/reader/repositories/DocumentRepository';
+import { DocumentNotFoundError } from '../../domain/reader/errors/DocumentNotFoundError';
 import { preprocessMarkdown } from './markdownPreprocessor';
 
 interface DocumentApiResponse {

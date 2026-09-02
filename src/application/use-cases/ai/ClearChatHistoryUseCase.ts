@@ -1,4 +1,4 @@
-import type { AiChatRepository } from '../../../domain/ai/AiChatRepository';
+import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
 
 export interface ClearChatHistoryInput {
   /** If provided, clears threads for this material. If omitted, clears all threads. */
