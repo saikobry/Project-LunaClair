@@ -35,7 +35,8 @@ User-facing 5-step import wizard allowing learners to ingest external study mate
 
 ## Verification
 
-- `npm run test:run` — Unit tests for importer use cases and domain converter.
+- `npx vitest run src/features/importer` — Feature orchestrator, 5-step wizard state machine, hooks, and component tests.
+- `npm run test:run` — Repo-wide unit, application, domain, and feature test execution.
 - `npm run build`
 - `npm run lint`
 
