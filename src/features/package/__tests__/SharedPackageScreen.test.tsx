@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SharedPackageScreen } from '../SharedPackageScreen';
-import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import { ToastProvider } from '../../../../app/providers/ToastContext';
-import type { StudyPackage } from '../../../../domain/package/models/package.types';
-import type { PublishedShare } from '../../../../domain/sharing/models/sharing.types';
-import * as fileDownloadModule from '../../../../shared/utils/fileDownload';
+import { ApplicationContext, type ApplicationContextValue } from '../../../app/providers/ApplicationContext';
+import { ToastProvider } from '../../../app/providers/ToastContext';
+import type { StudyPackage } from '../../../domain/package/models/package.types';
+import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
+import * as fileDownloadModule from '../../../shared/utils/fileDownload';
 
-vi.mock('../../../../shared/utils/fileDownload', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../shared/utils/fileDownload')>();
+vi.mock('../../../shared/utils/fileDownload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../shared/utils/fileDownload')>();
   return {
     ...actual,
     triggerBlobDownload: vi.fn(),

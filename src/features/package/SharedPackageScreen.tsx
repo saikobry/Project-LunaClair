@@ -20,20 +20,20 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Page } from '../../../shared/ui/Page/Page';
-import { Button } from '../../../shared/ui/Button/Button';
-import { Breadcrumbs, type BreadcrumbItem } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
-import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import { useContextOrThrow } from '../../../shared/utils/contextGuard';
-import { useToast } from '../../../app/providers/ToastContext';
-import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
-import { serializePackageToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
-import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
-import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
-import type { ImportStudyPackageResult } from '../../../application/use-cases/package/ImportStudyPackageUseCase';
-import { useSubjects } from '../../catalog/subjects/hooks/queries/useSubjects';
-import { useTerms } from '../../catalog/terms/hooks/queries/useTerms';
+import { Page } from '../../shared/ui/Page/Page';
+import { Button } from '../../shared/ui/Button/Button';
+import { Breadcrumbs, type BreadcrumbItem } from '../../shared/ui/Breadcrumbs/Breadcrumbs';
+import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
+import { ApplicationContext } from '../../app/providers/ApplicationContext';
+import { useContextOrThrow } from '../../shared/utils/contextGuard';
+import { useToast } from '../../app/providers/ToastContext';
+import { inspectStudyPackage } from '../../domain/package/engines/inspectStudyPackage';
+import { serializePackageToBlob } from '../../domain/package/engines/StudyPackageSerializer';
+import { sanitizeFilename, triggerBlobDownload } from '../../shared/utils/fileDownload';
+import type { PublishedShare } from '../../domain/sharing/models/sharing.types';
+import type { ImportStudyPackageResult } from '../../application/use-cases/package/ImportStudyPackageUseCase';
+import { useSubjects } from '../catalog/subjects/hooks/queries/useSubjects';
+import { useTerms } from '../catalog/terms/hooks/queries/useTerms';
 
 export interface SharedPackageScreenProps {
   shareId: string;

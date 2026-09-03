@@ -193,6 +193,9 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/app/AGENTS.md` | `src/app/` | Application shell, layout, config, providers |
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
+| `src/features/catalog/AGENTS.md` | `src/features/catalog/` | Catalog & Learning Hierarchy — materials, explore hub, available preview, subjects, terms |
+| `src/features/quiz/AGENTS.md` | `src/features/quiz/` | Quiz Assessment Engine — live session runner, question renderer, session state machine |
+| `src/features/flashcards/AGENTS.md` | `src/features/flashcards/` | Spaced-Repetition Study — SM-2 scheduling, card projection, 3D flip card player |
 | `src/features/analytics/AGENTS.md` | `src/features/analytics/` | Analytics & Learning Insights feature — Study overview, retention, mastery, activity heatmap |
 | `src/features/ai/AGENTS.md` | `src/features/ai/` | AI Study Assistant feature — Chat drawer, grounded context, streaming token hooks |
 | `src/features/generator/AGENTS.md` | `src/features/generator/` | AI Content Generator feature — Question and flashcard synthesis dialogs and review cards |

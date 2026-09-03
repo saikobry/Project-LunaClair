@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type RefObject } from 'react';
 import type { HighlightItem, AnnotationMode } from '../../../domain/reader/models/annotation.types';
 import { getOffsetsOfRange } from '../utils/selection';
-import type { PopoverState } from '../types';
+import type { PopoverState } from '../types/reader.types';
 
 /**
  * Listens to selectionchange events on the document and manages

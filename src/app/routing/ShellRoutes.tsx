@@ -19,7 +19,7 @@ const QuizCanvasBuilder = lazy(() =>
 );
 const QuizScreen = lazy(() => import('../../features/quiz/QuizScreen'));
 const SharedPackageScreen = lazy(() =>
-  import('../../features/package/components/SharedPackageScreen').then((m) => ({ default: m.SharedPackageScreen })),
+  import('../../features/package/SharedPackageScreen').then((m) => ({ default: m.SharedPackageScreen })),
 );
 const ImporterScreen = lazy(() => import('../../features/importer/ImporterScreen'));
 

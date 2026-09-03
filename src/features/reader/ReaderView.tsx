@@ -1,7 +1,7 @@
 import { type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/models/annotation.types';
-import type { PopoverState } from './types';
+import type { PopoverState } from './types/reader.types';
 import MarkdownViewer from './components/MarkdownViewer';
 import AnnotationToolbar from './components/AnnotationToolbar';
 import DrawingCanvas from './components/DrawingCanvas';
