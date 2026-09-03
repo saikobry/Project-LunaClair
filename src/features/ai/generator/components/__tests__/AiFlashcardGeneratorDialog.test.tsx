@@ -1,9 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { ApplicationContext } from '../../../../../app/providers/ApplicationContext';
 import { AiFlashcardGeneratorDialog } from '../AiFlashcardGeneratorDialog';
-import type { GeneratedFlashcardDraft } from '../../../../domain/generator/models/generator.types';
+import type { GeneratedFlashcardDraft } from '../../../../../domain/generator/models/generator.types';
 
 describe('AiFlashcardGeneratorDialog', () => {
   const mockCards: GeneratedFlashcardDraft[] = [

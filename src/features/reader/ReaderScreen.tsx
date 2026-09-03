@@ -12,7 +12,7 @@ import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';
 import { useDrawings } from './hooks/useDrawings';
 import { useTextSelection } from './hooks/useTextSelection';
-import ReaderView from './ReaderView';
+import ReaderView from './components/ReaderView';
 
 const styles = stylex.create({
   loading: {

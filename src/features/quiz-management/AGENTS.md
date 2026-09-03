@@ -20,6 +20,8 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `editors/TrueFalseEditor.tsx` | Radio toggle for True/False |
 | `editors/IdentificationEditor.tsx` | Primary answer + accepted alternatives |
 | `editors/FillBlankEditor.tsx` | Template textarea + blank answer inputs |
+| `components/CorrectAnswerIndicator.tsx` | Reusable circle/square correct answer indicator for question editors |
+| `utils/quizBadgeAppearance.ts` | Single source of truth for semantic badge palette (difficulty, question type, points) |
 | `hooks/useQuestionManagement.ts` | Thin mutation adapter for application question use cases |
 | `hooks/useQuizBuilder.ts` | Thin mutation adapter for application quiz use cases — publish/archive/unarchive (`createQuiz`/`updateQuiz` mutations remain in the hook but are unused since the dialog's removal) |
 

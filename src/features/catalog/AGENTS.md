@@ -26,7 +26,7 @@ Unified Catalog & Learning Hierarchy feature module. Consolidates content discov
   - `available/components/PreviewMaterialScreen` $\rightarrow$ `materials/hooks/queries/useLibrary` (to detect if a canonical material is already imported).
   - `materials/modals/*` $\rightarrow$ `terms/hooks/queries/useTerms` (to assign an academic term to a study material).
   - `materials/modals/*` & `subjects/modals/*` $\rightarrow$ `shared/styles/library.stylex` (modal form layout styling).
-  - `subjects/components/MaterialsTab` $\rightarrow$ `materials/components/MaterialCard/MaterialCard` (card rendering within subject scope).
+  - `subjects/components/MaterialsTab` $\rightarrow$ `materials/components/MaterialCard` (card rendering within subject scope).
   - `subjects/components/SubjectWorkspace` $\rightarrow$ `materials/hooks/` (`useLibrary`, `useCreateMaterial`, `useEditMaterial`, `useDeleteMaterial`), `materials/modals/`, `terms/components/SubjectTermsTab`, and `terms/hooks/queries/useTerms` (workspace tab composition).
   - `terms/components/SubjectTermsTab` $\rightarrow$ `materials/hooks/queries/useLibrary` (to show material count using terms).
   - `terms/hooks/queries/useTermUsageCounts` $\rightarrow$ `materials/hooks/queries/useLibrary` (to calculate per-term material counts).

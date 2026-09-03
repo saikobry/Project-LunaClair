@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
-import { Button } from '../../../shared/ui/Button/Button';
-import { GeneratedFlashcardPreviewCard } from './GeneratedFlashcardPreviewCard';
-import { useAiFlashcardGenerator } from '../hooks/useAiFlashcardGenerator';
+import type { QuestionType } from '../../../../domain/quiz/models/QuestionType';
+import type { QuestionDifficulty } from '../../../../domain/quiz/models/Question';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { GeneratedQuestionPreviewCard } from './GeneratedQuestionPreviewCard';
+import { useAiQuestionGenerator } from '../hooks/useAiQuestionGenerator';
 
 const styles = stylex.create({
   backdrop: {
@@ -159,7 +161,7 @@ const styles = stylex.create({
   },
 });
 
-export interface AiFlashcardGeneratorDialogProps {
+export interface AiQuestionGeneratorDialogProps {
   isOpen: boolean;
   onClose: () => void;
   materialId: string;
@@ -168,7 +170,15 @@ export interface AiFlashcardGeneratorDialogProps {
   onSuccess?: (createdCount: number) => void;
 }
 
-export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProps> = ({
+const QUESTION_TYPE_OPTIONS: Array<{ type: QuestionType; label: string }> = [
+  { type: 'multiple_choice', label: 'Multiple Choice' },
+  { type: 'true_false', label: 'True / False' },
+  { type: 'fill_in_blank', label: 'Fill in Blank' },
+  { type: 'identification', label: 'Identification' },
+  { type: 'multiple_select', label: 'Multiple Select' },
+];
+
+export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps> = ({
   isOpen,
   onClose,
   materialId,
@@ -176,7 +186,11 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
   documentMarkdown,
   onSuccess,
 }) => {
-  const [count, setCount] = useState<number>(8);
+  const [count, setCount] = useState<number>(5);
+  const [difficulty, setDifficulty] = useState<QuestionDifficulty | 'all'>('all');
+  const [selectedTypes, setSelectedTypes] = useState<Set<QuestionType>>(
+    new Set(['multiple_choice', 'true_false', 'fill_in_blank']),
+  );
   const [focusTopic, setFocusTopic] = useState('');
 
   const {
@@ -184,7 +198,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
     phaseMessage,
     drafts,
     selectedIndices,
-    savedCards,
+    savedQuestions,
     errorMessage,
     generate,
     toggleSelect,
@@ -193,15 +207,29 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
     updateDraft,
     saveSelected,
     reset,
-  } = useAiFlashcardGenerator();
+  } = useAiQuestionGenerator();
 
   if (!isOpen) return null;
+
+  const toggleType = (t: QuestionType) => {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) {
+        if (next.size > 1) next.delete(t); // Keep at least 1 type
+      } else {
+        next.add(t);
+      }
+      return next;
+    });
+  };
 
   const handleGenerate = async () => {
     await generate({
       materialId,
       documentMarkdown,
       count,
+      difficulty,
+      types: Array.from(selectedTypes),
       focusTopic: focusTopic.trim() || undefined,
     });
   };
@@ -235,13 +263,13 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="ai-flashcard-generator-title"
+        aria-labelledby="ai-question-generator-title"
       >
         {/* Header */}
         <div {...stylex.props(styles.header)}>
-          <h2 id="ai-flashcard-generator-title" {...stylex.props(styles.headerTitle)}>
+          <h2 id="ai-question-generator-title" {...stylex.props(styles.headerTitle)}>
             <Sparkles size={18} color="var(--color-primary, #6366f1)" />
-            Generate Flashcards with AI
+            Generate Questions with AI
           </h2>
           <button
             type="button"
@@ -258,23 +286,61 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
           {status === 'idle' && (
             <>
               <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                Synthesize key definitions and conceptual flashcards from <strong>{materialTitle}</strong>.
+                Synthesize questions from <strong>{materialTitle}</strong> directly into your
+                Question Bank in <strong>Draft</strong> status.
               </div>
 
               {/* Count selection */}
               <div {...stylex.props(styles.formSection)}>
-                <label {...stylex.props(styles.label)}>Number of Flashcards</label>
+                <label {...stylex.props(styles.label)}>Number of Questions</label>
                 <div {...stylex.props(styles.pillRow)}>
-                  {[5, 8, 12, 15].map((n) => (
+                  {[3, 5, 8, 10].map((n) => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setCount(n)}
                       {...stylex.props(styles.pill, count === n && styles.pillActive)}
                     >
-                      {n} Cards
+                      {n} Questions
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Difficulty selection */}
+              <div {...stylex.props(styles.formSection)}>
+                <label {...stylex.props(styles.label)}>Target Difficulty</label>
+                <div {...stylex.props(styles.pillRow)}>
+                  {(['all', 'easy', 'medium', 'hard'] as const).map((diff) => (
+                    <button
+                      key={diff}
+                      type="button"
+                      onClick={() => setDifficulty(diff)}
+                      {...stylex.props(styles.pill, difficulty === diff && styles.pillActive)}
+                    >
+                      {diff === 'all' ? 'Mixed' : diff.charAt(0).toUpperCase() + diff.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Allowed Question Types */}
+              <div {...stylex.props(styles.formSection)}>
+                <label {...stylex.props(styles.label)}>Allowed Question Types</label>
+                <div {...stylex.props(styles.pillRow)}>
+                  {QUESTION_TYPE_OPTIONS.map((opt) => {
+                    const active = selectedTypes.has(opt.type);
+                    return (
+                      <button
+                        key={opt.type}
+                        type="button"
+                        onClick={() => toggleType(opt.type)}
+                        {...stylex.props(styles.pill, active && styles.pillActive)}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -285,7 +351,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
                   type="text"
                   value={focusTopic}
                   onChange={(e) => setFocusTopic(e.target.value)}
-                  placeholder="e.g. Focus on definitions and enzyme names..."
+                  placeholder="e.g. Focus specifically on action potentials..."
                   {...stylex.props(styles.input)}
                 />
               </div>
@@ -302,7 +368,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
           {status === 'error' && (
             <div {...stylex.props(styles.errorBanner)}>
               <AlertCircle size={18} />
-              <span>{errorMessage || 'An error occurred during flashcard generation.'}</span>
+              <span>{errorMessage || 'An error occurred during generation.'}</span>
             </div>
           )}
 
@@ -310,7 +376,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
             <>
               <div {...stylex.props(styles.reviewHeader)}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>
-                  Generated {drafts.length} flashcards ({selectedIndices.size} selected)
+                  Generated {drafts.length} questions ({selectedIndices.size} selected)
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button label="Select All" variant="secondary" onClick={selectAll}>
@@ -324,8 +390,8 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {drafts.map((draft, idx) => (
-                  <GeneratedFlashcardPreviewCard
-                    key={draft.front}
+                  <GeneratedQuestionPreviewCard
+                    key={draft.prompt}
                     draft={draft}
                     isSelected={selectedIndices.has(idx)}
                     onToggleSelect={() => toggleSelect(idx)}
@@ -339,9 +405,10 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
           {status === 'done' && (
             <div {...stylex.props(styles.successContainer)}>
               <CheckCircle2 size={40} color="var(--color-success, #10b981)" />
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Flashcards Saved!</h3>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Questions Saved!</h3>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                Added {savedCards.length} flashcards to your deck. Ready for spaced repetition practice!
+                Added {savedQuestions.length} questions to your Question Bank in{' '}
+                <strong>Draft</strong> status.
               </p>
             </div>
           )}
@@ -354,9 +421,9 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
               <Button label="Cancel" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button label="Generate Flashcards" variant="primary" onClick={handleGenerate}>
+              <Button label="Generate Questions" variant="primary" onClick={handleGenerate}>
                 <Sparkles size={14} style={{ marginRight: 6 }} />
-                Generate Flashcards
+                Generate Questions
               </Button>
             </>
           )}
@@ -367,12 +434,12 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
                 Back
               </Button>
               <Button
-                label={`Add ${selectedIndices.size} Flashcards to Deck`}
+                label={`Add ${selectedIndices.size} Questions to Bank`}
                 variant="primary"
                 onClick={handleSave}
                 isDisabled={selectedIndices.size === 0}
               >
-                Add {selectedIndices.size} Flashcards to Deck
+                Add {selectedIndices.size} Questions to Bank
               </Button>
             </>
           )}

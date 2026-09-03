@@ -7,7 +7,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
 import { Bot, User, AlertCircle, RotateCcw } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
-import { aiSanitizeSchema } from '../lib/aiMarkdown';
+import { aiSanitizeSchema } from '../utils/aiMarkdown';
 import { AiStreamingIndicator } from './AiStreamingIndicator';
 
 const styles = stylex.create({

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter, Sparkles } from 'lucide-react';
-import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../quizBadgeAppearance';
+import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../utils/quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
@@ -14,7 +14,7 @@ import { useToast } from '../../../app/providers/ToastContext';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { QuestionEditorDialog } from './QuestionEditorDialog';
 import { QuestionPayloadPreview } from './QuestionPayloadPreview';
-import { AiQuestionGeneratorDialog } from '../../generator/components/AiQuestionGeneratorDialog';
+import { AiQuestionGeneratorDialog } from '../../ai/generator/components/AiQuestionGeneratorDialog';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const desktopQuery = '@media (min-width: 769px)';

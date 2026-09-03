@@ -1,12 +1,13 @@
 import { useState, useCallback, useContext } from 'react';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import type {
-  GenerateFlashcardsRequest,
-  GeneratedFlashcardDraft,
-} from '../../../domain/generator/models/generator.types';
-import type { Question } from '../../../domain/quiz/models/Question';
+  GenerateQuestionsRequest,
+  GeneratedQuestionDraft,
+} from '../../../../domain/generator/models/generator.types';
+import type { Question } from '../../../../domain/quiz/models/Question';
+import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
 
-export type FlashcardGeneratorStatus =
+export type QuestionGeneratorStatus =
   | 'idle'
   | 'generating'
   | 'review'
@@ -14,53 +15,52 @@ export type FlashcardGeneratorStatus =
   | 'done'
   | 'error';
 
-export interface UseAiFlashcardGeneratorReturn {
-  status: FlashcardGeneratorStatus;
+export interface UseAiQuestionGeneratorReturn {
+  status: QuestionGeneratorStatus;
   phaseMessage: string;
-  drafts: GeneratedFlashcardDraft[];
+  drafts: GeneratedQuestionDraft[];
   selectedIndices: Set<number>;
-  savedCards: Question[];
+  savedQuestions: Question[];
   errorMessage?: string;
-  generate: (request: GenerateFlashcardsRequest) => Promise<void>;
+  generate: (request: GenerateQuestionsRequest) => Promise<void>;
   toggleSelect: (index: number) => void;
   selectAll: () => void;
   deselectAll: () => void;
-  updateDraft: (index: number, updated: GeneratedFlashcardDraft) => void;
+  updateDraft: (index: number, updated: GeneratedQuestionDraft) => void;
   saveSelected: (materialId: string) => Promise<Question[]>;
   reset: () => void;
 }
 
-export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
+export function useAiQuestionGenerator(): UseAiQuestionGeneratorReturn {
   const context = useContext(ApplicationContext);
   if (!context) {
-    throw new Error('useAiFlashcardGenerator must be used within an ApplicationProvider');
+    throw new Error('useAiQuestionGenerator must be used within an ApplicationProvider');
   }
   const { useCases } = context;
-
-  const [status, setStatus] = useState<FlashcardGeneratorStatus>('idle');
+  const [status, setStatus] = useState<QuestionGeneratorStatus>('idle');
   const [phaseMessage, setPhaseMessage] = useState('');
-  const [drafts, setDrafts] = useState<GeneratedFlashcardDraft[]>([]);
+  const [drafts, setDrafts] = useState<GeneratedQuestionDraft[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
-  const [savedCards, setSavedCards] = useState<Question[]>([]);
+  const [savedQuestions, setSavedQuestions] = useState<Question[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   const generate = useCallback(
-    async (request: GenerateFlashcardsRequest) => {
+    async (request: GenerateQuestionsRequest) => {
       setStatus('generating');
       setErrorMessage(undefined);
-      setPhaseMessage('Extracting key concepts from study material...');
+      setPhaseMessage('Analyzing study material content...');
 
       try {
-        setPhaseMessage('Synthesizing atomic spaced-repetition flashcards...');
-        const generatedDrafts = await useCases.generator.generateFlashcards.execute(request);
+        setPhaseMessage('Synthesizing conceptual assessment questions...');
+        const generatedDrafts = await useCases.generator.generateQuestions.execute(request);
 
-        setPhaseMessage('Validating flashcard definitions...');
+        setPhaseMessage('Validating question domain schemas...');
         setDrafts(generatedDrafts);
 
         // Select all valid drafts by default
         const validIndices = new Set<number>();
         generatedDrafts.forEach((draft, idx) => {
-          if (draft.front.trim() && draft.back.trim()) {
+          if (validateQuestionDraft(draft).success) {
             validIndices.add(idx);
           }
         });
@@ -75,7 +75,7 @@ export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
         setPhaseMessage('');
       }
     },
-    [useCases.generator.generateFlashcards],
+    [useCases.generator.generateQuestions],
   );
 
   const toggleSelect = useCallback((index: number) => {
@@ -98,7 +98,7 @@ export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
     setSelectedIndices(new Set());
   }, []);
 
-  const updateDraft = useCallback((index: number, updated: GeneratedFlashcardDraft) => {
+  const updateDraft = useCallback((index: number, updated: GeneratedQuestionDraft) => {
     setDrafts((prev) => {
       const next = [...prev];
       next[index] = updated;
@@ -114,28 +114,28 @@ export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
       }
 
       setStatus('saving');
-      setPhaseMessage('Saving flashcards to review deck...');
+      setPhaseMessage('Saving questions to Question Bank...');
 
       try {
-        const created = await useCases.generator.batchCreateFlashcards.execute({
+        const created = await useCases.generator.batchCreateQuestions.execute({
           materialId,
-          flashcards: selectedDrafts,
-          status: 'draft',
+          questions: selectedDrafts,
+          status: 'draft', // All AI generated questions are created as drafts
         });
 
-        setSavedCards(created);
+        setSavedQuestions(created);
         setStatus('done');
         setPhaseMessage('');
         return created;
       } catch (err: unknown) {
         setStatus('error');
-        const message = err instanceof Error ? err.message : 'Failed to save flashcards';
+        const message = err instanceof Error ? err.message : 'Failed to save questions';
         setErrorMessage(message);
         setPhaseMessage('');
         throw err;
       }
     },
-    [drafts, selectedIndices, useCases.generator.batchCreateFlashcards],
+    [drafts, selectedIndices, useCases.generator.batchCreateQuestions],
   );
 
   const reset = useCallback(() => {
@@ -143,7 +143,7 @@ export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
     setPhaseMessage('');
     setDrafts([]);
     setSelectedIndices(new Set());
-    setSavedCards([]);
+    setSavedQuestions([]);
     setErrorMessage(undefined);
   }, []);
 
@@ -152,7 +152,7 @@ export function useAiFlashcardGenerator(): UseAiFlashcardGeneratorReturn {
     phaseMessage,
     drafts,
     selectedIndices,
-    savedCards,
+    savedQuestions,
     errorMessage,
     generate,
     toggleSelect,

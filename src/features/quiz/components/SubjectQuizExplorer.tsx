@@ -3,12 +3,12 @@ import * as stylex from '@stylexjs/stylex';
 import { Check, BrainCircuit, BookOpen, Search, ChevronDown } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Input } from '../../../../shared/ui/Input/Input';
-import { Button } from '../../../../shared/ui/Button/Button';
-import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
-import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';
-import { useDebounce } from '../../../../shared/hooks/useDebounce';
-import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../../types/quizTree.types';
+import { Input } from '../../../shared/ui/Input/Input';
+import { Button } from '../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
+import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import type { QuizTreeNodeTerm, QuizTreeNodeMaterial, QuizTreeNodeQuiz } from '../types/quizTree.types';
 
 const styles = stylex.create({
   container: {

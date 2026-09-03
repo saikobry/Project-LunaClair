@@ -9,7 +9,7 @@ Core reading experience with advanced annotation capabilities: markdown renderin
 | File / Module | Responsibility |
 |---|---|
 | `ReaderScreen.tsx` | Feature orchestrator — accepts `materialId`; resolves document via `useDocument` hook, renders loading/error/success states, wires annotation hooks. Rendered embedded inside MaterialWorkspace (no self-owned Page shell) |
-| `ReaderView.tsx` | Presentation — StyleX layout containers for reader rail + viewer; renders MarkdownViewer + DrawingCanvas + AnnotationToolbar + SelectionPopover |
+| `components/ReaderView.tsx` | Presentation — StyleX layout containers for reader rail + viewer; renders MarkdownViewer + DrawingCanvas + AnnotationToolbar + SelectionPopover |
 | `components/MarkdownViewer.tsx` | Renders processed markdown via `react-markdown` (remark-gfm + rehype-slug + inline `rehypeFigure` plugin); all element typography styled with co-located StyleX styles mapped through `components`. The rehype plugin merges `p > img` + caption `p > em` into semantic `<figure>/<figcaption>` |
 | `components/DrawingCanvas.tsx` | Freehand SVG drawing canvas with pen/eraser tools |
 | `components/DrawingToolOptions.tsx` | Sub-component rendering drawing sub-tools (pen/eraser switcher, color palette swatches, thickness picker, and undo action) |

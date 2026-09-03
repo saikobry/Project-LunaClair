@@ -1,9 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
+import { ApplicationContext } from '../../../../../app/providers/ApplicationContext';
 import { AiQuestionGeneratorDialog } from '../AiQuestionGeneratorDialog';
-import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
+import type { GeneratedQuestionDraft } from '../../../../../domain/generator/models/generator.types';
 
 describe('AiQuestionGeneratorDialog', () => {
   const mockDrafts: GeneratedQuestionDraft[] = [

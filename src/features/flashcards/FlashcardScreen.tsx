@@ -16,7 +16,7 @@ import type { FlashcardViewStep, FlashcardSessionSummary } from './types/flashca
 import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
 import { FlashcardPlayerView } from './components/FlashcardPlayerView';
 import { FlashcardSessionEndView } from './components/FlashcardSessionEndView';
-import { AiFlashcardGeneratorDialog } from '../generator/components/AiFlashcardGeneratorDialog';
+import { AiFlashcardGeneratorDialog } from '../ai/generator/components/AiFlashcardGeneratorDialog';
 import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
 import { ShareStudyPackageModal } from '../package/components/ShareStudyPackageModal';
 

@@ -1,21 +1,29 @@
-# src/features/ai/ — AI Study Assistant Feature
+# src/features/ai/ — AI Study Assistant & Content Generation
 
 ## Purpose
 
-AI Study Assistant interface embedded in `MaterialWorkspace`, providing grounded contextual conversations, Socratic tutoring, summaries, and active selection explanations.
+AI Study Assistant and Content Generation bounded context. Provides conversational grounded context, Socratic tutoring, document summaries, active selection explanations, and LLM-assisted question and flashcard synthesis.
 
 ## Ownership
 
-- `components/` — UI presentation: `AiChatDrawer`, `AiDrawerToggleButton`, `AiChatMessage`, `AiChatMessageList`, `AiChatInput`, `AiModeSelector`, `AiStreamingIndicator`.
+- `components/` — Chat assistant UI presentation: `AiChatDrawer`, `AiDrawerToggleButton`, `AiChatMessage`, `AiChatMessageList`, `AiChatInput`, `AiModeSelector`, `AiStreamingIndicator`.
 - `hooks/` — Chat stream token hook (`useAiStreamChat`), thread management & reload persistence (`useAiChatThread`).
-- `lib/` — Grounded prompt construction (`buildGroundedPrompt`), consuming pure domain context extractor from `src/domain/ai/extractSectionContext`.
+- `utils/` — AI markdown sanitization schema (`aiMarkdown.ts`).
+- `generator/` — AI Content Generator sub-capability:
+  - `components/`: `AiQuestionGeneratorDialog`, `AiFlashcardGeneratorDialog`, `GeneratedQuestionPreviewCard`, `GeneratedFlashcardPreviewCard`.
+  - `hooks/`: `useAiQuestionGenerator`, `useAiFlashcardGenerator`.
 
 ## Local Contracts
 
-- `AiChatDrawer` is hosted exclusively at the workspace level in `MaterialWorkspace`.
+- `AiChatDrawer` is hosted at the workspace level in `MaterialWorkspace`.
 - Section context extraction bounds prompt tokens to current headings and selections via `src/domain/ai/extractSectionContext`.
 - Conversation state persists locally in IndexedDB (`aiThreads`, `aiMessages`).
-- Cross-feature consumers import direct paths (e.g. `ai/components/AiChatDrawer`).
+- Content generators emit typed question/flashcard drafts validated by domain schemas (`validateQuestionDraft`).
+- Cross-feature consumers import direct paths:
+  - `ai/components/AiChatDrawer`
+  - `ai/components/AiDrawerToggleButton`
+  - `ai/generator/components/AiQuestionGeneratorDialog`
+  - `ai/generator/components/AiFlashcardGeneratorDialog`
 
 ## Verification
 

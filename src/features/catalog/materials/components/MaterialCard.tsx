@@ -1,12 +1,12 @@
 import { type KeyboardEvent, type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList, SquarePen, Trash2 } from 'lucide-react';
-import type { StudyMaterial } from '../../../../../domain/library/models/StudyMaterial';
-import { Card } from '../../../../../shared/ui/Card';
-import { Button } from '../../../../../shared/ui/Button/Button';
-import { Chip } from '../../../../../shared/ui/Chip/Chip';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import { Card } from '../../../../shared/ui/Card';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { Chip } from '../../../../shared/ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
-import { ActionMenu, ActionMenuItem } from '../../../../../shared/components/ActionMenu';
+import { ActionMenu, ActionMenuItem } from '../../../../shared/components/ActionMenu';
 
 export interface MaterialCardProps {
   material: StudyMaterial;

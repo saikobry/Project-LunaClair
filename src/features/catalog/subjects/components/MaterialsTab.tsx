@@ -5,7 +5,7 @@ import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Download, Plus } from 'lucide-react';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Term } from '../../../../domain/library/models/Term';
-import { MaterialCard } from '../../materials/components/MaterialCard/MaterialCard';
+import { MaterialCard } from '../../materials/components/MaterialCard';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
 import { SegmentedControl, SegmentedControlItem } from '../../../../shared/ui/SegmentedControl/SegmentedControl';

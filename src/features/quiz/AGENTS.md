@@ -10,7 +10,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 |---|---|
 | `QuizScreen.tsx` | Feature-root screen orchestrator. Manages quiz launch requests (exam vs practice mode, single quiz vs virtual composite), wraps session flow, and handles completion transitions. |
 | `components/` | Presentational views: `QuestionRenderer` (MC, MS, TF, Identification, FillBlank), `QuizStartView`, `QuizView`, `QuizResultView`, `QuestionSkeleton`. |
-| `components/SubjectQuizExplorer/` | Subject-scoped quiz hierarchy tree viewer (`SubjectQuizExplorer.tsx`) embedded into `catalog/subjects/components/SubjectQuizTab`. |
+| `components/SubjectQuizExplorer.tsx` | Subject-scoped quiz hierarchy tree viewer embedded into `catalog/subjects/components/SubjectQuizTab`. |
 | `hooks/session/` | Active session state machine hooks: `useQuizSessionFlow` (master orchestrator), `useQuizProgress` (index bounds & answer map), `useQuizPersistence` (start/submit/abandon dispatches), `useQuizLoader` (single quiz, virtual quiz composite, or material questions). |
 | `hooks/queries/` | Read queries: `useSubjectQuizTree`, `useQuizTreeSelection`, `useQuestions`, `useQuizzes`. |
 | `hooks/repositories/` | Context repository access adapters: `useQuestionRepository`, `useQuizRepository`. |

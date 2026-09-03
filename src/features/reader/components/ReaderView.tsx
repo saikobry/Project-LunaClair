@@ -1,12 +1,12 @@
 import { type RefObject } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../domain/reader/models/annotation.types';
-import type { PopoverState } from './types/reader.types';
-import MarkdownViewer from './components/MarkdownViewer';
-import AnnotationToolbar from './components/AnnotationToolbar';
-import DrawingCanvas from './components/DrawingCanvas';
-import SelectionPopover from './components/SelectionPopover';
-import { TocMobile, TocDesktop } from './components/Toc';
+import type { DrawingPath, AnnotationMode, DrawingTool, HighlightColor } from '../../../domain/reader/models/annotation.types';
+import type { PopoverState } from '../types/reader.types';
+import MarkdownViewer from './MarkdownViewer';
+import AnnotationToolbar from './AnnotationToolbar';
+import DrawingCanvas from './DrawingCanvas';
+import SelectionPopover from './SelectionPopover';
+import { TocMobile, TocDesktop } from './Toc';
 
 const styles = stylex.create({
   layout: {

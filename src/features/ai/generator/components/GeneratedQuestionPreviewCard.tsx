@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, Edit2, AlertCircle } from 'lucide-react';
-import type { GeneratedQuestionDraft } from '../../../domain/generator/models/generator.types';
-import { validateQuestionDraft } from '../../../domain/generator/validation/questionDraftValidation';
+import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
+import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
 import {
   DIFFICULTY_APPEARANCE,
   QUESTION_TYPE_APPEARANCE,
-} from '../../quiz-management/quizBadgeAppearance';
+} from '../../../quiz-management/utils/quizBadgeAppearance';
 
 const styles = stylex.create({
   card: {
