@@ -6,7 +6,7 @@ import { validateQuestionDraft } from '../../../../domain/generator/validation/q
 import {
   DIFFICULTY_APPEARANCE,
   QUESTION_TYPE_APPEARANCE,
-} from '../../../quiz-management/utils/quizBadgeAppearance';
+} from '../../../quiz/utils/quizBadgeAppearance';
 
 const styles = stylex.create({
   card: {

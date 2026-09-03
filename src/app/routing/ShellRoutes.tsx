@@ -1,27 +1,27 @@
 import { useCallback, lazy, Suspense } from 'react';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
-import LibraryScreen from '../../features/catalog/materials/components/LibraryScreen';
-import { useTouchMaterial } from '../../features/catalog/materials/hooks/mutations/useTouchMaterial';
+import LibraryHomeScreen from '../screens/library/LibraryHomeScreen';
+import { useTouchMaterial } from '../../features/materials/hooks/mutations/useTouchMaterial';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import type { AppRoute } from './routing';
-import MaterialWorkspace from '../layouts/MaterialWorkspace';
+import MaterialWorkspaceScreen from '../screens/material-workspace/MaterialWorkspaceScreen';
 
-// Route-level code-splitting for heavy screens
-const ExploreScreen = lazy(() => import('../../features/catalog/explore/components/ExploreScreen'));
-const PreviewMaterialScreen = lazy(() => import('../../features/catalog/available/components/PreviewMaterialScreen'));
-const SubjectWorkspace = lazy(() => import('../../features/catalog/subjects/components/SubjectWorkspace'));
+// Route-level code-splitting for screen compositions
+const ExploreScreen = lazy(() => import('../screens/explore/ExploreScreen'));
+const PreviewMaterialScreen = lazy(() => import('../screens/preview-material/PreviewMaterialScreen'));
+const SubjectWorkspaceScreen = lazy(() => import('../screens/subject-workspace/SubjectWorkspaceScreen'));
 const TermManagerScreen = lazy(() =>
-  import('../../features/catalog/terms/components/TermManagerScreen').then((m) => ({ default: m.TermManagerScreen })),
+  import('../screens/terms/TermManagerScreen').then((m) => ({ default: m.TermManagerScreen })),
 );
-const AnalyticsScreen = lazy(() => import('../../features/analytics/AnalyticsScreen'));
-const QuizCanvasBuilder = lazy(() =>
-  import('../../features/quiz-management/canvas/QuizCanvasBuilder').then((m) => ({ default: m.QuizCanvasBuilder })),
+const AnalyticsScreen = lazy(() => import('../screens/analytics/AnalyticsScreen'));
+const QuizCanvasBuilderScreen = lazy(() =>
+  import('../screens/quiz-canvas/QuizCanvasBuilderScreen').then((m) => ({ default: m.QuizCanvasBuilderScreen })),
 );
-const QuizScreen = lazy(() => import('../../features/quiz/QuizScreen'));
+const QuizSessionScreen = lazy(() => import('../screens/quiz-session/QuizSessionScreen'));
 const SharedPackageScreen = lazy(() =>
-  import('../../features/package/SharedPackageScreen').then((m) => ({ default: m.SharedPackageScreen })),
+  import('../screens/shared-package/SharedPackageScreen').then((m) => ({ default: m.SharedPackageScreen })),
 );
-const ImporterScreen = lazy(() => import('../../features/importer/ImporterScreen'));
+const ImporterScreen = lazy(() => import('../screens/importer/ImporterScreen'));
 
 interface ShellRoutesProps {
   currentRoute: AppRoute;
@@ -112,7 +112,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
   return (
     <>
       {currentRoute.kind === 'library' && (
-        <LibraryScreen
+        <LibraryHomeScreen
           onOpenMaterial={handleOpenMaterial}
           onOpenSubject={handleOpenSubject}
           onStartQuiz={handleStartQuiz}
@@ -167,7 +167,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'subject' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <SubjectWorkspace
+          <SubjectWorkspaceScreen
             subjectId={currentRoute.subjectId}
             activeTab={currentRoute.activeTab}
             onNavigate={navigate}
@@ -177,7 +177,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
         </Suspense>
       )}
       {currentRoute.kind === 'workspace' && currentRoute.workspace === 'material' && (
-        <MaterialWorkspace
+        <MaterialWorkspaceScreen
           materialId={currentRoute.materialId}
           activeTab={currentRoute.activeTab}
           subjectId={currentRoute.subjectId}
@@ -186,7 +186,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'quiz-canvas' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <QuizCanvasBuilder
+          <QuizCanvasBuilderScreen
             key={currentRoute.quizId ?? 'new-quiz'}
             materialId={currentRoute.materialId}
             quizId={currentRoute.quizId}
@@ -204,7 +204,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'quiz-session' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <QuizScreen
+          <QuizSessionScreen
             quizId={currentRoute.quizId}
             materialIds={currentRoute.materialIds}
             quizIds={currentRoute.quizIds}
@@ -215,3 +215,5 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
     </>
   );
 }
+
+export default ShellRoutes;

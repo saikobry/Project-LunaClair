@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
-import { useSubjects } from '../../catalog/subjects/hooks/queries/useSubjects';
-import { useTerms } from '../../catalog/terms/hooks/queries/useTerms';
+import { useSubjects } from '../../subjects/hooks/queries/useSubjects';
+import { useTerms } from '../../terms/hooks/queries/useTerms';
 
 export interface ImportOptions {
   subjectId?: string;

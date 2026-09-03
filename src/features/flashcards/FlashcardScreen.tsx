@@ -6,7 +6,7 @@ import { useQuestions } from '../quiz/hooks/queries/useQuestions';
 import { useQuizzes } from '../quiz/hooks/queries/useQuizzes';
 import { useFlashcardReviews } from './hooks/queries/useFlashcardReviews';
 import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
-import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
+import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useDocument } from '../reader/hooks/useDocument';
 import { useToast } from '../../app/providers/ToastContext';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/engines/deck';

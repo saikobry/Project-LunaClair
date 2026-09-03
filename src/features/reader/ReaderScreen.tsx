@@ -6,7 +6,7 @@ import type { AnnotationMode, DrawingTool, HighlightColor } from '../../domain/r
 import { ConfirmationDialog } from '../../shared/ui/Dialog/ConfirmationDialog';
 import { ErrorState } from '../../shared/ui/ErrorState/ErrorState';
 import { Button } from '../../shared/ui/Button/Button';
-import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
+import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { useDocument } from './hooks/useDocument';
 import { useHighlights } from './hooks/useHighlights';

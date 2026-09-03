@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Library, ListChecks, Package, Share2 } from 'lucide-react';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { AppRoute } from '../../app/layouts/AppShell';
-import { useMaterial } from '../catalog/materials/hooks/queries/useMaterial';
+import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useDocument } from '../reader/hooks/useDocument';
 import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
 import { ShareStudyPackageModal } from '../package/components/ShareStudyPackageModal';

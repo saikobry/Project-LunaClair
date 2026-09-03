@@ -1,6 +1,6 @@
 import type { AppRoute } from '../routing/routing';
-import { useSubject } from '../../features/catalog/subjects/hooks/queries/useSubject';
-import { useMaterial } from '../../features/catalog/materials/hooks/queries/useMaterial';
+import { useSubject } from '../../features/subjects/hooks/queries/useSubject';
+import { useMaterial } from '../../features/materials/hooks/queries/useMaterial';
 import type { NavActiveSection } from './navigation/navigation.types';
 import { DesktopSidebar } from './navigation/DesktopSidebar';
 import { TabletRail } from './navigation/TabletRail';

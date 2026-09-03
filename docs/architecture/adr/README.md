@@ -28,6 +28,7 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-011](ADR-011-public-application-context-and-cqrs-read-model.md) | Public Application Context, Composition Root Slices, and CQRS Read Model | Accepted | Phase 12 |
 | [ADR-012](ADR-012-primary-unit-test-organization-and-discoverability.md) | Primary Unit Test Organization and 1:1 Discoverability Standard | Accepted | Phase 12 |
 | [ADR-013](ADR-013-uniform-domain-module-organization.md) | Uniform Domain Module Organization | Accepted | Phase 12 |
+| [ADR-014](ADR-014-bounded-contexts-and-screen-layer.md) | Bounded Contexts and Application Screen Layer | Accepted | Phase 12 |
 
 ---
 

@@ -20,6 +20,20 @@ Application-level orchestration: the root shell layout, composition root & DI fa
   - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.
   - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Preview / Terms / Analytics / Subject / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
 
+- `screens/` — Application Screen & Route Composition Layer (ADR-014):
+  - Route-level screens and cross-feature orchestrations:
+    - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (aggregates material and subject management dialogs).
+    - `screens/subject-workspace/` — `SubjectWorkspaceScreen.tsx` & `SubjectQuizTab.tsx` (orchestrates subject metadata, materials tab, terms tab, and subject quiz tree).
+    - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).
+    - `screens/explore/` — `ExploreScreen.tsx` (remote catalog exploration and public share hub).
+    - `screens/preview-material/` — `PreviewMaterialScreen.tsx` (read-only document preview surface).
+    - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
+    - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
+    - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).
+    - `screens/analytics/` — `AnalyticsScreen.tsx` (learning insights and study metrics screen).
+    - `screens/importer/` — `ImporterScreen.tsx` (5-step document import wizard screen).
+    - `screens/shared-package/` — `SharedPackageScreen.tsx` (cloud package inspection and import screen).
+
 - `layouts/` — Structural Frame & Page Containers:
   - `layouts/AppShell.tsx` — Thin composition root: wires `useAppRoute`, `useShellFocusMode`, `useFocusModeMotion` (GSAP rail layout animation), `AppHeader`, `AppSidebar`, `<ShellRoutes>`, and mounts transient overlays from `overlays/`.
   - `layouts/AppHeader.tsx` & `layouts/appHeader.stylex.ts` — Global Top Bar (`height: 52px`, `zIndex: 110`): renders brand identity (Logo, Project LunaClair, `v0.2.0` badge) on the left, and global actions/status (PWA install affordance, `SyncStatusPill`) on the right. Automatically morphs into floating glass capsules with icon-only presentation on scroll (`useHeaderScroll`) or when Focus Mode is active.
@@ -30,7 +44,6 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `navigation/TabletRail.tsx` — 60px floating vertical icon rail with in-place link fade and vertical collapse into the $44\times44\text{px}$ corner card.
     - `navigation/MobileBottomDock.tsx` — 60px floating horizontal bottom dock with in-place link fade and horizontal contraction into the $44\times44\text{px}$ corner card.
     - `navigation/navigation.types.ts` — Shared viewport navigation types and active states.
-  - `layouts/MaterialWorkspace.tsx` — Composite material workspace (Read / Write / Quiz / Flashcards / Manage tab bar) orchestrating reader, writer, quiz, flashcard, and AI chat features.
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
 - `overlays/` — Transient System UI (Out of Document Flow):
@@ -58,4 +71,6 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 ## Child DOX Index
 
-No child AGENTS.md files — this leaf directory has no sub-boundaries.
+| Child | Scope | Purpose |
+|---|---|---|
+| `src/app/screens/AGENTS.md` | `src/app/screens/` | Application Screen & Route Composition Layer (ADR-014) |

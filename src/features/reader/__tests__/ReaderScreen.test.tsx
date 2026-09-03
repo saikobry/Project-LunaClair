@@ -7,7 +7,7 @@ import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../app/providers/ToastContext';
 import { FocusModeProvider } from '../../../app/providers/FocusModeContext';
 import { DocumentNotFoundError } from '../../../domain/reader/errors/DocumentNotFoundError';
-import * as useMaterialModule from '../../catalog/materials/hooks/queries/useMaterial';
+import * as useMaterialModule from '../../materials/hooks/queries/useMaterial';
 import * as useDocumentModule from '../hooks/useDocument';
 import * as useHighlightsModule from '../hooks/useHighlights';
 import * as useDrawingsModule from '../hooks/useDrawings';

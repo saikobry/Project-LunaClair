@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ImportSession, ImportCandidate } from '../../../domain/importer/models/importer.types';
 import { useImporterContext } from './useImporterContext';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import { catalogQueryKeys } from '../../catalog/queries/catalogQueryKeys';
+import { materialQueryKeys } from '../../materials/queries/materialQueryKeys';
 
 export function useImportSession() {
   const { extractContent, commitImport } = useImporterContext();
@@ -139,7 +139,7 @@ export function useImportSession() {
     }
     
     setCreatedMaterials(results);
-    await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.materials() });
+    await queryClient.invalidateQueries({ queryKey: materialQueryKeys.materials() });
     setSession(prev => ({ ...prev, status: 'completed' }));
     return results;
   }, [session.candidates, session.subjectId, session.termId, commitImport, queryClient]);

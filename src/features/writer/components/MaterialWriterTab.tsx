@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { FileQuestion } from 'lucide-react';
-import { useMaterial } from '../../catalog/materials/hooks/queries/useMaterial';
+import { useMaterial } from '../../materials/hooks/queries/useMaterial';
 import { useDocument } from '../../reader/hooks/useDocument';
 import { useUpdateDocumentContent } from '../hooks/mutations/useUpdateDocumentContent';
 import { WriterEditor } from './WriterEditor';
