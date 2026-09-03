@@ -196,6 +196,7 @@ export default function DrawingCanvas({
     >
       <canvas
         ref={canvasRef}
+        aria-label="Drawing Canvas"
         style={{
           display: 'block',
           width: '100%',

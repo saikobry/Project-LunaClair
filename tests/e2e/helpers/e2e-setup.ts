@@ -62,14 +62,22 @@ export async function switchToVisualMode(page: Page) {
  * Mocks Cloudflare Worker /api routes in Playwright so tests run reliably
  * offline without needing a remote D1 database connection.
  */
-export async function setupApiMocks(page: Page) {
+export async function setupApiMocks(page: Page, options?: { seedQuiz?: boolean }) {
   const catalogDir = path.resolve(process.cwd(), 'content/catalog');
   const materialsDir = path.resolve(process.cwd(), 'content/materials');
+  const quizDir = path.resolve(process.cwd(), 'content/quiz');
 
   const materials = JSON.parse(fs.readFileSync(path.join(catalogDir, 'materials.json'), 'utf-8'));
   const subjects = JSON.parse(fs.readFileSync(path.join(catalogDir, 'subjects.json'), 'utf-8'));
   const terms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'terms.json'), 'utf-8'));
   const subjectTerms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'subjectTerms.json'), 'utf-8'));
+
+  let quizData = { questions: [], quizzes: [] };
+  if (options?.seedQuiz) {
+    const questions = JSON.parse(fs.readFileSync(path.join(quizDir, 'questions.json'), 'utf-8'));
+    const quizzes = JSON.parse(fs.readFileSync(path.join(quizDir, 'quizzes.json'), 'utf-8'));
+    quizData = { questions, quizzes };
+  }
 
   await page.route(/\/api\/catalog(\?.*)?$/, async (route) => {
     await route.fulfill({
@@ -118,7 +126,7 @@ export async function setupApiMocks(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ questions: [], quizzes: [] }),
+      body: JSON.stringify(quizData),
     });
   });
 
@@ -166,7 +174,11 @@ export async function resetDatabase(page: Page) {
  * Shared helper to dismiss first-run onboarding and ensure a catalog material
  * is imported into the local Dexie library before testing.
  */
-export async function setupImportedMaterial(page: Page, materialId = 'cell-structure') {
+export async function setupImportedMaterial(
+  page: Page,
+  materialId = 'cell-structure',
+  options?: { seedQuiz?: boolean },
+) {
   // Pre-seed onboarding completion in localStorage so tutorial overlay never blocks interactions
   await page.addInitScript(() => {
     try {
@@ -176,7 +188,7 @@ export async function setupImportedMaterial(page: Page, materialId = 'cell-struc
     }
   });
 
-  await setupApiMocks(page);
+  await setupApiMocks(page, options);
 
   // Navigate directly to available materials to perform deterministic imports
   await page.goto('/available');

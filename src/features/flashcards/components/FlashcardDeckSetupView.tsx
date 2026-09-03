@@ -316,10 +316,12 @@ export function FlashcardDeckSetupView({
 
                     {activeQuizzes.length > 1 && (
                         <div {...stylex.props(styles.controlGroup)}>
-                            <label {...stylex.props(styles.label)}>
+                            <label htmlFor="flashcard-quiz-filter" {...stylex.props(styles.label)}>
                                 <Filter size={14} /> Quiz Filter
                             </label>
                             <select
+                                id="flashcard-quiz-filter"
+                                aria-label="Quiz Filter"
                                 {...stylex.props(styles.select)}
                                 value={selectedQuizId}
                                 onChange={(e) => setSelectedQuizId(e.target.value)}
