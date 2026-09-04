@@ -1,7 +1,7 @@
 # Project LunaClair — Architecture Guide
 
 **Studio:** Saiko Interactive  
-**Version:** Phase 11 (Collaboration & Sharing)
+**Version:** Phase 12 (Responsive Shell Experience & Architectural Hardening)
 
 ## Documentation Structure
 
@@ -19,45 +19,52 @@ docs/
 
 ```text
 src/
-├── app/            # Application bootstrap: shell layout, config, providers, composition root
+├── app/            # Application bootstrap: shell layout, navigation slices, screens, routing, providers, composition root
 ├── application/    # Framework-agnostic use cases and application workflows
-├── domain/         # Business domain models and pure domain services
-├── infrastructure/ # Database infrastructure, schema, migrators, repositories
-├── features/       # Ownership-driven feature modules
-├── shared/         # Domain-agnostic UI, utilities, and shared contracts
+├── domain/         # Business domain models, engines, ports, and reconcilers
+├── infrastructure/ # Persistence, API transports, browser lifecycle, importer engines, storage
+├── features/       # Bounded capability feature modules
+├── shared/         # Domain-agnostic UI primitives, utilities, and shared contracts
 └── styles/         # Global styles and master stylesheet
 ```
 
 ### `src/app/`
 
-Application-level orchestration: root shell layout (`AppShell`, `AppSidebar`, `ShellRoutes`, `MaterialWorkspace`), configuration constants, React providers (`AppProviders`, `ApplicationProvider`, `FocusModeProvider`), and the composition root (`createRepositories`, `createUseCases`, `createApplication`).
+Application-level orchestration: root shell layout (`AppShell`, `AppHeader`, `AppSidebar`, `ShellRoutes`, `MaterialWorkspace`), dedicated viewport navigation slices (`DesktopSidebar`, `TabletRail`, `MobileBottomDock`), route-level screen layer (`src/app/screens/` — `LibraryHomeScreen`, `ExploreScreen`, `SubjectWorkspaceScreen`, etc.), configuration constants, React providers (`AppProviders`, `ApplicationProvider`, `FocusModeProvider`), and the composition root (`bootstrap/` with domain slice factories).
 
 ### `src/application/`
 
-Framework-agnostic use cases coordinate domain contracts between presentation and persistence. A use case never imports React, TanStack Query, Dexie, browser APIs, or UI components. React hooks call use cases directly for write mutations; query hooks read from repositories via dependency injection. Use cases span `quiz/`, `quiz-management/`, `library/`, `subject/`, `reader/`, `content/`, `flashcards/`, `analytics/`, `ai/`, `generator/`, `importer/`, `package/`, `sharing/`, and `sync/`.
+Framework-agnostic use cases coordinate domain contracts between presentation and persistence. Under ADR-011, use cases handle write mutations, transactions, and business workflows, while features read via domain port repositories in `context.repositories`. A use case never imports React, TanStack Query, Dexie, browser APIs, or UI components. Use cases span `quiz/`, `quiz-management/`, `library/`, `subject/`, `reader/`, `content/`, `flashcards/`, `analytics/`, `ai/`, `generator/`, `importer/`, `package/`, `sharing/`, and `sync/`.
 
 ### `src/domain/`
 
-Pure business domain models, engines, and services. Domain modules have zero React or UI dependencies. Subdomains include `reader/`, `quiz/`, `library/`, `flashcards/`, `analytics/` (streak, activity calendar, mastery ranking, retention maturity/forecast, and overview aggregation), `ai/`, `importer/`, `sync/` (concurrency evaluation, reconcilers, LWW comparators), `package/` (`.lcpack` specification, validators, UUID remappers, inspectors), and `sharing/` (`ShareTransport` ports and access control types).
+Pure business domain models, engines, and services organized under uniform responsibility directories (ADR-013). Domain modules have zero React or UI dependencies. Subdomains include `reader/`, `quiz/`, `library/`, `flashcards/`, `analytics/` (streak, activity calendar, mastery ranking, retention maturity/forecast, and overview aggregation), `ai/`, `generator/`, `importer/`, `sync/` (concurrency evaluation, reconcilers, LWW comparators), `package/` (`.lcpack` specification, validators, UUID remappers, inspectors), and `sharing/` (`ShareTransport` ports and access control types).
 
 ### `src/infrastructure/`
 
-Database persistence infrastructure (`src/infrastructure/database/`): Dexie database (Schema v11), startup lifecycle, migrators, seed data, and concrete repository implementations (`DexieAnalyticsRepository`, `DexieQuizSessionRepository`, `DexieFlashcardReviewRepository`, `DexieAiChatRepository`, `DexieImportAssetRepository`, `DexieSyncQueueRepository`, `DexieSyncStateRepository`, `DexieConflictDraftRepository`, etc.). API & gateway adapters include `WorkerAiAdapter`, `WorkerSyncTransport`, `WorkerShareTransport`, `PdfjsImporter`, and `TesseractExtractor`.
+Boundary-first persistence and external service infrastructure (ADR-015):
+- `database/`: Dexie database (Schema v11), schema definitions, startup initializer, migrator, repositories, atomic services, and sync reconcilers.
+- `api/`: Cloudflare Worker REST API repositories, transports (`WorkerSyncTransport`, `WorkerShareTransport`), and transformers.
+- `browser/`: Browser lifecycle listeners (`BrowserSyncLifecycle`) and storage credentials (`LocalStorageCredentialsProvider`).
+- `importer/`: Document extractors (`PdfjsImporter`, `TesseractExtractor`, `ImageImporter`) and registry.
+- `storage/`: Composite repositories (`HybridDocumentRepository`).
 
 ### `src/features/`
 
 Feature-based modules encapsulating UI components, hooks, queries, styles, and types. Features own business capabilities and consume other features only through the approved direct module paths defined by ADR-010; internal feature paths remain private.
 
 Active features include:
-- `catalog/` — Library, Subject workspaces, Term management, and Explore Discovery Hub (`/explore`).
+- `materials/` — Local study material management, material cards, and CRUD dialogs (ADR-014).
+- `subjects/` — Academic subject hierarchy, workspaces, and modals (ADR-014).
+- `terms/` — Academic terms management and subject-term junctions (ADR-014).
+- `discovery/` — Remote catalog exploration, public share discovery, and read-only previews (ADR-014).
 - `reader/` — Markdown reader with persistent highlights, drawing canvas, and table of contents.
 - `quiz/` — 5-question-type assessment engine and interactive quiz player with atomic submission.
 - `quiz-management/` — Question Bank authoring, visual Quiz Canvas builder, and type editors.
 - `flashcards/` — Spaced repetition study mode (SM-2) with 3D flip card player.
 - `writer/` — Lexical WYSIWYG authoring engine with lossless Markdown transformation.
 - `analytics/` — Learning insights dashboard with KPI metrics, retention breakdown, review forecast, mastery matrix, and 52-week activity heatmap.
-- `ai/` — Grounded AI Study Assistant with streaming chat drawer (`Llama 3.3 70B`) and Reader selection actions.
-- `generator/` — AI Question & Flashcard synthesis dialogs with draft persistence.
+- `ai/` — Grounded AI Study Assistant with streaming chat drawer (`Llama 3.3 70B Instruct`), selection actions, and AI content synthesis dialogs (`generator/`).
 - `importer/` — 5-step content ingestion wizard with PDF extraction and OCR fallback.
 - `sync/` — Cloud synchronization status pill and conflict resolution modal.
 - `package/` — Portable Study Package (`.lcpack`) import/export, cloud share link publishing, and shared package landing screen.
@@ -101,6 +108,12 @@ Key decisions are documented in [`docs/architecture/adr/`](adr/README.md).
 | [ADR-007](adr/ADR-007-feature-first-architecture.md) | Feature-First Module Organization | Phase 1 |
 | [ADR-009](adr/ADR-009-feature-ownership-and-public-contracts.md) | Feature Ownership & Public Contracts | Phase 6 (superseded by ADR-010) |
 | [ADR-010](adr/ADR-010-replace-barrel-based-feature-boundaries.md) | Replace Barrel-Based Feature Boundaries | Phase 6 |
+| [ADR-011](adr/ADR-011-public-application-context-and-cqrs-read-model.md) | Public Application Context, Composition Root Slices, and CQRS Read Model | Phase 12 |
+| [ADR-012](adr/ADR-012-primary-unit-test-organization-and-discoverability.md) | Primary Unit Test Organization and 1:1 Discoverability Standard | Phase 12 |
+| [ADR-013](adr/ADR-013-uniform-domain-module-organization.md) | Uniform Domain Module Organization | Phase 12 |
+| [ADR-014](adr/ADR-014-bounded-contexts-and-screen-layer.md) | Bounded Contexts and Application Screen Layer | Phase 12 |
+| [ADR-015](adr/ADR-015-uniform-infrastructure-module-organization.md) | Uniform Infrastructure Module Organization | Phase 12 |
+| [ADR-016](adr/ADR-016-uniform-cloudflare-worker-architecture.md) | Uniform Cloudflare Worker Architecture | Phase 12 |
 
 ## Import Rules
 

@@ -99,6 +99,34 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
   - **11D (Cloud Share UI & Landing Screen):** Publishing dialog (`ShareStudyPackageModal`) with access configuration and link copy; standalone landing screen (`SharedPackageScreen` for `/share/:id` and `/s/:code`) with passcode unlock modal, package metrics preview, 1-click **Clone to Library**, and `.lcpack` export downloading with telemetry tracking.
   - **11E (Unified Explore Hub):** Consolidated discovery surface (`/explore`, `ExploreScreen`) merging official curriculum coursework with community study packages, featuring source filters (`[ All | Official | Community ]`), debounced search, popular/recent sorting, and 1-click library cloning.
 
+- ✅ **Phase 12 — Responsive Shell Experience & Architectural Hardening**
+  - **12A (Adaptive Navigation & Shell Experience):**
+    - Viewport-specific navigation architecture: `DesktopSidebar` with Option A $240\times58\text{px}$ rounded trapezoid Focus Mode drawer continuously morphing into a $44\times44\text{px}$ restore pill with independent link fade; `TabletRail` (60px floating vertical icon rail with height-collapsing animations); `MobileBottomDock` (60px floating bottom pill with safe-area inset support and slide-down focus transitions).
+    - Scroll-depth reactive `AppHeader`: dynamic hysteric scroll detection (`useHeaderScroll`) collapsing into floating frosted glass action capsules with compact brand icon, PWA install affordance, and `SyncStatusPill`.
+    - Shell layout modularization: structured `src/app/` into `layouts/`, `navigation/`, `routing/`, `overlays/`, and `screens/`.
+    - StyleX standardization: normalized all extracted stylesheets to `*.stylex.ts` naming convention project-wide.
+  - **12B (Pragmatic CQRS & Domain Port Decoupling — ADR-011):**
+    - Public CQRS application context: features consume pure Domain Port repositories (`context.repositories`) directly for TanStack Query read models, while routing all state mutations and business orchestration through framework-agnostic use cases (`context.useCases`).
+    - Transaction port decoupling: introduced abstract domain ports (`SyncReconciler`, `StudyPackageImportService`, `ConflictDraftRepository.resolveConflict`) decoupling use cases and `SyncEngine` from direct IndexedDB database transactions.
+    - Modularized composition root: partitioned monolithic use-case factory into isolated domain slice factories (`createAiUseCases`, `createLibraryUseCases`, `createQuizUseCases`, etc.) with a clean typed dependency injection context (`bootstrap/`).
+  - **12C (Bounded Context Decomposition & Layer Taxonomies — ADR-014, ADR-015, ADR-016):**
+    - Catalog bounded context decomposition (ADR-014): partitioned monolithic catalog into 4 isolated features (`materials`, `subjects`, `terms`, `discovery`) adhering to a strict Directed Acyclic Graph (DAG) dependency model.
+    - Application screen layer: established `src/app/screens/` to host and orchestrate route-level views, separating routing concerns from reusable feature domain widgets.
+    - Uniform infrastructure taxonomy (ADR-015): restructured `src/infrastructure/` into functional subsystems (`api/`, `browser/`, `database/`, `importer/`, `storage/`) and isolated database schema/lifecycle into `database/schema/`.
+    - Cloudflare Worker modularization (ADR-016): decomposed Worker monolith into Web Standards core primitives (`worker/src/core/`), zero-dependency declarative router (`worker/src/router.ts`), 8 isolated route handlers (`worker/src/routes/`), and in-memory D1 test harness (`mockD1.ts`).
+    - AI feature consolidation: merged generator into `src/features/ai/generator/` and unified AI domain models.
+    - Uniform domain taxonomy (ADR-013): categorized `src/domain/` into `models/`, `repositories/`, `services/`, `engines/`, `strategies/`, `reconcilers/`, `utils/`, and `errors/`.
+    - Universal direct-path imports (ADR-010): pruned all barrel files (`index.ts`) project-wide across domain, application, features, and shared primitives.
+  - **12D (Presentation Quality & React Doctor Hardening):**
+    - React Doctor triage and resolution: decomposed oversized screens and dialogs (`ConflictDraftsModal`, `SharedPackageScreen`, `AiQuestionGeneratorDialog`, `AiFlashcardGeneratorDialog`) into focused subcomponents.
+    - Custom hook extractions: extracted `useMaterialWriterState`, `useHeaderScroll`, and unified navigation schemas (`PRIMARY_NAV_ITEMS`).
+    - Rule governance: codified intentional overrides in `doctor.config.ts` for sequential sync operations, dirty material-switch state adjustments, and guarded draft synchronization.
+  - **12E (Comprehensive Verification & Test Pyramid — ADR-012):**
+    - Automated boundary guardrails: implemented static architectural boundary test suite (`src/__tests__/boundary/`) enforcing domain purity, shared layer purity, and cross-layer import constraints.
+    - 1:1 granular test discoverability (ADR-012): created dedicated 1:1 unit test suites across all 14 application use-case domains, domain calculation engines, infrastructure repositories, database services, and Worker route handlers.
+    - Metric milestone: achieved **1,210 passing Vitest tests across 266 test files** with 0 failures, 0 oxlint warnings, and 0 typecheck errors.
+    - Playwright real-browser E2E acceptance suites: added comprehensive suites for first-run onboarding tutorial progression, reader annotations & canvas drawing persistence across page reloads, active quiz runner grading, and 3D flip flashcard study sessions with SM-2.
+
 ---
 
 ## Planned Phases

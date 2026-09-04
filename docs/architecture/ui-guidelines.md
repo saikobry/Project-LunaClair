@@ -31,8 +31,8 @@ StyleX (@stylexjs/stylex)
 
 ### Persistence & Service Boundaries
 
-5. **Browser storage APIs only in `src/infrastructure/database/`** ❌
-   - `localStorage`, `sessionStorage`, IndexedDB calls belong in infrastructure adapters, never in features.
+5. **Browser storage APIs only in `src/infrastructure/`** ❌
+   - `localStorage`, `sessionStorage`, IndexedDB calls belong in infrastructure adapters (`src/infrastructure/browser/storage/`, `src/infrastructure/database/repositories/`), never in features.
 
 6. **Domain layer is pure** ❌
    - No DOM, `window`, `document`, `navigator`, `localStorage`, or browser APIs in `src/domain/`.
