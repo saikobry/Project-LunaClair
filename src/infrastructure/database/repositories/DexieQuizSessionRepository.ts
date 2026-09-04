@@ -6,7 +6,7 @@ import type {
     QuizSessionRepository,
     CreateSessionInput,
 } from '../../../domain/quiz/repositories/QuizSessionRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;

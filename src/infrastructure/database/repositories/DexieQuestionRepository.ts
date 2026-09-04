@@ -5,7 +5,7 @@ import type {
     UpdateQuestionInput,
 } from '../../../domain/quiz/repositories/QuestionRepository';
 import { normalizeTags } from '../../../domain/quiz/utils/tags';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;

@@ -4,7 +4,7 @@ import type {
     CreateSubjectInput,
     UpdateSubjectInput,
 } from '../../../domain/library/repositories/SubjectRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);

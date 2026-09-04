@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { DB_NAME } from '../../../infrastructure/database/schema';
-import { LunaClairDatabase } from '../../../infrastructure/database/LunaClairDatabase';
+import { DB_NAME } from '../../../infrastructure/database/schema/schema';
+import { LunaClairDatabase } from '../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieSyncReconciler } from '../../../infrastructure/database/sync/DexieSyncReconciler';
-import { DexieSyncQueueRepository } from '../../../infrastructure/database/sync/DexieSyncQueueRepository';
-import { DexieSyncStateRepository } from '../../../infrastructure/database/sync/DexieSyncStateRepository';
-import { DexieConflictDraftRepository } from '../../../infrastructure/database/sync/DexieConflictDraftRepository';
+import { DexieSyncQueueRepository } from '../../../infrastructure/database/repositories/DexieSyncQueueRepository';
+import { DexieSyncStateRepository } from '../../../infrastructure/database/repositories/DexieSyncStateRepository';
+import { DexieConflictDraftRepository } from '../../../infrastructure/database/repositories/DexieConflictDraftRepository';
 import { SyncEngine } from '../SyncEngine';
 import { SyncStatusStore } from '../SyncStatusStore';
 import { SyncNetworkError } from '../../../domain/sync/errors/SyncErrors';

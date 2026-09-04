@@ -13,7 +13,7 @@ import { OnboardingTutorial } from '../overlays/OnboardingTutorial';
 import { ShellRoutes } from '../routing/ShellRoutes';
 import { useAppRoute } from '../routing/useAppRoute';
 import { useShellFocusMode } from './useShellFocusMode';
-import { BrowserSyncLifecycle } from '../../infrastructure/browser/BrowserSyncLifecycle';
+import { BrowserSyncLifecycle } from '../../infrastructure/browser/lifecycle/BrowserSyncLifecycle';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };

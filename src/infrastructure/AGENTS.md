@@ -2,91 +2,99 @@
 
 ## Purpose
 
-Dexie/IndexedDB local database and remote API adapters: schema definition, database lifecycle (open, migrate, seed), API repository implementations, and concrete repository/service implementations satisfying domain contracts.
+Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/Dexie schema and lifecycle, remote Cloudflare Worker API repositories and transports, AI streaming gateway, browser storage/lifecycle providers, import extraction engines, and composite storage repositories satisfying domain ports. Governed by ADR-015 (Boundary-First, Responsibility-Second Organization).
 
 ## Ownership
 
-- `api/` — Concrete remote API repository implementations:
-  - `ApiCatalogRepository.ts` → `CatalogRepository` (`GET /api/catalog` snapshot, uncached `GET /api/catalog/materials/:id` resolution)
-  - `ApiDocumentRepository.ts` → `DocumentRepository` (`GET /api/documents/:documentId`)
-  - `ApiQuizContentRepository.ts` → `QuizContentRepository` (`GET /api/quiz` snapshot)
-  - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first fallback to remote API)
-  - `markdownPreprocessor.ts` → figure image relative URL transformer
-- `ai/` — Concrete AI gateway adapters:
-  - `WorkerAiAdapter.ts` → `AiService` (consumes streaming SSE events from Cloudflare Worker AI `/api/ai/chat`)
-- `sync/` — Concrete Cloudflare Worker HTTP sync transport adapter and session credential providers:
-  - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
-  - `deviceId.ts` → `getOrCreateDeviceId()` (generates or retrieves stable device UUID persisted under `lunaclair.device_id`)
-  - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider` (persists credentials under `lunaclair.session_credentials` with default guest identity fallback)
-- `browser/` — Browser environment adapters:
-  - `BrowserSyncLifecycle.ts` → Environment integration binding `window.online`, `document.visibilitychange`, and interval triggers to the synchronization engine.
-- `sharing/` — Concrete Cloudflare Worker HTTP share transport adapter:
-  - `WorkerShareTransport.ts` → `ShareTransport` (handles header injection, passcode headers `X-Share-Passcode`, network error mapping to `ShareNetworkError`, and HTTP status mapping to `ShareHttpError`)
-- `importer/` — Concrete content importer adapters and factory:
-  - `PdfjsImporter.ts` → `ContentImporter` (PDF extraction via `pdfjs-dist` dynamic import, sequential page memory management, density evaluation for OCR delegation, password exception handling)
-  - `TesseractExtractor.ts` → OCR engine (`tesseract.js` dynamic import, lazy worker pool, EXIF canvas rotation, grayscale preprocessing)
-  - `ImageImporter.ts` → `ContentImporter` (image extraction delegating to `TesseractExtractor`)
-  - `DefaultImporterRegistry.ts` → `ImporterRegistry` (format resolution)
-  - `createExtractors.ts` → Importer registry factory
-- `database/schema.ts` — Version 1/2/3/4/5/6/7/8/9/10/11 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state; v6 adds `documentContents` `'sourceId'` — locally imported document markdown, the explicit local representation of an imported material's content; v7 removes the legacy `sourceType` index from `materials`; v8 rekeys `documentContents` to `'documentId'` (vocabulary rename, with a data-copy upgrade); v9 adds `aiThreads` `'id, materialId, mode, createdAt, updatedAt'` and `aiMessages` `'id, threadId, role, status, createdAt'` for local-first AI chat persistence; v10 adds `importAssets` `'materialId'` for preserving original imported binary files; v11 adds `syncQueue`, `syncState`, and `conflictDrafts` for Phase 10 Cloud Synchronization)
-- `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`. v6 adds `documentContents`. v7 drops the `sourceType` index. v8 rekeys `documentContents` from `sourceId` to `documentId` (rewrites existing records). v9 adds `aiThreads` and `aiMessages`. v10 adds `importAssets`. v11 adds `syncQueue`, `syncState`, and `conflictDrafts`.
-- `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 schema migration is handled natively by Dexie `version(3).upgrade()`; the v3 data pass (`lunaclair.migration.v3.complete`) normalizes stored question tags via domain `normalizeTags` (strip `#`, dedup case-insensitively, preserve first-seen casing).
-- `database/DatabaseInitializer.ts` — Startup orchestrator: `db.open()` → `migrateIfNeeded()`. Deliberately **no seeding** — the canonical catalog lives in D1 and is surfaced via the API as "Available Materials"; users explicitly import materials into the local library (catalog-first, user-selected library model).
-- `database/repositories/` — Concrete repository implementations. `DexieLibraryRepository` performs raw material persistence; material association validation belongs to application use cases.
-  - `DexieAiChatRepository` → `AiChatRepository` (local-first thread & message persistence, orphan recovery, cascade delete)
-  - `DexieImportAssetRepository` → `ImportAssetRepository` (preserves original imported PDF/image blobs keyed by `materialId`)
-  - `DexieQuestionRepository` → `QuestionRepository` (normalizes `tags` through domain `normalizeTags` on create/update)
-  - `DexieQuizRepository` → `QuizRepository`
-  - `DexieQuizSessionRepository` → `QuizSessionRepository` (multi-store transactions for immutable `questionSnapshots`; `getAllCompletedSessions` query)
-  - `DexieLibraryRepository` → `LibraryRepository`
-  - `DexieAnnotationRepository` → `AnnotationRepository`
-  - `DexieSubjectRepository` → `SubjectRepository` (cascade: removes `subjectTerms` rows and clears `subjectId`/`termId` on `materials` on delete)
-  - `DexieTermRepository` → `TermRepository` (cascade: removes `subjectTerms` rows and clears `termId` on `materials` on delete; `upsertTerms` bulk-puts by id for default-term sync)
-  - `DexieSubjectTermRepository` → `SubjectTermRepository` (manages many-to-many Subject ↔ Term associations with composite key `[subjectId+termId]`)
-  - `DexieQuizDraftRepository` → application `QuizDraftRepository` (crash-recovery drafts in `quizEditingDrafts`; latest-draft lookups by quiz or material)
-  - `DexieFlashcardReviewRepository` → `FlashcardReviewRepository` (spaced repetition per-card review states stored in `flashcardReviews`; `getAllReviews` query)
-  - `DexieDocumentContentRepository` → `DocumentContentRepository` (locally imported document markdown keyed by `documentId` in `documentContents`)
-  - `DexieAnalyticsRepository` → `AnalyticsRepository` (multi-table indexed query coordination over `quizSessions`, `flashcardReviews`, `questions`, `materials`, `subjects`; delegates analytics calculations to pure domain engines)
-- `database/sync/` — Transactional outbox helper and Dexie sync repository implementations:
-  - `transactionalOutbox.ts` → `runSyncableTransaction` (atomic Dexie entity mutation and outbox queue persistence within a single read-write transaction)
-  - `DexieSyncQueueRepository.ts` → `SyncQueueRepository` (`syncQueue` outbox mutations: enqueue, chronological peekPending, retryCount and error tracking in updateStatus, remove, countPending)
-  - `DexieSyncStateRepository.ts` → `SyncStateRepository` (`syncState` checkpoint key `userId:deviceId` query and persistence)
-  - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository` (`conflictDrafts` divergence snapshots: saveConflictDraft, getByDocumentId, getById, removeConflictDraft, resolveConflict)
-  - `DexieSyncReconciler.ts` → `SyncReconciler` (coordinates atomic pull batch reconciliation and push outcome application across Dexie tables)
-- `database/services/` — Concrete application service implementations:
-  - `DexieTermService` → `TermService` (atomic `createAndAssignTerm` across `terms` + `subjectTerms` stores)
-  - `DexieQuizEditorService` → `QuizEditorService` (atomic quiz authoring save across `questions` + `quizzes` stores; conditional `questionVersion` bumps; re-snapshots `questionVersion` into quiz items; normalizes `tags` through domain `normalizeTags` on question create/update)
-  - `DexieLibraryImportService` → `LibraryImportService` (atomic import/removal across `subjects`, `terms`, `subjectTerms`, `materials`, `questions`, `quizzes`, `documentContents` stores)
-  - `DexieStudyPackageImportService` → `StudyPackageImportService` (atomic multi-store package imports across `materials`, `documentContents`, `questions`, `quizzes`, and `importAssets`)
+- `database/` — Dexie / IndexedDB persistence engine:
+  - `schema/` — Database engine definition, schema history, lifecycle, and migrations:
+    - `LunaClairDatabase.ts` → `LunaClairDatabase` (Dexie subclass with typed `Table` properties, singleton `db`)
+    - `schema.ts` → Version 1 through 11 schema definitions
+    - `DatabaseInitializer.ts` → Startup orchestrator (`db.open()` → `migrateIfNeeded()`, deliberately no seeding)
+    - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
+  - `repositories/` — Concrete Dexie persistence adapters implementing domain repository ports:
+    - `DexieAiChatRepository.ts` → `AiChatRepository`
+    - `DexieAnalyticsRepository.ts` → `AnalyticsRepository`
+    - `DexieAnnotationRepository.ts` → `AnnotationRepository`
+    - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository`
+    - `DexieDocumentContentRepository.ts` → `DocumentContentRepository`
+    - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
+    - `DexieImportAssetRepository.ts` → `ImportAssetRepository`
+    - `DexieLibraryRepository.ts` → `LibraryRepository`
+    - `DexieQuestionRepository.ts` → `QuestionRepository`
+    - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`
+    - `DexieQuizRepository.ts` → `QuizRepository`
+    - `DexieQuizSessionRepository.ts` → `QuizSessionRepository`
+    - `DexieSubjectRepository.ts` → `SubjectRepository`
+    - `DexieSubjectTermRepository.ts` → `SubjectTermRepository`
+    - `DexieSyncQueueRepository.ts` → `SyncQueueRepository`
+    - `DexieSyncStateRepository.ts` → `SyncStateRepository`
+    - `DexieTermRepository.ts` → `TermRepository`
+  - `services/` — Multi-table atomic Dexie transactional application services:
+    - `DexieLibraryImportService.ts` → `LibraryImportService`
+    - `DexieQuizEditorService.ts` → `QuizEditorService`
+    - `DexieStudyPackageImportService.ts` → `StudyPackageImportService`
+    - `DexieTermService.ts` → `TermService`
+  - `sync/` — Dexie-level sync reconciliation and transactional outbox:
+    - `DexieSyncReconciler.ts` → `SyncReconciler`
+    - `transactionalOutbox.ts` → `runSyncableTransaction`
+- `api/` — Cloudflare Worker REST API boundary:
+  - `repositories/` — Remote API query/fetch repository implementations:
+    - `ApiCatalogRepository.ts` → `CatalogRepository` (`GET /api/catalog`, `GET /api/catalog/materials/:id`)
+    - `ApiDocumentRepository.ts` → `DocumentRepository` (`GET /api/documents/:documentId`)
+    - `ApiQuizContentRepository.ts` → `QuizContentRepository` (`GET /api/quiz`)
+  - `transports/` — Cloudflare Worker HTTP network transports:
+    - `WorkerSyncTransport.ts` → `SyncTransport` (`/api/sync/pull`, `/api/sync/push`)
+    - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
+  - `transformers/` — Content formatting and URL rewriting:
+    - `markdownPreprocessor.ts` → `preprocessMarkdown`
+- `browser/` — Browser environment and runtime capability adapters:
+  - `lifecycle/` — Browser event integrations:
+    - `BrowserSyncLifecycle.ts` → Window `online`, `visibilitychange`, and periodic interval triggers
+  - `storage/` — LocalStorage-backed providers:
+    - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider`
+    - `deviceId.ts` → `getOrCreateDeviceId()`
+- `importer/` — Document extraction and parsing boundary:
+  - `registry/` — Format registry and extractor factory:
+    - `DefaultImporterRegistry.ts` → `ImporterRegistry`
+    - `createExtractors.ts` → `createDefaultImporterRegistry()`, `createOcrExtractor()`
+  - `adapters/` — Format-specific importers implementing `ContentImporter`:
+    - `PdfjsImporter.ts` → PDF document extractor via `pdfjs-dist`
+    - `ImageImporter.ts` → Image extractor delegating to OCR
+  - `engines/` — Raw worker-based processing engines:
+    - `TesseractExtractor.ts` → OCR worker pool management via `tesseract.js`
+- `ai/` — Worker AI gateway:
+  - `adapters/` — Model gateway implementations:
+    - `WorkerAiAdapter.ts` → `AiService` (streaming SSE client for `/api/ai/chat`)
+  - `parsing/` — SSE stream parsing and structured output extraction:
+    - `parseStructuredAiResponse.ts` → Stream parser and structured validator
+- `storage/` — Composite multi-tier storage repositories:
+  - `repositories/`:
+    - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first read with remote API fallback)
 
 ## Local Contracts
 
-- Imports from `domain/` (contract interfaces, model types, annotation value shapes) and `shared/` (storage keys) — never from features. Scoped exception: `DexieQuizDraftRepository` and the `quizEditingDrafts` table typing import the application-layer `QuizDraft` DTO and `QuizDraftRepository` contract (dependency inversion for application-owned persistence contracts).
-- All repositories are exported as module-level singletons (e.g., `dexieQuestionRepository`, `dexieSyncQueueRepository`, `apiCatalogRepository`, `workerSyncTransport`).
-- `runSyncableTransaction` automatically deduplicates and includes `db.syncQueue` in the Dexie transaction table scope, ensuring atomicity across local entity mutations and persistent outbox queue entries.
-- `DexieQuizSessionRepository.createSession()` uses `db.transaction('rw', ...)` across `quizSessions`, `quizzes`, and `questions` stores to atomically capture immutable `questionSnapshots`.
-- `DexieQuizEditorService.saveQuiz()` runs a single `db.transaction('rw', [questions, quizzes])`: applies all question changes (create or update with conditional version bump), resolves canvas `tempId`s to question ids, rewrites the quiz's `questionIds`/`items`, and re-snapshots `questionVersion` per item — the operation is atomic.
-- Schema versioning: v1 (Phase 5), v2 (Phase 5.3 — subjects/terms), v3 (SubjectTerm junction — terms become global), v4 (quizEditingDrafts crash-recovery store), v5 (flashcardReviews spaced repetition store), v6 (documentContents imported-content store), v7 (drops legacy `sourceType` index), v8 (documentContents rekeyed `sourceId` → `documentId`), v9 (aiThreads/aiMessages local chat store), v10 (importAssets raw file store), v11 (syncQueue/syncState/conflictDrafts cloud sync store).
-- Database name: `lunaclair-db`.
-- Migration is idempotent — guarded by localStorage flags for v1/v2/v3 data passes, native Dexie upgrade for schema v3.
-- **No auto-hydration.** The app boots with an empty local library; the D1 catalog is surfaced through the API and materials are imported on user action via `LibraryImportService`. Dexie is the user's local selection/working state; D1 is the canonical platform catalog; Service Worker Cache Storage is a network-resource cache and is never the source of truth for library membership. The one non-import write of catalog rows is `DexieTermRepository.upsertTerms` via `SyncDefaultTermsUseCase` at onboarding completion (user-initiated) — never on boot.
-- `DexieSubjectTermRepository.addTerm()` validates subject and term existence, prevents duplicate associations, and auto-computes `max(order) + 1`.
-- `DexieTermService.createAndAssignTerm()` runs a single `db.transaction('rw', [terms, subjectTerms, subjects])` that creates the global `Term`, validates the subject, and inserts the `SubjectTerm` junction with `max(order) + 1` — the operation is atomic.
-- `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.
-- `DexieLibraryRepository.createMaterial()` and `updateMaterial()` validate that if `termId` is set, the `(subjectId, termId)` junction record exists.
-- `StudyPackageSerializer` operates purely on domain models (`StudyPackage`) and browser data primitives (`Blob`, `ArrayBuffer`, `Uint8Array`, strings) without any Dexie or IndexedDB dependencies.
-- Atomic database services (`DexieTermService`, `DexieQuizEditorService`, `DexieLibraryImportService`, `DexieStudyPackageImportService`) standardize on constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), enabling isolated database instantiations with failure injection in test suites.
+- **ADR-015 Compliance**: Infrastructure modules strictly organize by `src/infrastructure/<boundary>/<responsibility>/<Implementation>.ts`.
+- **Zero Barrels (ADR-010)**: Internal `index.ts` barrels are prohibited; consumers import directly from concrete paths.
+- **Architectural Boundary Guardrails**: Features are statically prohibited by Oxlint from importing `src/infrastructure/**`. All feature writes route through application use cases. Composition roots (`createInfrastructure.ts`, `bootstrap.ts`) and test suites are the sole authorized consumers.
+- **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
+- **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
+- **Atomic Dexie Transactions**: Multi-table operations (`DexieTermService.createAndAssignTerm`, `DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
+- **No Auto-Hydration**: The app boots with an empty local library; canonical catalog content is surfaced via the remote API and explicitly imported by user action.
 
 ## Work Guidance
 
-(No specific standards yet. Filter from root AGENTS.md applies.)
+- When creating or modifying infrastructure modules, place them into the authorized `<boundary>/<responsibility>/` subdirectory.
+- Colocate 1:1 unit tests in `__tests__/` alongside the implementation file.
+- Maintain TS `erasableSyntaxOnly` compliance (explicit class member declarations, no parameter properties).
 
 ## Verification
 
-- `npm run test:run` — Dexie persistence, database migration, and repository unit/integration tests.
-- `npm run build`
-- `npm run lint`
+- `npm run lint` — Oxlint verification of import boundaries and syntax rules.
+- `npm run build` — Full TypeScript (`tsc -b`) and Vite production bundling.
+- `npm run test:run` — Complete Vitest test suite.
+- `npm run test:e2e` — Playwright acceptance tests.
 
 ## Child DOX Index
 
-No child AGENTS.md files — `api/`, `sync/`, `database/repositories/`, `database/sync/`, and `database/services/` are structured subdirectories under infrastructure.
+No child AGENTS.md files — `ai/`, `api/`, `browser/`, `database/`, `importer/`, and `storage/` are boundary subdirectories governed by this document.

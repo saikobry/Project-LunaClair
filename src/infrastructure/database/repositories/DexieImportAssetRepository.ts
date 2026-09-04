@@ -1,5 +1,5 @@
 import type { ImportedAsset, ImportAssetRepository } from '../../../domain/importer/repositories/ImportAssetRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 /**
  * Dexie-backed `ImportAssetRepository` — local storage for imported raw assets

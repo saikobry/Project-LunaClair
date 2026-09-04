@@ -4,7 +4,7 @@ import type {
   AiThread,
   AiTutorMode,
 } from '../../../domain/ai/models/ai.types';
-import { db, type LunaClairDatabase } from '../LunaClairDatabase';
+import { db, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Concrete Dexie implementation of AiChatRepository.

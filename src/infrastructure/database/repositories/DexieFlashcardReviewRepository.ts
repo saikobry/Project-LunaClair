@@ -1,6 +1,6 @@
 import type { FlashcardReviewRepository } from '../../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 export class DexieFlashcardReviewRepository implements FlashcardReviewRepository {
     async getAllReviews(signal?: AbortSignal): Promise<ReviewState[]> {

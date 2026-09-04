@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { DB_NAME } from '../../schema';
-import { LunaClairDatabase } from '../../LunaClairDatabase';
+import { DB_NAME } from '../../schema/schema';
+import { LunaClairDatabase } from '../../schema/LunaClairDatabase';
 import { DexieSyncReconciler } from '../DexieSyncReconciler';
 import type { SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncQueueItem } from '../../../../domain/sync/models/sync.types';
 

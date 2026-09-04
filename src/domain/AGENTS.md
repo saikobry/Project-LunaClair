@@ -31,7 +31,7 @@ Reserved domains:
 - Global quiz accuracy is question-weighted (`totalCorrectAnswers / totalAnsweredQuestions * 100`).
 - Topic mastery counts total answer attempts (`attemptCount`), not unique questions. Status includes `unattempted`, `needs_practice`, `proficient`, `mastered` (mastered requires $\ge 85\%$ weighted score AND $\ge 3$ attempts). Strengths and weaknesses require $\ge 3$ attempts and sort deterministically.
 - `LibraryRepository` is the async contract (interface) that infrastructure implementations (e.g., `DexieLibraryRepository`) must satisfy.
-- `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `ApiDocumentRepository` and `HybridDocumentRepository` in `src/infrastructure/api/`).
+- `DocumentRepository` is the async contract for resolving `StudyMaterial` → `Document` (implemented by `ApiDocumentRepository` in `src/infrastructure/api/repositories/` and `HybridDocumentRepository` in `src/infrastructure/storage/repositories/`).
 - `CatalogRepository.getMaterial` is the authoritative per-material resolution for import — one request returns the material plus its subject/term/subjectTerm relationships; **import must never require the full `CatalogSnapshot` in memory**.
 - `AnnotationRepository` is the async contract for highlight/drawing persistence keyed by `documentId` (implemented by `DexieAnnotationRepository`).
 - `QuestionRepository`, `QuizRepository`, `QuizSessionRepository`, `FlashcardReviewRepository` are async contracts for persistence (implemented by Dexie repositories in `src/infrastructure/database/repositories/`).

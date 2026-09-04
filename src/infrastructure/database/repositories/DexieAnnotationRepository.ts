@@ -1,7 +1,7 @@
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
 import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
 import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
-import { db, type HighlightRecord, type DrawingRecord } from '../LunaClairDatabase';
+import { db, type HighlightRecord, type DrawingRecord } from '../schema/LunaClairDatabase';
 
 export class DexieAnnotationRepository implements AnnotationRepository {
     async getHighlights(documentId: string, signal?: AbortSignal): Promise<HighlightItem[]> {

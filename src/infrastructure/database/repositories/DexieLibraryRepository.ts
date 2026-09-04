@@ -4,7 +4,7 @@ import type {
     CreateMaterialInput,
     UpdateMaterialInput,
 } from '../../../domain/library/repositories/LibraryRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);

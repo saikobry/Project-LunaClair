@@ -1,6 +1,6 @@
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { DocumentContentRepository } from '../../../domain/reader/repositories/DocumentContentRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 import { runSyncableTransaction } from '../sync/transactionalOutbox';
 
 /**

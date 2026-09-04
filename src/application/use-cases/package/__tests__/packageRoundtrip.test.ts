@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
-import { db } from '../../../../infrastructure/database/LunaClairDatabase';
+import { db } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieLibraryRepository } from '../../../../infrastructure/database/repositories/DexieLibraryRepository';
 import { DexieDocumentContentRepository } from '../../../../infrastructure/database/repositories/DexieDocumentContentRepository';
 import { DexieQuestionRepository } from '../../../../infrastructure/database/repositories/DexieQuestionRepository';
@@ -15,7 +15,7 @@ import type { StudyMaterial } from '../../../../domain/library/models/StudyMater
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
-import type { ImportAssetRecord } from '../../../../infrastructure/database/LunaClairDatabase';
+import type { ImportAssetRecord } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
 import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
 import type { SyncQueueItem } from '../../../../domain/sync/models/sync.types';

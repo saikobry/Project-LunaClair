@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
+import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { GetOrCreateAiThreadUseCase } from '../GetOrCreateAiThreadUseCase';
 import { GetAiThreadMessagesUseCase } from '../GetAiThreadMessagesUseCase';

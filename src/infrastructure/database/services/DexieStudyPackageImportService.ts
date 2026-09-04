@@ -3,7 +3,7 @@ import type {
   ImportStudyPackageRecords,
 } from '../../../domain/package/services/StudyPackageImportService';
 import { base64ToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
-import { db as defaultDb, type LunaClairDatabase, type ImportAssetRecord } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase, type ImportAssetRecord } from '../schema/LunaClairDatabase';
 
 /**
  * Dexie implementation of `StudyPackageImportService`.

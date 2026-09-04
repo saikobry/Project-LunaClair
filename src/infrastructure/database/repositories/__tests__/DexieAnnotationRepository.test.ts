@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '../../LunaClairDatabase';
+import { db } from '../../schema/LunaClairDatabase';
 import { DexieAnnotationRepository } from '../DexieAnnotationRepository';
 import type { HighlightItem, DrawingPath } from '../../../../domain/reader/models/annotation.types';
 

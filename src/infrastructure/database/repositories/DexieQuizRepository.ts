@@ -4,7 +4,7 @@ import type {
     CreateQuizInput,
     UpdateQuizInput,
 } from '../../../domain/quiz/repositories/QuizRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `quiz-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { db } from '../../LunaClairDatabase';
+import { db } from '../../schema/LunaClairDatabase';
 import { dexieQuizDraftRepository, DexieQuizDraftRepository } from '../DexieQuizDraftRepository';
 import type { QuizDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
 

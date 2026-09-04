@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { db } from '../../../../infrastructure/database/LunaClairDatabase';
+import { db } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieDocumentContentRepository } from '../../../../infrastructure/database/repositories/DexieDocumentContentRepository';
-import { HybridDocumentRepository } from '../../../../infrastructure/api/HybridDocumentRepository';
+import { HybridDocumentRepository } from '../../../../infrastructure/storage/repositories/HybridDocumentRepository';
 import { UpdateDocumentContentUseCase } from '../../../../application/use-cases/content/UpdateDocumentContentUseCase';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Document } from '../../../../domain/reader/models/Document';

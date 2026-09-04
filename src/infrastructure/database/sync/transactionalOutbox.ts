@@ -1,5 +1,5 @@
 import type { Table, Transaction } from 'dexie';
-import type { LunaClairDatabase } from '../LunaClairDatabase';
+import type { LunaClairDatabase } from '../schema/LunaClairDatabase';
 import type {
     SyncEntityType,
     SyncOperation,

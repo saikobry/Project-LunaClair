@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { LunaClairDatabase } from '../../LunaClairDatabase';
+import { LunaClairDatabase } from '../../schema/LunaClairDatabase';
 import { DexieTermService } from '../DexieTermService';
 import type { Subject } from '../../../../domain/library/models/Subject';
 

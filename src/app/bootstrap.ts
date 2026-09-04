@@ -1,4 +1,4 @@
-import { DatabaseInitializer } from '../infrastructure/database/DatabaseInitializer';
+import { DatabaseInitializer } from '../infrastructure/database/schema/DatabaseInitializer';
 
 /**
  * Initializes the application: opens the database, runs legacy migration,

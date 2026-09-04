@@ -6,7 +6,7 @@ import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
-import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Concrete `LibraryImportService` backed by Dexie.

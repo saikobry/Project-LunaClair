@@ -1,7 +1,7 @@
 import type { Term } from '../../../domain/library/models/Term';
 import type { SubjectTermView } from '../../../domain/library/models/SubjectTerm';
 import type { SubjectTermRepository } from '../../../domain/library/repositories/SubjectTermRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 export class DexieSubjectTermRepository implements SubjectTermRepository {
     async getTermsBySubject(subjectId: string, signal?: AbortSignal): Promise<Term[]> {

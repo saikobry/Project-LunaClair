@@ -8,7 +8,7 @@ import { computeStudyOverview } from '../../../domain/analytics/engines/overview
 import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/engines/retentionEngine';
 import { computeSubjectMasteries, computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
 import { buildActivityCalendar } from '../../../domain/analytics/engines/activityEngine';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 export class DexieAnalyticsRepository implements AnalyticsRepository {
     async getGlobalAnalytics(signal?: AbortSignal): Promise<GlobalAnalytics> {

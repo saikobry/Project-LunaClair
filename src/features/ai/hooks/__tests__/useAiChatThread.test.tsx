@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import 'fake-indexeddb/auto';
 import { useAiChatThread } from '../useAiChatThread';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
+import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';

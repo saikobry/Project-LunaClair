@@ -7,7 +7,7 @@ import type { StudyMaterial } from '../../../../domain/library/models/StudyMater
 import type { Document } from '../../../../domain/reader/models/Document';
 import type { DocumentContentRepository, ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import { UpdateDocumentContentUseCase } from '../../../../application/use-cases/content/UpdateDocumentContentUseCase';
-import { HybridDocumentRepository } from '../../../../infrastructure/api/HybridDocumentRepository';
+import { HybridDocumentRepository } from '../../../../infrastructure/storage/repositories/HybridDocumentRepository';
 
 const showToastMock = vi.fn();
 vi.mock('../../../../app/providers/ToastContext', () => ({

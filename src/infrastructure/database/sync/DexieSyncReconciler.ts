@@ -1,4 +1,4 @@
-import { db as defaultDb, type LunaClairDatabase, type HighlightRecord } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase, type HighlightRecord } from '../schema/LunaClairDatabase';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
 import { createSyncStateKey } from '../../../domain/sync/utils/syncIdentity';

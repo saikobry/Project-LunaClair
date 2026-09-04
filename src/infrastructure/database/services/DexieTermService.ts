@@ -4,7 +4,7 @@ import type {
     TermService,
     CreateAndAssignTermResult,
 } from '../../../domain/library/services/TermService';
-import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);

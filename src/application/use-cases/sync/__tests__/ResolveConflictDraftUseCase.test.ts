@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { DB_NAME } from '../../../../infrastructure/database/schema';
-import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
-import { DexieConflictDraftRepository } from '../../../../infrastructure/database/sync/DexieConflictDraftRepository';
+import { DB_NAME } from '../../../../infrastructure/database/schema/schema';
+import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
+import { DexieConflictDraftRepository } from '../../../../infrastructure/database/repositories/DexieConflictDraftRepository';
 import { ResolveConflictDraftUseCase } from '../ResolveConflictDraftUseCase';
 import type { ConflictDraft } from '../../../../domain/sync/models/sync.types';
 

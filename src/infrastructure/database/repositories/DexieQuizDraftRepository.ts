@@ -1,6 +1,6 @@
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizDraftRepository } from '../../../application/quiz-management/drafts/QuizDraftRepository';
-import { db } from '../LunaClairDatabase';
+import { db } from '../schema/LunaClairDatabase';
 
 function latestByUpdatedAt(drafts: QuizDraft[]): QuizDraft | null {
     if (drafts.length === 0) return null;
