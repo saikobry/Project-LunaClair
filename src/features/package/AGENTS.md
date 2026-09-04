@@ -6,8 +6,8 @@ Feature-level presentation, reactive hooks, and interactive modal dialogs for po
 
 ## Ownership
 
-- `components/StudyPackagePreviewModal.tsx` — Accessible StyleX-styled dialog for inspecting package metadata, summary metrics (materials, questions, quizzes, flashcards, assets, total points, question type badges derived purely via `inspectStudyPackage`), subject/term destination picker, and import confirmation.
-- `components/ShareStudyPackageModal.tsx` — Accessible StyleX-styled dialog for publishing portable study packages to the cloud, configuring access types (public, unlisted, passcode), optional expiration, and copying generated full/short share links.
+- `components/StudyPackagePreviewModal.tsx` — Shared `<Dialog>`-based modal for inspecting package metadata, summary metrics (materials, questions, quizzes, flashcards, assets, total points, question type badges derived purely via `inspectStudyPackage`), subject/term destination picker, and import confirmation.
+- `components/ShareStudyPackageModal.tsx` — Shared `<Dialog>`-based modal for publishing portable study packages to the cloud, configuring access types (public, unlisted, passcode), optional expiration, and copying generated full/short share links.
 - `SharedPackageScreen.tsx` — Feature-root screen for shared study packages (`/share/:shareId`, `/s/:code`), managing loading, passcode challenge unlock, error states, package inspection metrics, destination subject/term picker, atomic "Clone to Library" with subsequent download telemetry tracking, and ".lcpack" file download.
 - `hooks/useImportStudyPackage.ts` — Hook coordinating file drop/selection, parsing, pure schema & relational validation, pre-import staging, query cache invalidation, and atomic Dexie commit via `context.useCases.package.importStudyPackage`.
 - `hooks/useExportStudyPackage.ts` — Hook coordinating study package extraction and materialization via `context.useCases.package.materializeStudyPackage`, `.lcpack` serialization, and browser file download.

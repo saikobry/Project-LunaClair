@@ -28,7 +28,7 @@ export function IdentificationQuestion({ question, value, onChange, disabled }: 
                     padding: '8px 12px',
                     border: '1px solid #ccc',
                     borderRadius: 6,
-                    fontSize: 14,
+                    fontSize: 16,
                 }}
             />
         </div>

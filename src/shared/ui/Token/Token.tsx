@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import { Token as AstryxToken } from '@astryxdesign/core/Token';
 import type { TokenProps as AstryxTokenProps, TokenColor, TokenSize } from '@astryxdesign/core/Token';
 import { X } from 'lucide-react';
@@ -6,8 +7,36 @@ import { X } from 'lucide-react';
 export type TokenProps = AstryxTokenProps;
 export type { TokenColor, TokenSize };
 
-function RemoveButton({ onRemove, label }: { onRemove: (e: React.MouseEvent) => void; label: string }) {
+const removeButtonBaseStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 24,
+  height: 24,
+  minWidth: 24,
+  minHeight: 24,
+  borderRadius: '50%',
+  border: 'none',
+  padding: 0,
+  marginRight: -4,
+  marginLeft: 0,
+  cursor: 'pointer',
+  color: 'inherit',
+  transition: 'background-color 0.15s ease, opacity 0.15s ease',
+  flexShrink: 0,
+};
+
+function RemoveButton({ onRemove, label }: { onRemove: (e: MouseEvent) => void; label: string }) {
   const [isHovered, setIsHovered] = useState(false);
+
+  const style = useMemo<CSSProperties>(
+    () => ({
+      ...removeButtonBaseStyle,
+      backgroundColor: isHovered ? 'rgba(0, 0, 0, 0.14)' : 'transparent',
+      opacity: isHovered ? 1 : 0.75,
+    }),
+    [isHovered],
+  );
 
   return (
     <button
@@ -19,24 +48,7 @@ function RemoveButton({ onRemove, label }: { onRemove: (e: React.MouseEvent) => 
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 15,
-        height: 15,
-        borderRadius: '50%',
-        border: 'none',
-        backgroundColor: isHovered ? 'rgba(0, 0, 0, 0.14)' : 'transparent',
-        padding: 0,
-        marginRight: -2,
-        marginLeft: 2,
-        cursor: 'pointer',
-        color: 'inherit',
-        opacity: isHovered ? 1 : 0.75,
-        transition: 'background-color 0.15s ease, opacity 0.15s ease',
-        flexShrink: 0,
-      }}
+      style={style}
     >
       <X size={11} strokeWidth={2.5} />
     </button>

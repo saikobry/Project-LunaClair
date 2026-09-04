@@ -60,6 +60,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `screens/preview-material/*` → `features/discovery/hooks/queries/useAvailableMaterial`, `features/discovery/hooks/queries/usePreviewDocument`, `features/discovery/hooks/mutations/useImportMaterial`, `features/reader/components/MarkdownViewer`
     - `screens/terms/*` → `features/terms/hooks/queries/useTerms`, `features/terms/hooks/queries/useTermUsageCounts`, `features/terms/hooks/mutations/useCreateTerm`, `features/terms/hooks/mutations/useEditTerm`, `features/terms/hooks/mutations/useDeleteTerm`
     - `writer/components/MaterialWriterTab` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
+    - `writer/hooks/useMaterialWriterState` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
     - `reader/ReaderScreen` → `features/materials/hooks/queries/useMaterial`
     - `flashcards/FlashcardScreen` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`, `features/quiz/hooks/queries/useQuestions`, `features/quiz/hooks/queries/useQuizzes`, `features/ai/generator/components/AiFlashcardGeneratorDialog`
     - `quiz/hooks/queries/useSubjectQuizTree` → `features/materials/hooks/queries/useLibrary`, `features/terms/hooks/queries/useTerms`

@@ -184,7 +184,7 @@ describe('ShareStudyPackageModal', () => {
     fireEvent.click(cancelButton);
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    const closeIconButton = screen.getByLabelText('Close dialog');
+    const closeIconButton = screen.getByLabelText('Close');
     fireEvent.click(closeIconButton);
     expect(onClose).toHaveBeenCalledTimes(2);
 

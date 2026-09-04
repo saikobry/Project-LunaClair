@@ -44,6 +44,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `navigation/TabletRail.tsx` — 60px floating vertical icon rail with in-place link fade and vertical collapse into the $44\times44\text{px}$ corner card.
     - `navigation/MobileBottomDock.tsx` — 60px floating horizontal bottom dock with in-place link fade and horizontal contraction into the $44\times44\text{px}$ corner card.
     - `navigation/navigation.types.ts` — Shared viewport navigation types and active states.
+    - `navigation/navItems.ts` — Shared nav-item registry (labels, icons, routes, active-path matching) consumed by all three viewport navigation slices.
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
 - `overlays/` — Transient System UI (Out of Document Flow):

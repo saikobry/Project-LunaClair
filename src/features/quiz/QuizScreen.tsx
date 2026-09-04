@@ -2,7 +2,8 @@ import { useState, useMemo, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft, AlertTriangle, Inbox, Layers } from 'lucide-react';
 import type { AnswerValue } from './components/QuestionRenderer';
-import type { QuizLaunchRequest } from './types/quizFeature.types';
+import type { QuizLaunchRequest, QuizFlowState } from './types/quizFeature.types';
+import type { Question } from '../../domain/quiz/models/Question';
 import { useQuizSessionFlow } from './hooks/session/useQuizSessionFlow';
 import { useQuestions } from './hooks/queries/useQuestions';
 import { QuizView } from './components/QuizView';
@@ -66,12 +67,123 @@ interface QuizShellProps {
   embedded: boolean;
   title: string;
   actions?: ReactNode;
+  unifiedQuizCount?: number;
   children: ReactNode;
 }
 
-function QuizShell({ embedded, title, actions, children }: QuizShellProps) {
-  if (embedded) return <>{children}</>;
-  return <Page title={title} actions={actions}>{children}</Page>;
+function QuizShell({ embedded, title, actions, unifiedQuizCount = 0, children }: QuizShellProps) {
+  const banner = unifiedQuizCount > 0 ? (
+    <div {...stylex.props(styles.banner)}>
+      <Layers size={16} />
+      Unified Quiz · {unifiedQuizCount} quizzes
+    </div>
+  ) : null;
+
+  if (embedded) {
+    return (
+      <>
+        {banner}
+        {children}
+      </>
+    );
+  }
+
+  return (
+    <Page title={title} actions={actions}>
+      {banner}
+      {children}
+    </Page>
+  );
+}
+
+function QuizNotice({ icon, title, subtext }: { icon: ReactNode; title: string; subtext: string }) {
+  return (
+    <div {...stylex.props(styles.center)}>
+      <div {...stylex.props(styles.icon)}>{icon}</div>
+      <h2 {...stylex.props(styles.title)}>{title}</h2>
+      <p {...stylex.props(styles.subtext)}>{subtext}</p>
+    </div>
+  );
+}
+
+function QuizErrorNotice({ message }: { message?: string }) {
+  return (
+    <QuizNotice
+      icon={<AlertTriangle size={48} />}
+      title="Something went wrong"
+      subtext={message ?? 'An unexpected error occurred while loading the quiz.'}
+    />
+  );
+}
+
+function quizShellTitle(flowState: QuizFlowState): string {
+  if (flowState === 'completed') return 'Quiz Results';
+  return 'Quiz';
+}
+
+function startViewTitle(isUnified: boolean, questions: Question[]): string {
+  if (isUnified) return 'Unified Knowledge Check';
+  if (questions[0]?.prompt) return 'Knowledge Check';
+  return 'Material Quiz';
+}
+
+function buildLaunchRequest(
+  quizIds: string[] | undefined,
+  currentQuizId: string,
+  materialId: string,
+  source: 'reader' | 'library',
+): QuizLaunchRequest {
+  if (quizIds && quizIds.length > 0) {
+    return { type: 'quizzes', quizIds, source };
+  }
+  return { type: 'quiz', quizId: currentQuizId, materialId, source };
+}
+
+function firstMaterialId(materialIds: string[]): string {
+  return materialIds[0] ?? '';
+}
+
+function currentQuizIdFor(activeQuizId: string | undefined, quizId: string): string {
+  return activeQuizId ?? quizId;
+}
+
+function unifiedCountFor(quizIds: string[] | undefined): number {
+  return quizIds?.length ?? 0;
+}
+
+function answerValueFor(answers: Map<string, AnswerValue>, questionId: string): AnswerValue {
+  return answers.get(questionId) ?? '';
+}
+
+function resolveSource(embedded: boolean): 'reader' | 'library' {
+  if (embedded) return 'reader';
+  return 'library';
+}
+
+function quizExitAction(embedded: boolean, onExit: () => void): ReactNode {
+  if (embedded) return undefined;
+  return (
+    <Button
+      label="Exit quiz"
+      variant="secondary"
+      icon={<ArrowLeft size={16} />}
+      onClick={onExit}
+    >
+      Exit Quiz
+    </Button>
+  );
+}
+
+function QuizEmptyNotice({ hasArchivedOnly }: { hasArchivedOnly: boolean }) {
+  return (
+    <QuizNotice
+      icon={<Inbox size={48} />}
+      title="No quizzes available"
+      subtext={hasArchivedOnly
+        ? 'All quizzes are archived. Restore one from Quiz Management to try again.'
+        : "This material doesn't have any quizzes yet."}
+    />
+  );
 }
 
 export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpenManagement, embedded = false }: QuizScreenProps) {
@@ -79,18 +191,16 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
   const [activeQuizId, setActiveQuizId] = useState<string | undefined>(quizId || undefined);
   const [isStarted, setIsStarted] = useState(false);
 
-  const materialId = materialIds[0] ?? '';
+  const materialId = firstMaterialId(materialIds);
 
-  const currentQuizId = activeQuizId ?? quizId;
-  const source = embedded ? 'reader' : 'library';
+  const currentQuizId = currentQuizIdFor(activeQuizId, quizId);
+  const source = resolveSource(embedded);
 
   // Build the appropriate launch request based on presence of quizIds
-  const launchRequest: QuizLaunchRequest = useMemo(() => {
-    if (quizIds && quizIds.length > 0) {
-      return { type: 'quizzes', quizIds, source };
-    }
-    return { type: 'quiz', quizId: currentQuizId, materialId, source };
-  }, [quizIds, currentQuizId, materialId, source]);
+  const launchRequest: QuizLaunchRequest = useMemo(
+    () => buildLaunchRequest(quizIds, currentQuizId, materialId, source),
+    [quizIds, currentQuizId, materialId, source],
+  );
 
   const { questions: bankQuestions } = useQuestions(materialId);
 
@@ -103,28 +213,14 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
     [flow.sourceQuizzes],
   );
 
-  const backAction = embedded ? undefined : (
-    <Button
-      label="Exit quiz"
-      variant="secondary"
-      icon={<ArrowLeft size={16} />}
-      onClick={onExit}
-    >
-      Exit Quiz
-    </Button>
-  );
+  const backAction = quizExitAction(embedded, onExit);
 
-  const shellTitle = flow.flowState === 'completed' ? 'Quiz Results' : 'Quiz';
+  const unifiedQuizCount = unifiedCountFor(quizIds);
+  const shellTitle = quizShellTitle(flow.flowState);
 
   if (flow.flowState === 'loading') {
     return (
-      <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-        {isUnified && (
-          <div {...stylex.props(styles.banner)}>
-            <Layers size={16} />
-            Unified Quiz · {quizIds!.length} quizzes
-          </div>
-        )}
+      <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
         <QuestionSkeleton />
       </QuizShell>
     );
@@ -132,40 +228,16 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
 
   if (flow.flowState === 'error') {
     return (
-      <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-        <div {...stylex.props(styles.center)}>
-          <div {...stylex.props(styles.icon)}>
-            <AlertTriangle size={48} />
-          </div>
-          <h2 {...stylex.props(styles.title)}>Something went wrong</h2>
-          <p {...stylex.props(styles.subtext)}>
-            {flow.error?.message ?? 'An unexpected error occurred while loading the quiz.'}
-          </p>
-        </div>
+      <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
+        <QuizErrorNotice message={flow.error?.message} />
       </QuizShell>
     );
   }
 
   if (flow.flowState === 'empty' || (flow.flowState === 'ready' && activeQuizzes.length === 0)) {
     return (
-      <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-        {isUnified && (
-          <div {...stylex.props(styles.banner)}>
-            <Layers size={16} />
-            Unified Quiz · {quizIds!.length} quizzes
-          </div>
-        )}
-        <div {...stylex.props(styles.center)}>
-          <div {...stylex.props(styles.icon)}>
-            <Inbox size={48} />
-          </div>
-          <h2 {...stylex.props(styles.title)}>No quizzes available</h2>
-          <p {...stylex.props(styles.subtext)}>
-            {flow.sourceQuizzes.some((q) => q.status === 'archived')
-              ? 'All quizzes are archived. Restore one from Quiz Management to try again.'
-              : "This material doesn't have any quizzes yet."}
-          </p>
-        </div>
+      <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
+        <QuizEmptyNotice hasArchivedOnly={flow.sourceQuizzes.some((q) => q.status === 'archived')} />
       </QuizShell>
     );
   }
@@ -173,15 +245,9 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
   // 1. Render Start Screen Overlay before beginning active session
   if (!isStarted) {
     return (
-      <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-        {isUnified && (
-          <div {...stylex.props(styles.banner)}>
-            <Layers size={16} />
-            Unified Quiz · {quizIds!.length} quizzes
-          </div>
-        )}
+      <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
         <QuizStartView
-          title={isUnified ? 'Unified Knowledge Check' : (flow.questions[0]?.prompt ? 'Knowledge Check' : 'Material Quiz')}
+          title={startViewTitle(isUnified, flow.questions)}
           quizzes={activeQuizzes}
           allQuestions={bankQuestions.length > 0 ? bankQuestions : flow.questions}
           isUnified={isUnified}
@@ -198,13 +264,7 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
   // 2. Render Completed Results View when finished
   if (flow.flowState === 'completed' && flow.result) {
     return (
-      <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-        {isUnified && (
-          <div {...stylex.props(styles.banner)}>
-            <Layers size={16} />
-            Unified Quiz · {quizIds!.length} quizzes
-          </div>
-        )}
+      <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
         <QuizResultView
           result={flow.result}
           questions={flow.questions}
@@ -225,16 +285,10 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
 
   // 3. Active question session
   if (!flow.currentQuestion) return null;
-  const answerValue: AnswerValue = flow.answers.get(flow.currentQuestion.id) ?? '';
+  const answerValue: AnswerValue = answerValueFor(flow.answers, flow.currentQuestion.id);
 
   return (
-    <QuizShell embedded={embedded} title={shellTitle} actions={backAction}>
-      {isUnified && (
-        <div {...stylex.props(styles.banner)}>
-          <Layers size={16} />
-          Unified Quiz · {quizIds!.length} quizzes
-        </div>
-      )}
+    <QuizShell embedded={embedded} title={shellTitle} actions={backAction} unifiedQuizCount={unifiedQuizCount}>
       <QuizView
         question={flow.currentQuestion}
         currentIndex={flow.currentIndex}

@@ -9,7 +9,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 | Module | Contents |
 |---|---|
 | `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) |
-| `ui/` | Design system primitive adapters and low-level container primitives — includes `TagInput`, `EmptyState` (zero-data / filter empty), `ErrorState` (404 / missing entity / offline error), `Skeleton` (`CardGridSkeleton`, `WorkspaceSkeleton`, `QuestionSkeleton`) |
+| `ui/` | Design system primitive adapters and low-level container primitives — includes `Dialog` (native `<dialog>` wrapper over `@astryxdesign/core` with header/content/footer slots), `TagInput`, `EmptyState` (zero-data / filter empty), `ErrorState` (404 / missing entity / offline error), `Skeleton` (`CardGridSkeleton`, `WorkspaceSkeleton`, `QuestionSkeleton`) |
 | `components/` | Domain-neutral composites such as `ActionMenu` |
 | `hooks/` | Domain-agnostic UI and infrastructure hooks: `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
 

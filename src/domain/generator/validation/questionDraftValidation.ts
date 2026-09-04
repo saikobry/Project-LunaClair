@@ -57,7 +57,10 @@ export function validateQuestionDraft(
       if (!Array.isArray(payloadObj.choices) || payloadObj.choices.length < 2) {
         return { success: false, error: 'multiple_choice requires at least 2 choices' };
       }
-      const choices = payloadObj.choices.map((c) => String(c).trim()).filter(Boolean);
+      const choices = payloadObj.choices.flatMap((c) => {
+        const trimmed = String(c).trim();
+        return trimmed ? [trimmed] : [];
+      });
       if (choices.length < 2) {
         return { success: false, error: 'multiple_choice requires at least 2 non-empty choices' };
       }
@@ -87,7 +90,10 @@ export function validateQuestionDraft(
       if (!Array.isArray(payloadObj.choices) || payloadObj.choices.length < 2) {
         return { success: false, error: 'multiple_select requires at least 2 choices' };
       }
-      const choices = payloadObj.choices.map((c) => String(c).trim()).filter(Boolean);
+      const choices = payloadObj.choices.flatMap((c) => {
+        const trimmed = String(c).trim();
+        return trimmed ? [trimmed] : [];
+      });
       let correctIndices = Array.isArray(payloadObj.correctIndices)
         ? payloadObj.correctIndices.filter(
             (idx): idx is number => typeof idx === 'number' && idx >= 0 && idx < choices.length,
@@ -125,7 +131,10 @@ export function validateQuestionDraft(
       }
 
       const acceptedAlternatives = Array.isArray(payloadObj.acceptedAlternatives)
-        ? payloadObj.acceptedAlternatives.map((a) => String(a).trim()).filter(Boolean)
+        ? payloadObj.acceptedAlternatives.flatMap((a) => {
+            const trimmed = String(a).trim();
+            return trimmed ? [trimmed] : [];
+          })
         : undefined;
 
       validatedPayload = {
@@ -143,7 +152,10 @@ export function validateQuestionDraft(
       }
 
       const blanks = Array.isArray(payloadObj.blanks)
-        ? payloadObj.blanks.map((b) => String(b).trim()).filter(Boolean)
+        ? payloadObj.blanks.flatMap((b) => {
+            const trimmed = String(b).trim();
+            return trimmed ? [trimmed] : [];
+          })
         : [];
 
       if (blanks.length === 0) {

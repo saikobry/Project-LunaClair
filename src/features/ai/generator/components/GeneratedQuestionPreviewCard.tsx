@@ -204,6 +204,122 @@ const EditQuestionForm: React.FC<EditQuestionFormProps> = ({
   );
 };
 
+function CardValidationControls({
+  isValid,
+  error,
+  isEditing,
+  onEdit,
+}: {
+  isValid: boolean;
+  error?: string;
+  isEditing: boolean;
+  onEdit: () => void;
+}) {
+  return (
+    <div {...stylex.props(styles.rightMeta)}>
+      {isValid ? (
+        <span {...stylex.props(styles.statusValid)}>
+          <Check size={13} /> Ready
+        </span>
+      ) : (
+        <span {...stylex.props(styles.statusInvalid)} title={error}>
+          <AlertCircle size={13} /> Invalid
+        </span>
+      )}
+
+      {!isEditing && (
+        <button
+          type="button"
+          onClick={onEdit}
+          title="Edit prompt"
+          {...stylex.props(styles.iconButton)}
+        >
+          <Edit2 size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ChoiceList({ keyPrefix, choices, isCorrectAt }: { keyPrefix: string; choices: string[]; isCorrectAt: (idx: number) => boolean }) {
+  return (
+    <div>
+      {choices.map((choice, idx) => {
+        const isCorrect = isCorrectAt(idx);
+        return (
+          <div
+            key={`${keyPrefix}-${idx}-${choice}`}
+            {...stylex.props(styles.choiceRow, isCorrect && styles.choiceRowCorrect)}
+          >
+            <span>{isCorrect ? '✓' : '•'}</span>
+            <span>{choice}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PayloadPreview({ payload, explanation }: { payload: GeneratedQuestionDraft['payload']; explanation?: string }) {
+  let body: React.ReactNode = null;
+
+  switch (payload.type) {
+    case 'multiple_choice':
+      body = <ChoiceList keyPrefix="choice-mc" choices={payload.choices} isCorrectAt={(idx) => idx === payload.correctIndex} />;
+      break;
+    case 'multiple_select': {
+      const correctSet = new Set(payload.correctIndices);
+      body = <ChoiceList keyPrefix="choice-ms" choices={payload.choices} isCorrectAt={(idx) => correctSet.has(idx)} />;
+      break;
+    }
+    case 'true_false':
+      body = (
+        <div style={{ fontWeight: 600 }}>
+          Correct Answer:{' '}
+          <span style={{ color: payload.correctAnswer ? 'var(--color-success)' : 'var(--color-danger)' }}>
+            {payload.correctAnswer ? 'True' : 'False'}
+          </span>
+        </div>
+      );
+      break;
+    case 'identification':
+      body = (
+        <div>
+          <strong>Answer:</strong> {payload.correctAnswer}
+          {payload.acceptedAlternatives && payload.acceptedAlternatives.length > 0 && (
+            <span style={{ color: 'var(--color-text-secondary)', marginLeft: 6 }}>
+              (Also accepted: {payload.acceptedAlternatives.join(', ')})
+            </span>
+          )}
+        </div>
+      );
+      break;
+    case 'fill_in_blank':
+      body = (
+        <div>
+          <div>
+            <strong>Template:</strong> <code>{payload.template}</code>
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <strong>Blanks:</strong> {payload.blanks.join(', ')}
+          </div>
+        </div>
+      );
+      break;
+  }
+
+  return (
+    <div {...stylex.props(styles.payloadSection)}>
+      {body}
+      {explanation && (
+        <div {...stylex.props(styles.explanationRow)}>
+          💡 {explanation}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCardProps> = ({
   draft,
   isSelected,
@@ -230,11 +346,6 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
     });
     setIsEditing(false);
   };
-
-  const correctIndicesSet =
-    draft.payload.type === 'multiple_select'
-      ? new Set(draft.payload.correctIndices)
-      : null;
 
   return (
     <div
@@ -267,28 +378,12 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
           </span>
         </div>
 
-        <div {...stylex.props(styles.rightMeta)}>
-          {validation.success ? (
-            <span {...stylex.props(styles.statusValid)}>
-              <Check size={13} /> Ready
-            </span>
-          ) : (
-            <span {...stylex.props(styles.statusInvalid)} title={validation.error}>
-              <AlertCircle size={13} /> Invalid
-            </span>
-          )}
-
-          {!isEditing && (
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              title="Edit prompt"
-              {...stylex.props(styles.iconButton)}
-            >
-              <Edit2 size={14} />
-            </button>
-          )}
-        </div>
+        <CardValidationControls
+          isValid={validation.success}
+          error={validation.success ? undefined : validation.error}
+          isEditing={isEditing}
+          onEdit={() => setIsEditing(true)}
+        />
       </div>
 
       {isEditing ? (
@@ -302,79 +397,7 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
         <p {...stylex.props(styles.promptText)}>{draft.prompt}</p>
       )}
 
-      {/* Payload preview by question type */}
-      <div {...stylex.props(styles.payloadSection)}>
-        {draft.payload.type === 'multiple_choice' && (
-          <div>
-            {draft.payload.choices.map((choice, idx) => {
-              const isCorrect = idx === (draft.payload as any).correctIndex;
-              return (
-                <div
-                  key={`choice-mc-${idx}-${choice}`}
-                  {...stylex.props(styles.choiceRow, isCorrect && styles.choiceRowCorrect)}
-                >
-                  <span>{isCorrect ? '✓' : '•'}</span>
-                  <span>{choice}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {draft.payload.type === 'multiple_select' && correctIndicesSet && (
-          <div>
-            {draft.payload.choices.map((choice, idx) => {
-              const isCorrect = correctIndicesSet.has(idx);
-              return (
-                <div
-                  key={`choice-ms-${idx}-${choice}`}
-                  {...stylex.props(styles.choiceRow, isCorrect && styles.choiceRowCorrect)}
-                >
-                  <span>{isCorrect ? '✓' : '•'}</span>
-                  <span>{choice}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {draft.payload.type === 'true_false' && (
-          <div style={{ fontWeight: 600 }}>
-            Correct Answer:{' '}
-            <span style={{ color: draft.payload.correctAnswer ? 'var(--color-success)' : 'var(--color-danger)' }}>
-              {draft.payload.correctAnswer ? 'True' : 'False'}
-            </span>
-          </div>
-        )}
-
-        {draft.payload.type === 'identification' && (
-          <div>
-            <strong>Answer:</strong> {draft.payload.correctAnswer}
-            {draft.payload.acceptedAlternatives && draft.payload.acceptedAlternatives.length > 0 && (
-              <span style={{ color: 'var(--color-text-secondary)', marginLeft: 6 }}>
-                (Also accepted: {draft.payload.acceptedAlternatives.join(', ')})
-              </span>
-            )}
-          </div>
-        )}
-
-        {draft.payload.type === 'fill_in_blank' && (
-          <div>
-            <div>
-              <strong>Template:</strong> <code>{draft.payload.template}</code>
-            </div>
-            <div style={{ marginTop: 4 }}>
-              <strong>Blanks:</strong> {draft.payload.blanks.join(', ')}
-            </div>
-          </div>
-        )}
-
-        {draft.explanation && (
-          <div {...stylex.props(styles.explanationRow)}>
-            💡 {draft.explanation}
-          </div>
-        )}
-      </div>
+      <PayloadPreview payload={draft.payload} explanation={draft.explanation} />
     </div>
   );
 };

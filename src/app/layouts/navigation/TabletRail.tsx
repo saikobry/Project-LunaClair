@@ -1,10 +1,68 @@
 import { useRef, useLayoutEffect, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus, TrendingUp, FileUp, Compass } from 'lucide-react';
+import { BookText, GraduationCap, Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
+import { PRIMARY_NAV_ITEMS } from './navItems';
 
 const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
+
+interface ContextRailButtonsProps {
+  active: ViewportNavProps['active'];
+  onNavigate: ViewportNavProps['onNavigate'];
+  subject?: ViewportNavProps['subject'];
+  material?: ViewportNavProps['material'];
+}
+
+function ContextRailButtons({ active, onNavigate, subject, material }: ContextRailButtonsProps) {
+  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+  const isMaterialActive = active === 'none' && Boolean(material);
+
+  if (active !== 'none') return null;
+
+  return (
+    <>
+      <div {...stylex.props(styles.divider)} aria-hidden="true" />
+
+      {subject && (
+        <button
+          type="button"
+          {...stylex.props(styles.iconButton, isSubjectActive && styles.iconButtonActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'subject',
+              subjectId: subject.id,
+              activeTab: 'materials',
+            })
+          }
+          aria-current={isSubjectActive ? 'page' : undefined}
+          title={`Subject: ${subject.title}`}
+        >
+          <GraduationCap size={20} />
+        </button>
+      )}
+
+      {material && (
+        <button
+          type="button"
+          {...stylex.props(styles.iconButton, isMaterialActive && styles.iconButtonActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'workspace',
+              workspace: 'material',
+              materialId: material.id,
+              activeTab: 'read',
+            })
+          }
+          aria-current={isMaterialActive ? 'page' : undefined}
+          title={`Material: ${material.title}`}
+        >
+          <BookText size={20} />
+        </button>
+      )}
+    </>
+  );
+}
 
 export function TabletRail({
   active,
@@ -18,9 +76,6 @@ export function TabletRail({
   const navGroupRef = useRef<HTMLDivElement>(null);
   const focusBtnRef = useRef<HTMLButtonElement>(null);
   const didInitialAnim = useRef(false);
-
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
-  const isMaterialActive = active === 'none' && Boolean(material);
 
   useLayoutEffect(() => {
     const rail = railRef.current;
@@ -157,107 +212,28 @@ export function TabletRail({
       aria-label="Tablet Navigation"
     >
       <div ref={navGroupRef} {...stylex.props(styles.navGroup)}>
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, active === 'library' && styles.iconButtonActive)}
-          onClick={() => onNavigate({ kind: 'library' })}
-          aria-current={active === 'library' ? 'page' : undefined}
-          title="Library"
-        >
-          <Home size={20} />
-        </button>
+        {PRIMARY_NAV_ITEMS.map((item) => {
+          const isActive = item.isActive(active);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              {...stylex.props(styles.iconButton, isActive && styles.iconButtonActive)}
+              onClick={() => onNavigate(item.route)}
+              aria-current={isActive ? 'page' : undefined}
+              title={item.title}
+            >
+              <item.icon size={20} />
+            </button>
+          );
+        })}
 
-        <button
-          type="button"
-          {...stylex.props(
-            styles.iconButton,
-            (active === 'explore' || active === 'available') && styles.iconButtonActive,
-          )}
-          onClick={() => onNavigate({ kind: 'explore' })}
-          aria-current={active === 'explore' || active === 'available' ? 'page' : undefined}
-          title="Explore Content"
-        >
-          <Compass size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, active === 'import' && styles.iconButtonActive)}
-          onClick={() => onNavigate({ kind: 'import' })}
-          aria-current={active === 'import' ? 'page' : undefined}
-          title="Import Content"
-        >
-          <FileUp size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, active === 'analytics' && styles.iconButtonActive)}
-          onClick={() => onNavigate({ kind: 'analytics' })}
-          aria-current={active === 'analytics' ? 'page' : undefined}
-          title="Learning Insights & Analytics"
-        >
-          <TrendingUp size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, active === 'terms' && styles.iconButtonActive)}
-          onClick={() => onNavigate({ kind: 'terms' })}
-          aria-current={active === 'terms' ? 'page' : undefined}
-          title="Manage Terms"
-        >
-          <Tag size={20} />
-        </button>
-
-        {active === 'none' && (
-          <>
-            <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-            {subject && (
-              <button
-                type="button"
-                {...stylex.props(
-                  styles.iconButton,
-                  isSubjectActive && styles.iconButtonActive,
-                )}
-                onClick={() =>
-                  onNavigate({
-                    kind: 'subject',
-                    subjectId: subject.id,
-                    activeTab: 'materials',
-                  })
-                }
-                aria-current={isSubjectActive ? 'page' : undefined}
-                title={`Subject: ${subject.title}`}
-              >
-                <GraduationCap size={20} />
-              </button>
-            )}
-
-            {material && (
-              <button
-                type="button"
-                {...stylex.props(
-                  styles.iconButton,
-                  isMaterialActive && styles.iconButtonActive,
-                )}
-                onClick={() =>
-                  onNavigate({
-                    kind: 'workspace',
-                    workspace: 'material',
-                    materialId: material.id,
-                    activeTab: 'read',
-                  })
-                }
-                aria-current={isMaterialActive ? 'page' : undefined}
-                title={`Material: ${material.title}`}
-              >
-                <BookText size={20} />
-              </button>
-            )}
-          </>
-        )}
+        <ContextRailButtons
+          active={active}
+          onNavigate={onNavigate}
+          subject={subject}
+          material={material}
+        />
       </div>
 
       {/* Focus Mode Trigger / Restore button */}

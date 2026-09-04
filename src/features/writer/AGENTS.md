@@ -6,7 +6,8 @@ LunaClair Writer is the WYSIWYG authoring and study material editing engine buil
 
 ## Ownership
 
-- `components/MaterialWriterTab.tsx` — Workspace-embedded material writer tab: loads current markdown, manages hydration state, dirty state, provides explicit save, discard, copy, export actions, dirty material-switch protection modal, `beforeunload` event listeners, and mounts `WriterEditor`.
+- `components/MaterialWriterTab.tsx` — Workspace-embedded material writer tab: thin composition over `useMaterialWriterState` rendering loading/error/editor states (in-file subcomponents) and mounting `WriterActionBar` + `WriterEditor`.
+- `hooks/useMaterialWriterState.ts` — Owns the `MaterialWriterTab` state machine: active-material switch interception (render-phase prev-prop guard + `UnsavedChangesModal` flow), hydration lifecycle guard, ref-based dirty tracking, save/discard/copy/export actions, `beforeunload` + Ctrl/Cmd+S listeners, and `SaveStatus` derivation.
 - `components/WriterEditor.tsx` — Lexical editor core wrapper with `RichTextPlugin`, `HistoryPlugin`, `ListPlugin`, `TablePlugin`, `LinkPlugin`, `MarkdownShortcutPlugin`, and `OnChangePlugin`.
 - `components/UnsavedChangesModal.tsx` — Confirmation dialog intercepting material navigation when dirty unsaved changes are present in the active editor.
 - `components/WriterToolbar.tsx` — Modular formatting toolbar composing subcomponents for history, block types, inline styles, indentation, and insert actions.

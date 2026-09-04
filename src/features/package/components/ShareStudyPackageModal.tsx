@@ -1,8 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
-  X,
-  Share2,
   Globe,
   Link2,
   Lock,
@@ -13,8 +11,9 @@ import {
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { usePublishStudyPackage } from '../hooks/usePublishStudyPackage';
-import type { ShareAccessType } from '../../../domain/sharing/models/sharing.types';
+import type { ShareAccessType, PublishShareResult } from '../../../domain/sharing/models/sharing.types';
 
 export interface ShareStudyPackageModalProps {
   isOpen: boolean;
@@ -26,108 +25,17 @@ export interface ShareStudyPackageModalProps {
 type ExpirationOption = 'never' | '7d' | '30d';
 
 const styles = stylex.create({
-  backdrop: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1100,
-    padding: 16,
-    boxSizing: 'border-box',
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 540,
-    maxHeight: '90vh',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
-    borderRadius: 16,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  body: {
     display: 'flex',
     flexDirection: 'column',
-    overflow: 'hidden',
-    border: '1px solid var(--color-border)',
+    gap: 20,
   },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    padding: '20px 24px',
-    borderBottom: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
-    gap: 16,
-  },
-  headerTitleGroup: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerIconWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(99, 102, 241, 0.12)',
-    color: 'var(--color-primary, #6366f1)',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  headerIconSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    color: 'var(--color-success, #10b981)',
-  },
-  headerContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-    wordBreak: 'break-word',
-  },
-  headerDescription: {
+  description: {
     fontSize: 13,
     color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.4,
     wordBreak: 'break-word',
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 6,
-    color: 'var(--color-text-secondary)',
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: 'var(--color-background-muted)',
-      color: 'var(--color-text-primary)',
-    },
-  },
-  body: {
-    padding: 24,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-    flex: 1,
   },
   section: {
     display: 'flex',
@@ -242,9 +150,6 @@ const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 10,
-    padding: '16px 24px',
-    borderTop: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
   },
   actionButton: {
     display: 'inline-flex',
@@ -364,6 +269,252 @@ const styles = stylex.create({
   },
 });
 
+function accessTypeIcon(accessType: ShareAccessType) {
+  switch (accessType) {
+    case 'public':
+      return <Globe size={12} />;
+    case 'unlisted':
+      return <Link2 size={12} />;
+    case 'passcode':
+      return <Lock size={12} />;
+  }
+}
+
+function expirationLabel(expiration: ExpirationOption): string {
+  if (expiration === 'never') return 'Never';
+  if (expiration === '7d') return '7 Days';
+  return '30 Days';
+}
+
+function PublishedSharePanel({
+  publishResult,
+  fullShareUrl,
+  shortShareUrl,
+  copied,
+  expiration,
+  onCopy,
+}: {
+  publishResult: PublishShareResult;
+  fullShareUrl: string;
+  shortShareUrl: string;
+  copied: boolean;
+  expiration: ExpirationOption;
+  onCopy: () => void;
+}) {
+  return (
+    <div {...stylex.props(styles.successContainer)}>
+      <div {...stylex.props(styles.successMessageCard)}>
+        <CheckCircle2 size={20} color="var(--color-success, #10b981)" />
+        <p {...stylex.props(styles.successMessageText)}>
+          Anyone with the link can view and import this study package into their LunaClair library.
+        </p>
+      </div>
+
+      {/* Full Share Link Input + Copy Button */}
+      <div {...stylex.props(styles.linkBoxGroup)}>
+        <label htmlFor="full-share-link" {...stylex.props(styles.label)}>
+          <Globe size={14} /> Full Share Link
+        </label>
+        <div {...stylex.props(styles.linkRow)}>
+          <input
+            id="full-share-link"
+            type="text"
+            readOnly
+            value={fullShareUrl}
+            {...stylex.props(styles.linkInput)}
+          />
+          <button
+            type="button"
+            {...stylex.props(
+              styles.actionButton,
+              copied ? styles.btnSuccess : styles.btnPrimary,
+            )}
+            onClick={onCopy}
+            aria-label={copied ? 'Link copied' : 'Copy link to clipboard'}
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+            <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Short Link Display */}
+      <div {...stylex.props(styles.shortLinkBox)}>
+        <span>Short Link:</span>
+        <span {...stylex.props(styles.shortLinkCode)}>{shortShareUrl}</span>
+      </div>
+
+      {/* Share Info Badges */}
+      <div {...stylex.props(styles.metaPillsRow)}>
+        <span {...stylex.props(styles.metaPill)}>
+          {accessTypeIcon(publishResult.accessType)}
+          Access: {publishResult.accessType.toUpperCase()}
+        </span>
+        <span {...stylex.props(styles.metaPill)}>
+          <Clock size={12} />
+          Expires: {expirationLabel(expiration)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AccessTypeOption({
+  icon,
+  label,
+  description,
+  checked,
+  disabled,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      {...stylex.props(
+        styles.accessTypeCard,
+        checked && styles.accessTypeCardActive,
+      )}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <div {...stylex.props(styles.accessTypeHeader)}>
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p {...stylex.props(styles.accessTypeDescription)}>
+        {description}
+      </p>
+    </button>
+  );
+}
+
+interface ShareStudyPackageBodyProps {
+  publishResult: PublishShareResult | null;
+  accessType: ShareAccessType;
+  passcode: string;
+  expiration: ExpirationOption;
+  copied: boolean;
+  isPublishing: boolean;
+  fullShareUrl: string;
+  shortShareUrl: string;
+  onAccessTypeChange: (type: ShareAccessType) => void;
+  onPasscodeChange: (value: string) => void;
+  onExpirationChange: (value: ExpirationOption) => void;
+  onCopy: () => void;
+}
+
+function ShareStudyPackageBody({
+  publishResult,
+  accessType,
+  passcode,
+  expiration,
+  copied,
+  isPublishing,
+  fullShareUrl,
+  shortShareUrl,
+  onAccessTypeChange,
+  onPasscodeChange,
+  onExpirationChange,
+  onCopy,
+}: ShareStudyPackageBodyProps) {
+  if (publishResult) {
+    return (
+      <PublishedSharePanel
+        publishResult={publishResult}
+        fullShareUrl={fullShareUrl}
+        shortShareUrl={shortShareUrl}
+        copied={copied}
+        expiration={expiration}
+        onCopy={onCopy}
+      />
+    );
+  }
+
+  const isPasscodeSelected = accessType === 'passcode';
+
+  return (
+    <>
+      {/* Access Type Selector */}
+      <div {...stylex.props(styles.section)}>
+        <span {...stylex.props(styles.sectionTitle)}>
+          <Globe size={14} /> Access Permission
+        </span>
+        <div {...stylex.props(styles.accessTypesGrid)} role="radiogroup" aria-label="Access Permission">
+          <AccessTypeOption
+            icon={<Globe size={15} color="var(--color-primary, #6366f1)" />}
+            label="Public"
+            description="Openly discoverable and importable by anyone."
+            checked={accessType === 'public'}
+            disabled={isPublishing}
+            onClick={() => onAccessTypeChange('public')}
+          />
+          <AccessTypeOption
+            icon={<Link2 size={15} color="var(--color-primary, #6366f1)" />}
+            label="Unlisted"
+            description="Only accessible to people who have the direct link."
+            checked={accessType === 'unlisted'}
+            disabled={isPublishing}
+            onClick={() => onAccessTypeChange('unlisted')}
+          />
+          <AccessTypeOption
+            icon={<Lock size={15} color="var(--color-primary, #6366f1)" />}
+            label="Passcode"
+            description="Requires a secret passcode to access."
+            checked={isPasscodeSelected}
+            disabled={isPublishing}
+            onClick={() => onAccessTypeChange('passcode')}
+          />
+        </div>
+      </div>
+
+      {/* Passcode Input (when passcode option is selected) */}
+      {isPasscodeSelected && (
+        <div {...stylex.props(styles.inputGroup)}>
+          <label htmlFor="share-passcode-input" {...stylex.props(styles.label)}>
+            <KeyRound size={14} /> Secret Passcode
+          </label>
+          <input
+            id="share-passcode-input"
+            type="text"
+            value={passcode}
+            onChange={(e) => onPasscodeChange(e.target.value)}
+            placeholder="Enter access passcode"
+            disabled={isPublishing}
+            {...stylex.props(styles.input)}
+          />
+        </div>
+      )}
+
+      {/* Expiration Selector */}
+      <div {...stylex.props(styles.inputGroup)}>
+        <label htmlFor="share-expiration-select" {...stylex.props(styles.label)}>
+          <Clock size={14} /> Link Expiration
+        </label>
+        <select
+          id="share-expiration-select"
+          value={expiration}
+          onChange={(e) => onExpirationChange(e.target.value as ExpirationOption)}
+          disabled={isPublishing}
+          {...stylex.props(styles.select)}
+        >
+          <option value="never">Never (Permanent)</option>
+          <option value="7d">7 Days</option>
+          <option value="30d">30 Days</option>
+        </select>
+      </div>
+    </>
+  );
+}
+
 export function ShareStudyPackageModal({
   isOpen,
   onClose,
@@ -387,18 +538,6 @@ export function ShareStudyPackageModal({
     reset();
     onClose();
   }, [isPublishing, reset, onClose]);
-
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isPublishing) {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isPublishing, handleClose]);
 
   if (!isOpen) {
     return null;
@@ -448,215 +587,12 @@ export function ShareStudyPackageModal({
   const isPasscodeInvalid = accessType === 'passcode' && !passcode.trim();
 
   return (
-    <div
-      {...stylex.props(styles.backdrop)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="share-package-modal-title"
-    >
-      <div {...stylex.props(styles.dialog)}>
-        {/* Header */}
-        <div {...stylex.props(styles.header)}>
-          <div {...stylex.props(styles.headerTitleGroup)}>
-            <div
-              {...stylex.props(
-                styles.headerIconWrapper,
-                publishResult && styles.headerIconSuccess,
-              )}
-            >
-              {publishResult ? <CheckCircle2 size={22} /> : <Share2 size={22} />}
-            </div>
-            <div {...stylex.props(styles.headerContent)}>
-              <h2 id="share-package-modal-title" {...stylex.props(styles.headerTitle)}>
-                {publishResult ? 'Package Published!' : 'Share Study Package'}
-              </h2>
-              <p {...stylex.props(styles.headerDescription)}>
-                {publishResult
-                  ? `"${materialTitle}" is now published and accessible in the cloud.`
-                  : `Publish an immutable snapshot of "${materialTitle}" to the cloud.`}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            {...stylex.props(styles.closeButton)}
-            onClick={handleClose}
-            aria-label="Close dialog"
-            disabled={isPublishing}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div {...stylex.props(styles.body)}>
-          {publishResult ? (
-            <div {...stylex.props(styles.successContainer)}>
-              <div {...stylex.props(styles.successMessageCard)}>
-                <CheckCircle2 size={20} color="var(--color-success, #10b981)" />
-                <p {...stylex.props(styles.successMessageText)}>
-                  Anyone with the link can view and import this study package into their LunaClair library.
-                </p>
-              </div>
-
-              {/* Full Share Link Input + Copy Button */}
-              <div {...stylex.props(styles.linkBoxGroup)}>
-                <label htmlFor="full-share-link" {...stylex.props(styles.label)}>
-                  <Globe size={14} /> Full Share Link
-                </label>
-                <div {...stylex.props(styles.linkRow)}>
-                  <input
-                    id="full-share-link"
-                    type="text"
-                    readOnly
-                    value={fullShareUrl}
-                    {...stylex.props(styles.linkInput)}
-                  />
-                  <button
-                    type="button"
-                    {...stylex.props(
-                      styles.actionButton,
-                      copied ? styles.btnSuccess : styles.btnPrimary,
-                    )}
-                    onClick={handleCopy}
-                    aria-label={copied ? 'Link copied' : 'Copy link to clipboard'}
-                  >
-                    {copied ? <Check size={15} /> : <Copy size={15} />}
-                    <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Short Link Display */}
-              <div {...stylex.props(styles.shortLinkBox)}>
-                <span>Short Link:</span>
-                <span {...stylex.props(styles.shortLinkCode)}>{shortShareUrl}</span>
-              </div>
-
-              {/* Share Info Badges */}
-              <div {...stylex.props(styles.metaPillsRow)}>
-                <span {...stylex.props(styles.metaPill)}>
-                  {publishResult.accessType === 'public' && <Globe size={12} />}
-                  {publishResult.accessType === 'unlisted' && <Link2 size={12} />}
-                  {publishResult.accessType === 'passcode' && <Lock size={12} />}
-                  Access: {publishResult.accessType.toUpperCase()}
-                </span>
-                <span {...stylex.props(styles.metaPill)}>
-                  <Clock size={12} />
-                  Expires: {expiration === 'never' ? 'Never' : expiration === '7d' ? '7 Days' : '30 Days'}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Access Type Selector */}
-              <div {...stylex.props(styles.section)}>
-                <span {...stylex.props(styles.sectionTitle)}>
-                  <Globe size={14} /> Access Permission
-                </span>
-                <div {...stylex.props(styles.accessTypesGrid)} role="radiogroup" aria-label="Access Permission">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={accessType === 'public'}
-                    {...stylex.props(
-                      styles.accessTypeCard,
-                      accessType === 'public' && styles.accessTypeCardActive,
-                    )}
-                    onClick={() => setAccessType('public')}
-                    disabled={isPublishing}
-                  >
-                    <div {...stylex.props(styles.accessTypeHeader)}>
-                      <Globe size={15} color="var(--color-primary, #6366f1)" />
-                      <span>Public</span>
-                    </div>
-                    <p {...stylex.props(styles.accessTypeDescription)}>
-                      Openly discoverable and importable by anyone.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={accessType === 'unlisted'}
-                    {...stylex.props(
-                      styles.accessTypeCard,
-                      accessType === 'unlisted' && styles.accessTypeCardActive,
-                    )}
-                    onClick={() => setAccessType('unlisted')}
-                    disabled={isPublishing}
-                  >
-                    <div {...stylex.props(styles.accessTypeHeader)}>
-                      <Link2 size={15} color="var(--color-primary, #6366f1)" />
-                      <span>Unlisted</span>
-                    </div>
-                    <p {...stylex.props(styles.accessTypeDescription)}>
-                      Only accessible to people who have the direct link.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={accessType === 'passcode'}
-                    {...stylex.props(
-                      styles.accessTypeCard,
-                      accessType === 'passcode' && styles.accessTypeCardActive,
-                    )}
-                    onClick={() => setAccessType('passcode')}
-                    disabled={isPublishing}
-                  >
-                    <div {...stylex.props(styles.accessTypeHeader)}>
-                      <Lock size={15} color="var(--color-primary, #6366f1)" />
-                      <span>Passcode</span>
-                    </div>
-                    <p {...stylex.props(styles.accessTypeDescription)}>
-                      Requires a secret passcode to access.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Passcode Input (when passcode option is selected) */}
-              {accessType === 'passcode' && (
-                <div {...stylex.props(styles.inputGroup)}>
-                  <label htmlFor="share-passcode-input" {...stylex.props(styles.label)}>
-                    <KeyRound size={14} /> Secret Passcode
-                  </label>
-                  <input
-                    id="share-passcode-input"
-                    type="text"
-                    value={passcode}
-                    onChange={(e) => setPasscode(e.target.value)}
-                    placeholder="Enter access passcode"
-                    disabled={isPublishing}
-                    {...stylex.props(styles.input)}
-                  />
-                </div>
-              )}
-
-              {/* Expiration Selector */}
-              <div {...stylex.props(styles.inputGroup)}>
-                <label htmlFor="share-expiration-select" {...stylex.props(styles.label)}>
-                  <Clock size={14} /> Link Expiration
-                </label>
-                <select
-                  id="share-expiration-select"
-                  value={expiration}
-                  onChange={(e) => setExpiration(e.target.value as ExpirationOption)}
-                  disabled={isPublishing}
-                  {...stylex.props(styles.select)}
-                >
-                  <option value="never">Never (Permanent)</option>
-                  <option value="7d">7 Days</option>
-                  <option value="30d">30 Days</option>
-                </select>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
+    <Dialog
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={publishResult ? 'Package Published!' : 'Share Study Package'}
+      width={520}
+      footer={
         <div {...stylex.props(styles.footer)}>
           {publishResult ? (
             <button
@@ -697,7 +633,30 @@ export function ShareStudyPackageModal({
             </>
           )}
         </div>
+      }
+    >
+      <div {...stylex.props(styles.body)}>
+        <p {...stylex.props(styles.description)}>
+          {publishResult
+            ? `"${materialTitle}" is now published and accessible in the cloud.`
+            : `Publish an immutable snapshot of "${materialTitle}" to the cloud.`}
+        </p>
+
+        <ShareStudyPackageBody
+          publishResult={publishResult}
+          accessType={accessType}
+          passcode={passcode}
+          expiration={expiration}
+          copied={copied}
+          isPublishing={isPublishing}
+          fullShareUrl={fullShareUrl}
+          shortShareUrl={shortShareUrl}
+          onAccessTypeChange={setAccessType}
+          onPasscodeChange={setPasscode}
+          onExpirationChange={setExpiration}
+          onCopy={handleCopy}
+        />
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -1,8 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
-  X,
-  Package,
   BookOpen,
   HelpCircle,
   Award,
@@ -15,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { useSubjects } from '../../subjects/hooks/queries/useSubjects';
 import { useTerms } from '../../terms/hooks/queries/useTerms';
 
@@ -32,119 +31,32 @@ export interface StudyPackagePreviewModalProps {
 }
 
 const styles = stylex.create({
-  backdrop: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1100,
-    padding: 16,
-    boxSizing: 'border-box',
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 680,
-    maxHeight: '90vh',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
-    borderRadius: 16,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  body: {
     display: 'flex',
     flexDirection: 'column',
-    overflow: 'hidden',
-    border: '1px solid var(--color-border)',
+    gap: 20,
   },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    padding: '20px 24px',
-    borderBottom: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
-    gap: 16,
-  },
-  headerTitleGroup: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerIconWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(99, 102, 241, 0.12)',
-    color: 'var(--color-primary, #6366f1)',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  headerContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-    wordBreak: 'break-word',
-  },
-  headerDescription: {
+  description: {
     fontSize: 13,
     color: 'var(--color-text-secondary)',
     margin: 0,
     lineHeight: 1.4,
     wordBreak: 'break-word',
   },
-  headerMetaRow: {
+  metaRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 14,
-    marginTop: 6,
+    marginTop: 4,
     flexWrap: 'wrap',
   },
-  headerMetaItem: {
+  metaItem: {
     display: 'flex',
     alignItems: 'center',
     gap: 5,
     fontSize: 12,
     color: 'var(--color-text-secondary)',
     fontWeight: 500,
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 6,
-    color: 'var(--color-text-secondary)',
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: 'var(--color-background-muted)',
-      color: 'var(--color-text-primary)',
-    },
-  },
-  body: {
-    padding: 24,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-    flex: 1,
   },
   sectionTitle: {
     fontSize: 13,
@@ -253,9 +165,6 @@ const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 10,
-    padding: '16px 24px',
-    borderTop: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
   },
   actionButton: {
     display: 'inline-flex',
@@ -342,6 +251,11 @@ export function StudyPackagePreviewModal({
     return inspectStudyPackage(packageData);
   }, [packageData]);
 
+  const handleClose = useCallback(() => {
+    if (isImporting) return;
+    onClose();
+  }, [isImporting, onClose]);
+
   if (!isOpen || !packageData || !summary) {
     return null;
   }
@@ -362,171 +276,12 @@ export function StudyPackagePreviewModal({
   const questionTypeEntries = Object.entries(summary.questionsByType);
 
   return (
-    <div
-      {...stylex.props(styles.backdrop)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="package-preview-modal-title"
-    >
-      <div {...stylex.props(styles.dialog)}>
-        {/* Header */}
-        <div {...stylex.props(styles.header)}>
-          <div {...stylex.props(styles.headerTitleGroup)}>
-            <div {...stylex.props(styles.headerIconWrapper)}>
-              <Package size={22} />
-            </div>
-            <div {...stylex.props(styles.headerContent)}>
-              <h2 id="package-preview-modal-title" {...stylex.props(styles.headerTitle)}>
-                {summary.title || 'Study Package Preview'}
-              </h2>
-              {summary.description && (
-                <p {...stylex.props(styles.headerDescription)}>{summary.description}</p>
-              )}
-              <div {...stylex.props(styles.headerMetaRow)}>
-                {summary.author && (
-                  <span {...stylex.props(styles.headerMetaItem)}>
-                    <User size={13} />
-                    {summary.author}
-                  </span>
-                )}
-                {summary.createdAt && (
-                  <span {...stylex.props(styles.headerMetaItem)}>
-                    <Calendar size={13} />
-                    {formatPackageDate(summary.createdAt)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            {...stylex.props(styles.closeButton)}
-            onClick={onClose}
-            aria-label="Close dialog"
-            disabled={isImporting}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div {...stylex.props(styles.body)}>
-          {/* Summary Stat Cards */}
-          <div>
-            <h3 {...stylex.props(styles.sectionTitle)}>Package Contents</h3>
-            <div {...stylex.props(styles.statsGrid)} style={{ marginTop: 10 }}>
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <BookOpen size={15} />
-                  <span>Materials</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.materialCount}</span>
-              </div>
-
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <HelpCircle size={15} />
-                  <span>Questions</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.questionCount}</span>
-              </div>
-
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <Award size={15} />
-                  <span>Quizzes</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.quizCount}</span>
-              </div>
-
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <Layers size={15} />
-                  <span>Flashcards</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.flashcardCount}</span>
-              </div>
-
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <ImageIcon size={15} />
-                  <span>Assets</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.assetCount}</span>
-              </div>
-
-              <div {...stylex.props(styles.statCard)}>
-                <div {...stylex.props(styles.statCardHeader)}>
-                  <Sparkles size={15} />
-                  <span>Total Points</span>
-                </div>
-                <span {...stylex.props(styles.statCardValue)}>{summary.totalPoints}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Question Type Breakdown */}
-          {questionTypeEntries.length > 0 && (
-            <div {...stylex.props(styles.typeBadgesContainer)}>
-              <span {...stylex.props(styles.sectionTitle)}>Question Types</span>
-              <div {...stylex.props(styles.typeBadgesList)}>
-                {questionTypeEntries.map(([type, count]) => (
-                  <span key={type} {...stylex.props(styles.typeBadge)}>
-                    {formatQuestionType(type)}: <strong>{count}</strong>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Destination Assignment Picker */}
-          <div {...stylex.props(styles.destinationSection)}>
-            <span {...stylex.props(styles.sectionTitle)}>Destination in Library</span>
-            <div {...stylex.props(styles.fieldGrid)}>
-              <div {...stylex.props(styles.fieldGroup)}>
-                <label htmlFor="package-dest-subject" {...stylex.props(styles.label)}>
-                  Subject (Optional)
-                </label>
-                <select
-                  id="package-dest-subject"
-                  {...stylex.props(styles.select)}
-                  value={selectedSubjectId}
-                  onChange={handleSubjectChange}
-                  disabled={isImporting}
-                >
-                  <option value="">Unassigned (General Library)</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div {...stylex.props(styles.fieldGroup)}>
-                <label htmlFor="package-dest-term" {...stylex.props(styles.label)}>
-                  Term (Optional)
-                </label>
-                <select
-                  id="package-dest-term"
-                  {...stylex.props(styles.select)}
-                  value={selectedTermId}
-                  onChange={(e) => setSelectedTermId(e.target.value)}
-                  disabled={isImporting || terms.length === 0}
-                >
-                  <option value="">No Term</option>
-                  {terms.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
+    <Dialog
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={summary.title || 'Study Package Preview'}
+      width={640}
+      footer={
         <div {...stylex.props(styles.footer)}>
           <button
             type="button"
@@ -552,7 +307,142 @@ export function StudyPackagePreviewModal({
             )}
           </button>
         </div>
+      }
+    >
+      <div {...stylex.props(styles.body)}>
+        {summary.description && (
+          <p {...stylex.props(styles.description)}>{summary.description}</p>
+        )}
+
+        <div {...stylex.props(styles.metaRow)}>
+          {summary.author && (
+            <span {...stylex.props(styles.metaItem)}>
+              <User size={13} />
+              {summary.author}
+            </span>
+          )}
+          {summary.createdAt && (
+            <span {...stylex.props(styles.metaItem)}>
+              <Calendar size={13} />
+              {formatPackageDate(summary.createdAt)}
+            </span>
+          )}
+        </div>
+
+        {/* Summary Stat Cards */}
+        <div>
+          <h3 {...stylex.props(styles.sectionTitle)}>Package Contents</h3>
+          <div {...stylex.props(styles.statsGrid)} style={{ marginTop: 10 }}>
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <BookOpen size={15} />
+                <span>Materials</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.materialCount}</span>
+            </div>
+
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <HelpCircle size={15} />
+                <span>Questions</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.questionCount}</span>
+            </div>
+
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <Award size={15} />
+                <span>Quizzes</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.quizCount}</span>
+            </div>
+
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <Layers size={15} />
+                <span>Flashcards</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.flashcardCount}</span>
+            </div>
+
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <ImageIcon size={15} />
+                <span>Assets</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.assetCount}</span>
+            </div>
+
+            <div {...stylex.props(styles.statCard)}>
+              <div {...stylex.props(styles.statCardHeader)}>
+                <Sparkles size={15} />
+                <span>Total Points</span>
+              </div>
+              <span {...stylex.props(styles.statCardValue)}>{summary.totalPoints}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Question Type Breakdown */}
+        {questionTypeEntries.length > 0 && (
+          <div {...stylex.props(styles.typeBadgesContainer)}>
+            <span {...stylex.props(styles.sectionTitle)}>Question Types</span>
+            <div {...stylex.props(styles.typeBadgesList)}>
+              {questionTypeEntries.map(([type, count]) => (
+                <span key={type} {...stylex.props(styles.typeBadge)}>
+                  {formatQuestionType(type)}: <strong>{count}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Destination Assignment Picker */}
+        <div {...stylex.props(styles.destinationSection)}>
+          <span {...stylex.props(styles.sectionTitle)}>Destination in Library</span>
+          <div {...stylex.props(styles.fieldGrid)}>
+            <div {...stylex.props(styles.fieldGroup)}>
+              <label htmlFor="package-dest-subject" {...stylex.props(styles.label)}>
+                Subject (Optional)
+              </label>
+              <select
+                id="package-dest-subject"
+                {...stylex.props(styles.select)}
+                value={selectedSubjectId}
+                onChange={handleSubjectChange}
+                disabled={isImporting}
+              >
+                <option value="">Unassigned (General Library)</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div {...stylex.props(styles.fieldGroup)}>
+              <label htmlFor="package-dest-term" {...stylex.props(styles.label)}>
+                Term (Optional)
+              </label>
+              <select
+                id="package-dest-term"
+                {...stylex.props(styles.select)}
+                value={selectedTermId}
+                onChange={(e) => setSelectedTermId(e.target.value)}
+                disabled={isImporting || terms.length === 0}
+              >
+                <option value="">No Term</option>
+                {terms.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

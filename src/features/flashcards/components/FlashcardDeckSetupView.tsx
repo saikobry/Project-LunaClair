@@ -6,7 +6,7 @@ import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import { isDue } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 const styles = stylex.create({
     container: {
@@ -159,6 +159,157 @@ interface FlashcardDeckSetupViewProps {
     onShare?: () => void;
 }
 
+interface ActionHandlers {
+    onGenerateAi?: () => void;
+    onExport?: () => void;
+    isExporting?: boolean;
+    onShare?: () => void;
+}
+
+function ActionButtonGroup({ onGenerateAi, onExport, isExporting, onShare }: ActionHandlers) {
+    return (
+        <>
+            {onGenerateAi && (
+                <Button
+                    label="Generate Flashcards with AI"
+                    variant="primary"
+                    icon={<Sparkles size={16} />}
+                    onClick={onGenerateAi}
+                >
+                    Generate Flashcards with AI
+                </Button>
+            )}
+            {onShare && (
+                <Button
+                    label="Share"
+                    variant="secondary"
+                    icon={<Share2 size={16} />}
+                    onClick={onShare}
+                >
+                    Share
+                </Button>
+            )}
+            {onExport && (
+                <Button
+                    label="Export as .lcpack"
+                    variant="secondary"
+                    icon={<Package size={16} />}
+                    onClick={onExport}
+                    isLoading={isExporting}
+                    isDisabled={isExporting}
+                >
+                    Export as .lcpack
+                </Button>
+            )}
+        </>
+    );
+}
+
+function StatBadge({ icon, emphasized, children }: { icon: ReactNode; emphasized?: boolean; children: ReactNode }) {
+    return (
+        <div {...stylex.props(styles.metaBadge, emphasized && styles.dueBadge)}>
+            {icon}
+            <span>{children}</span>
+        </div>
+    );
+}
+
+function DeckStatsRow({ dueCount, newCount, total }: { dueCount: number; newCount: number; total: number }) {
+    return (
+        <div {...stylex.props(styles.metaGrid)}>
+            <StatBadge icon={<Clock size={15} />} emphasized={dueCount > 0}>
+                {dueCount} {dueCount === 1 ? 'Card' : 'Cards'} Due Today
+            </StatBadge>
+            <StatBadge icon={<Sparkles size={15} />}>
+                {newCount} New
+            </StatBadge>
+            <StatBadge icon={<Layers size={15} />}>
+                {total} Total in Bank
+            </StatBadge>
+        </div>
+    );
+}
+
+function StudyModeSelector({
+    studyMode,
+    dueCount,
+    totalQuestions,
+    onModeChange,
+}: {
+    studyMode: DeckStudyMode;
+    dueCount: number;
+    totalQuestions: number;
+    onModeChange: (mode: DeckStudyMode) => void;
+}) {
+    return (
+        <div {...stylex.props(styles.modeSelector)}>
+            <button
+                type="button"
+                {...stylex.props(
+                    styles.modeOption,
+                    studyMode === 'due_only' && styles.modeOptionActive
+                )}
+                onClick={() => onModeChange('due_only')}
+                aria-pressed={studyMode === 'due_only'}
+            >
+                <span {...stylex.props(styles.modeTitle)}>Due Cards Only</span>
+                <span {...stylex.props(styles.modeDesc)}>
+                    Focus on {dueCount} cards due for scheduled review today
+                </span>
+            </button>
+
+            <button
+                type="button"
+                {...stylex.props(
+                    styles.modeOption,
+                    studyMode === 'all' && styles.modeOptionActive
+                )}
+                onClick={() => onModeChange('all')}
+                aria-pressed={studyMode === 'all'}
+            >
+                <span {...stylex.props(styles.modeTitle)}>All Cards</span>
+                <span {...stylex.props(styles.modeDesc)}>
+                    Review entire deck ({totalQuestions} cards; due cards first)
+                </span>
+            </button>
+        </div>
+    );
+}
+
+function QuizFilterControl({
+    activeQuizzes,
+    totalQuestions,
+    selectedQuizId,
+    onSelectedChange,
+}: {
+    activeQuizzes: Quiz[];
+    totalQuestions: number;
+    selectedQuizId: string;
+    onSelectedChange: (value: string) => void;
+}) {
+    return (
+        <div {...stylex.props(styles.controlGroup)}>
+            <label htmlFor="flashcard-quiz-filter" {...stylex.props(styles.label)}>
+                <Filter size={14} /> Quiz Filter
+            </label>
+            <select
+                id="flashcard-quiz-filter"
+                aria-label="Quiz Filter"
+                {...stylex.props(styles.select)}
+                value={selectedQuizId}
+                onChange={(e) => onSelectedChange(e.target.value)}
+            >
+                <option value="all">All Quizzes ({totalQuestions} questions)</option>
+                {activeQuizzes.map((quiz) => (
+                    <option key={quiz.id} value={quiz.id}>
+                        {quiz.title} ({quiz.questionIds.length} questions)
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+}
+
 export function FlashcardDeckSetupView({
     questions,
     quizzes,
@@ -212,38 +363,12 @@ export function FlashcardDeckSetupView({
                         This material doesn&apos;t have any flashcards yet. Generate cards directly from your notes using AI, or create questions in the Question Bank!
                     </p>
                     <div style={{ marginTop: 8, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {onGenerateAi && (
-                            <Button
-                                label="Generate Flashcards with AI"
-                                variant="primary"
-                                icon={<Sparkles size={16} />}
-                                onClick={onGenerateAi}
-                            >
-                                Generate Flashcards with AI
-                            </Button>
-                        )}
-                        {onShare && (
-                            <Button
-                                label="Share"
-                                variant="secondary"
-                                icon={<Share2 size={16} />}
-                                onClick={onShare}
-                            >
-                                Share
-                            </Button>
-                        )}
-                        {onExport && (
-                            <Button
-                                label="Export as .lcpack"
-                                variant="secondary"
-                                icon={<Package size={16} />}
-                                onClick={onExport}
-                                isLoading={isExporting}
-                                isDisabled={isExporting}
-                            >
-                                Export as .lcpack
-                            </Button>
-                        )}
+                        <ActionButtonGroup
+                            onGenerateAi={onGenerateAi}
+                            onShare={onShare}
+                            onExport={onExport}
+                            isExporting={isExporting}
+                        />
                     </div>
                 </div>
             </div>
@@ -261,79 +386,28 @@ export function FlashcardDeckSetupView({
                     Review key concepts with SM-2 spaced repetition. Cards are generated automatically from your question bank.
                 </p>
 
-                <div {...stylex.props(styles.metaGrid)}>
-                    <div {...stylex.props(styles.metaBadge, dueCount > 0 && styles.dueBadge)}>
-                        <Clock size={15} />
-                        <span>{dueCount} {dueCount === 1 ? 'Card' : 'Cards'} Due Today</span>
-                    </div>
-                    <div {...stylex.props(styles.metaBadge)}>
-                        <Sparkles size={15} />
-                        <span>{newCount} New</span>
-                    </div>
-                    <div {...stylex.props(styles.metaBadge)}>
-                        <Layers size={15} />
-                        <span>{totalQuestions} Total in Bank</span>
-                    </div>
-                </div>
+                <DeckStatsRow dueCount={dueCount} newCount={newCount} total={totalQuestions} />
 
                 <div {...stylex.props(styles.configSection)}>
                     <div {...stylex.props(styles.controlGroup)}>
                         <label {...stylex.props(styles.label)}>
                             <Clock size={14} /> Study Mode
                         </label>
-                        <div {...stylex.props(styles.modeSelector)}>
-                            <button
-                                type="button"
-                                {...stylex.props(
-                                    styles.modeOption,
-                                    studyMode === 'due_only' && styles.modeOptionActive
-                                )}
-                                onClick={() => setStudyMode('due_only')}
-                                aria-pressed={studyMode === 'due_only'}
-                            >
-                                <span {...stylex.props(styles.modeTitle)}>Due Cards Only</span>
-                                <span {...stylex.props(styles.modeDesc)}>
-                                    Focus on {dueCount} cards due for scheduled review today
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                {...stylex.props(
-                                    styles.modeOption,
-                                    studyMode === 'all' && styles.modeOptionActive
-                                )}
-                                onClick={() => setStudyMode('all')}
-                                aria-pressed={studyMode === 'all'}
-                            >
-                                <span {...stylex.props(styles.modeTitle)}>All Cards</span>
-                                <span {...stylex.props(styles.modeDesc)}>
-                                    Review entire deck ({totalQuestions} cards; due cards first)
-                                </span>
-                            </button>
-                        </div>
+                        <StudyModeSelector
+                            studyMode={studyMode}
+                            dueCount={dueCount}
+                            totalQuestions={totalQuestions}
+                            onModeChange={setStudyMode}
+                        />
                     </div>
 
                     {activeQuizzes.length > 1 && (
-                        <div {...stylex.props(styles.controlGroup)}>
-                            <label htmlFor="flashcard-quiz-filter" {...stylex.props(styles.label)}>
-                                <Filter size={14} /> Quiz Filter
-                            </label>
-                            <select
-                                id="flashcard-quiz-filter"
-                                aria-label="Quiz Filter"
-                                {...stylex.props(styles.select)}
-                                value={selectedQuizId}
-                                onChange={(e) => setSelectedQuizId(e.target.value)}
-                            >
-                                <option value="all">All Quizzes ({totalQuestions} questions)</option>
-                                {activeQuizzes.map((quiz) => (
-                                    <option key={quiz.id} value={quiz.id}>
-                                        {quiz.title} ({quiz.questionIds.length} questions)
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <QuizFilterControl
+                            activeQuizzes={activeQuizzes}
+                            totalQuestions={totalQuestions}
+                            selectedQuizId={selectedQuizId}
+                            onSelectedChange={setSelectedQuizId}
+                        />
                     )}
                 </div>
 

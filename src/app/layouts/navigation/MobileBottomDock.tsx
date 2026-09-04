@@ -1,10 +1,66 @@
 import { useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, Focus, TrendingUp, FileUp, Compass } from 'lucide-react';
+import { BookText, GraduationCap, Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
+import { PRIMARY_NAV_ITEMS } from './navItems';
 
 const nonMobile = '@media (min-width: 769px)';
+
+interface ContextDockButtonsProps {
+  active: ViewportNavProps['active'];
+  onNavigate: ViewportNavProps['onNavigate'];
+  subject?: ViewportNavProps['subject'];
+  material?: ViewportNavProps['material'];
+}
+
+function ContextDockButtons({ active, onNavigate, subject, material }: ContextDockButtonsProps) {
+  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+  const isMaterialActive = active === 'none' && Boolean(material);
+
+  if (active !== 'none') return null;
+
+  return (
+    <>
+      {subject && (
+        <button
+          type="button"
+          {...stylex.props(styles.dockButton, isSubjectActive && styles.dockButtonActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'subject',
+              subjectId: subject.id,
+              activeTab: 'materials',
+            })
+          }
+          aria-current={isSubjectActive ? 'page' : undefined}
+          title={`Subject: ${subject.title}`}
+        >
+          <GraduationCap size={20} />
+        </button>
+      )}
+
+      {material && (
+        <button
+          type="button"
+          {...stylex.props(styles.dockButton, isMaterialActive && styles.dockButtonActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'workspace',
+              workspace: 'material',
+              materialId: material.id,
+              activeTab: 'read',
+            })
+          }
+          aria-current={isMaterialActive ? 'page' : undefined}
+          title={`Material: ${material.title}`}
+        >
+          <BookText size={20} />
+        </button>
+      )}
+    </>
+  );
+}
 
 export function MobileBottomDock({
   active,
@@ -18,9 +74,6 @@ export function MobileBottomDock({
   const navGroupRef = useRef<HTMLDivElement>(null);
   const focusBtnRef = useRef<HTMLButtonElement>(null);
   const didInitialAnim = useRef(false);
-
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
-  const isMaterialActive = active === 'none' && Boolean(material);
 
   useEffect(() => {
     const dock = dockRef.current;
@@ -134,105 +187,28 @@ export function MobileBottomDock({
       aria-label="Mobile Bottom Navigation"
     >
       <div ref={navGroupRef} {...stylex.props(styles.navGroup)}>
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, active === 'library' && styles.dockButtonActive)}
-          onClick={() => onNavigate({ kind: 'library' })}
-          aria-current={active === 'library' ? 'page' : undefined}
-          title="Library"
-        >
-          <Home size={20} />
-        </button>
+        {PRIMARY_NAV_ITEMS.map((item) => {
+          const isActive = item.isActive(active);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              {...stylex.props(styles.dockButton, isActive && styles.dockButtonActive)}
+              onClick={() => onNavigate(item.route)}
+              aria-current={isActive ? 'page' : undefined}
+              title={item.title}
+            >
+              <item.icon size={20} />
+            </button>
+          );
+        })}
 
-        <button
-          type="button"
-          {...stylex.props(
-            styles.dockButton,
-            (active === 'explore' || active === 'available') && styles.dockButtonActive,
-          )}
-          onClick={() => onNavigate({ kind: 'explore' })}
-          aria-current={active === 'explore' || active === 'available' ? 'page' : undefined}
-          title="Explore Content"
-        >
-          <Compass size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, active === 'import' && styles.dockButtonActive)}
-          onClick={() => onNavigate({ kind: 'import' })}
-          aria-current={active === 'import' ? 'page' : undefined}
-          title="Import Content"
-        >
-          <FileUp size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, active === 'analytics' && styles.dockButtonActive)}
-          onClick={() => onNavigate({ kind: 'analytics' })}
-          aria-current={active === 'analytics' ? 'page' : undefined}
-          title="Learning Insights & Analytics"
-        >
-          <TrendingUp size={20} />
-        </button>
-
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, active === 'terms' && styles.dockButtonActive)}
-          onClick={() => onNavigate({ kind: 'terms' })}
-          aria-current={active === 'terms' ? 'page' : undefined}
-          title="Manage Terms"
-        >
-          <Tag size={20} />
-        </button>
-
-        {active === 'none' && (
-          <>
-            {subject && (
-              <button
-                type="button"
-                {...stylex.props(
-                  styles.dockButton,
-                  isSubjectActive && styles.dockButtonActive,
-                )}
-                onClick={() =>
-                  onNavigate({
-                    kind: 'subject',
-                    subjectId: subject.id,
-                    activeTab: 'materials',
-                  })
-                }
-                aria-current={isSubjectActive ? 'page' : undefined}
-                title={`Subject: ${subject.title}`}
-              >
-                <GraduationCap size={20} />
-              </button>
-            )}
-
-            {material && (
-              <button
-                type="button"
-                {...stylex.props(
-                  styles.dockButton,
-                  isMaterialActive && styles.dockButtonActive,
-                )}
-                onClick={() =>
-                  onNavigate({
-                    kind: 'workspace',
-                    workspace: 'material',
-                    materialId: material.id,
-                    activeTab: 'read',
-                  })
-                }
-                aria-current={isMaterialActive ? 'page' : undefined}
-                title={`Material: ${material.title}`}
-              >
-                <BookText size={20} />
-              </button>
-            )}
-          </>
-        )}
+        <ContextDockButtons
+          active={active}
+          onNavigate={onNavigate}
+          subject={subject}
+          material={material}
+        />
       </div>
 
       {/* Focus Mode trigger / restore button */}

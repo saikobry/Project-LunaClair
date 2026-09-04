@@ -219,7 +219,7 @@ describe('StudyPackagePreviewModal', () => {
   });
 
   it('confirms import with selected external destination context without mutating packageData', async () => {
-    const frozenPackage = JSON.parse(JSON.stringify(mockPackage));
+    const frozenPackage = structuredClone(mockPackage);
     Object.freeze(frozenPackage);
 
     const { onConfirmImport } = renderModal({ packageData: frozenPackage });
@@ -257,16 +257,19 @@ describe('StudyPackagePreviewModal', () => {
     fireEvent.click(cancelButton);
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    const closeIconButton = screen.getByLabelText('Close dialog');
+    const closeIconButton = screen.getByLabelText('Close');
     fireEvent.click(closeIconButton);
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
   it('disables actions and displays loading spinner when isImporting is true', () => {
-    renderModal({ isImporting: true });
+    const { onClose } = renderModal({ isImporting: true });
 
     expect(screen.getByText('Importing...')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeDisabled();
-    expect(screen.getByLabelText('Close dialog')).toBeDisabled();
+
+    // Close (header X / Escape / backdrop) is guarded while importing
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

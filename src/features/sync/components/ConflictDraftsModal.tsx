@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
-  AlertTriangle,
   Server,
   Laptop,
   GitMerge,
   Check,
   RotateCcw,
-  X,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { useConflictDrafts } from '../hooks/useConflictDrafts';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 
@@ -20,90 +19,22 @@ export interface ConflictDraftsModalProps {
   documentId?: string;
 }
 
+type Resolution = 'keep_server' | 'keep_local' | 'merge';
+
 const styles = stylex.create({
-  backdrop: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1100,
-    padding: 16,
-    boxSizing: 'border-box',
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 840,
-    maxHeight: '90vh',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
-    borderRadius: 16,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    border: '1px solid var(--color-border)',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
-  },
-  headerTitleGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerIconWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    color: '#ef4444',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  headerSubtitle: {
+  subtitle: {
     fontSize: 12,
     color: 'var(--color-text-secondary)',
     margin: 0,
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 6,
-    color: 'var(--color-text-secondary)',
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: 'var(--color-background-muted)',
-      color: 'var(--color-text-primary)',
-    },
   },
   draftPagination: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 20px',
+    padding: '10px 14px',
     backgroundColor: 'var(--color-background-muted)',
-    borderBottom: '1px solid var(--color-border)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 8,
     fontSize: 13,
     fontWeight: 500,
     color: 'var(--color-text-secondary)',
@@ -131,12 +62,9 @@ const styles = stylex.create({
     },
   },
   body: {
-    padding: 20,
-    overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
-    flex: 1,
   },
   diffGrid: {
     display: 'grid',
@@ -238,9 +166,6 @@ const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 10,
-    padding: '14px 20px',
-    borderTop: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
     flexWrap: 'wrap',
   },
   actionButton: {
@@ -287,6 +212,197 @@ const styles = stylex.create({
   },
 });
 
+function DiffContent({
+  activeDraft,
+  isMerging,
+  mergedText,
+  onMergedTextChange,
+}: {
+  activeDraft: ConflictDraft;
+  isMerging: boolean;
+  mergedText: string;
+  onMergedTextChange: (value: string) => void;
+}) {
+  return (
+    <>
+      <div {...stylex.props(styles.diffGrid)}>
+        {/* Server Version Card */}
+        <div {...stylex.props(styles.versionCard)}>
+          <div {...stylex.props(styles.versionHeader)}>
+            <div {...stylex.props(styles.versionTitleGroup)}>
+              <Server size={16} color="#2563eb" />
+              <span>Server Version (Canonical)</span>
+            </div>
+            <span {...stylex.props(styles.badge, styles.serverBadge)}>
+              v{activeDraft.serverVersion}
+            </span>
+          </div>
+          <pre {...stylex.props(styles.contentPre)}>
+            {activeDraft.serverContent || '*(Empty content)*'}
+          </pre>
+        </div>
+
+        {/* Local Version Card */}
+        <div {...stylex.props(styles.versionCard)}>
+          <div {...stylex.props(styles.versionHeader)}>
+            <div {...stylex.props(styles.versionTitleGroup)}>
+              <Laptop size={16} color="#d97706" />
+              <span>Your Local Version (Divergent)</span>
+            </div>
+            <span {...stylex.props(styles.badge, styles.localBadge)}>
+              base v{activeDraft.baseVersion}
+            </span>
+          </div>
+          <pre {...stylex.props(styles.contentPre)}>
+            {activeDraft.localContent || '*(Empty content)*'}
+          </pre>
+        </div>
+      </div>
+
+      {/* Editable Merge Textarea */}
+      {isMerging && (
+        <div {...stylex.props(styles.mergeSection)}>
+          <label htmlFor="merge-content-input" {...stylex.props(styles.mergeLabel)}>
+            <GitMerge size={16} /> Edit & Merge Content:
+          </label>
+          <textarea
+            id="merge-content-input"
+            {...stylex.props(styles.mergeTextarea)}
+            value={mergedText}
+            onChange={(e) => onMergedTextChange(e.target.value)}
+            placeholder="Combine or edit your document content here..."
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function DraftPagination({
+  currentIndex,
+  total,
+  isResolving,
+  onPrevious,
+  onNext,
+}: {
+  currentIndex: number;
+  total: number;
+  isResolving: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (total <= 1) return null;
+  return (
+    <div {...stylex.props(styles.draftPagination)}>
+      <span>
+        Conflict {currentIndex + 1} of {total}
+      </span>
+      <div {...stylex.props(styles.paginationControls)}>
+        <button
+          type="button"
+          {...stylex.props(styles.navButton)}
+          disabled={currentIndex === 0 || isResolving}
+          onClick={onPrevious}
+        >
+          <ChevronLeft size={14} /> Previous
+        </button>
+        <button
+          type="button"
+          {...stylex.props(styles.navButton)}
+          disabled={currentIndex === total - 1 || isResolving}
+          onClick={onNext}
+        >
+          Next <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ResolutionFooter({
+  activeDraft,
+  isMerging,
+  isResolving,
+  onResolve,
+  onClose,
+  onStartMerge,
+  onCancelMerge,
+}: {
+  activeDraft?: ConflictDraft;
+  isMerging: boolean;
+  isResolving: boolean;
+  onResolve: (resolution: Resolution) => void;
+  onClose: () => void;
+  onStartMerge: () => void;
+  onCancelMerge: () => void;
+}) {
+  const closeButton = (
+    <button
+      type="button"
+      {...stylex.props(styles.actionButton, styles.btnPrimary)}
+      onClick={onClose}
+    >
+      Close
+    </button>
+  );
+
+  if (!activeDraft) {
+    return closeButton;
+  }
+
+  if (isMerging) {
+    return (
+      <>
+        <button
+          type="button"
+          {...stylex.props(styles.actionButton, styles.btnSecondary)}
+          disabled={isResolving}
+          onClick={onCancelMerge}
+        >
+          Cancel Merge
+        </button>
+        <button
+          type="button"
+          {...stylex.props(styles.actionButton, styles.btnPrimary)}
+          disabled={isResolving}
+          onClick={() => onResolve('merge')}
+        >
+          Save Merged Version
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        {...stylex.props(styles.actionButton, styles.btnSecondary)}
+        disabled={isResolving}
+        onClick={() => onResolve('keep_server')}
+      >
+        Keep Server Version
+      </button>
+      <button
+        type="button"
+        {...stylex.props(styles.actionButton, styles.btnSecondary)}
+        disabled={isResolving}
+        onClick={() => onResolve('keep_local')}
+      >
+        Keep My Version
+      </button>
+      <button
+        type="button"
+        {...stylex.props(styles.actionButton, styles.btnPrimary)}
+        disabled={isResolving}
+        onClick={onStartMerge}
+      >
+        <GitMerge size={14} /> Edit & Merge
+      </button>
+    </>
+  );
+}
+
 export function ConflictDraftsModal({
   isOpen,
   onClose,
@@ -313,9 +429,7 @@ export function ConflictDraftsModal({
 
   if (!isOpen) return null;
 
-  const handleResolve = async (
-    resolution: 'keep_server' | 'keep_local' | 'merge'
-  ) => {
+  const handleResolve = async (resolution: Resolution) => {
     if (!activeDraft) return;
 
     setIsResolving(true);
@@ -343,191 +457,57 @@ export function ConflictDraftsModal({
   };
 
   return (
-    <div
-      {...stylex.props(styles.backdrop)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="conflict-modal-title"
-    >
-      <div {...stylex.props(styles.dialog)}>
-        {/* Header */}
-        <div {...stylex.props(styles.header)}>
-          <div {...stylex.props(styles.headerTitleGroup)}>
-            <div {...stylex.props(styles.headerIconWrapper)}>
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <h2 id="conflict-modal-title" {...stylex.props(styles.headerTitle)}>
-                Resolve Document Conflicts
-              </h2>
-              <p {...stylex.props(styles.headerSubtitle)}>
-                Changes made on another device conflict with your local offline edits.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            {...stylex.props(styles.closeButton)}
-            onClick={onClose}
-            aria-label="Close dialog"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Multi-draft pagination bar */}
-        {drafts.length > 1 && (
-          <div {...stylex.props(styles.draftPagination)}>
-            <span>
-              Conflict {currentIndex + 1} of {drafts.length}
-            </span>
-            <div {...stylex.props(styles.paginationControls)}>
-              <button
-                type="button"
-                {...stylex.props(styles.navButton)}
-                disabled={currentIndex === 0 || isResolving}
-                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-              >
-                <ChevronLeft size={14} /> Previous
-              </button>
-              <button
-                type="button"
-                {...stylex.props(styles.navButton)}
-                disabled={currentIndex === drafts.length - 1 || isResolving}
-                onClick={() => setCurrentIndex((prev) => Math.min(drafts.length - 1, prev + 1))}
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Body */}
-        <div {...stylex.props(styles.body)}>
-          {isLoading ? (
-            <div {...stylex.props(styles.emptyState)}>
-              <RotateCcw size={24} className="lucide-spin" />
-              <span>Loading conflicting drafts...</span>
-            </div>
-          ) : !activeDraft ? (
-            <div {...stylex.props(styles.emptyState)}>
-              <Check size={28} color="#10b981" />
-              <span>All conflicts have been resolved.</span>
-            </div>
-          ) : (
-            <>
-              <div {...stylex.props(styles.diffGrid)}>
-                {/* Server Version Card */}
-                <div {...stylex.props(styles.versionCard)}>
-                  <div {...stylex.props(styles.versionHeader)}>
-                    <div {...stylex.props(styles.versionTitleGroup)}>
-                      <Server size={16} color="#2563eb" />
-                      <span>Server Version (Canonical)</span>
-                    </div>
-                    <span {...stylex.props(styles.badge, styles.serverBadge)}>
-                      v{activeDraft.serverVersion}
-                    </span>
-                  </div>
-                  <pre {...stylex.props(styles.contentPre)}>
-                    {activeDraft.serverContent || '*(Empty content)*'}
-                  </pre>
-                </div>
-
-                {/* Local Version Card */}
-                <div {...stylex.props(styles.versionCard)}>
-                  <div {...stylex.props(styles.versionHeader)}>
-                    <div {...stylex.props(styles.versionTitleGroup)}>
-                      <Laptop size={16} color="#d97706" />
-                      <span>Your Local Version (Divergent)</span>
-                    </div>
-                    <span {...stylex.props(styles.badge, styles.localBadge)}>
-                      base v{activeDraft.baseVersion}
-                    </span>
-                  </div>
-                  <pre {...stylex.props(styles.contentPre)}>
-                    {activeDraft.localContent || '*(Empty content)*'}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Editable Merge Textarea */}
-              {isMerging && (
-                <div {...stylex.props(styles.mergeSection)}>
-                  <label htmlFor="merge-content-input" {...stylex.props(styles.mergeLabel)}>
-                    <GitMerge size={16} /> Edit & Merge Content:
-                  </label>
-                  <textarea
-                    id="merge-content-input"
-                    {...stylex.props(styles.mergeTextarea)}
-                    value={mergedText}
-                    onChange={(e) => setMergedText(e.target.value)}
-                    placeholder="Combine or edit your document content here..."
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Resolve Sync Conflicts"
+      width={600}
+      footer={
         <div {...stylex.props(styles.footer)}>
-          {!activeDraft ? (
-            <button
-              type="button"
-              {...stylex.props(styles.actionButton, styles.btnPrimary)}
-              onClick={onClose}
-            >
-              Close
-            </button>
-          ) : isMerging ? (
-            <>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnSecondary)}
-                disabled={isResolving}
-                onClick={() => setIsMerging(false)}
-              >
-                Cancel Merge
-              </button>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnPrimary)}
-                disabled={isResolving}
-                onClick={() => handleResolve('merge')}
-              >
-                Save Merged Version
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnSecondary)}
-                disabled={isResolving}
-                onClick={() => handleResolve('keep_server')}
-              >
-                Keep Server Version
-              </button>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnSecondary)}
-                disabled={isResolving}
-                onClick={() => handleResolve('keep_local')}
-              >
-                Keep My Version
-              </button>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnPrimary)}
-                disabled={isResolving}
-                onClick={() => setIsMerging(true)}
-              >
-                <GitMerge size={14} /> Edit & Merge
-              </button>
-            </>
-          )}
+          <ResolutionFooter
+            activeDraft={activeDraft}
+            isMerging={isMerging}
+            isResolving={isResolving}
+            onResolve={handleResolve}
+            onClose={onClose}
+            onStartMerge={() => setIsMerging(true)}
+            onCancelMerge={() => setIsMerging(false)}
+          />
         </div>
+      }
+    >
+      <div {...stylex.props(styles.body)}>
+        <p {...stylex.props(styles.subtitle)}>
+          Changes made on another device conflict with your local offline edits.
+        </p>
+
+        <DraftPagination
+          currentIndex={currentIndex}
+          total={drafts.length}
+          isResolving={isResolving}
+          onPrevious={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+          onNext={() => setCurrentIndex((prev) => Math.min(drafts.length - 1, prev + 1))}
+        />
+
+        {isLoading ? (
+          <div {...stylex.props(styles.emptyState)}>
+            <RotateCcw size={24} className="lucide-spin" />
+            <span>Loading conflicting drafts...</span>
+          </div>
+        ) : !activeDraft ? (
+          <div {...stylex.props(styles.emptyState)}>
+            <Check size={28} color="#10b981" />
+            <span>All conflicts have been resolved.</span>
+          </div>
+        ) : (
+          <DiffContent
+            activeDraft={activeDraft}
+            isMerging={isMerging}
+            mergedText={mergedText}
+            onMergedTextChange={setMergedText}
+          />
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }

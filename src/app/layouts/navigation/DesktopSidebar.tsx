@@ -1,10 +1,70 @@
 import { useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Home, BookText, GraduationCap, Tag, TrendingUp, FileUp, Compass } from 'lucide-react';
+import { BookText, GraduationCap } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
+import { PRIMARY_NAV_ITEMS } from './navItems';
 import { styles } from './desktopSidebar.stylex';
 import { DesktopTrapezoidButton } from './DesktopTrapezoidButton';
+
+interface SubjectMaterialNavProps {
+  active: ViewportNavProps['active'];
+  onNavigate: ViewportNavProps['onNavigate'];
+  subject?: ViewportNavProps['subject'];
+  material?: ViewportNavProps['material'];
+}
+
+function SubjectMaterialNav({ active, onNavigate, subject, material }: SubjectMaterialNavProps) {
+  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+  const isMaterialActive = active === 'none' && Boolean(material);
+
+  if (active !== 'none') return null;
+
+  return (
+    <>
+      <div {...stylex.props(styles.divider)} aria-hidden="true" />
+
+      {subject && (
+        <button
+          type="button"
+          {...stylex.props(styles.navItem, isSubjectActive && styles.navItemActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'subject',
+              subjectId: subject.id,
+              activeTab: 'materials',
+            })
+          }
+          aria-current={isSubjectActive ? 'page' : undefined}
+          title={`Subject: ${subject.title}`}
+        >
+          <GraduationCap size={18} />
+          <span {...stylex.props(styles.navLabel)}>{subject.title}</span>
+        </button>
+      )}
+
+      {material && (
+        <button
+          type="button"
+          {...stylex.props(styles.navItem, isMaterialActive && styles.navItemMaterialActive)}
+          onClick={() =>
+            onNavigate({
+              kind: 'workspace',
+              workspace: 'material',
+              materialId: material.id,
+              activeTab: 'read',
+            })
+          }
+          aria-current={isMaterialActive ? 'page' : undefined}
+          title={`Material: ${material.title}`}
+        >
+          <BookText size={18} />
+          <span {...stylex.props(styles.navLabel)}>{material.title}</span>
+        </button>
+      )}
+    </>
+  );
+}
 
 export function DesktopSidebar({
   active,
@@ -17,9 +77,6 @@ export function DesktopSidebar({
   const containerRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const didInitialFade = useRef(false);
-
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
-  const isMaterialActive = active === 'none' && Boolean(material);
 
   // ── GSAP: Upper navigation link & container background fade ──
   useEffect(() => {
@@ -82,114 +139,29 @@ export function DesktopSidebar({
     >
       <div ref={linksRef} {...stylex.props(styles.linksWrapper)}>
         <div {...stylex.props(styles.navSection)}>
-          <button
-            type="button"
-            {...stylex.props(styles.navItem, active === 'library' && styles.navItemActive)}
-            onClick={() => onNavigate({ kind: 'library' })}
-            aria-current={active === 'library' ? 'page' : undefined}
-            title="Library"
-          >
-            <Home size={18} />
-            <span {...stylex.props(styles.navLabel)}>Library</span>
-          </button>
+          {PRIMARY_NAV_ITEMS.map((item) => {
+            const isActive = item.isActive(active);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
+                onClick={() => onNavigate(item.route)}
+                aria-current={isActive ? 'page' : undefined}
+                title={item.title}
+              >
+                <item.icon size={18} />
+                <span {...stylex.props(styles.navLabel)}>{item.label}</span>
+              </button>
+            );
+          })}
 
-          <button
-            type="button"
-            {...stylex.props(
-              styles.navItem,
-              (active === 'explore' || active === 'available') && styles.navItemActive,
-            )}
-            onClick={() => onNavigate({ kind: 'explore' })}
-            aria-current={active === 'explore' || active === 'available' ? 'page' : undefined}
-            title="Explore Content"
-          >
-            <Compass size={18} />
-            <span {...stylex.props(styles.navLabel)}>Explore</span>
-          </button>
-
-          <button
-            type="button"
-            {...stylex.props(styles.navItem, active === 'import' && styles.navItemActive)}
-            onClick={() => onNavigate({ kind: 'import' })}
-            aria-current={active === 'import' ? 'page' : undefined}
-            title="Import Content"
-          >
-            <FileUp size={18} />
-            <span {...stylex.props(styles.navLabel)}>Import</span>
-          </button>
-
-          <button
-            type="button"
-            {...stylex.props(styles.navItem, active === 'analytics' && styles.navItemActive)}
-            onClick={() => onNavigate({ kind: 'analytics' })}
-            aria-current={active === 'analytics' ? 'page' : undefined}
-            title="Learning Insights & Analytics"
-          >
-            <TrendingUp size={18} />
-            <span {...stylex.props(styles.navLabel)}>Insights</span>
-          </button>
-
-          <button
-            type="button"
-            {...stylex.props(styles.navItem, active === 'terms' && styles.navItemActive)}
-            onClick={() => onNavigate({ kind: 'terms' })}
-            aria-current={active === 'terms' ? 'page' : undefined}
-            title="Manage Terms"
-          >
-            <Tag size={18} />
-            <span {...stylex.props(styles.navLabel)}>Terms</span>
-          </button>
-
-          {active === 'none' && (
-            <>
-              <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-              {subject && (
-                <button
-                  type="button"
-                  {...stylex.props(
-                    styles.navItem,
-                    isSubjectActive && styles.navItemActive,
-                  )}
-                  onClick={() =>
-                    onNavigate({
-                      kind: 'subject',
-                      subjectId: subject.id,
-                      activeTab: 'materials',
-                    })
-                  }
-                  aria-current={isSubjectActive ? 'page' : undefined}
-                  title={`Subject: ${subject.title}`}
-                >
-                  <GraduationCap size={18} />
-                  <span {...stylex.props(styles.navLabel)}>{subject.title}</span>
-                </button>
-              )}
-
-              {material && (
-                <button
-                  type="button"
-                  {...stylex.props(
-                    styles.navItem,
-                    isMaterialActive && styles.navItemMaterialActive,
-                  )}
-                  onClick={() =>
-                    onNavigate({
-                      kind: 'workspace',
-                      workspace: 'material',
-                      materialId: material.id,
-                      activeTab: 'read',
-                    })
-                  }
-                  aria-current={isMaterialActive ? 'page' : undefined}
-                  title={`Material: ${material.title}`}
-                >
-                  <BookText size={18} />
-                  <span {...stylex.props(styles.navLabel)}>{material.title}</span>
-                </button>
-              )}
-            </>
-          )}
+          <SubjectMaterialNav
+            active={active}
+            onNavigate={onNavigate}
+            subject={subject}
+            material={material}
+          />
         </div>
       </div>
 

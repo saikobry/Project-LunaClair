@@ -49,7 +49,7 @@ export function FillBlankQuestion({ question, value, onChange, disabled }: FillB
                                     margin: '0 4px',
                                     border: '1px solid #ccc',
                                     borderRadius: 4,
-                                    fontSize: 14,
+                                    fontSize: 16,
                                 }}
                             />
                         )}

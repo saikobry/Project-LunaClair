@@ -144,7 +144,7 @@ describe('SyncStatusPill', () => {
     fireEvent.click(screen.getByRole('button', { name: /conflict/i }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Resolve Document Conflicts')).toBeInTheDocument();
+    expect(screen.getByText('Resolve Sync Conflicts')).toBeInTheDocument();
   });
 
   it('triggers manual sync when clicked in idle state', async () => {

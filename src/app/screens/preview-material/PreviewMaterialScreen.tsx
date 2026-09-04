@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Download, Eye, FileQuestion } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Chip } from '../../../shared/ui/Chip/Chip';
@@ -81,6 +82,85 @@ export interface PreviewMaterialScreenProps {
   onOpenMaterial: (materialId: string, subjectId?: string) => void;
 }
 
+interface NamedMeta {
+  title: string;
+  id?: string;
+}
+
+function PreviewMetadataRow({ term, subject }: { term?: NamedMeta | null; subject?: NamedMeta | null }) {
+  if (!term && !subject) return null;
+  return (
+    <div {...stylex.props(styles.metadataRow)}>
+      {term && <Chip variant="accent">{term.title}</Chip>}
+      {subject && <Chip variant="neutral">{subject.title}</Chip>}
+    </div>
+  );
+}
+
+function PreviewStickyBar({
+  materialTitle,
+  imported,
+  isPending,
+  onOpen,
+  onAdd,
+}: {
+  materialTitle: string;
+  imported: boolean;
+  isPending: boolean;
+  onOpen: () => void;
+  onAdd: () => void;
+}) {
+  const action: ReactNode = imported ? (
+    <Button
+      label={`Open ${materialTitle}`}
+      variant="secondary"
+      icon={<BookOpen size={14} />}
+      onClick={onOpen}
+    >
+      Open
+    </Button>
+  ) : (
+    <Button
+      label={`Add ${materialTitle} to your library`}
+      variant="primary"
+      icon={<Download size={14} />}
+      isDisabled={isPending}
+      onClick={onAdd}
+    >
+      Add to Library
+    </Button>
+  );
+
+  return (
+    <div {...stylex.props(styles.stickyBar)}>
+      <div {...stylex.props(styles.stickyInfo)}>
+        <Eye size={16} {...stylex.props(styles.stickyIcon)} />
+        <div {...stylex.props(styles.stickyTextGroup)}>
+          <p {...stylex.props(styles.stickyTitle)}>Read-only Preview</p>
+          <p {...stylex.props(styles.stickySubtext)}>
+            {imported
+              ? 'Available in your library — open for full workspace with quizzes and notes'
+              : 'Add to library to enable interactive quizzes, notes, and offline access'}
+          </p>
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function PreviewDocument({ error, content }: { error: unknown; content: string }) {
+  if (error) {
+    return (
+      <ErrorState
+        title="Document could not be loaded."
+        description="The document content could not be fetched right now. Try again when you're back online."
+      />
+    );
+  }
+  return <MarkdownViewer text={content} />;
+}
+
 /**
  * "Read-only preview" — a distinct surface for inspecting a material from the
  * Available Materials catalog before committing to Add to Library.
@@ -143,66 +223,21 @@ export function PreviewMaterialScreen({ materialId, onBack, onOpenMaterial }: Pr
     );
   }
 
-  const primaryAction = imported ? (
-    <Button
-      label={`Open ${material.title}`}
-      variant="secondary"
-      icon={<BookOpen size={14} />}
-      onClick={() => onOpenMaterial(material.id, subject?.id)}
-    >
-      Open
-    </Button>
-  ) : (
-    <Button
-      label={`Add ${material.title} to your library`}
-      variant="primary"
-      icon={<Download size={14} />}
-      isDisabled={importMutation.isPending}
-      onClick={handleAddToLibrary}
-    >
-      Add to Library
-    </Button>
-  );
-
   return (
     <Page
       title={material.title}
       description={material.description}
       breadcrumb={<Breadcrumbs items={breadcrumbItems} />}
     >
-      {/* Subject & Term Metadata */}
-      {(term || subject) && (
-        <div {...stylex.props(styles.metadataRow)}>
-          {term && <Chip variant="accent">{term.title}</Chip>}
-          {subject && <Chip variant="neutral">{subject.title}</Chip>}
-        </div>
-      )}
-
-      {/* Sticky Preview Header */}
-      <div {...stylex.props(styles.stickyBar)}>
-        <div {...stylex.props(styles.stickyInfo)}>
-          <Eye size={16} {...stylex.props(styles.stickyIcon)} />
-          <div {...stylex.props(styles.stickyTextGroup)}>
-            <p {...stylex.props(styles.stickyTitle)}>Read-only Preview</p>
-            <p {...stylex.props(styles.stickySubtext)}>
-              {imported
-                ? 'Available in your library — open for full workspace with quizzes and notes'
-                : 'Add to library to enable interactive quizzes, notes, and offline access'}
-            </p>
-          </div>
-        </div>
-        {primaryAction}
-      </div>
-
-      {/* Document content */}
-      {error ? (
-        <ErrorState
-          title="Document could not be loaded."
-          description="The document content could not be fetched right now. Try again when you're back online."
-        />
-      ) : (
-        <MarkdownViewer text={document?.content ?? ''} />
-      )}
+      <PreviewMetadataRow term={term} subject={subject} />
+      <PreviewStickyBar
+        materialTitle={material.title}
+        imported={imported}
+        isPending={importMutation.isPending}
+        onOpen={() => onOpenMaterial(material.id, subject?.id)}
+        onAdd={handleAddToLibrary}
+      />
+      <PreviewDocument error={error} content={document?.content ?? ''} />
     </Page>
   );
 }

@@ -145,6 +145,49 @@ export interface WriterActionBarProps {
   onSave: () => void;
 }
 
+function SaveStatusBadge({ saveStatus, onRetry }: { saveStatus: SaveStatus; onRetry: () => void }) {
+  return (
+    <span
+      {...stylex.props(
+        styles.statusBadge,
+        saveStatus === 'saved' && styles.statusSaved,
+        saveStatus === 'unsaved' && styles.statusDirty,
+        saveStatus === 'saving' && styles.statusSaving,
+        saveStatus === 'error' && styles.statusError,
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      {saveStatus === 'saving' && (
+        <>
+          <Loader2 size={13} />
+          Saving to Library...
+        </>
+      )}
+      {saveStatus === 'error' && (
+        <>
+          <AlertCircle size={13} color="#dc2626" />
+          Save failed
+          <button
+            type="button"
+            {...stylex.props(styles.retryBtn)}
+            onClick={onRetry}
+            title="Retry saving current draft"
+          >
+            Retry
+          </button>
+        </>
+      )}
+      {saveStatus === 'unsaved' && <>● Unsaved changes</>}
+      {saveStatus === 'saved' && (
+        <>
+          <Check size={13} color="#16a34a" /> Saved to Library
+        </>
+      )}
+    </span>
+  );
+}
+
 export function WriterActionBar({
   saveStatus,
   isRawMode,
@@ -160,44 +203,7 @@ export function WriterActionBar({
   return (
     <div {...stylex.props(styles.actionBar)}>
       <div {...stylex.props(styles.leftGroup)}>
-        <span
-          {...stylex.props(
-            styles.statusBadge,
-            saveStatus === 'saved' && styles.statusSaved,
-            saveStatus === 'unsaved' && styles.statusDirty,
-            saveStatus === 'saving' && styles.statusSaving,
-            saveStatus === 'error' && styles.statusError,
-          )}
-          role="status"
-          aria-live="polite"
-        >
-          {saveStatus === 'saving' && (
-            <>
-              <Loader2 size={13} />
-              Saving to Library...
-            </>
-          )}
-          {saveStatus === 'error' && (
-            <>
-              <AlertCircle size={13} color="#dc2626" />
-              Save failed
-              <button
-                type="button"
-                {...stylex.props(styles.retryBtn)}
-                onClick={onSave}
-                title="Retry saving current draft"
-              >
-                Retry
-              </button>
-            </>
-          )}
-          {saveStatus === 'unsaved' && <>● Unsaved changes</>}
-          {saveStatus === 'saved' && (
-            <>
-              <Check size={13} color="#16a34a" /> Saved to Library
-            </>
-          )}
-        </span>
+        <SaveStatusBadge saveStatus={saveStatus} onRetry={onSave} />
       </div>
 
       <div {...stylex.props(styles.rightGroup)}>

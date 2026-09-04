@@ -28,6 +28,7 @@ import { ApplicationContext } from '../../providers/ApplicationContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { useToast } from '../../providers/ToastContext';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
+import type { StudyPackageSummary } from '../../../domain/package/models/package.types';
 import { serializePackageToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
@@ -347,14 +348,368 @@ function formatPackageDate(dateStr?: string): string {
   }
 }
 
-export function SharedPackageScreen({
-  shareId,
-  onOpenMaterial,
+/** Classifies a fetch/unlock failure into a passcode challenge vs a terminal error with a user-facing message. */
+function classifyFetchError(err: unknown): { isPasscode: boolean; message: string } {
+  const isPasscode =
+    (err as { status?: number })?.status === 401 ||
+    (err instanceof Error && /passcode|401|unauthorized/i.test(err.message));
+
+  const httpStatus = (err as { status?: number })?.status;
+  let message =
+    err instanceof Error
+      ? err.message
+      : 'An unexpected error occurred while loading the shared package.';
+  if (httpStatus === 404) {
+    message = 'This shared study package could not be found or has been deleted.';
+  } else if (httpStatus === 410) {
+    message = 'This shared study package has expired.';
+  }
+  return { isPasscode, message };
+}
+
+function renderBreadcrumb(onCancel: () => void) {
+  const items: BreadcrumbItem[] = [
+    { label: 'Library', onClick: onCancel },
+    { label: 'Shared Package' },
+  ];
+  return <Breadcrumbs items={items} />;
+}
+
+interface ScreenViewProps {
+  onCancel: () => void;
+}
+
+function SharedPackageLoadingView({ onCancel }: ScreenViewProps) {
+  return (
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+      <div {...stylex.props(styles.loadingContainer)}>
+        <Loader2 size={36} className="lucide-spin" />
+        <p {...stylex.props(styles.loadingText)}>Loading shared study package...</p>
+      </div>
+    </Page>
+  );
+}
+
+interface PasscodeChallengeProps extends ScreenViewProps {
+  passcode: string;
+  passcodeError: string | null;
+  isUnlocking: boolean;
+  onPasscodeChange: (value: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+}
+
+function PasscodeChallenge({
+  passcode,
+  passcodeError,
+  isUnlocking,
+  onPasscodeChange,
+  onSubmit,
   onCancel,
-}: SharedPackageScreenProps) {
+}: PasscodeChallengeProps) {
+  return (
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+      <div {...stylex.props(styles.challengeCard)}>
+        <div {...stylex.props(styles.challengeIconWrapper)}>
+          <Lock size={26} />
+        </div>
+        <div>
+          <h2 {...stylex.props(styles.challengeTitle)}>Passcode Protected</h2>
+          <p {...stylex.props(styles.challengePrompt)} style={{ marginTop: 8 }}>
+            This study package is passcode protected. Enter passcode to view.
+          </p>
+        </div>
+        <form {...stylex.props(styles.challengeForm)} onSubmit={onSubmit}>
+          <div {...stylex.props(styles.passcodeInputGroup)}>
+            <KeyRound size={16} {...stylex.props(styles.passcodeIcon)} />
+            <input
+              type="password"
+              aria-label="Passcode"
+              placeholder="Enter passcode"
+              value={passcode}
+              onChange={(e) => onPasscodeChange(e.target.value)}
+              disabled={isUnlocking}
+              {...stylex.props(styles.passcodeInput)}
+            />
+          </div>
+          {passcodeError && (
+            <p {...stylex.props(styles.passcodeErrorText)}>{passcodeError}</p>
+          )}
+          <div {...stylex.props(styles.challengeButtonsRow)}>
+            <Button variant="secondary" label="Cancel" onClick={onCancel} isDisabled={isUnlocking}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              label="Unlock Package"
+              isLoading={isUnlocking}
+              isDisabled={isUnlocking || !passcode.trim()}
+            >
+              Unlock Package
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Page>
+  );
+}
+
+interface PackageErrorViewProps extends ScreenViewProps {
+  errorMessage: string | null;
+}
+
+function PackageErrorView({ errorMessage, onCancel }: PackageErrorViewProps) {
+  return (
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+      <ErrorState
+        icon={<AlertCircle size={44} />}
+        title="Unable to load study package"
+        description={errorMessage || 'This study package could not be loaded.'}
+        action={
+          <Button variant="secondary" label="Back to Library" onClick={onCancel}>
+            Back to Library
+          </Button>
+        }
+      />
+    </Page>
+  );
+}
+
+function PackageMetaRow({
+  summary,
+  isProtected,
+}: {
+  summary: StudyPackageSummary;
+  isProtected: boolean;
+}) {
+  return (
+    <div {...stylex.props(styles.metaHeaderRow)}>
+      {isProtected && (
+        <span {...stylex.props(styles.badge)}>
+          <ShieldCheck size={13} />
+          Protected
+        </span>
+      )}
+      {summary.author && (
+        <span {...stylex.props(styles.metaItem)}>
+          <User size={14} />
+          {summary.author}
+        </span>
+      )}
+      {summary.createdAt && (
+        <span {...stylex.props(styles.metaItem)}>
+          <Calendar size={14} />
+          {formatPackageDate(summary.createdAt)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CloneSuccessBanner({
+  firstMaterialId,
+  subjectId,
+  onOpenMaterial,
+}: {
+  firstMaterialId: string;
+  subjectId?: string;
+  onOpenMaterial: (materialId: string, subjectId?: string) => void;
+}) {
+  return (
+    <div {...stylex.props(styles.successBanner)}>
+      <div {...stylex.props(styles.successBannerInfo)}>
+        <CheckCircle2 size={20} />
+        <span>Study package successfully cloned to your library!</span>
+      </div>
+      {firstMaterialId && (
+        <Button
+          variant="primary"
+          label="Open Cloned Material"
+          icon={<BookOpen size={15} />}
+          onClick={() => onOpenMaterial(firstMaterialId, subjectId)}
+        >
+          Open Cloned Material
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function PackageStatsGrid({ summary }: { summary: StudyPackageSummary }) {
+  const stats: Array<{ label: string; value: number; icon: React.ReactNode }> = [
+    { label: 'Materials', value: summary.materialCount, icon: <BookOpen size={15} /> },
+    { label: 'Questions', value: summary.questionCount, icon: <HelpCircle size={15} /> },
+    { label: 'Quizzes', value: summary.quizCount, icon: <Award size={15} /> },
+    { label: 'Flashcards', value: summary.flashcardCount, icon: <Layers size={15} /> },
+    { label: 'Assets', value: summary.assetCount, icon: <ImageIcon size={15} /> },
+    { label: 'Total Points', value: summary.totalPoints, icon: <Sparkles size={15} /> },
+  ];
+
+  return (
+    <div {...stylex.props(styles.statsGrid)}>
+      {stats.map((stat) => (
+        <div key={stat.label} {...stylex.props(styles.statCard)}>
+          <div {...stylex.props(styles.statCardHeader)}>
+            {stat.icon}
+            <span>{stat.label}</span>
+          </div>
+          <span {...stylex.props(styles.statCardValue)}>{stat.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QuestionTypesCard({
+  entries,
+}: {
+  entries: Array<[string, number]>;
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <div {...stylex.props(styles.card)}>
+      <h3 {...stylex.props(styles.sectionTitle)}>Question Types</h3>
+      <div {...stylex.props(styles.typeBadgesList)}>
+        {entries.map(([type, count]) => (
+          <span key={type} {...stylex.props(styles.typeBadge)}>
+            {formatQuestionType(type)}: <strong>{count}</strong>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface DestinationCardProps {
+  subjects: Array<{ id: string; title: string }>;
+  terms: Array<{ id: string; title: string }>;
+  selectedSubjectId: string;
+  selectedTermId: string;
+  disabled: boolean;
+  onSubjectChange: (value: string) => void;
+  onTermChange: (value: string) => void;
+}
+
+function DestinationCard({
+  subjects,
+  terms,
+  selectedSubjectId,
+  selectedTermId,
+  disabled,
+  onSubjectChange,
+  onTermChange,
+}: DestinationCardProps) {
+  return (
+    <div {...stylex.props(styles.card)}>
+      <h3 {...stylex.props(styles.sectionTitle)}>Destination in Library</h3>
+      <div {...stylex.props(styles.destinationGrid)}>
+        <div {...stylex.props(styles.fieldGroup)}>
+          <label htmlFor="share-dest-subject" {...stylex.props(styles.label)}>
+            Subject (Optional)
+          </label>
+          <select
+            id="share-dest-subject"
+            aria-label="Subject (Optional)"
+            {...stylex.props(styles.select)}
+            value={selectedSubjectId}
+            onChange={(e) => onSubjectChange(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="">Unassigned (General Library)</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div {...stylex.props(styles.fieldGroup)}>
+          <label htmlFor="share-dest-term" {...stylex.props(styles.label)}>
+            Term (Optional)
+          </label>
+          <select
+            id="share-dest-term"
+            aria-label="Term (Optional)"
+            {...stylex.props(styles.select)}
+            value={selectedTermId}
+            onChange={(e) => onTermChange(e.target.value)}
+            disabled={disabled || terms.length === 0}
+          >
+            <option value="">No Term</option>
+            {terms.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SharedPackageActionsBarProps {
+  isCloning: boolean;
+  isDownloading: boolean;
+  hasCloned: boolean;
+  onCancel: () => void;
+  onClone: () => void;
+  onDownload: () => void;
+}
+
+function SharedPackageActionsBar({
+  isCloning,
+  isDownloading,
+  hasCloned,
+  onCancel,
+  onClone,
+  onDownload,
+}: SharedPackageActionsBarProps) {
+  return (
+    <div {...stylex.props(styles.actionsBar)}>
+      <Button
+        variant="secondary"
+        label="Back to Library"
+        icon={<ArrowLeft size={15} />}
+        onClick={onCancel}
+        isDisabled={isCloning || isDownloading}
+      >
+        Back
+      </Button>
+
+      <div {...stylex.props(styles.actionsGroup)}>
+        <Button
+          variant="secondary"
+          label="Download .lcpack"
+          icon={<Download size={15} />}
+          onClick={onDownload}
+          isLoading={isDownloading}
+          isDisabled={isDownloading || isCloning}
+        >
+          Download .lcpack
+        </Button>
+        <Button
+          variant="primary"
+          label={hasCloned ? 'Cloned to Library' : 'Clone to Library'}
+          icon={hasCloned ? <CheckCircle2 size={15} /> : <Copy size={15} />}
+          onClick={onClone}
+          isLoading={isCloning}
+          isDisabled={isCloning || isDownloading || hasCloned}
+        >
+          {hasCloned ? 'Cloned to Library' : 'Clone to Library'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Owns the fetch lifecycle (loading → ready / locked / error) and the
+ * passcode unlock flow.
+ */
+function useSharedPackageFetch(shareId: string) {
   const context = useContextOrThrow(ApplicationContext, 'SharedPackageScreen');
-  const { showToast } = useToast();
-  const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
   const [share, setShare] = useState<PublishedShare | null>(null);
@@ -362,15 +717,6 @@ export function SharedPackageScreen({
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedTermId, setSelectedTermId] = useState<string>('');
-  const [isCloning, setIsCloning] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [clonedResult, setClonedResult] = useState<ImportStudyPackageResult | null>(null);
-
-  const { subjects } = useSubjects();
-  const { terms } = useTerms(selectedSubjectId || undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,26 +730,12 @@ export function SharedPackageScreen({
         setStatus('ready');
       } catch (err: unknown) {
         if (cancelled) return;
-        const isPasscodeError =
-          (err as { status?: number })?.status === 401 ||
-          (err instanceof Error && /passcode|401|unauthorized/i.test(err.message));
-
-        if (isPasscodeError) {
+        const { isPasscode, message } = classifyFetchError(err);
+        if (isPasscode) {
           setStatus('locked');
         } else {
           setStatus('error');
-          const httpStatus = (err as { status?: number })?.status;
-          if (httpStatus === 404) {
-            setErrorMessage('This shared study package could not be found or has been deleted.');
-          } else if (httpStatus === 410) {
-            setErrorMessage('This shared study package has expired.');
-          } else {
-            setErrorMessage(
-              err instanceof Error
-                ? err.message
-                : 'An unexpected error occurred while loading the shared package.',
-            );
-          }
+          setErrorMessage(message);
         }
       }
     }
@@ -433,42 +765,56 @@ export function SharedPackageScreen({
       setShare(fetchedShare);
       setStatus('ready');
     } catch (err: unknown) {
-      const isPasscodeError =
-        (err as { status?: number })?.status === 401 ||
-        (err instanceof Error && /passcode|401|unauthorized/i.test(err.message));
-
-      if (isPasscodeError) {
+      const { isPasscode, message } = classifyFetchError(err);
+      if (isPasscode) {
         setStatus('locked');
         setPasscodeError('Incorrect passcode. Please try again.');
       } else {
         setStatus('error');
-        const httpStatus = (err as { status?: number })?.status;
-        if (httpStatus === 404) {
-          setErrorMessage('This shared study package could not be found or has been deleted.');
-        } else if (httpStatus === 410) {
-          setErrorMessage('This shared study package has expired.');
-        } else {
-          setErrorMessage(
-            err instanceof Error
-              ? err.message
-              : 'An unexpected error occurred while loading the shared package.',
-          );
-        }
+        setErrorMessage(message);
       }
     } finally {
       setIsUnlocking(false);
     }
   };
 
-  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedSubjectId(e.target.value);
+  return {
+    status,
+    share,
+    passcode,
+    passcodeError,
+    isUnlocking,
+    errorMessage,
+    setPasscode,
+    handleUnlock,
+  };
+}
+
+/**
+ * Owns clone/download actions, their busy flags, destination selection, and
+ * the success result banner state.
+ */
+function useSharedPackageActions(
+  shareId: string,
+  share: PublishedShare | null,
+  queryClient: ReturnType<typeof useQueryClient>,
+  showToast: ReturnType<typeof useToast>['showToast'],
+) {
+  const context = useContextOrThrow(ApplicationContext, 'SharedPackageScreen');
+
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
+  const [isCloning, setIsCloning] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [clonedResult, setClonedResult] = useState<ImportStudyPackageResult | null>(null);
+
+  const { subjects } = useSubjects();
+  const { terms } = useTerms(selectedSubjectId || undefined);
+
+  const handleSubjectChange = (value: string) => {
+    setSelectedSubjectId(value);
     setSelectedTermId('');
   };
-
-  const summary = useMemo(() => {
-    if (!share?.package) return null;
-    return inspectStudyPackage(share.package);
-  }, [share]);
 
   const handleClone = async () => {
     if (!share?.package || isCloning) return;
@@ -497,9 +843,10 @@ export function SharedPackageScreen({
       ]);
 
       setClonedResult(result);
-      showToast(`Successfully cloned "${summary?.title ?? 'Study Package'}" to your library`, {
-        intent: 'success',
-      });
+      showToast(
+        `Successfully cloned "${share.package.metadata?.title ?? 'Study Package'}" to your library`,
+        { intent: 'success' },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to clone study package.';
       showToast(message, { intent: 'error' });
@@ -536,95 +883,81 @@ export function SharedPackageScreen({
     }
   };
 
-  const breadcrumbItems: BreadcrumbItem[] = [
-    { label: 'Library', onClick: onCancel },
-    { label: 'Shared Package' },
-  ];
+  return {
+    subjects,
+    terms,
+    selectedSubjectId,
+    selectedTermId,
+    isCloning,
+    isDownloading,
+    clonedResult,
+    handleSubjectChange,
+    handleTermChange: setSelectedTermId,
+    handleClone,
+    handleDownload,
+  };
+}
+
+export function SharedPackageScreen({
+  shareId,
+  onOpenMaterial,
+  onCancel,
+}: SharedPackageScreenProps) {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  const {
+    status,
+    share,
+    passcode,
+    passcodeError,
+    isUnlocking,
+    errorMessage,
+    setPasscode,
+    handleUnlock,
+  } = useSharedPackageFetch(shareId);
+
+  const summary = useMemo(() => {
+    if (!share?.package) return null;
+    return inspectStudyPackage(share.package);
+  }, [share]);
+
+  const {
+    subjects,
+    terms,
+    selectedSubjectId,
+    selectedTermId,
+    isCloning,
+    isDownloading,
+    clonedResult,
+    handleSubjectChange,
+    handleTermChange,
+    handleClone,
+    handleDownload,
+  } = useSharedPackageActions(shareId, share, queryClient, showToast);
 
   // 1. Loading State
   if (status === 'loading') {
-    return (
-      <Page title="Shared Study Package" breadcrumb={<Breadcrumbs items={breadcrumbItems} />}>
-        <div {...stylex.props(styles.loadingContainer)}>
-          <Loader2 size={36} className="lucide-spin" />
-          <p {...stylex.props(styles.loadingText)}>Loading shared study package...</p>
-        </div>
-      </Page>
-    );
+    return <SharedPackageLoadingView onCancel={onCancel} />;
   }
 
   // 2. Locked (Passcode Challenge) State
   if (status === 'locked') {
     return (
-      <Page title="Shared Study Package" breadcrumb={<Breadcrumbs items={breadcrumbItems} />}>
-        <div {...stylex.props(styles.challengeCard)}>
-          <div {...stylex.props(styles.challengeIconWrapper)}>
-            <Lock size={26} />
-          </div>
-          <div>
-            <h2 {...stylex.props(styles.challengeTitle)}>Passcode Protected</h2>
-            <p {...stylex.props(styles.challengePrompt)} style={{ marginTop: 8 }}>
-              This study package is passcode protected. Enter passcode to view.
-            </p>
-          </div>
-          <form {...stylex.props(styles.challengeForm)} onSubmit={handleUnlock}>
-            <div {...stylex.props(styles.passcodeInputGroup)}>
-              <KeyRound size={16} {...stylex.props(styles.passcodeIcon)} />
-              <input
-                type="password"
-                aria-label="Passcode"
-                placeholder="Enter passcode"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                disabled={isUnlocking}
-                autoFocus
-                {...stylex.props(styles.passcodeInput)}
-              />
-            </div>
-            {passcodeError && (
-              <p {...stylex.props(styles.passcodeErrorText)}>{passcodeError}</p>
-            )}
-            <div {...stylex.props(styles.challengeButtonsRow)}>
-              <Button
-                variant="secondary"
-                label="Cancel"
-                onClick={onCancel}
-                isDisabled={isUnlocking}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                label="Unlock Package"
-                isLoading={isUnlocking}
-                isDisabled={isUnlocking || !passcode.trim()}
-              >
-                Unlock Package
-              </Button>
-            </div>
-          </form>
-        </div>
-      </Page>
+      <PasscodeChallenge
+        passcode={passcode}
+        passcodeError={passcodeError}
+        isUnlocking={isUnlocking}
+        onPasscodeChange={setPasscode}
+        onSubmit={handleUnlock}
+        onCancel={onCancel}
+      />
     );
   }
 
   // 3. Error State (404 / 410 / Network / Malformed payload)
   if (status === 'error' || !share || !summary) {
-    return (
-      <Page title="Shared Study Package" breadcrumb={<Breadcrumbs items={breadcrumbItems} />}>
-        <ErrorState
-          icon={<AlertCircle size={44} />}
-          title="Unable to load study package"
-          description={errorMessage || 'This study package could not be loaded.'}
-          action={
-            <Button variant="secondary" label="Back to Library" onClick={onCancel}>
-              Back to Library
-            </Button>
-          }
-        />
-      </Page>
-    );
+    return <PackageErrorView errorMessage={errorMessage} onCancel={onCancel} />;
   }
 
   // 4. Ready / Unlocked State
@@ -640,202 +973,48 @@ export function SharedPackageScreen({
     <Page
       title={summary.title || share.title || 'Shared Study Package'}
       description={summary.description || share.description}
-      breadcrumb={<Breadcrumbs items={breadcrumbItems} />}
+      breadcrumb={renderBreadcrumb(onCancel)}
     >
       <div {...stylex.props(styles.container)}>
-        {/* Header Metadata */}
-        <div {...stylex.props(styles.metaHeaderRow)}>
-          {share.accessType === 'passcode' && (
-            <span {...stylex.props(styles.badge)}>
-              <ShieldCheck size={13} />
-              Protected
-            </span>
-          )}
-          {summary.author && (
-            <span {...stylex.props(styles.metaItem)}>
-              <User size={14} />
-              {summary.author}
-            </span>
-          )}
-          {summary.createdAt && (
-            <span {...stylex.props(styles.metaItem)}>
-              <Calendar size={14} />
-              {formatPackageDate(summary.createdAt)}
-            </span>
-          )}
-        </div>
+        <PackageMetaRow summary={summary} isProtected={share.accessType === 'passcode'} />
 
-        {/* Success Banner if cloned */}
         {clonedResult && (
-          <div {...stylex.props(styles.successBanner)}>
-            <div {...stylex.props(styles.successBannerInfo)}>
-              <CheckCircle2 size={20} />
-              <span>Study package successfully cloned to your library!</span>
-            </div>
-            {firstMaterialId && (
-              <Button
-                variant="primary"
-                label="Open Cloned Material"
-                icon={<BookOpen size={15} />}
-                onClick={() => onOpenMaterial(firstMaterialId, selectedSubjectId || undefined)}
-              >
-                Open Cloned Material
-              </Button>
-            )}
-          </div>
+          <CloneSuccessBanner
+            firstMaterialId={firstMaterialId}
+            subjectId={selectedSubjectId || undefined}
+            onOpenMaterial={onOpenMaterial}
+          />
         )}
 
         {/* Summary Stat Cards */}
         <div {...stylex.props(styles.card)}>
           <h3 {...stylex.props(styles.sectionTitle)}>Package Contents</h3>
-          <div {...stylex.props(styles.statsGrid)}>
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <BookOpen size={15} />
-                <span>Materials</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.materialCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <HelpCircle size={15} />
-                <span>Questions</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.questionCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Award size={15} />
-                <span>Quizzes</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.quizCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Layers size={15} />
-                <span>Flashcards</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.flashcardCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <ImageIcon size={15} />
-                <span>Assets</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.assetCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Sparkles size={15} />
-                <span>Total Points</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.totalPoints}</span>
-            </div>
-          </div>
+          <PackageStatsGrid summary={summary} />
         </div>
 
         {/* Question Type Breakdown */}
-        {questionTypeEntries.length > 0 && (
-          <div {...stylex.props(styles.card)}>
-            <h3 {...stylex.props(styles.sectionTitle)}>Question Types</h3>
-            <div {...stylex.props(styles.typeBadgesList)}>
-              {questionTypeEntries.map(([type, count]) => (
-                <span key={type} {...stylex.props(styles.typeBadge)}>
-                  {formatQuestionType(type)}: <strong>{count}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <QuestionTypesCard entries={questionTypeEntries} />
 
         {/* Destination Selector */}
-        <div {...stylex.props(styles.card)}>
-          <h3 {...stylex.props(styles.sectionTitle)}>Destination in Library</h3>
-          <div {...stylex.props(styles.destinationGrid)}>
-            <div {...stylex.props(styles.fieldGroup)}>
-              <label htmlFor="share-dest-subject" {...stylex.props(styles.label)}>
-                Subject (Optional)
-              </label>
-              <select
-                id="share-dest-subject"
-                aria-label="Subject (Optional)"
-                {...stylex.props(styles.select)}
-                value={selectedSubjectId}
-                onChange={handleSubjectChange}
-                disabled={isCloning || !!clonedResult}
-              >
-                <option value="">Unassigned (General Library)</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div {...stylex.props(styles.fieldGroup)}>
-              <label htmlFor="share-dest-term" {...stylex.props(styles.label)}>
-                Term (Optional)
-              </label>
-              <select
-                id="share-dest-term"
-                aria-label="Term (Optional)"
-                {...stylex.props(styles.select)}
-                value={selectedTermId}
-                onChange={(e) => setSelectedTermId(e.target.value)}
-                disabled={isCloning || !!clonedResult || terms.length === 0}
-              >
-                <option value="">No Term</option>
-                {terms.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        <DestinationCard
+          subjects={subjects}
+          terms={terms}
+          selectedSubjectId={selectedSubjectId}
+          selectedTermId={selectedTermId}
+          disabled={isCloning || !!clonedResult}
+          onSubjectChange={handleSubjectChange}
+          onTermChange={handleTermChange}
+        />
 
         {/* Actions Bar */}
-        <div {...stylex.props(styles.actionsBar)}>
-          <Button
-            variant="secondary"
-            label="Back to Library"
-            icon={<ArrowLeft size={15} />}
-            onClick={onCancel}
-            isDisabled={isCloning || isDownloading}
-          >
-            Back
-          </Button>
-
-          <div {...stylex.props(styles.actionsGroup)}>
-            <Button
-              variant="secondary"
-              label="Download .lcpack"
-              icon={<Download size={15} />}
-              onClick={handleDownload}
-              isLoading={isDownloading}
-              isDisabled={isDownloading || isCloning}
-            >
-              Download .lcpack
-            </Button>
-            <Button
-              variant="primary"
-              label={clonedResult ? 'Cloned to Library' : 'Clone to Library'}
-              icon={clonedResult ? <CheckCircle2 size={15} /> : <Copy size={15} />}
-              onClick={handleClone}
-              isLoading={isCloning}
-              isDisabled={isCloning || isDownloading || !!clonedResult}
-            >
-              {clonedResult ? 'Cloned to Library' : 'Clone to Library'}
-            </Button>
-          </div>
-        </div>
+        <SharedPackageActionsBar
+          isCloning={isCloning}
+          isDownloading={isDownloading}
+          hasCloned={!!clonedResult}
+          onCancel={onCancel}
+          onClone={handleClone}
+          onDownload={handleDownload}
+        />
       </div>
     </Page>
   );

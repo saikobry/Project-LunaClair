@@ -30,6 +30,25 @@ export interface QuizSessionFlow {
     retake: () => void;
 }
 
+interface FlowStateArgs {
+    isCompleted: boolean;
+    sessionError: Error | null;
+    isLoading: boolean;
+    isError: boolean;
+    quiz: Quiz | null;
+    questions: Question[];
+}
+
+/** Early-return derivation keeps flowState precedence readable and flat. */
+function deriveFlowState({ isCompleted, sessionError, isLoading, isError, quiz, questions }: FlowStateArgs): QuizFlowState {
+    if (isCompleted) return 'completed';
+    if (sessionError) return 'error';
+    if (isLoading) return 'loading';
+    if (isError) return 'error';
+    if (!quiz || questions.length === 0) return 'empty';
+    return 'ready';
+}
+
 /**
  * Orchestrator hook composing modular sub-hooks into a clean QuizFlowState machine.
  * Consumes the discriminated QuizLaunchRequest union.
@@ -51,17 +70,14 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
     // This replaces the old useEffect that adjusted state after prop changes.
     // Deriving during render means the correct value is available on the very
     // first render — no stale-frame flicker for the user.
-    const flowState: QuizFlowState = isCompleted
-        ? 'completed'
-        : sessionError
-            ? 'error'
-            : isLoading
-                ? 'loading'
-                : isError
-                    ? 'error'
-                    : !quiz || questions.length === 0
-                        ? 'empty'
-                        : 'ready';
+    const flowState: QuizFlowState = deriveFlowState({
+        isCompleted,
+        sessionError,
+        isLoading,
+        isError,
+        quiz,
+        questions,
+    });
 
     // Create session when quiz becomes ready
     useEffect(() => {

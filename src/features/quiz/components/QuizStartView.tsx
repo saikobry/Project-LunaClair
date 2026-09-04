@@ -133,6 +133,85 @@ interface QuizStartViewProps {
   onOpenManagement?: () => void;
 }
 
+function pluralize(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function DraftBadge() {
+  return <span {...stylex.props(styles.draftBadge)}>Draft</span>;
+}
+
+function QuestionBankBadge({ count, onClick }: { count: number; onClick?: () => void }) {
+  return (
+    <div
+      {...stylex.props(styles.metaBadge, onClick && styles.metaBadgeClickable)}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      title={onClick ? 'Go to Question Bank management' : undefined}
+    >
+      <HelpCircle size={15} />
+      <span>{pluralize(count, 'Question', 'Questions')} in Bank</span>
+    </div>
+  );
+}
+
+function QuizzesMetaBadge({ count, showDraft }: { count: number; showDraft: boolean }) {
+  return (
+    <div {...stylex.props(styles.metaBadge)}>
+      <Layers size={15} />
+      <span>
+        {pluralize(count, 'Quiz', 'Quizzes')}
+        {showDraft && <DraftBadge />}
+      </span>
+    </div>
+  );
+}
+
+function QuizPickerList({ quizzes, isUnified, onStartQuiz }: { quizzes: Quiz[]; isUnified: boolean; onStartQuiz: (quizId?: string) => void }) {
+  return (
+    <div {...stylex.props(styles.quizList)}>
+      <h3 {...stylex.props(styles.sectionTitle)}>
+        {isUnified ? 'Included Quizzes' : 'Available Quizzes'}
+      </h3>
+      {quizzes.map((quiz, index) => {
+        const questionCount = quiz.questionIds.length;
+        return (
+          <Card key={quiz.id}>
+            <div {...stylex.props(styles.quizCard)}>
+              <div {...stylex.props(styles.quizInfo)}>
+                <h4 {...stylex.props(styles.quizTitle)}>
+                  {quiz.title || `Quiz ${index + 1}`}
+                </h4>
+                <span {...stylex.props(styles.quizMeta)}>
+                  {pluralize(questionCount, 'question', 'questions')}
+                  {quiz.status === 'draft' && <DraftBadge />}
+                </span>
+              </div>
+              {!isUnified && (
+                <Button
+                  label="Start quiz"
+                  variant="primary"
+                  icon={<Play size={15} />}
+                  onClick={() => onStartQuiz(quiz.id)}
+                >
+                  Start Quiz
+                </Button>
+              )}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function startQuizCopy(isUnified: boolean): { label: string; text: string } {
+  if (isUnified) return { label: 'Start unified quiz', text: 'Start Unified Quiz' };
+  return { label: 'Start quiz', text: 'Start Quiz' };
+}
+
 export function QuizStartView({
   title,
   quizzes,
@@ -150,6 +229,7 @@ export function QuizStartView({
 
   // In material mode (isUnified = false) with multiple quizzes, users pick individual quizzes to start
   const showTopStartButton = isUnified || !isMultiple;
+  const copy = startQuizCopy(isUnified);
 
   return (
     <div {...stylex.props(styles.container)}>
@@ -165,78 +245,26 @@ export function QuizStartView({
         </p>
 
         <div {...stylex.props(styles.metaGrid)}>
-          <div
-            {...stylex.props(styles.metaBadge, onOpenManagement && styles.metaBadgeClickable)}
-            onClick={onOpenManagement}
-            role={onOpenManagement ? 'button' : undefined}
-            tabIndex={onOpenManagement ? 0 : undefined}
-            onKeyDown={onOpenManagement ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenManagement(); } } : undefined}
-            title={onOpenManagement ? 'Go to Question Bank management' : undefined}
-          >
-            <HelpCircle size={15} />
-            <span>{totalQuestionsCount} {totalQuestionsCount === 1 ? 'Question' : 'Questions'} in Bank</span>
-          </div>
-          <div {...stylex.props(styles.metaBadge)}>
-            <Layers size={15} />
-            <span>
-              {activeQuizzes.length} {activeQuizzes.length === 1 ? 'Quiz' : 'Quizzes'}
-              {!isMultiple && singleQuiz?.status === 'draft' && (
-                <span {...stylex.props(styles.draftBadge)}>Draft</span>
-              )}
-            </span>
-          </div>
+          <QuestionBankBadge count={totalQuestionsCount} onClick={onOpenManagement} />
+          <QuizzesMetaBadge count={activeQuizzes.length} showDraft={!isMultiple && singleQuiz?.status === 'draft'} />
         </div>
 
         {showTopStartButton && (
           <div style={{ marginTop: 16 }}>
             <Button
-              label={isUnified ? 'Start unified quiz' : 'Start quiz'}
+              label={copy.label}
               variant="primary"
               icon={<Play size={16} />}
               onClick={() => onStartQuiz(singleQuiz?.id)}
             >
-              {isUnified ? 'Start Unified Quiz' : 'Start Quiz'}
+              {copy.text}
             </Button>
           </div>
         )}
       </div>
 
       {isMultiple && (
-        <div {...stylex.props(styles.quizList)}>
-          <h3 {...stylex.props(styles.sectionTitle)}>
-            {isUnified ? 'Included Quizzes' : 'Available Quizzes'}
-          </h3>
-          {activeQuizzes.map((quiz, index) => {
-            const questionCount = quiz.questionIds.length;
-            return (
-              <Card key={quiz.id}>
-                <div {...stylex.props(styles.quizCard)}>
-                  <div {...stylex.props(styles.quizInfo)}>
-                    <h4 {...stylex.props(styles.quizTitle)}>
-                      {quiz.title || `Quiz ${index + 1}`}
-                    </h4>
-                    <span {...stylex.props(styles.quizMeta)}>
-                      {questionCount} {questionCount === 1 ? 'question' : 'questions'}
-                      {quiz.status === 'draft' && (
-                        <span {...stylex.props(styles.draftBadge)}>Draft</span>
-                      )}
-                    </span>
-                  </div>
-                  {!isUnified && (
-                    <Button
-                      label="Start quiz"
-                      variant="primary"
-                      icon={<Play size={15} />}
-                      onClick={() => onStartQuiz(quiz.id)}
-                    >
-                      Start Quiz
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <QuizPickerList quizzes={activeQuizzes} isUnified={isUnified} onStartQuiz={onStartQuiz} />
       )}
     </div>
   );

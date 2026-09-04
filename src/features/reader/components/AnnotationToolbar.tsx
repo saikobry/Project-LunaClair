@@ -245,6 +245,111 @@ function useMobileDockCollision(
   return isElevated;
 }
 
+interface ToolbarCollapsibleProps {
+  collapsibleRef: RefObject<HTMLDivElement | null>;
+  mode: AnnotationMode;
+  onModeChange: (mode: AnnotationMode) => void;
+  tool: DrawingTool;
+  onToolChange: (tool: DrawingTool) => void;
+  currentColor: string;
+  onColorChange: (color: string) => void;
+  brushThickness: number;
+  onThicknessChange: (thickness: number) => void;
+  onUndo: () => void;
+  onClearDrawings: () => void;
+  onClearHighlights: () => void;
+  hasDrawings: boolean;
+  hasHighlights: boolean;
+}
+
+function ToggleGlyph({ isOpen, isMobileOrTablet }: { isOpen: boolean; isMobileOrTablet: boolean }) {
+  if (!isOpen) return <Palette size={18} />;
+  if (isMobileOrTablet) return <ChevronDown size={18} />;
+  return <ChevronUp size={18} />;
+}
+
+function ToolbarCollapsible({
+  collapsibleRef,
+  mode,
+  onModeChange,
+  tool,
+  onToolChange,
+  currentColor,
+  onColorChange,
+  brushThickness,
+  onThicknessChange,
+  onUndo,
+  onClearDrawings,
+  onClearHighlights,
+  hasDrawings,
+  hasHighlights,
+}: ToolbarCollapsibleProps) {
+  return (
+    <div ref={collapsibleRef} {...stylex.props(styles.collapsible)}>
+      <div {...stylex.props(styles.divider)} />
+
+      {/* Mode selectors */}
+      <div {...stylex.props(styles.section)}>
+        <IconButton
+          variant={mode === 'select' ? 'primary' : 'ghost'}
+          label="Select & Highlight Text"
+          tooltip="Select & Highlight Text"
+          icon={<MousePointer size={18} />}
+          onClick={() => onModeChange('select')}
+        />
+        <IconButton
+          variant={mode === 'draw' ? 'primary' : 'ghost'}
+          label="Draw on Page"
+          tooltip="Draw on Page"
+          icon={<PenTool size={18} />}
+          onClick={() => onModeChange('draw')}
+        />
+      </div>
+
+      {/* Sub-tools for drawing mode */}
+      {mode === 'draw' && (
+        <DrawingToolOptions
+          tool={tool}
+          onToolChange={onToolChange}
+          currentColor={currentColor}
+          onColorChange={onColorChange}
+          brushThickness={brushThickness}
+          onThicknessChange={onThicknessChange}
+          onUndo={onUndo}
+          hasDrawings={hasDrawings}
+        />
+      )}
+
+      {/* Clear/Reset functions */}
+      {(hasDrawings || hasHighlights) && (
+        <>
+          <div {...stylex.props(styles.divider)} />
+          <div {...stylex.props(styles.section)}>
+            {hasDrawings && (
+              <IconButton
+                variant="danger"
+                label="Clear all drawings"
+                tooltip="Clear all drawings"
+                icon={<Trash2 size={16} />}
+                onClick={onClearDrawings}
+              />
+            )}
+            {hasHighlights && (
+              <IconButton
+                variant="danger"
+                label="Clear all highlights"
+                tooltip="Clear all highlights"
+                icon={<Trash2 size={16} />}
+                onClick={onClearHighlights}
+              />
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AnnotationToolbar({
   mode,
   onModeChange,
@@ -335,19 +440,6 @@ export default function AnnotationToolbar({
     { scope: toolbarRef, dependencies: [isOpen, isMobileOrTablet] },
   );
 
-  // Active tool buttons use the `primary` (filled) variant; the collapse
-  // toggle and standard actions stay `ghost`. Clear/reset actions use the
-  // `danger` (destructive) variant.
-  const toggleIcon = isOpen ? (
-    isMobileOrTablet ? (
-      <ChevronDown size={18} />
-    ) : (
-      <ChevronUp size={18} />
-    )
-  ) : (
-    <Palette size={18} />
-  );
-
   const toolbarNode = (
     <div
       ref={toolbarRef}
@@ -369,74 +461,28 @@ export default function AnnotationToolbar({
         variant="ghost"
         label={isOpen ? 'Collapse Toolbar' : 'Open Annotations'}
         tooltip={isOpen ? 'Collapse Toolbar' : 'Open Annotations'}
-        icon={toggleIcon}
+        icon={<ToggleGlyph isOpen={isOpen} isMobileOrTablet={isMobileOrTablet} />}
         aria-expanded={isOpen}
         onClick={handleToggle}
       />
 
       {isOpen && (
-        <div ref={collapsibleRef} {...stylex.props(styles.collapsible)}>
-          <div {...stylex.props(styles.divider)} />
-
-          {/* Mode selectors */}
-          <div {...stylex.props(styles.section)}>
-            <IconButton
-              variant={mode === 'select' ? 'primary' : 'ghost'}
-              label="Select & Highlight Text"
-              tooltip="Select & Highlight Text"
-              icon={<MousePointer size={18} />}
-              onClick={() => onModeChange('select')}
-            />
-            <IconButton
-              variant={mode === 'draw' ? 'primary' : 'ghost'}
-              label="Draw on Page"
-              tooltip="Draw on Page"
-              icon={<PenTool size={18} />}
-              onClick={() => onModeChange('draw')}
-            />
-          </div>
-
-          {/* Sub-tools for drawing mode */}
-          {mode === 'draw' && (
-            <DrawingToolOptions
-              tool={tool}
-              onToolChange={onToolChange}
-              currentColor={currentColor}
-              onColorChange={onColorChange}
-              brushThickness={brushThickness}
-              onThicknessChange={onThicknessChange}
-              onUndo={onUndo}
-              hasDrawings={hasDrawings}
-            />
-          )}
-
-          {/* Clear/Reset functions */}
-          {(hasDrawings || hasHighlights) && (
-            <>
-              <div {...stylex.props(styles.divider)} />
-              <div {...stylex.props(styles.section)}>
-                {hasDrawings && (
-                  <IconButton
-                    variant="danger"
-                    label="Clear all drawings"
-                    tooltip="Clear all drawings"
-                    icon={<Trash2 size={16} />}
-                    onClick={onClearDrawings}
-                  />
-                )}
-                {hasHighlights && (
-                  <IconButton
-                    variant="danger"
-                    label="Clear all highlights"
-                    tooltip="Clear all highlights"
-                    icon={<Trash2 size={16} />}
-                    onClick={onClearHighlights}
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        <ToolbarCollapsible
+          collapsibleRef={collapsibleRef}
+          mode={mode}
+          onModeChange={onModeChange}
+          tool={tool}
+          onToolChange={onToolChange}
+          currentColor={currentColor}
+          onColorChange={onColorChange}
+          brushThickness={brushThickness}
+          onThicknessChange={onThicknessChange}
+          onUndo={onUndo}
+          onClearDrawings={onClearDrawings}
+          onClearHighlights={onClearHighlights}
+          hasDrawings={hasDrawings}
+          hasHighlights={hasHighlights}
+        />
       )}
     </div>
   );

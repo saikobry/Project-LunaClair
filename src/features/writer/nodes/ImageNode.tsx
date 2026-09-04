@@ -8,7 +8,7 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from 'lexical';
-import { type JSX } from 'react';
+import { type CSSProperties, type JSX } from 'react';
 
 export type SerializedImageNode = Spread<
   {
@@ -26,6 +26,40 @@ function $convertImageElement(domNode: Node): DOMConversionOutput | null {
   }
   return null;
 }
+
+const containerStyle: CSSProperties = {
+  display: 'block',
+  margin: '16px 0',
+  textAlign: 'center',
+};
+
+const imgStyle: CSSProperties = {
+  maxWidth: '100%',
+  height: 'auto',
+  borderRadius: '8px',
+  boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)',
+  border: '1px solid var(--color-border, #e5e7eb)',
+};
+
+const fallbackStyle: CSSProperties = {
+  display: 'none',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '16px 24px',
+  backgroundColor: 'var(--color-background-muted, #f3f4f6)',
+  borderRadius: '8px',
+  border: '1px dashed var(--color-border, #d1d5db)',
+  color: 'var(--color-text-secondary, #6b7280)',
+  fontSize: '13px',
+};
+
+const captionStyle: CSSProperties = {
+  display: 'block',
+  fontSize: '13px',
+  color: 'var(--color-text-secondary, #6b7280)',
+  marginTop: '6px',
+  fontStyle: 'italic',
+};
 
 export class ImageNode extends DecoratorNode<JSX.Element> {
   __src: string;
@@ -106,17 +140,11 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
 
   override decorate(): JSX.Element {
     return (
-      <span className="writer-image-container" style={{ display: 'block', margin: '16px 0', textAlign: 'center' }}>
+      <span className="writer-image-container" style={containerStyle}>
         <img
           src={this.__src}
           alt={this.__altText}
-          style={{
-            maxWidth: '100%',
-            height: 'auto',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-            border: '1px solid var(--color-border, #e5e7eb)',
-          }}
+          style={imgStyle}
           loading="lazy"
           onError={(e) => {
             // Fallback gracefully for local/relative paths in testbench
@@ -128,32 +156,11 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
             }
           }}
         />
-        <span
-          className="writer-image-fallback"
-          style={{
-            display: 'none',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px 24px',
-            backgroundColor: 'var(--color-background-muted, #f3f4f6)',
-            borderRadius: '8px',
-            border: '1px dashed var(--color-border, #d1d5db)',
-            color: 'var(--color-text-secondary, #6b7280)',
-            fontSize: '13px',
-          }}
-        >
+        <span className="writer-image-fallback" style={fallbackStyle}>
           📷 Image: {this.__altText || this.__src}
         </span>
         {this.__altText && (
-          <span
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              color: 'var(--color-text-secondary, #6b7280)',
-              marginTop: '6px',
-              fontStyle: 'italic',
-            }}
-          >
+          <span style={captionStyle}>
             {this.__altText}
           </span>
         )}

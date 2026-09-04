@@ -181,18 +181,19 @@ export class DexieSyncReconciler implements SyncReconciler {
               const remotePayload = change.data as HighlightSyncPayload;
               const result = reconcileTimestampLww(localHighlight, remotePayload);
               if (result.kind === 'apply') {
-                if (result.payload.deletedAt) {
+                const payload = result.payload;
+                if (payload.deletedAt) {
                   await db.highlights.delete(entityId);
                 } else {
                   await db.highlights.put({
-                    id: result.payload.id || entityId,
-                    documentId: result.payload.documentId,
-                    start: result.payload.start,
-                    end: result.payload.end,
-                    color: result.payload.color as HighlightRecord['color'],
-                    text: result.payload.text,
-                    createdAt: result.payload.createdAt,
-                    ...(result.payload.deletedAt ? { deletedAt: result.payload.deletedAt } : {}),
+                    id: payload.id || entityId,
+                    documentId: payload.documentId,
+                    start: payload.start,
+                    end: payload.end,
+                    color: payload.color as HighlightRecord['color'],
+                    text: payload.text,
+                    createdAt: payload.createdAt,
+                    ...(payload.deletedAt ? { deletedAt: payload.deletedAt } : {}),
                   });
                 }
                 appliedCount++;
@@ -218,18 +219,19 @@ export class DexieSyncReconciler implements SyncReconciler {
               const remotePayload = change.data as DrawingSyncPayload;
               const result = reconcileTimestampLww(localDrawing, remotePayload);
               if (result.kind === 'apply') {
-                if (result.payload.deletedAt) {
+                const payload = result.payload;
+                if (payload.deletedAt) {
                   await db.drawings.delete(entityId);
                 } else {
                   await db.drawings.put({
-                    id: result.payload.id || entityId,
-                    documentId: result.payload.documentId,
-                    color: result.payload.color,
-                    thickness: result.payload.thickness,
-                    points: result.payload.points,
-                    isEraser: result.payload.isEraser,
-                    createdAt: result.payload.createdAt,
-                    ...(result.payload.deletedAt ? { deletedAt: result.payload.deletedAt } : {}),
+                    id: payload.id || entityId,
+                    documentId: payload.documentId,
+                    color: payload.color,
+                    thickness: payload.thickness,
+                    points: payload.points,
+                    isEraser: payload.isEraser,
+                    createdAt: payload.createdAt,
+                    ...(payload.deletedAt ? { deletedAt: payload.deletedAt } : {}),
                   });
                 }
                 appliedCount++;
