@@ -8,13 +8,13 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import type { Env } from './index';
+import type { Env, RouteContext } from '../core/types';
 import {
   syncChanges,
   syncIdempotency,
   userDocuments,
   userEntities,
-} from './schema';
+} from '../schema';
 
 export type SyncModelType = 'versioned' | 'lww' | 'append';
 
@@ -142,10 +142,14 @@ export function resolveUserId(request: Request): string {
  * Handles POST /api/sync/push
  */
 export async function handleSyncPush(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>,
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const userId = resolveUserId(request);
   const db = drizzle(env.DB);
 
@@ -609,10 +613,14 @@ export async function handleSyncPush(
  * Handles GET /api/sync/pull?cursor=...&limit=...
  */
 export async function handleSyncPull(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>,
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const userId = resolveUserId(request);
   const url = new URL(request.url);
 

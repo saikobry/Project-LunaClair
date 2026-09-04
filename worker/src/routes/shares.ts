@@ -9,8 +9,8 @@
  */
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import type { Env } from './index';
-import { shares } from './schema';
+import type { Env, RouteContext } from '../core/types';
+import { shares } from '../schema';
 
 export const MAX_SHARE_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5 MB max package size
 
@@ -283,10 +283,14 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
  * POST /api/shares — Ingest and publish a StudyPackage snapshot.
  */
 export async function handleCreateShare(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string> = {},
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     return json({ error: 'Content-Type must be application/json' }, 415, corsHeaders);
@@ -390,12 +394,18 @@ export async function handleCreateShare(
  * GET /api/shares/:id — Retrieve published StudyPackage snapshot.
  */
 export async function handleGetShare(
-  request: Request,
-  env: Env,
-  shareId: string,
-  url: URL,
-  corsHeaders: Record<string, string> = {},
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeShareId?: string,
+  maybeUrl?: URL,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const shareId = 'params' in ctxOrRequest ? ctxOrRequest.params.id : maybeShareId!;
+  const url = 'url' in ctxOrRequest && ctxOrRequest.url instanceof URL ? ctxOrRequest.url : (maybeUrl instanceof URL ? maybeUrl : new URL(request.url));
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const db = drizzle(env.DB);
 
   const results = await db.select().from(shares).where(eq(shares.id, shareId)).limit(1);
@@ -487,10 +497,14 @@ export async function handleGetShare(
  * POST /api/shares/:id/download — Increment download counter.
  */
 export async function handleTrackShareDownload(
-  env: Env,
-  shareId: string,
-  corsHeaders: Record<string, string> = {},
+  ctxOrEnv: RouteContext | Env,
+  maybeShareId?: string,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const env = 'env' in ctxOrEnv ? ctxOrEnv.env : ctxOrEnv;
+  const shareId = 'params' in ctxOrEnv ? ctxOrEnv.params.id : maybeShareId!;
+  const corsHeaders = 'corsHeaders' in ctxOrEnv ? ctxOrEnv.corsHeaders : (maybeCorsHeaders ?? {});
+
   const db = drizzle(env.DB);
 
   const results = await db.select().from(shares).where(eq(shares.id, shareId)).limit(1);
@@ -512,11 +526,16 @@ export async function handleTrackShareDownload(
  * DELETE /api/shares/:id — Delete published share (authenticated).
  */
 export async function handleDeleteShare(
-  request: Request,
-  env: Env,
-  shareId: string,
-  corsHeaders: Record<string, string> = {},
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeShareId?: string,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const shareId = 'params' in ctxOrRequest ? ctxOrRequest.params.id : maybeShareId!;
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const db = drizzle(env.DB);
 
   const results = await db.select().from(shares).where(eq(shares.id, shareId)).limit(1);
@@ -587,11 +606,16 @@ function decodeCursor<T>(cursor: string): T | null {
  * GET /api/shares — Discovery feed for public StudyPackages with keyset pagination.
  */
 export async function handleListPublicShares(
-  _request: Request,
-  env: Env,
-  url: URL,
-  corsHeaders: Record<string, string> = {},
+  ctxOrRequest: RouteContext | Request,
+  maybeEnv?: Env,
+  maybeUrl?: URL,
+  maybeCorsHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const request = 'request' in ctxOrRequest ? ctxOrRequest.request : ctxOrRequest;
+  const env = 'env' in ctxOrRequest ? ctxOrRequest.env : maybeEnv!;
+  const url = 'url' in ctxOrRequest && ctxOrRequest.url instanceof URL ? ctxOrRequest.url : (maybeUrl instanceof URL ? maybeUrl : new URL(request.url));
+  const corsHeaders = 'corsHeaders' in ctxOrRequest ? ctxOrRequest.corsHeaders : (maybeCorsHeaders ?? {});
+
   const db = drizzle(env.DB);
 
   // 1. Parse Query Parameters

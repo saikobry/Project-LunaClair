@@ -9,7 +9,7 @@ import type {
   PublishedShareResponse,
   PublishShareResponse,
   PublicShareSummary,
-} from '../shares';
+} from '../routes/shares';
 
 function createMockD1(): D1Database {
   const db = new DatabaseSync(':memory:');

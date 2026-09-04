@@ -29,6 +29,8 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-012](ADR-012-primary-unit-test-organization-and-discoverability.md) | Primary Unit Test Organization and 1:1 Discoverability Standard | Accepted | Phase 12 |
 | [ADR-013](ADR-013-uniform-domain-module-organization.md) | Uniform Domain Module Organization | Accepted | Phase 12 |
 | [ADR-014](ADR-014-bounded-contexts-and-screen-layer.md) | Bounded Contexts and Application Screen Layer | Accepted | Phase 12 |
+| [ADR-015](ADR-015-uniform-infrastructure-module-organization.md) | Uniform Infrastructure Module Organization | Accepted | Phase 12 |
+| [ADR-016](ADR-016-uniform-cloudflare-worker-architecture.md) | Uniform Cloudflare Worker Architecture | Accepted | Phase 12 |
 
 ---
 

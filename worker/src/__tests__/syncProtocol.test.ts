@@ -4,7 +4,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it } from 'vitest';
 import worker, { type Env } from '../index';
-import type { SyncPullResponse, SyncPushResponse } from '../sync';
+import type { SyncPullResponse, SyncPushResponse } from '../routes/sync';
 
 function createMockD1(): D1Database {
   const db = new DatabaseSync(':memory:');

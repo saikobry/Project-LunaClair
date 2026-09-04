@@ -33,7 +33,13 @@
 - CORS: allowlist via the `CORS_ORIGINS` var (comma-separated). Empty or unset allows any requesting origin (`*`) with credentials-safe origin reflection for dev (5173/4173) and production; specified origins enforce an exact allowlist match.
 - Pages integration: Cloudflare Pages reverse-proxies all `/api/*` traffic to the Worker via the edge Function in `functions/api/[[path]].ts` (Vite dev server proxies locally via `vite.config.ts`).
 - Timestamps: **all D1 timestamps are ISO-8601 UTC text strings** (`YYYY-MM-DDTHH:mm:ss.sssZ`), matching the domain/Dexie representation so nothing converts formats across the API boundary. Stamped server-side via `new Date().toISOString()`; clients never send timestamps. `createdAt` is set on first insert and preserved on re-upsert (only `updatedAt` changes).
-- Routing: plain `fetch` handler, no framework. Add routes in `worker/src/index.ts`.
+- Routing & Architecture (ADR-016):
+  - Zero-framework, layered architecture using native Web Standards (`Request`, `Response`, `URLPattern`/segment matching).
+  - `worker/src/index.ts` is a slim composition root (<30 lines) orchestrating CORS preflight, header computation, router dispatch, and global 500 error boundary.
+  - `worker/src/router.ts` is the declarative router mapping method + path to route handlers, extracting params into typed `RouteContext`, and enforcing 404 Not Found and 405 Method Not Allowed (with `Allow` header).
+  - `worker/src/core/` houses foundational primitives: `cors.ts` (origin reflection), `responses.ts` (typed HTTP responses), `security.ts` (timing-safe comparison, bearer token parsing, user resolution, passcode hashing), `path.ts` (anti-traversal segment decoding, cross-realm binary conversion), and `types.ts` (`Env`, `RouteContext`, `RouteHandler`).
+  - `worker/src/routes/` houses focused endpoint handlers: `health.ts`, `documents.ts`, `figures.ts`, `catalog.ts`, `quiz.ts`, `ai.ts`, `sync.ts`, `shares.ts`.
+  - Zero barrels: direct file imports only within `worker/src/`.
 - Types: run `npm run types:worker` (`wrangler types`) after any change to `wrangler.jsonc`; the generated `worker/worker-configuration.d.ts` is committed.
 - Schema: 5 tables defined in `worker/src/schema.ts` for sync, content distribution, and sharing:
   - `user_documents`: User documents with LWW versioning (`user_id`, `document_id` composite PK, `version`, `title`, `content`, `updated_at`, `deleted_at`).

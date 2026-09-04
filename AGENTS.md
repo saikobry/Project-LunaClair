@@ -165,6 +165,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 - LunaClair runs a Cloudflare backend: a D1 database (`lunaclair`, serverless SQLite) as the **cloud sync, sharing, and content distribution layer** for the local-first Dexie store.
 - D1 is never called directly from the browser — all cloud data flows through the **`api` Cloudflare Worker** (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
+- Architecture (ADR-016): zero-framework, layered architecture using native Web Standards (`Request`/`Response`, declarative segment router, isolated route handlers in `worker/src/routes/`, core primitives in `worker/src/core/`, slim composition root in `worker/src/index.ts`).
 - Schema is authored with Drizzle ORM (`worker/src/schema.ts` → `npm run db:generate` → versioned migrations in `worker/migrations/`); `GET /health` on the Worker verifies D1 connectivity.
 - Remote SQL: `npx wrangler d1 execute lunaclair --remote --command "<sql>"`.
 - Offline synchronization (Dexie ⇄ D1 sync queue, single-flight sync engine, conflict resolution) and Cloud Sharing (`/api/shares`) are active in production.
@@ -210,5 +211,5 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/features/package/AGENTS.md` | `src/features/package/` | Study Package feature — .lcpack export & import hooks, package inspection & preview modal |
 | `src/infrastructure/AGENTS.md` | `src/infrastructure/` | Persistence layer — Dexie database, repositories, migration, import services |
 | `src/shared/AGENTS.md` | `src/shared/` | Shared types, constants, utilities, hooks, components |
-| `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — D1 bridge, schema migrations, deploy workflow |
+| `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — ADR-016 layered architecture, D1 bridge, schema migrations, deploy workflow |
 

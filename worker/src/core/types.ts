@@ -1,0 +1,28 @@
+/**
+ * Core types for the LunaClair Cloudflare Worker.
+ */
+
+export interface AiBinding {
+  run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface Env {
+  /** Cloudflare D1 binding (see wrangler.jsonc -> d1_databases). */
+  DB: D1Database;
+  /** Comma-separated allowlist of browser origins; empty = local dev defaults. */
+  CORS_ORIGINS?: string;
+  /** Write-gate secret for the PUT ingest endpoints. Set via .dev.vars / wrangler secret put. */
+  SEED_TOKEN?: string;
+  /** Cloudflare Workers AI binding for serverless edge inference. */
+  AI?: AiBinding;
+}
+
+export interface RouteContext {
+  request: Request;
+  env: Env;
+  url: URL;
+  params: Record<string, string>;
+  corsHeaders: Record<string, string>;
+}
+
+export type RouteHandler = (context: RouteContext) => Promise<Response> | Response;
