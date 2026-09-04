@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WorkerAiAdapter } from '../WorkerAiAdapter';
-import { MockAiAdapter } from '../MockAiAdapter';
+import { MockAiAdapter } from '../../../test/mocks/MockAiAdapter';
 import type { AiChatRequest, AiStreamEvent } from '../../../domain/ai/models/ai.types';
 
 describe('WorkerAiAdapter', () => {

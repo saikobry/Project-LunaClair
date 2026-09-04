@@ -4,7 +4,7 @@ import type {
     TermService,
     CreateAndAssignTermResult,
 } from '../../../domain/library/services/TermService';
-import { db } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);
@@ -19,6 +19,12 @@ function generateId(): string {
  * atomic — either both the Term and the junction land, or neither does.
  */
 export class DexieTermService implements TermService {
+    private readonly db: LunaClairDatabase;
+
+    constructor(db: LunaClairDatabase = defaultDb) {
+        this.db = db;
+    }
+
     async createAndAssignTerm(
         subjectId: string,
         title: string,
@@ -28,9 +34,9 @@ export class DexieTermService implements TermService {
             throw new Error('createAndAssignTerm: title must not be empty');
         }
 
-        return db.transaction('rw', [db.terms, db.subjectTerms, db.subjects], async () => {
+        return this.db.transaction('rw', [this.db.terms, this.db.subjectTerms, this.db.subjects], async () => {
             // Validate subject exists before creating the term
-            const subject = await db.subjects.get(subjectId);
+            const subject = await this.db.subjects.get(subjectId);
             if (!subject) {
                 throw new Error(`Subject not found: ${subjectId}`);
             }
@@ -42,10 +48,10 @@ export class DexieTermService implements TermService {
                 createdAt: now,
                 updatedAt: now,
             };
-            await db.terms.put(term);
+            await this.db.terms.put(term);
 
             // Append with max(order) + 1 so the new term lands last
-            const links = await db.subjectTerms
+            const links = await this.db.subjectTerms
                 .where('subjectId')
                 .equals(subjectId)
                 .toArray();
@@ -56,7 +62,7 @@ export class DexieTermService implements TermService {
                 termId: term.id,
                 order: maxOrder + 1,
             };
-            await db.subjectTerms.put(subjectTerm);
+            await this.db.subjectTerms.put(subjectTerm);
 
             return { term, subjectTerm };
         });

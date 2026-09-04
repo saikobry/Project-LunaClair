@@ -6,7 +6,7 @@ import {
   type AiGenerationRequest,
   type AiStructuredOutputValidator,
 } from '../../domain/ai/models/ai.types';
-import { parseStructuredAiResponse } from './parsing/parseStructuredAiResponse';
+import { parseStructuredAiResponse } from '../../infrastructure/ai/parsing/parseStructuredAiResponse';
 
 export interface MockAiAdapterOptions {
   tokens?: string[];

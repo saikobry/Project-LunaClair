@@ -37,10 +37,10 @@ import { dexieAnalyticsRepository } from '../../infrastructure/database/reposito
 import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/WorkerAiAdapter';
-import { dexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
-import { dexieTermService } from '../../infrastructure/database/services/DexieTermService';
+import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
+import { DexieTermService } from '../../infrastructure/database/services/DexieTermService';
 import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
-import { dexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
+import { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/createExtractors';
 import { dexieSyncQueueRepository } from '../../infrastructure/database/sync/DexieSyncQueueRepository';
@@ -51,9 +51,6 @@ import { workerSyncTransport } from '../../infrastructure/sync/WorkerSyncTranspo
 import { workerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
 import { localStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
 import { db, type LunaClairDatabase } from '../../infrastructure/database/LunaClairDatabase';
-import type { DexieTermService } from '../../infrastructure/database/services/DexieTermService';
-import type { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
-import type { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import type { WorkerSyncTransport } from '../../infrastructure/sync/WorkerSyncTransport';
 import type { WorkerShareTransport } from '../../infrastructure/sharing/WorkerShareTransport';
 import type { LocalStorageCredentialsProvider } from '../../infrastructure/sync/LocalStorageCredentialsProvider';
@@ -151,9 +148,9 @@ export function createInfrastructure(): Infrastructure {
         db,
         repositories,
         services: {
-            term: dexieTermService,
-            quizEditor: dexieQuizEditorService,
-            libraryImport: dexieLibraryImportService,
+            term: new DexieTermService(db),
+            quizEditor: new DexieQuizEditorService(db),
+            libraryImport: new DexieLibraryImportService(db),
             studyPackageImport: new DexieStudyPackageImportService(db),
             ai: aiService,
         },

@@ -6,7 +6,7 @@ import type {
     SaveQuizToRepositoryResult,
 } from '../../../domain/quiz/services/QuizEditorService';
 import { normalizeTags } from '../../../domain/quiz/utils/tags';
-import { db } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 
 function generateQuestionId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -29,8 +29,14 @@ function generateQuizId(): string {
  * and increment `version`; metadata-only changes keep the version pinned.
  */
 export class DexieQuizEditorService implements QuizEditorService {
+    private readonly db: LunaClairDatabase;
+
+    constructor(db: LunaClairDatabase = defaultDb) {
+        this.db = db;
+    }
+
     async saveQuiz(input: SaveQuizToRepositoryInput): Promise<SaveQuizToRepositoryResult> {
-        return db.transaction('rw', [db.questions, db.quizzes], async () => {
+        return this.db.transaction('rw', [this.db.questions, this.db.quizzes], async () => {
             const now = new Date().toISOString();
             const resolvedIds = new Map<string, string>();
             const updatedQuestionIds: string[] = [];
@@ -53,11 +59,11 @@ export class DexieQuizEditorService implements QuizEditorService {
                             createdAt: now,
                             updatedAt: now,
                         };
-                        await db.questions.put(question);
+                        await this.db.questions.put(question);
                         return { tempId: change.tempId, resolvedId: question.id, bumpVersion: false };
                     }
 
-                    const existing = await db.questions.get(change.questionId);
+                    const existing = await this.db.questions.get(change.questionId);
                     if (!existing) {
                         throw new Error(`Question not found: ${change.questionId}`);
                     }
@@ -71,7 +77,7 @@ export class DexieQuizEditorService implements QuizEditorService {
                         version: change.bumpVersion ? existing.version + 1 : existing.version,
                         updatedAt: now,
                     };
-                    await db.questions.put(updated);
+                    await this.db.questions.put(updated);
                     return { tempId: change.tempId, resolvedId: existing.id, bumpVersion: change.bumpVersion };
                 }),
             );
@@ -102,7 +108,7 @@ export class DexieQuizEditorService implements QuizEditorService {
 
             let quiz: Quiz;
             if (input.quiz.id) {
-                const existingQuiz = await db.quizzes.get(input.quiz.id);
+                const existingQuiz = await this.db.quizzes.get(input.quiz.id);
                 if (!existingQuiz) throw new Error(`Quiz not found: ${input.quiz.id}`);
                 quiz = {
                     ...existingQuiz,
@@ -130,7 +136,7 @@ export class DexieQuizEditorService implements QuizEditorService {
             }
 
             // Snapshot the current version of each question into the quiz items.
-            const persisted = await db.questions.where('id').anyOf(questionIds).toArray();
+            const persisted = await this.db.questions.where('id').anyOf(questionIds).toArray();
             const versionById = new Map(persisted.map((q) => [q.id, q.version]));
             quiz = {
                 ...quiz,
@@ -140,7 +146,7 @@ export class DexieQuizEditorService implements QuizEditorService {
                 })),
             };
 
-            await db.quizzes.put(quiz);
+            await this.db.quizzes.put(quiz);
             return { quiz, updatedQuestionIds };
         });
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GenerateFlashcardsUseCase } from '../GenerateFlashcardsUseCase';
 import { BatchCreateFlashcardsUseCase } from '../BatchCreateFlashcardsUseCase';
-import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
+import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import type { QuestionRepository, CreateQuestionInput } from '../../../../domain/quiz/repositories/QuestionRepository';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { GeneratedFlashcardDraft } from '../../../../domain/generator/models/generator.types';

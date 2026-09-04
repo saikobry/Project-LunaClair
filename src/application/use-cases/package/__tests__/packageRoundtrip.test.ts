@@ -9,7 +9,7 @@ import { DexieImportAssetRepository } from '../../../../infrastructure/database/
 import { DexieStudyPackageImportService } from '../../../../infrastructure/database/services/DexieStudyPackageImportService';
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
-import { parsePackageFromJson } from '../../../../infrastructure/package/StudyPackageParser';
+import { parseJsonFromString as parsePackageFromJson } from '../../../../shared/utils/jsonBlobParser';
 import { serializePackageToJson } from '../../../../domain/package/engines/StudyPackageSerializer';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { SendChatMessageUseCase } from '../SendChatMessageUseCase';
-import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
+import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import type { AiStreamEvent } from '../../../../domain/ai/models/ai.types';

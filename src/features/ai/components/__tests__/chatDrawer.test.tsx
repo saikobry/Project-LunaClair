@@ -7,7 +7,7 @@ import { AiDrawerToggleButton } from '../AiDrawerToggleButton';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { LunaClairDatabase } from '../../../../infrastructure/database/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
-import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
+import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';
 import { GetOrCreateAiThreadUseCase } from '../../../../application/use-cases/ai/GetOrCreateAiThreadUseCase';
 import { GetAiThreadMessagesUseCase } from '../../../../application/use-cases/ai/GetAiThreadMessagesUseCase';

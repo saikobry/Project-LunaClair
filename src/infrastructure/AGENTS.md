@@ -14,7 +14,6 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `markdownPreprocessor.ts` → figure image relative URL transformer
 - `ai/` — Concrete AI gateway adapters:
   - `WorkerAiAdapter.ts` → `AiService` (consumes streaming SSE events from Cloudflare Worker AI `/api/ai/chat`)
-  - `MockAiAdapter.ts` → `AiService` (deterministic mock token stream for test suites)
 - `sync/` — Concrete Cloudflare Worker HTTP sync transport adapter and session credential providers:
   - `WorkerSyncTransport.ts` → `SyncTransport` (handles header injection, network failure mapping to `SyncNetworkError`, HTTP non-2xx status classification to `SyncHttpError`, and runtime protocol response validation to `SyncProtocolError`)
   - `deviceId.ts` → `getOrCreateDeviceId()` (generates or retrieves stable device UUID persisted under `lunaclair.device_id`)
@@ -29,8 +28,6 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
   - `ImageImporter.ts` → `ContentImporter` (image extraction delegating to `TesseractExtractor`)
   - `DefaultImporterRegistry.ts` → `ImporterRegistry` (format resolution)
   - `createExtractors.ts` → Importer registry factory
-- `package/` — StudyPackage parser adapters (Phase 11 Collaboration & Sharing):
-  - `StudyPackageParser.ts` → Parses JSON text, Blobs, and UTF-8 `Uint8Array` bytes safely into `unknown` for domain validation.
 - `database/schema.ts` — Version 1/2/3/4/5/6/7/8/9/10/11 Dexie schemas (v3 adds `subjectTerms` composite key `[subjectId+termId], subjectId, termId`, strips `subjectId` and `order` from `terms`; v4 adds `quizEditingDrafts` `'draftId, quizId, materialId, updatedAt'` for quiz canvas crash recovery; v5 adds `flashcardReviews` `'key, materialId, dueAt, lastReviewedAt'` for spaced-repetition state; v6 adds `documentContents` `'sourceId'` — locally imported document markdown, the explicit local representation of an imported material's content; v7 removes the legacy `sourceType` index from `materials`; v8 rekeys `documentContents` to `'documentId'` (vocabulary rename, with a data-copy upgrade); v9 adds `aiThreads` `'id, materialId, mode, createdAt, updatedAt'` and `aiMessages` `'id, threadId, role, status, createdAt'` for local-first AI chat persistence; v10 adds `importAssets` `'materialId'` for preserving original imported binary files; v11 adds `syncQueue`, `syncState`, and `conflictDrafts` for Phase 10 Cloud Synchronization)
 - `database/LunaClairDatabase.ts` — `Dexie` subclass with typed `Table` properties. Singleton `db`. v3 upgrade migration reads legacy `terms` (with `subjectId`/`order`), bulk-inserts `subjectTerms` rows, and strips `subjectId`/`order` from `terms` records. v4 adds `quizEditingDrafts`. v5 adds `flashcardReviews`. v6 adds `documentContents`. v7 drops the `sourceType` index. v8 rekeys `documentContents` from `sourceId` to `documentId` (rewrites existing records). v9 adds `aiThreads` and `aiMessages`. v10 adds `importAssets`. v11 adds `syncQueue`, `syncState`, and `conflictDrafts`.
 - `database/DatabaseMigrator.ts` — One-time migration of legacy `localStorage` data (materials, highlights, drawings) into IndexedDB. Writes `databaseVersion`, `lastMigration`, `createdAt` metadata. v3 schema migration is handled natively by Dexie `version(3).upgrade()`; the v3 data pass (`lunaclair.migration.v3.complete`) normalizes stored question tags via domain `normalizeTags` (strip `#`, dedup case-insensitively, preserve first-seen casing).
@@ -77,7 +74,8 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 - `DexieTermService.createAndAssignTerm()` runs a single `db.transaction('rw', [terms, subjectTerms, subjects])` that creates the global `Term`, validates the subject, and inserts the `SubjectTerm` junction with `max(order) + 1` — the operation is atomic.
 - `DexieSubjectTermRepository.syncTerms()` validates all term IDs exist, input uniqueness, and atomically replaces the complete association set.
 - `DexieLibraryRepository.createMaterial()` and `updateMaterial()` validate that if `termId` is set, the `(subjectId, termId)` junction record exists.
-- `StudyPackageSerializer` and `StudyPackageParser` operate purely on domain models (`StudyPackage`) and browser data primitives (`Blob`, `ArrayBuffer`, `Uint8Array`, strings) without any Dexie or IndexedDB dependencies.
+- `StudyPackageSerializer` operates purely on domain models (`StudyPackage`) and browser data primitives (`Blob`, `ArrayBuffer`, `Uint8Array`, strings) without any Dexie or IndexedDB dependencies.
+- Atomic database services (`DexieTermService`, `DexieQuizEditorService`, `DexieLibraryImportService`, `DexieStudyPackageImportService`) standardize on constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), enabling isolated database instantiations with failure injection in test suites.
 
 ## Work Guidance
 
@@ -91,4 +89,4 @@ Dexie/IndexedDB local database and remote API adapters: schema definition, datab
 
 ## Child DOX Index
 
-No child AGENTS.md files — `api/`, `package/`, `sync/`, `database/repositories/`, `database/sync/`, and `database/services/` are structured subdirectories under infrastructure.
+No child AGENTS.md files — `api/`, `sync/`, `database/repositories/`, `database/sync/`, and `database/services/` are structured subdirectories under infrastructure.

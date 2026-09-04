@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useAiStreamChat } from '../useAiStreamChat';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';
-import { MockAiAdapter } from '../../../../infrastructure/ai/MockAiAdapter';
+import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import type { UseCases } from '../../../../app/bootstrap/createUseCases';
 
 function createMockContext(mockAi: MockAiAdapter): ApplicationContextValue {

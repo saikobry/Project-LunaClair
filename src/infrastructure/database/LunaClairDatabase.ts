@@ -85,8 +85,8 @@ export class LunaClairDatabase extends Dexie {
     syncState!: Table<SyncState, string>;
     conflictDrafts!: Table<ConflictDraft, string>;
 
-    constructor() {
-        super(DB_NAME);
+    constructor(databaseName = DB_NAME) {
+        super(databaseName);
         this.version(1).stores(SCHEMA_V1);
         this.version(2).stores(SCHEMA_V2);
         this.version(3).stores(SCHEMA_V3).upgrade(async (tx) => {

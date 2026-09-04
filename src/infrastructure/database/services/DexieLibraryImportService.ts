@@ -6,7 +6,7 @@ import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
-import { db } from '../LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../LunaClairDatabase';
 
 /**
  * Concrete `LibraryImportService` backed by Dexie.
@@ -25,42 +25,48 @@ import { db } from '../LunaClairDatabase';
  * place (they may be shared with other imported materials).
  */
 export class DexieLibraryImportService implements LibraryImportService {
+    private readonly db: LunaClairDatabase;
+
+    constructor(db: LunaClairDatabase = defaultDb) {
+        this.db = db;
+    }
+
     async importMaterial(input: ImportMaterialInput): Promise<void> {
-        await db.transaction(
+        await this.db.transaction(
             'rw',
             [
-                db.subjects,
-                db.terms,
-                db.subjectTerms,
-                db.materials,
-                db.questions,
-                db.quizzes,
-                db.documentContents,
+                this.db.subjects,
+                this.db.terms,
+                this.db.subjectTerms,
+                this.db.materials,
+                this.db.questions,
+                this.db.quizzes,
+                this.db.documentContents,
             ],
             async () => {
-                if (input.subject) await db.subjects.put(input.subject);
-                if (input.term) await db.terms.put(input.term);
-                if (input.subjectTerm) await db.subjectTerms.put(input.subjectTerm);
-                await db.materials.put(input.material);
-                if (input.questions.length > 0) await db.questions.bulkPut(input.questions);
-                if (input.quizzes.length > 0) await db.quizzes.bulkPut(input.quizzes);
-                if (input.documentContent) await db.documentContents.put(input.documentContent);
+                if (input.subject) await this.db.subjects.put(input.subject);
+                if (input.term) await this.db.terms.put(input.term);
+                if (input.subjectTerm) await this.db.subjectTerms.put(input.subjectTerm);
+                await this.db.materials.put(input.material);
+                if (input.questions.length > 0) await this.db.questions.bulkPut(input.questions);
+                if (input.quizzes.length > 0) await this.db.quizzes.bulkPut(input.quizzes);
+                if (input.documentContent) await this.db.documentContents.put(input.documentContent);
             },
         );
     }
 
     async importMaterialBatch(inputs: ImportMaterialInput[]): Promise<void> {
         if (inputs.length === 0) return;
-        await db.transaction(
+        await this.db.transaction(
             'rw',
             [
-                db.subjects,
-                db.terms,
-                db.subjectTerms,
-                db.materials,
-                db.questions,
-                db.quizzes,
-                db.documentContents,
+                this.db.subjects,
+                this.db.terms,
+                this.db.subjectTerms,
+                this.db.materials,
+                this.db.questions,
+                this.db.quizzes,
+                this.db.documentContents,
             ],
             async () => {
                 const subjectsMap = new Map<string, Subject>();
@@ -84,32 +90,32 @@ export class DexieLibraryImportService implements LibraryImportService {
                     if (input.documentContent) documentContents.push(input.documentContent);
                 }
 
-                if (subjectsMap.size > 0) await db.subjects.bulkPut(Array.from(subjectsMap.values()));
-                if (termsMap.size > 0) await db.terms.bulkPut(Array.from(termsMap.values()));
-                if (subjectTermsMap.size > 0) await db.subjectTerms.bulkPut(Array.from(subjectTermsMap.values()));
-                if (materials.length > 0) await db.materials.bulkPut(materials);
-                if (questions.length > 0) await db.questions.bulkPut(questions);
-                if (quizzes.length > 0) await db.quizzes.bulkPut(quizzes);
-                if (documentContents.length > 0) await db.documentContents.bulkPut(documentContents);
+                if (subjectsMap.size > 0) await this.db.subjects.bulkPut(Array.from(subjectsMap.values()));
+                if (termsMap.size > 0) await this.db.terms.bulkPut(Array.from(termsMap.values()));
+                if (subjectTermsMap.size > 0) await this.db.subjectTerms.bulkPut(Array.from(subjectTermsMap.values()));
+                if (materials.length > 0) await this.db.materials.bulkPut(materials);
+                if (questions.length > 0) await this.db.questions.bulkPut(questions);
+                if (quizzes.length > 0) await this.db.quizzes.bulkPut(quizzes);
+                if (documentContents.length > 0) await this.db.documentContents.bulkPut(documentContents);
             },
         );
     }
 
     async removeImportedMaterial(materialId: string): Promise<void> {
-        await db.transaction(
+        await this.db.transaction(
             'rw',
-            [db.materials, db.questions, db.quizzes, db.documentContents],
+            [this.db.materials, this.db.questions, this.db.quizzes, this.db.documentContents],
             async () => {
-                const material = await db.materials.get(materialId);
-                await db.materials.delete(materialId);
+                const material = await this.db.materials.get(materialId);
+                await this.db.materials.delete(materialId);
 
-                const questions = await db.questions.where('materialId').equals(materialId).toArray();
-                if (questions.length > 0) await db.questions.bulkDelete(questions.map((q) => q.id));
+                const questions = await this.db.questions.where('materialId').equals(materialId).toArray();
+                if (questions.length > 0) await this.db.questions.bulkDelete(questions.map((q) => q.id));
 
-                const quizzes = await db.quizzes.where('materialId').equals(materialId).toArray();
-                if (quizzes.length > 0) await db.quizzes.bulkDelete(quizzes.map((z) => z.id));
+                const quizzes = await this.db.quizzes.where('materialId').equals(materialId).toArray();
+                if (quizzes.length > 0) await this.db.quizzes.bulkDelete(quizzes.map((z) => z.id));
 
-                if (material?.documentId) await db.documentContents.delete(material.documentId);
+                if (material?.documentId) await this.db.documentContents.delete(material.documentId);
             },
         );
     }
