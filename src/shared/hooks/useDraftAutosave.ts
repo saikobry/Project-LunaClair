@@ -69,8 +69,10 @@ export function useDraftAutosave<T>({
         dirtyRef.current = false;
         clearTimer();
         setStatus('saving');
+        let succeeded = false;
         const run = persistRef.current(current)
             .then(() => {
+                succeeded = true;
                 lastPersistAtRef.current = Date.now();
                 setStatus('saved');
             })
@@ -81,7 +83,7 @@ export function useDraftAutosave<T>({
             .finally(() => {
                 inflightRef.current = null;
                 // A change landed while persisting — flush again.
-                if (dirtyRef.current) void runPersistRef.current?.();
+                if (succeeded && dirtyRef.current) void runPersistRef.current?.();
             });
         inflightRef.current = run;
         return run;
@@ -94,7 +96,11 @@ export function useDraftAutosave<T>({
     const schedule = useCallback(() => {
         dirtyRef.current = true;
         setStatus('pending');
-        const sinceLast = Date.now() - lastPersistAtRef.current;
+        const now = Date.now();
+        if (lastPersistAtRef.current === 0) {
+            lastPersistAtRef.current = now;
+        }
+        const sinceLast = now - lastPersistAtRef.current;
         if (sinceLast >= maxIntervalMs) {
             void runPersist();
             return;
@@ -126,7 +132,9 @@ export function useDraftAutosave<T>({
     // Flush on window blur loss and before unload for crash recovery.
     useEffect(() => {
         if (!enabled) return;
-        const onBlur = () => void flush();
+        const onBlur = () => {
+            if (dirtyRef.current) void flush();
+        };
         const onBeforeUnload = () => {
             const current = draftRef.current;
             if (current != null && dirtyRef.current) {

@@ -9,7 +9,7 @@ import { useQuestions } from './hooks/queries/useQuestions';
 import { QuizView } from './components/QuizView';
 import { QuizResultView } from './components/QuizResultView';
 import { QuizStartView } from './components/QuizStartView';
-import { Page } from '../../shared/ui/Page';
+import { Page } from '../../shared/ui/Page/Page';
 import { Button } from '../../shared/ui/Button/Button';
 import { QuestionSkeleton } from './components/QuestionSkeleton';
 import { useToast } from '../../app/providers/ToastContext';

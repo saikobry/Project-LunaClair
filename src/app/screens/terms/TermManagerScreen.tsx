@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, SquarePen, Trash2, Tag } from 'lucide-react';
-import { Page } from '../../../shared/ui/Page';
+import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { IconButton } from '../../../shared/ui/IconButton/IconButton';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
-import { Input } from '../../../shared/ui/Input';
+import { Input } from '../../../shared/ui/Input/Input';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { useTerms } from '../../../features/terms/hooks/queries/useTerms';

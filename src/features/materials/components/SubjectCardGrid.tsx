@@ -11,8 +11,9 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import type { Subject } from '../../../domain/library/models/Subject';
-import { Card } from '../../../shared/ui/Card';
-import { ActionMenu, ActionMenuItem } from '../../../shared/components/ActionMenu';
+import { Card } from '../../../shared/ui/Card/Card';
+import { ActionMenu } from '../../../shared/components/ActionMenu/ActionMenu';
+import { ActionMenuItem } from '../../../shared/components/ActionMenu/ActionMenuItem';
 
 gsap.registerPlugin(Draggable);
 

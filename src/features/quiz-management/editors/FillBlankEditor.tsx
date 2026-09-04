@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import type { FillBlankPayload } from '../../../domain/quiz/models/AnswerPayload';
-import { Input } from '../../../shared/ui/Input';
+import { Input } from '../../../shared/ui/Input/Input';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 
 const styles = stylex.create({

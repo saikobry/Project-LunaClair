@@ -12,6 +12,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 | `ui/` | Design system primitive adapters and low-level container primitives — includes `Dialog` (native `<dialog>` wrapper over `@astryxdesign/core` with header/content/footer slots), `TagInput`, `EmptyState` (zero-data / filter empty), `ErrorState` (404 / missing entity / offline error), `Skeleton` (`CardGridSkeleton`, `WorkspaceSkeleton`, `QuestionSkeleton`) |
 | `components/` | Domain-neutral composites such as `ActionMenu` |
 | `hooks/` | Domain-agnostic UI and infrastructure hooks: `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
+| `utils/` | Domain-agnostic utility functions: `contextGuard` (strict context unwrapping with descriptive missing-provider assertion), `fileDownload` (safe client-side blob download trigger & filename sanitization), `jsonBlobParser` (typed JSON blob parsing) |
 
 ## Local Contracts
 
@@ -19,8 +20,9 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 - Nothing in `shared/` may own or reference business capabilities such as Subjects, Materials, Terms, or Quizzes.
 - Query and mutation hooks, cache key factories, dialogs, and domain-specific composites belong to their owning feature.
 - Shared composites must accept domain-neutral props and render without business workflows.
-- No barrel boundaries (ADR-010): `shared/` has no root barrel; consumers import direct module paths (e.g. `shared/ui/Button/Button`, `shared/ui/EmptyState/EmptyState`, `shared/ui/ErrorState/ErrorState`).
+- Zero barrel boundaries (ADR-010): `shared/` has no root or sub-component barrel files (`index.ts`); all consumers import direct module paths (e.g. `shared/ui/Button/Button`, `shared/ui/Card/Card`, `shared/ui/EmptyState/EmptyState`, `shared/ui/ErrorState/ErrorState`, `shared/ui/Input/Input`, `shared/ui/Page/Page`, `shared/components/ActionMenu/ActionMenu`).
 - When two features need the same domain-agnostic type/constant/utility, extract it here.
+- 1:1 primary test colocation (ADR-012): every shared hook, behavioral utility, and interactive UI primitive/composite must have colocated tests under `__tests__/<UnitName>.test.ts` or `.test.tsx`.
 
 ## Work Guidance
 
@@ -33,6 +35,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 
 ## Verification
 
+- `npx vitest run src/shared/` — shared unit tests (hooks, utilities, and interactive UI components)
 - `npm run build`
 - `npm run lint`
 

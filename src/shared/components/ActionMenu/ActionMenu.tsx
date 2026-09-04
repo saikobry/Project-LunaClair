@@ -137,6 +137,7 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
         isPressed={menuOpen}
         onPressedChange={(_pressed, e) => {
           e.stopPropagation();
+          e.preventDefault();
           setMenuOpen((prev) => !prev);
         }}
       />

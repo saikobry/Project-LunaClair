@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { Subject } from '../../../domain/library/models/Subject';
-import { Page } from '../../../shared/ui/Page';
+import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import MaterialGrid from './MaterialGrid';

@@ -10,9 +10,9 @@ import {
   WifiOff,
   Sparkles,
 } from 'lucide-react';
-import { Page } from '../../../shared/ui/Page';
+import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Card } from '../../../shared/ui/Card';
+import { Card } from '../../../shared/ui/Card/Card';
 import { Chip } from '../../../shared/ui/Chip/Chip';
 import { Input } from '../../../shared/ui/Input/Input';
 import {

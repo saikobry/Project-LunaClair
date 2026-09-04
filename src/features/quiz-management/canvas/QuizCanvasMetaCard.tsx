@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Card } from '../../../shared/ui/Card';
+import { Card } from '../../../shared/ui/Card/Card';
 import { Input } from '../../../shared/ui/Input/Input';
 import { NumberInput } from '../../../shared/ui/NumberInput/NumberInput';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';

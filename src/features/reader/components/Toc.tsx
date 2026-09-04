@@ -4,7 +4,8 @@ import * as stylex from '@stylexjs/stylex';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ChevronDown, ChevronUp, ChevronRight, List } from 'lucide-react';
-import { Outline, parseOutlineFromMarkdown, type OutlineItem } from '../../../shared/ui/Outline';
+import { Outline, type OutlineItem } from '../../../shared/ui/Outline/Outline';
+import { parseOutlineFromMarkdown } from '../../../shared/ui/Outline/parseOutlineFromMarkdown';
 
 const collapseQuery = '@media (max-width: 1199px)';
 const desktopQuery = '@media (min-width: 1200px)';

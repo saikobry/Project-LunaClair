@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Check, Link2, Search } from 'lucide-react';
 import { useTerms } from '../hooks/queries/useTerms';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
-import { Input } from '../../../shared/ui/Input';
+import { Input } from '../../../shared/ui/Input/Input';
 import { Button } from '../../../shared/ui/Button/Button';
 
 const styles = stylex.create({

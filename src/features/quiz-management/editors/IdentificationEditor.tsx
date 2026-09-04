@@ -3,7 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, X } from 'lucide-react';
 import type { IdentificationPayload } from '../../../domain/quiz/models/AnswerPayload';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Input } from '../../../shared/ui/Input';
+import { Input } from '../../../shared/ui/Input/Input';
 
 const styles = stylex.create({
     container: {

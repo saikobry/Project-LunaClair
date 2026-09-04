@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { Pencil, Eraser, Undo2 } from 'lucide-react';
 import type { DrawingTool } from '../../../domain/reader/models/annotation.types';
-import { IconButton } from '../../../shared/ui/IconButton';
+import { IconButton } from '../../../shared/ui/IconButton/IconButton';
 import { BRUSH_COLORS, THICKNESS_OPTIONS } from '../constants/annotationDefaults';
 
 const dockQuery = '@media (max-width: 1023px)';

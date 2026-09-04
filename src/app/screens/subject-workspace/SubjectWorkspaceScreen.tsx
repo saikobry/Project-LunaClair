@@ -11,7 +11,7 @@ import { useLibrary } from '../../../features/materials/hooks/queries/useLibrary
 import { useCreateMaterial } from '../../../features/materials/hooks/mutations/useCreateMaterial';
 import { useEditMaterial } from '../../../features/materials/hooks/mutations/useEditMaterial';
 import { useDeleteMaterial } from '../../../features/materials/hooks/mutations/useDeleteMaterial';
-import { Page } from '../../../shared/ui/Page';
+import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Breadcrumbs } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../../shared/ui/TabList/TabList';

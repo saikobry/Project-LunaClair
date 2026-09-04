@@ -4,7 +4,7 @@ import type { MultipleSelectPayload } from '../../../domain/quiz/models/AnswerPa
 import { useStableListKeys } from '../../../shared/hooks/useStableListKeys';
 import { Button } from '../../../shared/ui/Button/Button';
 import { CorrectAnswerIndicator } from '../components/CorrectAnswerIndicator';
-import { Input } from '../../../shared/ui/Input';
+import { Input } from '../../../shared/ui/Input/Input';
 
 const styles = stylex.create({
     container: {
