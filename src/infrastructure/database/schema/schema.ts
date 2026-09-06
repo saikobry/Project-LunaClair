@@ -112,4 +112,14 @@ export const SCHEMA_V11 = {
     conflictDrafts: 'id, documentId, baseVersion, serverVersion, createdAt',
 } as const;
 
+/**
+ * Version 12: Adds the `originShareId` index on materials — exact clone
+ * identity for Explore cloning (a material records the cloud share it was
+ * cloned from, so library membership checks compare share IDs, not titles).
+ */
+export const SCHEMA_V12 = {
+    ...SCHEMA_V11,
+    materials: 'id, documentId, subjectId, termId, order, createdAt, updatedAt, lastOpenedAt, originShareId',
+} as const;
+
 export const DB_NAME = 'lunaclair-db';

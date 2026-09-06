@@ -40,11 +40,13 @@ export class ClonePublishedShareUseCase {
       signal,
     );
 
-    // 2. Commit atomic transaction to Dexie with target destination
+    // 2. Commit atomic transaction to Dexie with target destination.
+    // originShareId stamps exact clone identity onto every imported material.
     const importResult = await this.importStudyPackage.execute({
       package: share.package,
       targetSubjectId: input.targetSubjectId,
       targetTermId: input.targetTermId,
+      originShareId: input.shareId,
     });
 
     // 3. Strict requirement: Track download telemetry ONLY after successful Dexie commit

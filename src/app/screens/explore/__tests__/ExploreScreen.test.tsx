@@ -11,22 +11,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const mockOfficialCatalog = {
-  subjects: [{ id: 'sub_bio', title: 'Biology' }],
-  terms: [{ id: 'term_1', title: 'Prelim' }],
-  subjectTerms: [],
-  materials: [
-    {
-      id: 'mat_cell',
-      title: 'Cell Structure',
-      description: 'Introduction to cell organelles',
-      subjectId: 'sub_bio',
-      termId: 'term_1',
-      updatedAt: '2026-08-28T00:00:00.000Z',
-    },
-  ],
-};
-
 const mockPublicShares = {
   items: [
     {
@@ -40,15 +24,25 @@ const mockPublicShares = {
       downloadCount: 45,
       createdAt: '2026-08-28T00:00:00.000Z',
     },
+    {
+      id: 'share_bio',
+      format: 'lcpack',
+      schemaVersion: 1,
+      title: 'Cell Biology Master Pack',
+      description: 'Official curriculum cell biology package',
+      author: 'Saiko Interactive',
+      isVerified: true,
+      viewCount: 300,
+      downloadCount: 80,
+      createdAt: '2026-08-29T00:00:00.000Z',
+    },
   ],
   nextCursor: null,
   hasMore: false,
 };
 
-describe('ExploreScreen', () => {
+describe('ExploreScreen (shares-only)', () => {
   let mockContext: any;
-  const onOpenMaterial = vi.fn();
-  const onPreview = vi.fn();
   const onOpenShare = vi.fn();
 
   beforeEach(() => {
@@ -57,21 +51,8 @@ describe('ExploreScreen', () => {
 
     mockContext = {
       repositories: {
-        catalog: {
-          getCatalog: vi.fn().mockResolvedValue(mockOfficialCatalog),
-        },
         library: {
           getMaterials: vi.fn().mockResolvedValue([]),
-        },
-      },
-      infrastructure: {
-        repositories: {
-          catalog: {
-            getCatalog: vi.fn().mockResolvedValue(mockOfficialCatalog),
-          },
-          library: {
-            getMaterials: vi.fn().mockResolvedValue([]),
-          },
         },
       },
       useCases: {
@@ -95,13 +76,8 @@ describe('ExploreScreen', () => {
           clonePublishedShare: {
             execute: vi.fn().mockResolvedValue({
               share: mockPublicShares.items[0],
-              importResult: { materials: [{ id: 'mat_new_chem' }] },
+              importResult: { materialIds: ['mat_new_chem'], questionIds: [], quizIds: [], assetIds: [], idMap: new Map() },
             }),
-          },
-        },
-        library: {
-          importMaterial: {
-            execute: vi.fn().mockResolvedValue({}),
           },
         },
       },
@@ -113,107 +89,109 @@ describe('ExploreScreen', () => {
       <QueryClientProvider client={queryClient}>
         <ApplicationContext.Provider value={mockContext}>
           <ToastProvider>
-            <ExploreScreen
-              onOpenMaterial={onOpenMaterial}
-              onPreview={onPreview}
-              onOpenShare={onOpenShare}
-            />
+            <ExploreScreen onOpenShare={onOpenShare} />
           </ToastProvider>
         </ApplicationContext.Provider>
       </QueryClientProvider>,
     );
 
-  it('renders both official course materials and community study packages in All tab', async () => {
+  it('renders unified share cards with verified/community badges, author, and stats', async () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
       expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
+      expect(screen.getByText('Cell Biology Master Pack')).toBeInTheDocument();
     });
 
     expect(screen.getByText('Verified Course')).toBeInTheDocument();
-    expect(screen.getAllByText('Community').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Community')).toBeInTheDocument();
     expect(screen.getByText('prof_dan')).toBeInTheDocument();
     expect(screen.getByText('45 downloads')).toBeInTheDocument();
+    expect(screen.getByText('120 views')).toBeInTheDocument();
   });
 
-  it('filters by source tab when Official or Community is selected', async () => {
+  it('derives exact clone identity from originShareId (no title matching)', async () => {
+    // A local material cloned from share_chem — but with a completely
+    // different title than the share, proving identity is ID-based.
+    mockContext.repositories.library.getMaterials.mockResolvedValue([
+      {
+        id: 'local_mat_1',
+        title: 'My Renamed Chem Notes',
+        originShareId: 'share_chem',
+      },
+    ]);
+
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
+      expect(screen.getByText('In My Library')).toBeInTheDocument();
     });
 
-    // Click Official filter tab
-    const officialTab = screen.getByRole('radio', { name: 'Official' });
-    fireEvent.click(officialTab);
+    const clonedButton = screen.getByRole('button', { name: /Clone Organic Chemistry High Yield/ });
+    expect(clonedButton).toBeDisabled();
 
-    await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
-      expect(screen.queryByText('Organic Chemistry High Yield')).not.toBeInTheDocument();
-    });
-
-    // Click Community filter tab
-    const communityTab = screen.getByRole('radio', { name: 'Community' });
-    fireEvent.click(communityTab);
-
-    await waitFor(() => {
-      expect(screen.queryByText('Cell Structure')).not.toBeInTheDocument();
-      expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
-    });
+    const freshButton = screen.getByRole('button', { name: /Clone Cell Biology Master Pack/ });
+    expect(freshButton).toBeEnabled();
   });
 
-  it('filters items by search input', async () => {
-    renderComponent();
+  it('does not mark shares as in-library on title collision alone', async () => {
+    mockContext.repositories.library.getMaterials.mockResolvedValue([
+      {
+        id: 'local_mat_1',
+        title: 'organic chemistry high yield', // same title, no originShareId
+      },
+    ]);
 
-    await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
-    });
-
-    const searchInput = screen.getByPlaceholderText('Search materials, subjects, authors...');
-    fireEvent.change(searchInput, { target: { value: 'organelles' } });
-
-    await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
-      expect(screen.queryByText('Organic Chemistry High Yield')).not.toBeInTheDocument();
-    });
-  });
-
-  it('navigates to preview on official Preview button click', async () => {
-    renderComponent();
-
-    await waitFor(() => {
-      expect(screen.getByText('Cell Structure')).toBeInTheDocument();
-    });
-
-    const previewBtn = screen.getByRole('button', { name: 'Preview' });
-    fireEvent.click(previewBtn);
-
-    expect(onPreview).toHaveBeenCalledWith('mat_cell');
-  });
-
-  it('navigates to share landing on community View Share button click', async () => {
     renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
     });
 
-    const viewBtn = screen.getByRole('button', { name: 'View Share' });
-    fireEvent.click(viewBtn);
+    expect(screen.queryByText('In My Library')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Clone Organic Chemistry High Yield/ })).toBeEnabled();
+  });
+
+  it('filters shares through the public shares search query', async () => {
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search study packages, authors...');
+    fireEvent.change(searchInput, { target: { value: 'mechanisms' } });
+
+    await waitFor(() => {
+      expect(mockContext.useCases.sharing.listPublicShares.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'mechanisms' }),
+        expect.anything(),
+      );
+    });
+  });
+
+  it('navigates to share landing on View button click', async () => {
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'View Share Organic Chemistry High Yield' }),
+    );
 
     expect(onOpenShare).toHaveBeenCalledWith('share_chem');
   });
 
-  it('triggers 1-click clone on community Clone button click', async () => {
+  it('triggers 1-click clone on Clone button click', async () => {
     renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('Organic Chemistry High Yield')).toBeInTheDocument();
     });
 
-    const cloneBtn = screen.getByRole('button', { name: /Clone/i });
-    fireEvent.click(cloneBtn);
+    fireEvent.click(screen.getByRole('button', { name: /Clone Organic Chemistry High Yield/ }));
 
     await waitFor(() => {
       expect(mockContext.useCases.sharing.clonePublishedShare.execute).toHaveBeenCalledWith({

@@ -19,9 +19,10 @@ import { useToast } from '../providers/ToastContext';
  *
  * The tutorial is bundled app chrome — it never depends on the network — but
  * its Finish AND Skip actions call `SyncDefaultTermsUseCase`, which syncs the
- * canonical academic terms (Prelim / Midterm / Finals) from the SW-cached
- * catalog into Dexie, so dismissal is never punished. Terms additionally
- * arrive via import (which writes its own term rows).
+ * canonical academic terms (Prelim / Midterm / Finals) from the bundled
+ * `CANONICAL_DEFAULT_TERMS` constant into Dexie, so dismissal is never
+ * punished. Terms additionally arrive via import (which writes its own term
+ * rows).
  *
  * Unlike the PWA install surfaces, this is NOT gated off in dev — onboarding
  * is a real product flow and must be testable locally.

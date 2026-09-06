@@ -1,44 +1,35 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncDefaultTermsUseCase } from '../SyncDefaultTermsUseCase';
-import type { CatalogRepository, CatalogSnapshot } from '../../../../domain/library/repositories/CatalogRepository';
+import { CANONICAL_DEFAULT_TERMS } from '../../../../domain/library/models/term.types';
 import type { TermRepository } from '../../../../domain/library/repositories/TermRepository';
 import type { Term } from '../../../../domain/library/models/Term';
 
 describe('SyncDefaultTermsUseCase', () => {
-    const catalogPrelim: Term = {
-        id: 'term-prelim',
+    // Fixed reference instant so upserted timestamps are deterministic.
+    const FIXED_NOW = '2026-09-01T12:00:00.000Z';
+
+    const defaultPrelim: Term = {
+        id: 'prelim',
         title: 'Prelim',
-        createdAt: '2026-09-01T00:00:00.000Z',
-        updatedAt: '2026-09-01T00:00:00.000Z',
+        createdAt: FIXED_NOW,
+        updatedAt: FIXED_NOW,
     };
 
-    const catalogMidterm: Term = {
-        id: 'term-midterm',
+    const defaultMidterm: Term = {
+        id: 'midterm',
         title: 'Midterm',
-        createdAt: '2026-09-01T00:00:00.000Z',
-        updatedAt: '2026-09-01T00:00:00.000Z',
+        createdAt: FIXED_NOW,
+        updatedAt: FIXED_NOW,
     };
 
-    const catalogFinals: Term = {
-        id: 'term-finals',
+    const defaultFinals: Term = {
+        id: 'finals',
         title: 'Finals',
-        createdAt: '2026-09-01T00:00:00.000Z',
-        updatedAt: '2026-09-01T00:00:00.000Z',
+        createdAt: FIXED_NOW,
+        updatedAt: FIXED_NOW,
     };
 
-    const mockCatalogSnapshot: CatalogSnapshot = {
-        subjects: [],
-        terms: [catalogPrelim, catalogMidterm, catalogFinals],
-        subjectTerms: [],
-        materials: [],
-    };
-
-    const createServices = (localTerms: Term[] = []) => {
-        const catalog: CatalogRepository = {
-            getCatalog: vi.fn().mockResolvedValue(mockCatalogSnapshot),
-            getMaterial: vi.fn(),
-        };
-
+    const createTermRepository = (localTerms: Term[] = []) => {
         const terms: TermRepository = {
             getTerms: vi.fn().mockResolvedValue(localTerms),
             getTermById: vi.fn(),
@@ -48,40 +39,49 @@ describe('SyncDefaultTermsUseCase', () => {
             upsertTerms: vi.fn().mockResolvedValue(undefined),
         };
 
-        return { catalog, terms };
+        return terms;
     };
 
-    it('syncs missing default terms into local terms store', async () => {
-        const { catalog, terms } = createServices([]);
-        const useCase = new SyncDefaultTermsUseCase(catalog, terms);
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(FIXED_NOW));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('syncs all missing default terms into local terms store', async () => {
+        const terms = createTermRepository([]);
+        const useCase = new SyncDefaultTermsUseCase(terms);
 
         const result = await useCase.execute();
 
-        expect(terms.upsertTerms).toHaveBeenCalledWith([catalogPrelim, catalogMidterm, catalogFinals]);
+        expect(terms.upsertTerms).toHaveBeenCalledWith([defaultPrelim, defaultMidterm, defaultFinals]);
         expect(result).toEqual({ synced: true, count: 3 });
     });
 
     it('does NOT overwrite existing local user terms (preserves user ownership invariant)', async () => {
         const customLocalPrelim: Term = {
-            id: 'term-prelim',
+            id: 'prelim',
             title: 'My Custom First Quarter Prelims', // User renamed term
             createdAt: '2026-08-01T00:00:00.000Z',
             updatedAt: '2026-08-15T00:00:00.000Z',
         };
 
-        const { catalog, terms } = createServices([customLocalPrelim]);
-        const useCase = new SyncDefaultTermsUseCase(catalog, terms);
+        const terms = createTermRepository([customLocalPrelim]);
+        const useCase = new SyncDefaultTermsUseCase(terms);
 
         const result = await useCase.execute();
 
         // Only Midterm and Finals should be upserted; custom Prelim is untouched
-        expect(terms.upsertTerms).toHaveBeenCalledWith([catalogMidterm, catalogFinals]);
+        expect(terms.upsertTerms).toHaveBeenCalledWith([defaultMidterm, defaultFinals]);
         expect(result).toEqual({ synced: true, count: 2 });
     });
 
     it('is an idempotent no-op when all default terms exist', async () => {
-        const { catalog, terms } = createServices([catalogPrelim, catalogMidterm, catalogFinals]);
-        const useCase = new SyncDefaultTermsUseCase(catalog, terms);
+        const terms = createTermRepository([defaultPrelim, defaultMidterm, defaultFinals]);
+        const useCase = new SyncDefaultTermsUseCase(terms);
 
         const result = await useCase.execute();
 
@@ -89,22 +89,19 @@ describe('SyncDefaultTermsUseCase', () => {
         expect(result).toEqual({ synced: true, count: 0 });
     });
 
-    it('tolerates catalog network fetch failure and returns { synced: false, count: 0 } without throwing', async () => {
-        const { catalog, terms } = createServices([]);
-        vi.mocked(catalog.getCatalog).mockRejectedValue(new Error('Network offline'));
-
-        const useCase = new SyncDefaultTermsUseCase(catalog, terms);
-        const result = await useCase.execute();
-
-        expect(result).toEqual({ synced: false, count: 0 });
-        expect(terms.upsertTerms).not.toHaveBeenCalled();
+    it('requires no network — canonical terms come from the bundled constant', async () => {
+        expect(CANONICAL_DEFAULT_TERMS).toEqual([
+            { id: 'prelim', title: 'Prelim' },
+            { id: 'midterm', title: 'Midterm' },
+            { id: 'finals', title: 'Finals' },
+        ]);
     });
 
     it('propagates persistence errors when terms.upsertTerms rejects', async () => {
-        const { catalog, terms } = createServices([]);
+        const terms = createTermRepository([]);
         vi.mocked(terms.upsertTerms).mockRejectedValue(new Error('IndexedDB disk write error'));
 
-        const useCase = new SyncDefaultTermsUseCase(catalog, terms);
+        const useCase = new SyncDefaultTermsUseCase(terms);
         await expect(useCase.execute()).rejects.toThrow('IndexedDB disk write error');
     });
 });

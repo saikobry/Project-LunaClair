@@ -1,30 +1,25 @@
 /**
- * Types and filter contracts for the Explore Discovery Hub (Milestone 11E).
+ * Types for the Explore Discovery Hub.
+ *
+ * Explore surfaces exactly one content kind: published `.lcpack` study
+ * package shares. Official/verified packages are just shares flagged
+ * `isVerified` by the platform; there is no separate catalog item shape.
  */
 
-export type ExploreSourceFilter = 'all' | 'official' | 'community';
 export type ExploreSortOption = 'popular' | 'recent';
 
-export type ExploreContentItem =
-  | {
-      source: 'official';
-      id: string;
-      title: string;
-      description?: string;
-      subjectId?: string;
-      subjectName: string;
-      termId?: string;
-      termName: string;
-      isInLibrary: boolean;
-    }
-  | {
-      source: 'community';
-      id: string;
-      title: string;
-      description?: string;
-      author?: string;
-      viewCount: number;
-      downloadCount: number;
-      createdAt: string;
-      isInLibrary: boolean;
-    };
+export interface ExploreContentItem {
+  id: string;
+  title: string;
+  description?: string;
+  author?: string;
+  viewCount: number;
+  downloadCount: number;
+  createdAt: string;
+  /** Platform-verified course package (e.g. seeded official curriculum). */
+  isVerified: boolean;
+  /** Exact clone identity: the share's package already lives in the local library. */
+  isInLibrary: boolean;
+  subjectId?: string;
+  termId?: string;
+}

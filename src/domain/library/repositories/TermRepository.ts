@@ -16,8 +16,8 @@ export interface TermRepository {
   deleteTerm(id: string): Promise<void>;
   /**
    * Idempotent bulk upsert by id (insert-or-overwrite). Used to sync
-   * canonical catalog terms into local state — e.g. `SyncDefaultTermsUseCase`
-   * writing the default academic terms after onboarding.
+   * canonical default terms into local state — e.g. `SyncDefaultTermsUseCase`
+   * writing `CANONICAL_DEFAULT_TERMS` after onboarding.
    */
   upsertTerms(terms: Term[]): Promise<void>;
 }

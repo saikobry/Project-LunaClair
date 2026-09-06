@@ -12,6 +12,8 @@ export interface ImportStudyPackageInput {
   package: StudyPackage | unknown;
   targetSubjectId?: string;
   targetTermId?: string;
+  /** Cloud share ID this package was cloned from (records exact clone identity on materials). */
+  originShareId?: string;
   idGenerator?: LocalIdGenerator;
 }
 
@@ -63,6 +65,7 @@ export class ImportStudyPackageUseCase {
       order: mat.order ?? 0,
       createdAt: now,
       updatedAt: now,
+      originShareId: input.originShareId,
     }));
 
     const documentContentRecords: ImportedDocumentContent[] = remapped.materials.map((mat) => ({

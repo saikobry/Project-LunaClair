@@ -25,7 +25,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (aggregates material and subject management dialogs).
     - `screens/subject-workspace/` — `SubjectWorkspaceScreen.tsx` & `SubjectQuizTab.tsx` (orchestrates subject metadata, materials tab, terms tab, and subject quiz tree).
     - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).
-    - `screens/explore/` — `ExploreScreen.tsx` (remote catalog exploration and public share hub).
+    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
     - `screens/preview-material/` — `PreviewMaterialScreen.tsx` (read-only document preview surface).
     - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).

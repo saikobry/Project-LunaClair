@@ -32,7 +32,7 @@ export function createLibraryUseCases(infrastructure: Infrastructure) {
             importMaterial: new ImportMaterialUseCase(repositories.catalog, repositories.quizContent, repositories.document, services.libraryImport),
             importSubject: new ImportSubjectUseCase(repositories.catalog, repositories.library, repositories.quizContent, repositories.document, services.libraryImport),
             removeImportedMaterial: new RemoveImportedMaterialUseCase(services.libraryImport),
-            syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.catalog, repositories.term),
+            syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.term),
         },
         subject: {
             createSubject: new CreateSubjectUseCase(repositories.subject),

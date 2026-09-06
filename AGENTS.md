@@ -101,6 +101,7 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
 | Regenerate Worker types | `npm run types:worker` |
 | Generate D1 migration (Drizzle) | `npm run db:generate` |
 | Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:remote` |
+| Seed share packages (Explore, dry-run) | `npm run seed:shares:local` / `npm run seed:shares:remote` |
 
 **Build process**: `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
@@ -159,7 +160,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - Offline synchronization (sync queue, single SQL CAS, conflict resolution) and Cloud Sharing (`.lcpack` / D1 share links) are shipped.
 - Icon pipeline: `npm run generate:pwa-assets` regenerates `pwa-*`/maskable/apple-touch PNGs in `public/` from `public/app-icon.svg` (a square derivation of `favicon.svg`).
 - Install discovery (community-reviewed, Aug 2026): quiet opt-in `Install app` / `Add to Home Screen` sidebar entry + a one-time iOS-only card from the second visit (dismissed forever, hidden when installed and in dev). Deliberately no `beforeinstallprompt`/deferred-prompt machinery — Chromium already surfaces install natively, iOS has none. Details in `src/app/AGENTS.md`.
-- First-run onboarding (Aug 2026): one-time, skippable welcome tutorial mounted by `AppShell` — bundled app chrome with zero network dependency; its Finish AND Skip actions call `SyncDefaultTermsUseCase` to sync the default academic terms into Dexie from the (SW-cached) catalog (dismissal is never punished). Details in `src/app/AGENTS.md`.
+- First-run onboarding (Aug 2026): one-time, skippable welcome tutorial mounted by `AppShell` — bundled app chrome with zero network dependency; its Finish AND Skip actions call `SyncDefaultTermsUseCase` to sync the default academic terms into Dexie from bundled constants (`CANONICAL_DEFAULT_TERMS` — zero network dependency, dismissal is never punished). Details in `src/app/AGENTS.md`.
 
 ## Cloudflare / D1
 
@@ -169,6 +170,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - Schema is authored with Drizzle ORM (`worker/src/schema.ts` → `npm run db:generate` → versioned migrations in `worker/migrations/`); `GET /health` on the Worker verifies D1 connectivity.
 - Remote SQL: `npx wrangler d1 execute lunaclair --remote --command "<sql>"`.
 - Offline synchronization (Dexie ⇄ D1 sync queue, single-flight sync engine, conflict resolution) and Cloud Sharing (`/api/shares`) are active in production.
+- Share seeder (`scripts/seed-shares.mjs`): transforms canonical content (`content/catalog/materials.json` + `content/materials/*/index.md` + figures + `content/quiz/*.json`) into `.lcpack` StudyPackage payloads and publishes them as `public` shares via `POST /api/shares`. Every package must pass the `MAX_SHARE_PAYLOAD_BYTES` (5 MiB) size guard after base64 encoding and satisfy both the Worker validator (`validateServerStudyPackage`) and the stricter client validator (strict `pkg_*_[a-zA-Z0-9_-]` IDs, `metadata.createdAt`) so Explore cloning round-trips. The `seed:shares:*` npm scripts are dry-run validators only; publishing requires `node scripts/seed-shares.mjs --local|--remote` (idempotent by title, `--force` to delete + republish). Oversized packages fail loudly by design. Figure budget: `content/materials/**/images` must keep every material's serialized package under the 5 MiB ceiling; re-optimize in place via `node scripts/optimize-figures.mjs` (sharp PNG, filenames preserved) when figures grow.
 - See `worker/AGENTS.md` for Worker-specific contracts.
 
 ## Conventions

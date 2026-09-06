@@ -9,4 +9,6 @@ export interface StudyMaterial {
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;
+  /** Cloud share this material was cloned from (exact clone identity; undefined for non-cloned materials). */
+  originShareId?: string;
 }

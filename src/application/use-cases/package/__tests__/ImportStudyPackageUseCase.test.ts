@@ -33,9 +33,10 @@ describe('ImportStudyPackageUseCase', () => {
     };
 
     it('validates, remaps IDs, and delegates atomic persistence to StudyPackageImportService', async () => {
-        const mockImportService: StudyPackageImportService = {
-            importStudyPackage: vi.fn().mockResolvedValue(undefined),
-        };
+        const importStudyPackage = vi.fn().mockResolvedValue(undefined);
+        const mockImportService = {
+            importStudyPackage,
+        } as unknown as StudyPackageImportService;
 
         const useCase = new ImportStudyPackageUseCase(mockImportService);
 
@@ -50,6 +51,28 @@ describe('ImportStudyPackageUseCase', () => {
         expect(result.questionIds).toHaveLength(1);
         expect(result.idMap.has('pkg_mat_1')).toBe(true);
         expect(result.idMap.has('pkg_q_1')).toBe(true);
+
+        const committed = importStudyPackage.mock.calls[0][0];
+        expect(committed.materials[0].originShareId).toBeUndefined();
+    });
+
+    it('records originShareId on every imported material when provided', async () => {
+        const importStudyPackage = vi.fn().mockResolvedValue(undefined);
+        const mockImportService = {
+            importStudyPackage,
+        } as unknown as StudyPackageImportService;
+
+        const useCase = new ImportStudyPackageUseCase(mockImportService);
+
+        await useCase.execute({
+            package: validPackage,
+            originShareId: 'share_abc123',
+        });
+
+        const committed = importStudyPackage.mock.calls[0][0];
+        for (const material of committed.materials) {
+            expect(material.originShareId).toBe('share_abc123');
+        }
     });
 
     it('rejects invalid package before storage is touched', async () => {

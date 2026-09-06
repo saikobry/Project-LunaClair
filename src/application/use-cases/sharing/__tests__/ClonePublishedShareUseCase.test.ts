@@ -63,6 +63,7 @@ describe('ClonePublishedShareUseCase', () => {
             package: mockPackage,
             targetSubjectId: 'sub_1',
             targetTermId: undefined,
+            originShareId: 'share_test',
         });
         expect(mockTrack.execute).toHaveBeenCalledWith({ shareId: 'share_test' }, undefined);
         expect(result.share.id).toBe('share_test');
