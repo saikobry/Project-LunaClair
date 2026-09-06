@@ -189,8 +189,6 @@ export interface ExploreScreenProps {
   /** Opens the share landing page for a published study package. */
   onOpenShare: (shareId: string) => void;
   /** @deprecated Legacy official-catalog hookups; Explore is shares-only. Kept optional for route compatibility. */
-  onPreview?: (materialId: string) => void;
-  /** @deprecated Legacy official-catalog hookups; Explore is shares-only. Kept optional for route compatibility. */
   onOpenMaterial?: (materialId: string) => void;
 }
 

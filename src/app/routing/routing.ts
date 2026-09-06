@@ -9,7 +9,6 @@ export type AppRoute =
   | { kind: 'explore'; initialFilter?: 'all' | 'official' | 'community' }
   | { kind: 'available' }
   | { kind: 'analytics' }
-  | { kind: 'preview'; materialId: string }
   | { kind: 'import' }
   | { kind: 'terms' }
   | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
@@ -33,8 +32,6 @@ export function routeToUrl(route: AppRoute): string {
       return '/analytics';
     case 'import':
       return '/import';
-    case 'preview':
-      return `/available/${route.materialId}/preview`;
     case 'terms':
       return '/terms';
     case 'share':
@@ -66,12 +63,6 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   const shortShareMatch = url.pathname.match(/^\/s\/([^/]+)$/);
   if (shortShareMatch) {
     return { kind: 'share', shareId: shortShareMatch[1] };
-  }
-
-  // /available/:materialId/preview — read-only preview of a not-yet-imported material
-  const previewMatch = url.pathname.match(/^\/available\/([^/]+)\/preview$/);
-  if (previewMatch) {
-    return { kind: 'preview', materialId: previewMatch[1] };
   }
 
   // /materials/:materialId/builder[/:quizId] — dedicated quiz canvas route

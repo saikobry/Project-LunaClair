@@ -11,7 +11,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `materials/` | ✅ Implemented | Local study material management — material entities, `MaterialCard`, `SubjectCardGrid`, `MaterialGrid`, `LibraryView`, material CRUD modals (`CreateMaterialModal`, `EditMaterialModal`, `DeleteConfirmationModal`), and library queries (`useLibrary`, `useMaterial`, `useLibraryRepository`, `materialQueryKeys`). Pure leaf context with zero cross-feature dependencies. |
 | `subjects/` | ✅ Implemented | Academic subject hierarchy — subject entities, `MaterialsTab`, subject CRUD modals (`CreateSubjectModal`, `EditSubjectModal`), and subject hooks (`useSubject`, `useSubjects`, `useCreateSubject`, `useEditSubject`, `useDeleteSubject`, `useReorderSubjects`, `subjectQueryKeys`). |
 | `terms/` | ✅ Implemented | Academic terms and subject-term junctions — `SubjectTermsTab`, `SubjectTermList`, term modals (`CreateTermModal`, `AddExistingTermModal`, `UnlinkTermConfirmationModal`), term usage counters (`useTermUsageCounts`, `useSubjectTermUsage`), and term hooks (`useTerms`, `useTerm`, `useCreateTerm`, `useEditTerm`, `useDeleteTerm`, `useSubjectTermMutations`, `termQueryKeys`). |
-| `discovery/` | ✅ Implemented | Content discovery and explore hub — remote catalog queries (`GET /api/catalog`), `useAvailableCatalog`, authoritative single-material resolution (`useAvailableMaterial`), preview document queries (`usePreviewDocument`), shares-only Explore content with sorting and search (`useExploreContent`), public share discovery and 1-click cloning (`usePublicShares`, `useCloneShare`), and import/remove mutations (`useImportMaterial`, `useRemoveImportedMaterial`, `discoveryQueryKeys`). |
+| `discovery/` | ✅ Implemented | Content discovery and explore hub — remote catalog queries (`GET /api/catalog`, `useAvailableCatalog`), shares-only Explore content with sorting and search (`useExploreContent`), public share discovery and 1-click cloning (`usePublicShares`, `useCloneShare`), and remove-imported mutation (`useRemoveImportedMaterial`, `discoveryQueryKeys`). |
 | `reader/` | ✅ Implemented | Markdown rendering, highlights, drawing canvas, TOC, TanStack Query + DI repositories. |
 | `quiz/` | ✅ Implemented | Assessment engine — question renderer (5 types), quiz player (`QuizScreen`/`QuizStartView`/`QuizView`/`QuizResultView`), semantic badge appearance palette (`quizBadgeAppearance`), session flow hooks (atomic evaluation & submission via `SubmitQuizSessionUseCase`, session abandonment via `AbandonQuizSessionUseCase`), Subject Quiz Explorer tree & selection hooks, DI repositories. |
 | `quiz-management/` | ✅ Implemented | Question Bank authoring, Quiz Catalog builder, QuestionEditorRegistry (5 type editors), application use-case adapters, publish/archive workflows, Quiz Canvas subsystem. |
@@ -55,9 +55,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - **Cross-feature direct paths allow-list:**
     - `screens/library/*` → `features/materials/components/LibraryView`, `features/materials/modals/*`, `features/subjects/modals/*`, `features/terms/hooks/queries/useTerms`
     - `screens/subject-workspace/*` → `features/subjects/hooks/queries/useSubject`, `features/materials/components/MaterialsTab`, `features/terms/components/SubjectTermsTab`, `features/terms/hooks/queries/useTerms`, `features/quiz/hooks/queries/useSubjectQuizTree`
-    - `screens/material-workspace/*` → `features/materials/hooks/queries/useMaterial`, `features/reader/ReaderScreen`, `features/writer/components/MaterialWriterTab`, `features/quiz/QuizScreen`, `features/quiz-management/QuizManagementScreen`, `features/flashcards/FlashcardScreen`, `features/ai/components/AiChatDrawer`
-    - `screens/explore/*` → `features/discovery/hooks/useExploreContent`, `features/discovery/hooks/useCloneShare`
-    - `screens/preview-material/*` → `features/discovery/hooks/queries/useAvailableMaterial`, `features/discovery/hooks/queries/usePreviewDocument`, `features/discovery/hooks/mutations/useImportMaterial`, `features/reader/components/MarkdownViewer`
+    - `screens/material-workspace/*` → `features/materials/hooks/queries/useMaterial`, `features/reader/ReaderScreen`, `features/writer/components/MaterialWriterTab`, `features/quiz/QuizScreen`, `features/quiz-management/QuizManagementScreen`, `features/flashcards/FlashcardScreen`, `features/ai/components/AiChatDrawer`    - `screens/explore/*` → `features/discovery/hooks/useExploreContent`, `features/discovery/hooks/useCloneShare`
     - `screens/terms/*` → `features/terms/hooks/queries/useTerms`, `features/terms/hooks/queries/useTermUsageCounts`, `features/terms/hooks/mutations/useCreateTerm`, `features/terms/hooks/mutations/useEditTerm`, `features/terms/hooks/mutations/useDeleteTerm`
     - `writer/components/MaterialWriterTab` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
     - `writer/hooks/useMaterialWriterState` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
@@ -67,9 +65,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `quiz-management/components/QuestionBankTab` → `features/ai/generator/components/AiQuestionGeneratorDialog`, `features/quiz/utils/quizBadgeAppearance`
     - `ai/generator/components/GeneratedQuestionPreviewCard` → `features/quiz/utils/quizBadgeAppearance`
     - `terms/components/SubjectTermsTab` → `features/materials/hooks/queries/useLibrary`
-    - `terms/hooks/queries/useTermUsageCounts` → `features/materials/hooks/queries/useLibrary`
-    - `discovery/hooks/mutations/useImportMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`, `features/subjects/queries/subjectQueryKeys`
-    - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`, `features/subjects/queries/subjectQueryKeys`
+    - `terms/hooks/queries/useTermUsageCounts` → `features/materials/hooks/queries/useLibrary`    - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`, `features/subjects/queries/subjectQueryKeys`
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
     - `package/components/StudyPackagePreviewModal` → `features/subjects/hooks/queries/useSubjects`, `features/terms/hooks/queries/useTerms`
@@ -92,7 +88,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `src/features/materials/AGENTS.md` | `src/features/materials/` | Study Materials — local library management, material cards, material CRUD dialogs |
 | `src/features/subjects/AGENTS.md` | `src/features/subjects/` | Academic Subjects — subject entities, cards, hierarchy, and subject modals |
 | `src/features/terms/AGENTS.md` | `src/features/terms/` | Academic Terms — terms management, subject-term junctions, and usage counts |
-| `src/features/discovery/AGENTS.md` | `src/features/discovery/` | Content Discovery — remote catalog exploration, public share cloning, and read-only previews |
+| `src/features/discovery/AGENTS.md` | `src/features/discovery/` | Content Discovery — remote catalog exploration, public share cloning, shares-only Explore hub |
 | `src/features/quiz/AGENTS.md` | `src/features/quiz/` | Quiz Assessment Engine — live session runner, question renderer, session state machine |
 | `src/features/flashcards/AGENTS.md` | `src/features/flashcards/` | Spaced-Repetition Study — SM-2 scheduling, card projection, 3D flip card player |
 | `src/features/analytics/AGENTS.md` | `src/features/analytics/` | Analytics & Learning Insights feature — Study overview, retention, mastery, activity heatmap |

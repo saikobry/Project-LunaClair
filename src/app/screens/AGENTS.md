@@ -15,9 +15,7 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
 - `material-workspace/` — Material Workspace Screen:
   - `MaterialWorkspaceScreen.tsx` — Material workspace route (`/materials/:materialId`) with Read, Write, Quiz, Flashcards, and Manage tabs.
 - `explore/` — Explore Hub Screen:
-  - `ExploreScreen.tsx` — Content discovery route (`/explore`), shares-only: one unified card list of published `.lcpack` shares (verified/community badge, exact `originShareId` clone identity, 1-click cloning). No catalog section and no source filter; `onPreview`/`onOpenMaterial` remain optional no-op-compatible props for route wiring.
-- `preview-material/` — Material Preview Screen:
-  - `PreviewMaterialScreen.tsx` — Read-only material preview route (`/available/:materialId/preview`) with Add to Library CTA.
+  - `ExploreScreen.tsx` — Content discovery route (`/explore`), shares-only: one unified card list of published `.lcpack` shares (verified/community badge, exact `originShareId` clone identity, 1-click cloning). No catalog section and no source filter; `onOpenMaterial` remains an optional no-op-compatible prop for route wiring.
 - `terms/` — Academic Terms Manager Screen:
   - `TermManagerScreen.tsx` — Academic term management route (`/terms`) with term CRUD and catalog usage metrics.
 - `quiz-session/` — Quiz Session Runner Screen:

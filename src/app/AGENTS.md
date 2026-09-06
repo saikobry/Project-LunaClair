@@ -17,17 +17,14 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 - `routing/` — Navigation Engine & View Switcher:
   - `routing/routing.ts` — `AppRoute` union types, URL path parser (`urlToRoute`), and URL serializers (`routeToUrl`).
-  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.
-  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Preview / Terms / Analytics / Subject / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
+  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Terms / Analytics / Subject / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
 
 - `screens/` — Application Screen & Route Composition Layer (ADR-014):
   - Route-level screens and cross-feature orchestrations:
     - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (aggregates material and subject management dialogs).
     - `screens/subject-workspace/` — `SubjectWorkspaceScreen.tsx` & `SubjectQuizTab.tsx` (orchestrates subject metadata, materials tab, terms tab, and subject quiz tree).
-    - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).
-    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
-    - `screens/preview-material/` — `PreviewMaterialScreen.tsx` (read-only document preview surface).
-    - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
+    - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
+    - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
     - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).
     - `screens/analytics/` — `AnalyticsScreen.tsx` (learning insights and study metrics screen).

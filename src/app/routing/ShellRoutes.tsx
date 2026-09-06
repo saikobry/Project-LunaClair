@@ -8,7 +8,6 @@ import MaterialWorkspaceScreen from '../screens/material-workspace/MaterialWorks
 
 // Route-level code-splitting for screen compositions
 const ExploreScreen = lazy(() => import('../screens/explore/ExploreScreen'));
-const PreviewMaterialScreen = lazy(() => import('../screens/preview-material/PreviewMaterialScreen'));
 const SubjectWorkspaceScreen = lazy(() => import('../screens/subject-workspace/SubjectWorkspaceScreen'));
 const TermManagerScreen = lazy(() =>
   import('../screens/terms/TermManagerScreen').then((m) => ({ default: m.TermManagerScreen })),
@@ -124,17 +123,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
         <Suspense fallback={<WorkspaceSkeleton />}>
           <ExploreScreen
             onOpenMaterial={handleOpenMaterial}
-            onPreview={(materialId) => navigate({ kind: 'preview', materialId })}
             onOpenShare={(shareId) => navigate({ kind: 'share', shareId })}
-          />
-        </Suspense>
-      )}
-      {currentRoute.kind === 'preview' && (
-        <Suspense fallback={<WorkspaceSkeleton />}>
-          <PreviewMaterialScreen
-            materialId={currentRoute.materialId}
-            onBack={() => navigate({ kind: 'explore' })}
-            onOpenMaterial={handleOpenMaterial}
           />
         </Suspense>
       )}

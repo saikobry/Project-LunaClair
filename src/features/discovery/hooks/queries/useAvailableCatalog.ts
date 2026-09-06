@@ -6,7 +6,8 @@ import { ApplicationContext } from '../../../../app/providers/ApplicationContext
 /**
  * Query hook for the **remote** catalog (`GET /api/catalog`) — server state
  * surfaced as "Available Materials". Never copied wholesale into Dexie;
- * materials are imported on user action via `useImportMaterial`.
+ * materials enter the local library only through explicit user action
+ * (package import / share clone).
  *
  * Uses the existing catalog query-key namespace (`['library', ...]`), so
  * invalidating after an import/removal reconciles both the local library and
