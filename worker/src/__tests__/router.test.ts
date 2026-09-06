@@ -72,8 +72,8 @@ describe('Zero-Framework Router Unit & Architectural Tests', () => {
       } as unknown as D1Database,
     };
 
-    // Access an endpoint that performs DB operations without its own internal catch (e.g. documents)
-    const req = new Request('https://api.test/api/documents/some-doc');
+    // Access an endpoint that performs DB operations without its own internal catch (e.g. shares)
+    const req = new Request('https://api.test/api/shares/some-share');
     const res = await worker.fetch(req, crashingEnv);
 
     expect(res.status).toBe(500);

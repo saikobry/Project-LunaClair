@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { MaterialWriterTab } from '../../components/MaterialWriterTab';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
-import type { Document } from '../../../../domain/reader/models/Document';
 import type { DocumentContentRepository, ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import { UpdateDocumentContentUseCase } from '../../../../application/use-cases/content/UpdateDocumentContentUseCase';
 import { HybridDocumentRepository } from '../../../../infrastructure/storage/repositories/HybridDocumentRepository';
@@ -49,7 +48,6 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
 
   let localStore: Map<string, ImportedDocumentContent>;
   let localDocRepo: DocumentContentRepository;
-  let remoteDocRepo: { getDocumentByMaterial: (mat: StudyMaterial) => Promise<Document> };
   let hybridDocRepo: HybridDocumentRepository;
   let shouldFailSave: boolean;
 
@@ -90,16 +88,7 @@ describe('Stage 4C — MaterialWriterTab UI State & Lifecycle Component Tests', 
       },
     };
 
-    remoteDocRepo = {
-      getDocumentByMaterial: async (mat: StudyMaterial) => ({
-        id: mat.id,
-        title: mat.title,
-        content: `# Remote fallback for ${mat.title}`,
-        format: 'markdown',
-      }),
-    };
-
-    hybridDocRepo = new HybridDocumentRepository(localDocRepo, remoteDocRepo);
+    hybridDocRepo = new HybridDocumentRepository(localDocRepo);
   });
 
   function renderWriterTab(materialId = 'mat-1') {

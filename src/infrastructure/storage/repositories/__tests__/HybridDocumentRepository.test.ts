@@ -1,13 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HybridDocumentRepository } from '../HybridDocumentRepository';
 import type { DocumentContentRepository } from '../../../../domain/reader/repositories/DocumentContentRepository';
-import type { DocumentRepository } from '../../../../domain/reader/repositories/DocumentRepository';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
-import { DocumentNotFoundError } from '../../../../domain/reader/errors/DocumentNotFoundError';
 
 describe('HybridDocumentRepository', () => {
     let mockLocalRepo: DocumentContentRepository;
-    let mockRemoteRepo: DocumentRepository;
     let hybridRepo: HybridDocumentRepository;
 
     const sampleMaterial: StudyMaterial = {
@@ -25,11 +22,7 @@ describe('HybridDocumentRepository', () => {
             deleteByDocumentId: vi.fn(),
         } as unknown as DocumentContentRepository;
 
-        mockRemoteRepo = {
-            getDocumentByMaterial: vi.fn(),
-        } as unknown as DocumentRepository;
-
-        hybridRepo = new HybridDocumentRepository(mockLocalRepo, mockRemoteRepo);
+        hybridRepo = new HybridDocumentRepository(mockLocalRepo);
     });
 
     it('returns local document content when available locally', async () => {
@@ -48,34 +41,11 @@ describe('HybridDocumentRepository', () => {
             content: '# Local Notes',
             format: 'markdown',
         });
-        expect(mockRemoteRepo.getDocumentByMaterial).not.toHaveBeenCalled();
+        expect(mockLocalRepo.getByDocumentId).toHaveBeenCalledWith('doc-1', undefined);
     });
 
-    it('falls back to remote repository when not found in local store', async () => {
+    it('returns empty document markdown when document is not yet found in local store', async () => {
         vi.mocked(mockLocalRepo.getByDocumentId).mockResolvedValue(null);
-        vi.mocked(mockRemoteRepo.getDocumentByMaterial).mockResolvedValue({
-            id: 'mat-1',
-            title: 'Cell Biology Notes (Remote)',
-            content: '# Remote Content',
-            format: 'markdown',
-        });
-
-        const doc = await hybridRepo.getDocumentByMaterial(sampleMaterial);
-
-        expect(doc).toEqual({
-            id: 'mat-1',
-            title: 'Cell Biology Notes (Remote)',
-            content: '# Remote Content',
-            format: 'markdown',
-        });
-        expect(mockRemoteRepo.getDocumentByMaterial).toHaveBeenCalledWith(sampleMaterial, undefined);
-    });
-
-    it('returns empty document markdown when remote throws DocumentNotFoundError', async () => {
-        vi.mocked(mockLocalRepo.getByDocumentId).mockResolvedValue(null);
-        vi.mocked(mockRemoteRepo.getDocumentByMaterial).mockRejectedValue(
-            new DocumentNotFoundError('doc-1')
-        );
 
         const doc = await hybridRepo.getDocumentByMaterial(sampleMaterial);
 
@@ -87,13 +57,12 @@ describe('HybridDocumentRepository', () => {
         });
     });
 
-    it('rethrows unexpected errors from remote repository', async () => {
+    it('propagates abort signal to local repository lookup', async () => {
+        const controller = new AbortController();
         vi.mocked(mockLocalRepo.getByDocumentId).mockResolvedValue(null);
-        const networkError = new Error('Network timeout');
-        vi.mocked(mockRemoteRepo.getDocumentByMaterial).mockRejectedValue(networkError);
 
-        await expect(hybridRepo.getDocumentByMaterial(sampleMaterial)).rejects.toThrow(
-            'Network timeout'
-        );
+        await hybridRepo.getDocumentByMaterial(sampleMaterial, controller.signal);
+
+        expect(mockLocalRepo.getByDocumentId).toHaveBeenCalledWith('doc-1', controller.signal);
     });
 });

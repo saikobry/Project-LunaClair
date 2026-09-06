@@ -2,18 +2,15 @@
 
 ## Purpose
 
-Owns remote catalog discovery, Explore hub aggregation, and public share cloning. Interfaces with the Cloudflare D1 worker API for available learning materials.
+Owns Explore hub aggregation and public share discovery/cloning. Interfaces with the Cloudflare D1 worker API for published `.lcpack` study packages.
 
 ## Ownership
 
 - `explore.types.ts` — Shares-only Explore types: single `ExploreContentItem` shape for published `.lcpack` shares (`isVerified` platform badge, `isInLibrary` exact clone identity) and `ExploreSortOption`; `ExploreSourceFilter` was removed — Explore has no official/community split.
-  - `queries/useAvailableCatalog.ts` — Query hook fetching the remote D1 catalog snapshot (`GET /api/catalog`).
-  - `useExploreContent.ts` — Shares-only explore aggregator: queries public shares, derives `isInLibrary` from the materials' `originShareId` set (exact clone identity, never title matching). The official catalog is no longer an Explore content source.
+  - `useExploreContent.ts` — Shares-only explore aggregator: queries public shares, derives `isInLibrary` from the materials' `originShareId` set (exact clone identity, never title matching).
   - `usePublicShares.ts` — Query hook fetching public shares (`GET /api/shares`).
   - `useCloneShare.ts` — Mutation hook for 1-click cloning of published study packages into the local library.
-  - `mutations/useRemoveImportedMaterial.ts` — Mutation hook removing an imported material from Dexie.
-- `queries/` — Cache key definitions:
-  - `discoveryQueryKeys.ts` — Query key factory for the remote catalog snapshot (`['catalog', 'remote']`).
+  - `mutations/useRemoveImportedMaterial.ts` — Mutation hook removing an imported material from Dexie (invalidates `materialQueryKeys` + `subjectQueryKeys`).
 
 ## Local Contracts
 

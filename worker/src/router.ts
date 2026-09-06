@@ -1,11 +1,7 @@
 import { methodNotAllowed, notFound } from './core/responses';
 import type { Env, RouteContext, RouteHandler } from './core/types';
 import { handleAiChat } from './routes/ai';
-import { handleGetCatalog, handleGetCatalogMaterial, handlePutCatalog } from './routes/catalog';
-import { handleGetDocument, handlePutDocument } from './routes/documents';
-import { handleGetFigure, handlePutFigure } from './routes/figures';
 import { handleHealth } from './routes/health';
-import { handleGetQuiz, handlePutQuiz } from './routes/quiz';
 import {
   handleCreateShare,
   handleDeleteShare,
@@ -159,35 +155,6 @@ export function createRouter(): Router {
 
   // Health check
   router.register(['GET', 'HEAD'], '/health', handleHealth);
-
-  // Documents
-  router.register(['GET', 'HEAD'], '/api/documents/:documentId', handleGetDocument);
-  router.register('PUT', '/api/documents/:documentId', handlePutDocument);
-
-  // Figures
-  router.register(
-    ['GET', 'HEAD'],
-    '/api/documents/:documentId/figures/:filename',
-    handleGetFigure,
-  );
-  router.register(
-    'PUT',
-    '/api/documents/:documentId/figures/:filename',
-    handlePutFigure,
-  );
-
-  // Catalog
-  router.register(['GET', 'HEAD'], '/api/catalog', handleGetCatalog);
-  router.register('PUT', '/api/catalog', handlePutCatalog);
-  router.register(
-    ['GET', 'HEAD'],
-    '/api/catalog/materials/:id',
-    handleGetCatalogMaterial,
-  );
-
-  // Quiz
-  router.register(['GET', 'HEAD'], '/api/quiz', handleGetQuiz);
-  router.register('PUT', '/api/quiz', handlePutQuiz);
 
   // AI Streaming completions
   router.register('POST', '/api/ai/chat', handleAiChat);

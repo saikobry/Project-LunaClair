@@ -3,7 +3,6 @@ import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { useToast } from '../../../app/providers/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { discoveryQueryKeys } from '../queries/discoveryQueryKeys';
 import { materialQueryKeys } from '../../materials/queries/materialQueryKeys';
 
 export function useCloneShare() {
@@ -26,7 +25,6 @@ export function useCloneShare() {
 
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: materialQueryKeys.materials() }),
-          queryClient.invalidateQueries({ queryKey: discoveryQueryKeys.all }),
           queryClient.invalidateQueries({ queryKey: ['public-shares'] }),
         ]);
 

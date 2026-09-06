@@ -39,15 +39,9 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieSyncReconciler.ts` → `SyncReconciler`
     - `transactionalOutbox.ts` → `runSyncableTransaction`
 - `api/` — Cloudflare Worker REST API boundary:
-  - `repositories/` — Remote API query/fetch repository implementations:
-    - `ApiCatalogRepository.ts` → `CatalogRepository` (`GET /api/catalog`, `GET /api/catalog/materials/:id`)
-    - `ApiDocumentRepository.ts` → `DocumentRepository` (`GET /api/documents/:documentId`)
-    - `ApiQuizContentRepository.ts` → `QuizContentRepository` (`GET /api/quiz`)
   - `transports/` — Cloudflare Worker HTTP network transports:
     - `WorkerSyncTransport.ts` → `SyncTransport` (`/api/sync/pull`, `/api/sync/push`)
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
-  - `transformers/` — Content formatting and URL rewriting:
-    - `markdownPreprocessor.ts` → `preprocessMarkdown`
 - `browser/` — Browser environment and runtime capability adapters:
   - `lifecycle/` — Browser event integrations:
     - `BrowserSyncLifecycle.ts` → Window `online`, `visibilitychange`, and periodic interval triggers
@@ -70,7 +64,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `parseStructuredAiResponse.ts` → Stream parser and structured validator
 - `storage/` — Composite multi-tier storage repositories:
   - `repositories/`:
-    - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first read with remote API fallback)
+    - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first read with empty fallback for unauthored materials)
 
 ## Local Contracts
 
@@ -80,7 +74,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
 - **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
 - **Atomic Dexie Transactions**: Multi-table operations (`DexieTermService.createAndAssignTerm`, `DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
-- **No Auto-Hydration**: The app boots with an empty local library; canonical catalog content is surfaced via the remote API and explicitly imported by user action.
+- **No Auto-Hydration**: The app boots with an empty local library; courses are discovered via StudyPackage shares or imported as `.lcpack` bundles and explicitly cloned/imported by user action.
 
 ## Work Guidance
 

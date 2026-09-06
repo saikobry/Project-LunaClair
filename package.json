@@ -20,12 +20,6 @@
     "db:generate": "drizzle-kit generate",
     "db:apply:local": "wrangler d1 migrations apply lunaclair --local",
     "db:apply:remote": "wrangler d1 migrations apply lunaclair --remote",
-    "seed:materials:local": "node scripts/seed-materials.mjs --local",
-    "seed:materials:remote": "node scripts/seed-materials.mjs --remote",
-    "seed:catalog:local": "node scripts/seed-catalog.mjs --local",
-    "seed:catalog:remote": "node scripts/seed-catalog.mjs --remote",
-    "seed:quiz:local": "node scripts/seed-quiz.mjs --local",
-    "seed:quiz:remote": "node scripts/seed-quiz.mjs --remote",
     "seed:shares:local": "node scripts/seed-shares.mjs --dry-run",
     "seed:shares:remote": "node scripts/seed-shares.mjs --remote --dry-run"
   },

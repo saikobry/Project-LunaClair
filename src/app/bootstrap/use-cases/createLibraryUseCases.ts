@@ -1,8 +1,6 @@
 import { CreateMaterialUseCase } from '../../../application/use-cases/library/CreateMaterialUseCase';
 import { UpdateMaterialUseCase } from '../../../application/use-cases/library/UpdateMaterialUseCase';
 import { DeleteMaterialUseCase } from '../../../application/use-cases/library/DeleteMaterialUseCase';
-import { ImportMaterialUseCase } from '../../../application/use-cases/library/ImportMaterialUseCase';
-import { ImportSubjectUseCase } from '../../../application/use-cases/library/ImportSubjectUseCase';
 import { RemoveImportedMaterialUseCase } from '../../../application/use-cases/library/RemoveImportedMaterialUseCase';
 import { SyncDefaultTermsUseCase } from '../../../application/use-cases/library/SyncDefaultTermsUseCase';
 import { TouchMaterialUseCase } from '../../../application/use-cases/library/TouchMaterialUseCase';
@@ -29,8 +27,6 @@ export function createLibraryUseCases(infrastructure: Infrastructure) {
             updateMaterial: new UpdateMaterialUseCase(repositories.library, repositories.subjectTerm),
             deleteMaterial: new DeleteMaterialUseCase(repositories.library),
             touchMaterial: new TouchMaterialUseCase(repositories.library),
-            importMaterial: new ImportMaterialUseCase(repositories.catalog, repositories.quizContent, repositories.document, services.libraryImport),
-            importSubject: new ImportSubjectUseCase(repositories.catalog, repositories.library, repositories.quizContent, repositories.document, services.libraryImport),
             removeImportedMaterial: new RemoveImportedMaterialUseCase(services.libraryImport),
             syncDefaultTerms: new SyncDefaultTermsUseCase(repositories.term),
         },

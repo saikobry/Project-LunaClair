@@ -89,27 +89,6 @@ export default defineConfig({
         // SPA: deep links (pushState routes) fall back to the shell offline.
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            // Cache material documents, figure images, and the library catalog
-            // + quiz snapshots served from the Worker API
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith('/api/documents/') ||
-              url.pathname === '/api/catalog' ||
-              url.pathname === '/api/quiz',
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'lunaclair-materials-cache',
-              expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
       },
     }),
   ],

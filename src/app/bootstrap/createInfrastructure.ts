@@ -1,6 +1,4 @@
 import type { DocumentRepository } from '../../domain/reader/repositories/DocumentRepository';
-import type { CatalogRepository } from '../../domain/library/repositories/CatalogRepository';
-import type { QuizContentRepository } from '../../domain/quiz/repositories/QuizContentRepository';
 import type { DocumentContentRepository } from '../../domain/reader/repositories/DocumentContentRepository';
 import type { AnnotationRepository } from '../../domain/reader/repositories/AnnotationRepository';
 import type { LibraryRepository } from '../../domain/library/repositories/LibraryRepository';
@@ -19,9 +17,6 @@ import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQue
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
 
-import { apiCatalogRepository } from '../../infrastructure/api/repositories/ApiCatalogRepository';
-import { apiDocumentRepository } from '../../infrastructure/api/repositories/ApiDocumentRepository';
-import { apiQuizContentRepository } from '../../infrastructure/api/repositories/ApiQuizContentRepository';
 import { HybridDocumentRepository } from '../../infrastructure/storage/repositories/HybridDocumentRepository';
 import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
 import { dexieDocumentContentRepository } from '../../infrastructure/database/repositories/DexieDocumentContentRepository';
@@ -64,8 +59,6 @@ import type { DexieSyncReconciler } from '../../infrastructure/database/sync/Dex
  */
 export interface Repositories {
     document: DocumentRepository;
-    catalog: CatalogRepository;
-    quizContent: QuizContentRepository;
     documentContent: DocumentContentRepository;
     annotation: AnnotationRepository;
     library: LibraryRepository;
@@ -116,15 +109,12 @@ export interface Infrastructure {
 export function createInfrastructure(): Infrastructure {
     const documentRepository = new HybridDocumentRepository(
         dexieDocumentContentRepository,
-        apiDocumentRepository,
     );
 
     const aiService = new WorkerAiAdapter();
 
     const repositories: Repositories = {
         document: documentRepository,
-        catalog: apiCatalogRepository,
-        quizContent: apiQuizContentRepository,
         documentContent: dexieDocumentContentRepository,
         annotation: dexieAnnotationRepository,
         library: dexieLibraryRepository,

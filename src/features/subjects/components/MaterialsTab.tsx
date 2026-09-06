@@ -102,17 +102,17 @@ export default function MaterialsTab({
         <EmptyState
           icon={<BookOpen size={28} />}
           title="No materials yet"
-          description="This subject doesn't have any study materials in your library yet. Browse available materials from the catalog or create a custom one."
+          description="This subject doesn't have any study materials in your library yet. Explore shared study packages or create a custom material."
           headingLevel="h3"
           action={
             onBrowseAvailable && (
               <Button
-                label="Browse Available Materials"
+                label="Explore Study Packages"
                 variant="primary"
                 icon={<Download size={16} />}
                 onClick={onBrowseAvailable}
               >
-                Browse Available Materials
+                Explore Study Packages
               </Button>
             )
           }

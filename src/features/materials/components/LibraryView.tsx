@@ -152,15 +152,15 @@ export default function LibraryView({
         <EmptyState
           icon={<BookHeart size={56} />}
           title="Your library is empty"
-          description="Browse the platform catalog and add materials to your library. Imported materials are available offline, including their quizzes."
+          description="Explore study packages on the Explore hub and clone them to your library. Cloned packages are available offline, including their quizzes."
           action={
             <Button
-              label="Browse Available Materials"
+              label="Explore Study Packages"
               variant="primary"
               icon={<LibraryBig size={18} />}
               onClick={onBrowseAvailable}
             >
-              Browse Available Materials
+              Explore Study Packages
             </Button>
           }
         />

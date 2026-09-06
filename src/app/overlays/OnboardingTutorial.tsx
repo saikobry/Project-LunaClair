@@ -37,7 +37,7 @@ const SLIDES = [
   {
     icon: BookOpen,
     title: 'Your library, your choice',
-    body: 'Browse Available Materials and add what you want to study. Subjects, materials, and terms live in your library.',
+    body: 'Explore shared study packages and clone what you want to study. Subjects, materials, and terms live in your library.',
   },
   {
     icon: GraduationCap,
