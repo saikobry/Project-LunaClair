@@ -20,7 +20,7 @@ import {
  * Cloud Sync Tables — Phase 10
  *
  * 4 tables supporting bidirectional local-first synchronization between Dexie and D1:
- * - `userDocuments`: user documents with LWW versioning
+ * - `userDocuments`: user documents with CAS optimistic versioning
  * - `userEntities`: key-value store for domain entities (highlights, bookmarks, progress, etc.)
  * - `syncChanges`: append-only change log for cursor/sequence-based delta pulls
  * - `syncIdempotency`: mutation idempotency ledger

@@ -4,96 +4,6 @@ export function createMockD1(): D1Database {
   const db = new DatabaseSync(':memory:');
 
   db.exec(`
-    CREATE TABLE IF NOT EXISTS documents (
-      id text PRIMARY KEY,
-      title text NOT NULL,
-      content text NOT NULL,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS figures (
-      document_id text NOT NULL,
-      filename text NOT NULL,
-      data blob NOT NULL,
-      content_type text NOT NULL,
-      created_at text NOT NULL,
-      updated_at text NOT NULL,
-      PRIMARY KEY (document_id, filename)
-    );
-
-    CREATE TABLE IF NOT EXISTS subjects (
-      id text PRIMARY KEY,
-      title text NOT NULL,
-      description text,
-      "order" integer,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS terms (
-      id text PRIMARY KEY,
-      title text NOT NULL,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS subject_terms (
-      subject_id text NOT NULL,
-      term_id text NOT NULL,
-      "order" integer NOT NULL,
-      PRIMARY KEY (subject_id, term_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS materials (
-      id text PRIMARY KEY,
-      title text NOT NULL,
-      description text,
-      document_id text NOT NULL,
-      subject_id text,
-      term_id text,
-      "order" integer,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS questions (
-      id text PRIMARY KEY,
-      material_id text NOT NULL,
-      type text NOT NULL,
-      prompt text NOT NULL,
-      payload text NOT NULL,
-      difficulty text NOT NULL,
-      points integer NOT NULL,
-      explanation text,
-      tags text,
-      status text NOT NULL,
-      version integer NOT NULL,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS quizzes (
-      id text PRIMARY KEY,
-      material_id text NOT NULL,
-      title text NOT NULL,
-      description text,
-      status text NOT NULL,
-      time_limit_seconds integer,
-      passing_percentage integer,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS quiz_questions (
-      quiz_id text NOT NULL,
-      question_id text NOT NULL,
-      question_version integer NOT NULL,
-      "order" integer NOT NULL,
-      points integer,
-      PRIMARY KEY (quiz_id, question_id)
-    );
-
     CREATE TABLE IF NOT EXISTS user_documents (
       user_id text NOT NULL,
       document_id text NOT NULL,
@@ -128,7 +38,7 @@ export function createMockD1(): D1Database {
     CREATE TABLE IF NOT EXISTS sync_idempotency (
       client_mutation_id text PRIMARY KEY,
       user_id text NOT NULL,
-      deviceId text NOT NULL,
+      device_id text NOT NULL,
       entity_type text NOT NULL,
       entity_id text NOT NULL,
       processed_at text NOT NULL

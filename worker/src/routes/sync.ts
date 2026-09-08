@@ -716,20 +716,36 @@ export async function handleSyncPull(
   >();
 
   if (entityKeys.size > 0) {
-    const entitiesResult = await env.DB.prepare(
-      `SELECT entity_type as entityType, entity_id as entityId, payload, updated_at as updatedAt, deleted_at as deletedAt FROM user_entities WHERE user_id = ?`,
-    )
-      .bind(userId)
-      .all<{
-        entityType: string;
-        entityId: string;
-        payload: string;
-        updatedAt: string;
-        deletedAt: string | null;
-      }>();
+    // Hydrate only the referenced (entity_type, entity_id) pairs in bounded chunks
+    // instead of slurping every entity for the user; each chunk keeps the WHERE
+    // clause well under SQLite's bound-parameter limit (1 + 2 per pair).
+    const ENTITY_CHUNK_SIZE = 100;
+    const entityPairs = Array.from(entityKeys).map((key) => {
+      const separatorIndex = key.indexOf(':::');
+      return {
+        entityType: key.slice(0, separatorIndex),
+        entityId: key.slice(separatorIndex + 3),
+      };
+    });
 
-    for (const ent of entitiesResult.results ?? []) {
-      entityMap.set(`${ent.entityType}:::${ent.entityId}`, ent);
+    for (let i = 0; i < entityPairs.length; i += ENTITY_CHUNK_SIZE) {
+      const chunk = entityPairs.slice(i, i + ENTITY_CHUNK_SIZE);
+      const pairConditions = chunk.map(() => '(entity_type = ? AND entity_id = ?)').join(' OR ');
+      const chunkResult = await env.DB.prepare(
+        `SELECT entity_type as entityType, entity_id as entityId, payload, updated_at as updatedAt, deleted_at as deletedAt FROM user_entities WHERE user_id = ? AND (${pairConditions})`,
+      )
+        .bind(userId, ...chunk.flatMap((pair) => [pair.entityType, pair.entityId]))
+        .all<{
+          entityType: string;
+          entityId: string;
+          payload: string;
+          updatedAt: string;
+          deletedAt: string | null;
+        }>();
+
+      for (const ent of chunkResult.results ?? []) {
+        entityMap.set(`${ent.entityType}:::${ent.entityId}`, ent);
+      }
     }
   }
 

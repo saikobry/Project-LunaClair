@@ -640,9 +640,11 @@ export async function handleListPublicShares(
 
   // 3. Search Filter (title, description, author)
   if (q.length >= 1) {
-    const searchPattern = `%${q}%`;
+    // Escape LIKE wildcards so user input is treated literally; '\' is the escape char.
+    const escapedQ = q.replace(/[\\%_]/g, '\\$&');
+    const searchPattern = `%${escapedQ}%`;
     conditions.push(
-      sql`(${shares.title} LIKE ${searchPattern} OR ${shares.description} LIKE ${searchPattern} OR ${shares.author} LIKE ${searchPattern})`,
+      sql`(${shares.title} LIKE ${searchPattern} ESCAPE '\\' OR ${shares.description} LIKE ${searchPattern} ESCAPE '\\' OR ${shares.author} LIKE ${searchPattern} ESCAPE '\\')`,
     );
   }
 
