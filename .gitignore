@@ -19,6 +19,9 @@ dist-ssr
 # Freebuff desktop app data
 .freebuff/
 
+# Terminal Orchestrator runtime staging & sentinels
+.orchestrator/
+
 # Test artifacts and coverage
 test-results/
 playwright-report/
