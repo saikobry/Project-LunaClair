@@ -63,6 +63,7 @@ export function remapStudyPackage(
             documentId: newDocId,
             documentContent: remappedContent,
             order: mat.order,
+            tags: mat.tags ? [...mat.tags] : undefined,
         };
     });
 

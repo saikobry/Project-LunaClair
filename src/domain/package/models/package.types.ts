@@ -26,6 +26,7 @@ export interface PackageMaterial {
     description?: string;
     documentContent: string;
     order?: number;
+    tags?: string[];
 }
 
 export interface PackageQuestion {
@@ -95,6 +96,7 @@ export interface RemappedStudyPackage {
         documentId: string;
         documentContent: string;
         order?: number;
+        tags?: string[];
     }>;
     questions: Question[];
     quizzes: Quiz[];

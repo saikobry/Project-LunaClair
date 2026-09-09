@@ -7,6 +7,7 @@ export interface CreateMaterialInput {
   subjectId?: string;
   termId?: string;
   order?: number;
+  tags?: string[];
 }
 
 export interface UpdateMaterialInput {
@@ -15,6 +16,8 @@ export interface UpdateMaterialInput {
   lastOpenedAt?: string;
   subjectId?: string | null;
   termId?: string | null;
+  /** Tags are normalized at the write boundary; an empty array clears tags, undefined leaves them unchanged. */
+  tags?: string[];
 }
 
 export interface LibraryRepository {

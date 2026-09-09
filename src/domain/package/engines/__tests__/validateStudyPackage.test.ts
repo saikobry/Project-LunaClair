@@ -20,6 +20,7 @@ const createValidPackage = (): StudyPackage => ({
             description: 'Introduction to plant and animal cells.',
             documentContent: '# Cell Structure\n\nSee diagram: ![Cell Diagram](lc-asset://pkg_asset_cell_diagram)\n\nEnd of section.',
             order: 1,
+            tags: ['biology', 'cells'],
         },
     ],
     questions: [
@@ -217,6 +218,24 @@ describe('validateStudyPackage', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors).toContain('Flashcard "pkg_card_mitochondria" references non-existent material "pkg_mat_ghost".');
         expect(result.errors).toContain('Asset "pkg_asset_cell_diagram" references non-existent material "pkg_mat_ghost".');
+    });
+
+    it('accepts materials without tags (tags are optional)', () => {
+        const pkg = createValidPackage();
+        delete (pkg.materials[0] as any).tags;
+
+        const result = validateStudyPackage(pkg);
+        expect(result.isValid).toBe(true);
+        expect(result.errors).toEqual([]);
+    });
+
+    it('rejects material tags that are not an array of strings', () => {
+        const pkg = createValidPackage();
+        (pkg.materials[0] as any).tags = 'not-an-array';
+
+        const result = validateStudyPackage(pkg);
+        expect(result.isValid).toBe(false);
+        expect(result.errors).toContain('Material "pkg_mat_cell_intro" tags must be an array of strings.');
     });
 
     it('detects undeclared asset references in markdown documentContent', () => {

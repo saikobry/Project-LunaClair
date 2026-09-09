@@ -276,9 +276,10 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         const v11Db = new LunaClairDatabase();
         await v11Db.open();
 
-        // v12 (originShareId index) is a non-destructive additive upgrade,
+        // v12 (originShareId index) and v13 (collections + collectionMaterials,
+        // `*tags` index) are non-destructive additive upgrades,
         // so LunaClairDatabase opens at the latest schema version.
-        expect(v11Db.verno).toBe(12);
+        expect(v11Db.verno).toBe(13);
 
         // 4. Verify all seeded v10 records are preserved untouched
         const preservedMaterial = await v11Db.materials.get('mat-cardio-1');

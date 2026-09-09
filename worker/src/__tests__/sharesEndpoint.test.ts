@@ -251,6 +251,28 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
       expect(json.details.some((d) => d.includes('references undeclared asset'))).toBe(true);
     });
 
+    it('rejects packages with non-string material tags with 422', async () => {
+      const badTagsPackage = {
+        ...sampleValidPackage,
+        materials: [
+          {
+            ...sampleValidPackage.materials[0],
+            tags: 'not-an-array',
+          },
+        ],
+      };
+
+      const req = new Request('http://localhost/api/shares', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package: badTagsPackage }),
+      });
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(422);
+      const json = await res.json() as { details: string[] };
+      expect(json.details.some((d) => d.includes('tags must be an array of strings'))).toBe(true);
+    });
+
     it('rejects passcode accessType when passcode is missing', async () => {
       const req = new Request('http://localhost/api/shares', {
         method: 'POST',

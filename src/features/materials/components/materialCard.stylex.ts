@@ -59,6 +59,16 @@ export const cardStyles = stylex.create({
     gap: 6,
     flexWrap: 'wrap',
   },
+  tagsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  tagChip: {
+    textTransform: 'none',
+    fontWeight: 600,
+  },
   metaRow: {
     display: 'flex',
     alignItems: 'center',

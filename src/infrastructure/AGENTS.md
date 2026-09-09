@@ -9,7 +9,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `database/` — Dexie / IndexedDB persistence engine:
   - `schema/` — Database engine definition, schema history, lifecycle, and migrations:
     - `LunaClairDatabase.ts` → `LunaClairDatabase` (Dexie subclass with typed `Table` properties, singleton `db`)
-    - `schema.ts` → Version 1 through 11 schema definitions
+    - `schema.ts` → Version 1 through 13 schema definitions
     - `DatabaseInitializer.ts` → Startup orchestrator (`db.open()` → `migrateIfNeeded()`, deliberately no seeding)
     - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
   - `repositories/` — Concrete Dexie persistence adapters implementing domain repository ports:
@@ -20,12 +20,14 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieDocumentContentRepository.ts` → `DocumentContentRepository`
     - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
     - `DexieImportAssetRepository.ts` → `ImportAssetRepository`
-    - `DexieLibraryRepository.ts` → `LibraryRepository`
+    - `DexieLibraryRepository.ts` → `LibraryRepository` (normalizes material `tags` through the domain `normalizeTags` helper at both write boundaries — `undefined` leaves tags unchanged, empty array clears)
     - `DexieQuestionRepository.ts` → `QuestionRepository`
     - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`
     - `DexieQuizRepository.ts` → `QuizRepository`
     - `DexieQuizSessionRepository.ts` → `QuizSessionRepository`
     - `DexieSubjectRepository.ts` → `SubjectRepository`
+    - `DexieCollectionRepository.ts` → `CollectionRepository`
+    - `DexieCollectionMaterialRepository.ts` → `CollectionMaterialRepository`
     - `DexieSubjectTermRepository.ts` → `SubjectTermRepository`
     - `DexieSyncQueueRepository.ts` → `SyncQueueRepository`
     - `DexieSyncStateRepository.ts` → `SyncStateRepository`

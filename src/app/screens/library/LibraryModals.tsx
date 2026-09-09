@@ -15,7 +15,7 @@ export interface LibraryModalsProps {
   subjectDeleteTarget: Subject | null;
   showCreateSubject: boolean;
   showCreateMaterial: boolean;
-  onEditSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
+  onEditSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
   onEditClose: () => void;
   onSubjectEditSave: (title: string, description: string) => void;
   onSubjectEditClose: () => void;
@@ -23,7 +23,7 @@ export interface LibraryModalsProps {
   onSubjectDeleteClose: () => void;
   onCreateSubjectSave: (title: string, description: string) => void;
   onCreateSubjectClose: () => void;
-  onCreateMaterialSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
+  onCreateMaterialSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
   onCreateMaterialClose: () => void;
   onDeleteConfirm: () => void;
   onDeleteClose: () => void;
@@ -60,6 +60,7 @@ export function LibraryModals({
           initialDescription={editTarget.description ?? ''}
           initialSubjectId={editTarget.subjectId}
           initialTermId={editTarget.termId}
+          initialTags={editTarget.tags ?? []}
           subjects={subjects}
           terms={terms}
           onSave={onEditSave}

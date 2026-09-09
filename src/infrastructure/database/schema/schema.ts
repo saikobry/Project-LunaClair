@@ -123,3 +123,16 @@ export const SCHEMA_V12 = {
 } as const;
 
 export const DB_NAME = 'lunaclair-db';
+
+/**
+ * Version 13: Adds collections + collectionMaterials for the Collections
+ * Playlist model (a material can belong to multiple collections via the
+ * explicit `collectionMaterials` junction; each collection keeps its own
+ * independent material ordering). Also indexes `*tags` on materials.
+ */
+export const SCHEMA_V13 = {
+    ...SCHEMA_V12,
+    collections: 'id, title, order, createdAt',
+    collectionMaterials: '++id, [collectionId+materialId], collectionId, materialId, order',
+    materials: 'id, documentId, subjectId, termId, order, createdAt, updatedAt, lastOpenedAt, originShareId, *tags',
+} as const;

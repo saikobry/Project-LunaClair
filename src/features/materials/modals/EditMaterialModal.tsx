@@ -3,7 +3,9 @@ import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../shared/ui/Input/Input';
 import { Button } from '../../../shared/ui/Button/Button';
+import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { styles } from '../styles/library.stylex';
+import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../domain/quiz/utils/tags';
 import type { Subject } from '../../../domain/library/models/Subject';
 import type { Term } from '../../../domain/library/models/Term';
 
@@ -32,9 +34,11 @@ interface EditMaterialModalProps {
   initialDescription: string;
   initialSubjectId?: string | null;
   initialTermId?: string | null;
+  /** Initial tag list (material.tags ?? []). */
+  initialTags?: string[];
   subjects: Subject[];
   terms?: Term[];
-  onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null) => void;
+  onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
   onClose: () => void;
 }
 
@@ -43,6 +47,7 @@ export default function EditMaterialModal({
   initialDescription,
   initialSubjectId,
   initialTermId,
+  initialTags = [],
   subjects,
   terms = [],
   onSave,
@@ -50,6 +55,7 @@ export default function EditMaterialModal({
 }: EditMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
+  const [tags, setTags] = useState<string[]>(initialTags);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
     initialSubjectId ?? null,
   );
@@ -74,6 +80,9 @@ export default function EditMaterialModal({
         description.trim(),
         selectedSubjectId,
         selectedTermId,
+        // Empty list clears tags (normalizeTags collapses [] to undefined, which the
+        // repository treats as "leave unchanged" — so emit an explicit empty array).
+        normalizeTags(tags) ?? [],
       );
     }
   };
@@ -112,6 +121,15 @@ export default function EditMaterialModal({
             rows={3}
           />
         </div>
+
+        <TagInput
+          tags={tags}
+          onChange={setTags}
+          splitInput={splitTagInput}
+          mergeTags={mergeTags}
+          tagKey={tagKey}
+          normalizeTags={(list) => normalizeTags(list) ?? []}
+        />
 
         {/* Subject selector */}
         <div {...stylex.props(styles.fieldGroup)}>

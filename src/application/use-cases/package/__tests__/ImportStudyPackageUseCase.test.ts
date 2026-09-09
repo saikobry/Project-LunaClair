@@ -16,6 +16,7 @@ describe('ImportStudyPackageUseCase', () => {
                 id: 'pkg_mat_1',
                 title: 'Cell Notes',
                 documentContent: '# Cells\nBasic unit of life.',
+                tags: ['biology', 'cells'],
             },
         ],
         questions: [
@@ -54,6 +55,7 @@ describe('ImportStudyPackageUseCase', () => {
 
         const committed = importStudyPackage.mock.calls[0][0];
         expect(committed.materials[0].originShareId).toBeUndefined();
+        expect(committed.materials[0].tags).toEqual(['biology', 'cells']);
     });
 
     it('records originShareId on every imported material when provided', async () => {

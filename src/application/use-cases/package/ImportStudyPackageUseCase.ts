@@ -66,6 +66,7 @@ export class ImportStudyPackageUseCase {
       createdAt: now,
       updatedAt: now,
       originShareId: input.originShareId,
+      tags: mat.tags,
     }));
 
     const documentContentRecords: ImportedDocumentContent[] = remapped.materials.map((mat) => ({

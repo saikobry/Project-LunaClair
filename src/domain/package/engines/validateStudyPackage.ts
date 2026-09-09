@@ -128,6 +128,9 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
             if (mat.order !== undefined && (typeof mat.order !== 'number' || Number.isNaN(mat.order))) {
                 errors.push(`Material "${String(mat.id || idx)}" order must be a valid number.`);
             }
+            if (mat.tags !== undefined && (!Array.isArray(mat.tags) || mat.tags.some(t => typeof t !== 'string'))) {
+                errors.push(`Material "${String(mat.id || idx)}" tags must be an array of strings.`);
+            }
         });
     }
 

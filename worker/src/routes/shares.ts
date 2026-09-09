@@ -178,6 +178,10 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
     if (typeof mat.documentContent !== 'string') {
       errors.push(`Material "${String(id || idx)}" documentContent must be a string.`);
     }
+
+    if (mat.tags !== undefined && (!Array.isArray(mat.tags) || mat.tags.some((t) => typeof t !== 'string'))) {
+      errors.push(`Material "${String(id || idx)}" tags must be an array of strings.`);
+    }
   });
 
   // 2. Validate Questions

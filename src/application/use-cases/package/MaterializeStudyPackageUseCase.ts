@@ -143,6 +143,7 @@ export class MaterializeStudyPackageUseCase {
         description: material.description,
         documentContent: rewrittenMarkdown,
         order: material.order,
+        tags: material.tags,
       },
     ];
 

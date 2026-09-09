@@ -105,9 +105,9 @@ export function SubjectWorkspaceScreen({
   }, []);
 
   const handleEditSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
+    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
       if (!editTarget) return;
-      editMutation.mutate({ id: editTarget.id, input: { title, description, subjectId, termId } });
+      editMutation.mutate({ id: editTarget.id, input: { title, description, subjectId, termId, tags } });
       setEditTarget(null);
     },
     [editTarget, editMutation],
@@ -132,8 +132,8 @@ export function SubjectWorkspaceScreen({
   }, []);
 
   const handleCreateMaterialSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
-      createMaterialMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined });
+    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
+      createMaterialMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined, tags });
       setShowCreateMaterial(false);
     },
     [createMaterialMutation],
@@ -300,6 +300,7 @@ export function SubjectWorkspaceScreen({
           initialDescription={editTarget.description ?? ''}
           initialSubjectId={editTarget.subjectId}
           initialTermId={editTarget.termId}
+          initialTags={editTarget.tags ?? []}
           subjects={subjects}
           terms={terms}
           onSave={handleEditSave}

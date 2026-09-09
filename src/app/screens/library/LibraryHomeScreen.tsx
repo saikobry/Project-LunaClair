@@ -70,11 +70,11 @@ export function LibraryHomeScreen({
   }, []);
 
   const handleEditSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
+    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
       if (!editTarget) return;
       editMutation.mutate({
         id: editTarget.id,
-        input: { title, description, subjectId, termId },
+        input: { title, description, subjectId, termId, tags },
       });
       setEditTarget(null);
     },
@@ -86,8 +86,8 @@ export function LibraryHomeScreen({
   }, []);
 
   const handleCreateMaterialSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null) => {
-      createMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined });
+    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
+      createMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined, tags });
       setShowCreateMaterial(false);
     },
     [createMutation],

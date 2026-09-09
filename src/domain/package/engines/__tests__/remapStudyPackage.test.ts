@@ -18,6 +18,7 @@ const createSamplePackage = (): StudyPackage => ({
             description: 'Three fundamental laws of motion.',
             documentContent: '# Newton\'s Laws\n\nDiagram: ![Force](lc-asset://pkg_asset_force_diag)\n\nEnd.',
             order: 1,
+            tags: ['physics', 'mechanics'],
         },
     ],
     questions: [
@@ -100,6 +101,7 @@ describe('remapStudyPackage', () => {
         expect(remappedMat.id).toBe('test_uuid_1');
         expect(remappedMat.documentId).toBe('test_uuid_6'); // 5 package entities mapped (mat, q, quiz, card, asset) then docId generated
         expect(remappedMat.title).toBe(pkg.materials[0].title);
+        expect(remappedMat.tags).toEqual(['physics', 'mechanics']);
 
         // Questions remapped with correct FKs
         expect(remapped.questions).toHaveLength(1);

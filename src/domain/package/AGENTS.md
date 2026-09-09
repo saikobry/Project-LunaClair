@@ -16,6 +16,7 @@ Pure domain contracts, types, validators, remappers, and inspection engines for 
 ## Local Contracts
 
 - Format identifier is strictly `'lcpack'`, and supported schema version is `1`.
+- Material tags (`PackageMaterial.tags`, optional `string[]`) are portable package data: `validateStudyPackage` accepts absent tags and rejects non-string-array values, and `remapStudyPackage` copies them verbatim (fresh array) to the remapped material.
 - Standardized package entity ID prefix constraints:
   - Material: `pkg_mat_*`
   - Question: `pkg_q_*`

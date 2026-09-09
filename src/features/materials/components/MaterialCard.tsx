@@ -119,6 +119,17 @@ export function MaterialCard({
           <p {...stylex.props(cardStyles.description)}>{material.description}</p>
         )}
 
+        {/* Tags */}
+        {material.tags && material.tags.length > 0 && (
+          <div {...stylex.props(cardStyles.tagsRow)}>
+            {material.tags.map((tag) => (
+              <Chip key={tag} variant="neutral" style={cardStyles.tagChip}>
+                #{tag}
+              </Chip>
+            ))}
+          </div>
+        )}
+
         {/* Last opened */}
         <div {...stylex.props(cardStyles.metaRow)}>
           <BookOpen size={12} />
