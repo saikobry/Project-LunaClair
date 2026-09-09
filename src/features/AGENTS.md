@@ -72,7 +72,8 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
     - `package/components/StudyPackagePreviewModal` → `features/subjects/hooks/queries/useSubjects`, `features/terms/hooks/queries/useTerms`
-    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/materials/components/MaterialCard`
+    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/materials/components/MaterialCard`
+    - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
 
 ## Work Guidance
 

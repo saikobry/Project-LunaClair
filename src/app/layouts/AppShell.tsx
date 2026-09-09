@@ -28,6 +28,7 @@ const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 function getShellRouteContext(currentRoute: AppRoute): {
   subjectId?: string;
   materialId?: string;
+  collectionId?: string;
   active: NavActiveSection;
   suppressOverlays: boolean;
 } {
@@ -66,7 +67,9 @@ function getShellRouteContext(currentRoute: AppRoute): {
   const suppressOverlays =
     currentRoute.kind === 'quiz-session' || currentRoute.kind === 'quiz-canvas';
 
-  return { subjectId, materialId, active, suppressOverlays };
+  const collectionId = currentRoute.kind === 'collection' ? currentRoute.collectionId : undefined;
+
+  return { subjectId, materialId, collectionId, active, suppressOverlays };
 }
 
 /**
@@ -259,7 +262,7 @@ export default function AppShell() {
 
   const railRef = useFocusModeMotion(isFocusMode);
 
-  const { subjectId: routeSubjectId, materialId: routeMaterialId, active, suppressOverlays } =
+  const { subjectId: routeSubjectId, materialId: routeMaterialId, collectionId: routeCollectionId, active, suppressOverlays } =
     getShellRouteContext(currentRoute);
 
   return (
@@ -277,6 +280,7 @@ export default function AppShell() {
           <AppSidebar
             subjectId={routeSubjectId}
             materialId={routeMaterialId}
+            collectionId={routeCollectionId}
             active={active}
             isFocusMode={isFocusMode}
             onToggleFocusMode={toggleFocusMode}

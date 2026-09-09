@@ -13,9 +13,10 @@ interface MaterialGridProps {
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
+  onManageCollections?: (material: StudyMaterial) => void;
 }
 
-export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onStartQuiz, onManage }: MaterialGridProps) {
+export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onStartQuiz, onManage, onManageCollections }: MaterialGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Animate on mount when data loads. Use materials.length (a stable
@@ -43,6 +44,7 @@ export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onSt
           onDelete={onDelete}
           onStartQuiz={onStartQuiz}
           onManage={onManage}
+          onManageCollections={onManageCollections}
         />
       ))}
     </div>

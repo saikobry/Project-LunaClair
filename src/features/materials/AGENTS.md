@@ -7,10 +7,10 @@ Owns the core study material entity presentation and local library state managem
 ## Ownership
 
 - `components/` — Material presentation components:
-  - `MaterialCard.tsx` — Individual study material card with subject badge, term chip, `#tag` chips (when `material.tags` is non-empty), and action menu.
-  - `MaterialGrid.tsx` — Grid container for study material cards.
+  - `MaterialCard.tsx` — Individual study material card with subject badge, term chip, `#tag` chips (when `material.tags` is non-empty), and action menu (Edit, Delete, and optional `onManageCollections` for collection assignment).
+  - `MaterialGrid.tsx` — Grid container for study material cards; threads optional `onManageCollections` callback from LibraryView to each card.
   - `SubjectCardGrid.tsx` — Grouped material cards by subject.
-  - `LibraryView.tsx` — Pure presentation view for the user's local study materials library.
+  - `LibraryView.tsx` — Pure presentation view for the user's local study materials library; threads optional `onManageCollections` to MaterialGrid.
 - `modals/` — Material creation and modification dialogs:
   - `CreateMaterialModal.tsx` — Modal for creating a new study material (accepts `subjects` and `terms` as props; tags via shared `TagInput`, emitted through the 5th `onSave` argument as `normalizeTags(tags)`).
   - `EditMaterialModal.tsx` — Modal for editing material title, description, subject, term, and tags (`initialTags` prop, shared `TagInput`). Emits `normalizeTags(tags) ?? []` so an emptied tag list CLEARS tags rather than leaving them unchanged.

@@ -9,6 +9,7 @@ import { MobileBottomDock } from './navigation/MobileBottomDock';
 export interface AppSidebarProps {
   subjectId?: string;
   materialId?: string;
+  collectionId?: string;
   active: NavActiveSection;
   isFocusMode: boolean;
   onToggleFocusMode: () => void;
@@ -23,6 +24,7 @@ export interface AppSidebarProps {
 export function AppSidebar({
   subjectId,
   materialId,
+  collectionId,
   active,
   isFocusMode,
   onToggleFocusMode,
@@ -38,6 +40,7 @@ export function AppSidebar({
     onNavigate,
     subject,
     material,
+    collectionId: collectionId ?? null,
   };
 
   return (

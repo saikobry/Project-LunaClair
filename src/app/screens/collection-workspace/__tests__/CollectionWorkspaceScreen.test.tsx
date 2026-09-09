@@ -14,6 +14,7 @@ describe('CollectionWorkspaceScreen', () => {
   let mockGetByCollectionId: ReturnType<typeof vi.fn>;
   let mockGetMaterials: ReturnType<typeof vi.fn>;
   let mockRemoveExecute: ReturnType<typeof vi.fn>;
+  let mockUpdateExecute: ReturnType<typeof vi.fn>;
   let mockDeleteExecute: ReturnType<typeof vi.fn>;
   let mockNavigate: ReturnType<typeof vi.fn<(route: AppRoute) => void>>;
 
@@ -40,6 +41,7 @@ describe('CollectionWorkspaceScreen', () => {
     ]);
     mockGetMaterials = vi.fn().mockResolvedValue(materials);
     mockRemoveExecute = vi.fn().mockResolvedValue(undefined);
+    mockUpdateExecute = vi.fn().mockResolvedValue({ ...collection, title: 'Renamed' });
     mockDeleteExecute = vi.fn().mockResolvedValue(undefined);
     mockNavigate = vi.fn();
   });
@@ -54,6 +56,7 @@ describe('CollectionWorkspaceScreen', () => {
       useCases: {
         collections: {
           removeMaterialFromCollection: { execute: mockRemoveExecute },
+          updateCollection: { execute: mockUpdateExecute },
           deleteCollection: { execute: mockDeleteExecute },
         },
       },
@@ -114,6 +117,48 @@ describe('CollectionWorkspaceScreen', () => {
 
     await waitFor(() => {
       expect(mockRemoveExecute).toHaveBeenCalledWith('c-1', 'm-1');
+    });
+  });
+
+  it('edits the collection through the edit modal', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Collection' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Collection' }));
+
+    const titleInput = screen.getByLabelText('Title');
+    expect(titleInput).toHaveValue('Physics Playlist');
+    fireEvent.change(titleInput, { target: { value: 'Renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(mockUpdateExecute).toHaveBeenCalledWith('c-1', expect.objectContaining({ title: 'Renamed' }));
+    });
+  });
+
+  it('deletes the collection through the confirmation dialog and returns to the library', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Delete Collection' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Collection' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Delete this collection? (Materials inside will not be deleted)'),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(mockDeleteExecute).toHaveBeenCalledWith('c-1');
+      expect(mockNavigate).toHaveBeenCalledWith({ kind: 'library' });
     });
   });
 });

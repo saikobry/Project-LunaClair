@@ -47,6 +47,7 @@ export function LibraryHomeScreen({
   const [subjectDeleteTarget, setSubjectDeleteTarget] = useState<Subject | null>(null);
   const [showCreateSubject, setShowCreateSubject] = useState(false);
   const [showCreateMaterial, setShowCreateMaterial] = useState(false);
+  const [managingCollectionsMaterial, setManagingCollectionsMaterial] = useState<StudyMaterial | null>(null);
 
   const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
 
@@ -171,6 +172,14 @@ export function LibraryHomeScreen({
     [onStartQuiz],
   );
 
+  const handleManageCollections = useCallback((material: StudyMaterial) => {
+    setManagingCollectionsMaterial(material);
+  }, []);
+
+  const handleCloseManageCollections = useCallback(() => {
+    setManagingCollectionsMaterial(null);
+  }, []);
+
   return (
     <>
       <LibraryView
@@ -186,6 +195,7 @@ export function LibraryHomeScreen({
         onDelete={handleDeleteTrigger}
         onStartQuiz={handleStartQuiz}
         onManage={(m) => onManage(m.id, m.subjectId)}
+        onManageCollections={handleManageCollections}
         onBrowseAvailable={onBrowseAvailable}
         isSavingReorder={reorderSubjectsMutation.isPending}
         onSubjectEdit={handleSubjectEdit}
@@ -212,6 +222,8 @@ export function LibraryHomeScreen({
         onCreateMaterialClose={handleCreateMaterialClose}
         onDeleteConfirm={handleDeleteConfirm}
         onDeleteClose={handleDeleteClose}
+        managingCollectionsMaterial={managingCollectionsMaterial}
+        onCloseManageCollections={handleCloseManageCollections}
       />
     </>
   );

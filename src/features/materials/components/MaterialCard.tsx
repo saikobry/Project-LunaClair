@@ -1,6 +1,6 @@
 import { type KeyboardEvent, type MouseEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, ClipboardList, SquarePen, Trash2 } from 'lucide-react';
+import { BookOpen, BrainCircuit, ClipboardList, FolderPlus, SquarePen, Trash2 } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import { Card } from '../../../shared/ui/Card/Card';
 import { Button } from '../../../shared/ui/Button/Button';
@@ -18,6 +18,7 @@ export interface MaterialCardProps {
   onDelete?: (material: StudyMaterial) => void;
   onStartQuiz?: (material: StudyMaterial) => void;
   onManage?: (material: StudyMaterial) => void;
+  onManageCollections?: (material: StudyMaterial) => void;
 }
 
 function formatDate(iso: string | undefined): string {
@@ -42,6 +43,7 @@ export function MaterialCard({
   onDelete,
   onStartQuiz,
   onManage,
+  onManageCollections,
 }: MaterialCardProps) {
   const handleCardClick = () => {
     onOpen(material);
@@ -72,7 +74,11 @@ export function MaterialCard({
     onManage?.(material);
   };
 
-  const hasMenuActions = Boolean(onEdit || onDelete);
+  const handleManageCollections = () => {
+    onManageCollections?.(material);
+  };
+
+  const hasMenuActions = Boolean(onEdit || onDelete || onManageCollections);
 
   return (
     <Card aria-hidden={true}>
@@ -108,6 +114,14 @@ export function MaterialCard({
                   label="Delete"
                   description="This action cannot be undone"
                   onClick={handleDelete}
+                />
+              )}
+              {onManageCollections && (
+                <ActionMenuItem
+                  icon={<FolderPlus size={14} />}
+                  label="Add to Collection..."
+                  description="Organize into collections"
+                  onClick={handleManageCollections}
                 />
               )}
             </ActionMenu>

@@ -18,4 +18,6 @@ export interface ViewportNavProps {
   onNavigate: (route: AppRoute) => void;
   subject?: Subject | null;
   material?: StudyMaterial | null;
+  /** Active collection id for the sidebar Collections section (`/collections/:collectionId` route). */
+  collectionId?: string | null;
 }

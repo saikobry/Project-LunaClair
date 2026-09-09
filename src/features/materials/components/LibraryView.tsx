@@ -48,6 +48,7 @@ interface LibraryViewProps {
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
+  onManageCollections?: (material: StudyMaterial) => void;
   onBrowseAvailable: () => void;
   isSavingReorder?: boolean;
   onSubjectEdit: (subject: Subject) => void;
@@ -68,6 +69,7 @@ export default function LibraryView({
   onDelete,
   onStartQuiz,
   onManage,
+  onManageCollections,
   onBrowseAvailable,
   isSavingReorder,
   onSubjectEdit,
@@ -143,6 +145,7 @@ export default function LibraryView({
             onDelete={onDelete}
             onStartQuiz={onStartQuiz}
             onManage={onManage}
+            onManageCollections={onManageCollections}
           />
         </div>
       )}

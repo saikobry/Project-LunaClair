@@ -1,11 +1,17 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, GraduationCap } from 'lucide-react';
+import { BookText, GraduationCap, Plus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { styles } from './desktopSidebar.stylex';
 import { DesktopTrapezoidButton } from './DesktopTrapezoidButton';
+import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
+import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
+import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
+import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
+import { Button } from '../../../shared/ui/Button/Button';
+import type { CreateCollectionInput } from '../../../domain/collections/models/Collection';
 
 interface SubjectMaterialNavProps {
   active: ViewportNavProps['active'];
@@ -66,6 +72,76 @@ function SubjectMaterialNav({ active, onNavigate, subject, material }: SubjectMa
   );
 }
 
+/**
+ * Dynamic Collections section: browsable playlist nav items with a quick-add
+ * button that opens `CreateCollectionModal` and navigates to the new
+ * collection on save. Always visible — collection discovery is the point.
+ */
+function CollectionsNav({
+  activeCollectionId,
+  onNavigate,
+}: {
+  activeCollectionId?: string | null;
+  onNavigate: ViewportNavProps['onNavigate'];
+}) {
+  const { collections } = useCollections();
+  const createMutation = useCreateCollection();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const handleSave = async (input: CreateCollectionInput) => {
+    const created = await createMutation.mutateAsync(input);
+    setIsCreateOpen(false);
+    onNavigate({ kind: 'collection', collectionId: created.id });
+  };
+
+  return (
+    <>
+      <div {...stylex.props(styles.divider)} aria-hidden="true" />
+
+      <div {...stylex.props(styles.sectionHeader)}>
+        <span {...stylex.props(styles.sectionLabel)}>Collections</span>
+        <Button
+          label="New Collection"
+          tooltip="New Collection"
+          isIconOnly
+          variant="ghost"
+          icon={<Plus size={16} />}
+          onClick={() => setIsCreateOpen(true)}
+        />
+      </div>
+
+      {collections.map((collection) => {
+        const isActive = activeCollectionId === collection.id;
+        const Icon = getCollectionIcon(collection.icon);
+        return (
+          <button
+            key={collection.id}
+            type="button"
+            {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
+            onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
+            aria-current={isActive ? 'page' : undefined}
+            title={`Collection: ${collection.title}`}
+          >
+            <span
+              {...stylex.props(styles.collectionIcon)}
+              style={collection.color ? { color: collection.color } : undefined}
+            >
+              <Icon size={18} />
+            </span>
+            <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
+          </button>
+        );
+      })}
+
+      <CreateCollectionModal
+        isOpen={isCreateOpen}
+        onSave={handleSave}
+        onClose={() => setIsCreateOpen(false)}
+      />
+    </>
+  );
+}
+
 export function DesktopSidebar({
   active,
   isFocusMode,
@@ -73,6 +149,7 @@ export function DesktopSidebar({
   onNavigate,
   subject,
   material,
+  collectionId,
 }: ViewportNavProps) {
   const containerRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
@@ -161,6 +238,11 @@ export function DesktopSidebar({
             onNavigate={onNavigate}
             subject={subject}
             material={material}
+          />
+
+          <CollectionsNav
+            activeCollectionId={collectionId}
+            onNavigate={onNavigate}
           />
         </div>
       </div>

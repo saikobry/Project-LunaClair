@@ -102,6 +102,26 @@ export const styles = stylex.create({
     marginLeft: 4,
     marginRight: 4,
   },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingLeft: 12,
+    paddingRight: 4,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--color-text-secondary)',
+  },
+  collectionIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
   footerWrapper: {
     position: 'relative',
     display: 'flex',
