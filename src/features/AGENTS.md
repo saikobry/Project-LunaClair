@@ -45,7 +45,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `flashcards` depends on `quiz`, `reader`, and `materials`.
   - `quiz-management` depends on `quiz`, `reader`, `package`, `materials`, and `ai`.
   - `package` depends on `materials`.
-  - `collections` depends unidirectionally on `materials` (membership resolution via the `LibraryRepository` port, `MaterialCard` presentation).
+  - `collections` depends unidirectionally on `materials` (membership resolution via the `LibraryRepository` port, `MaterialCard` presentation) plus a type-only dependency on `quiz` (`QuizLaunchRequest` launch contract for `CollectionQuizExplorer`; no runtime quiz imports).
   - `ai` depends on `quiz` and never on `quiz-management`.
   - `analytics` and `sync` have zero feature-to-feature dependencies.
   - Enforced by `src/__tests__/architecture/featureBoundary.test.ts`.
@@ -64,7 +64,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
-    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/materials/components/MaterialCard`
+    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/queries/useCollectionQuizTree`, `features/collections/components/CollectionQuizExplorer`, `features/collections/types/collectionQuizTree.types`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/materials/components/MaterialCard`, `features/quiz/types/quizFeature.types`
     - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
 
 ## Work Guidance

@@ -16,6 +16,7 @@ describe('CollectionWorkspaceScreen', () => {
   let mockRemoveExecute: ReturnType<typeof vi.fn>;
   let mockUpdateExecute: ReturnType<typeof vi.fn>;
   let mockDeleteExecute: ReturnType<typeof vi.fn>;
+  let mockGetQuizzesForMaterials: ReturnType<typeof vi.fn>;
   let mockNavigate: ReturnType<typeof vi.fn<(route: AppRoute) => void>>;
 
   const now = '2026-08-01T00:00:00.000Z';
@@ -43,15 +44,17 @@ describe('CollectionWorkspaceScreen', () => {
     mockRemoveExecute = vi.fn().mockResolvedValue(undefined);
     mockUpdateExecute = vi.fn().mockResolvedValue({ ...collection, title: 'Renamed' });
     mockDeleteExecute = vi.fn().mockResolvedValue(undefined);
+    mockGetQuizzesForMaterials = vi.fn().mockResolvedValue([]);
     mockNavigate = vi.fn();
   });
 
-  function renderScreen() {
+  function renderScreen(onStartQuiz?: (request: import('../../../../features/quiz/types/quizFeature.types').QuizLaunchRequest) => void) {
     const mockContextValue = {
       repositories: {
         collection: { getById: mockGetById },
         collectionMaterial: { getByCollectionId: mockGetByCollectionId },
         library: { getMaterials: mockGetMaterials },
+        quiz: { getQuizzesForMaterials: mockGetQuizzesForMaterials },
       },
       useCases: {
         collections: {
@@ -66,7 +69,7 @@ describe('CollectionWorkspaceScreen', () => {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <ApplicationContext.Provider value={mockContextValue}>
-            <CollectionWorkspaceScreen collectionId="c-1" onNavigate={mockNavigate} />
+            <CollectionWorkspaceScreen collectionId="c-1" onNavigate={mockNavigate} onStartQuiz={onStartQuiz} />
           </ApplicationContext.Provider>
         </ToastProvider>
       </QueryClientProvider>,
@@ -159,6 +162,78 @@ describe('CollectionWorkspaceScreen', () => {
     await waitFor(() => {
       expect(mockDeleteExecute).toHaveBeenCalledWith('c-1');
       expect(mockNavigate).toHaveBeenCalledWith({ kind: 'library' });
+    });
+  });
+
+  it('switches between the Materials and Quizzes tabs', async () => {
+    mockGetQuizzesForMaterials.mockResolvedValueOnce([
+      {
+        id: 'quiz-1',
+        materialId: 'm-1',
+        title: 'Kinematics Quiz',
+        status: 'published',
+        questionIds: ['q-1', 'q-2'],
+        items: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'Materials' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Quizzes' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quizzes' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics Quiz')).toBeInTheDocument();
+    });
+    expect(mockGetQuizzesForMaterials).toHaveBeenCalledWith(['m-1'], expect.anything());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Materials' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics')).toBeInTheDocument();
+    });
+  });
+
+  it('forwards quiz launches from the quiz explorer', async () => {
+    const onStartQuiz = vi.fn();
+    mockGetQuizzesForMaterials.mockResolvedValueOnce([
+      {
+        id: 'quiz-1',
+        materialId: 'm-1',
+        title: 'Kinematics Quiz',
+        status: 'published',
+        questionIds: ['q-1', 'q-2'],
+        items: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    renderScreen(onStartQuiz);
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quizzes' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics Quiz')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Kinematics Quiz' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Quiz' }));
+
+    expect(onStartQuiz).toHaveBeenCalledWith({
+      type: 'quiz',
+      quizId: 'quiz-1',
+      source: 'library',
     });
   });
 });

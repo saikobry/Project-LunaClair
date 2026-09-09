@@ -174,6 +174,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             collectionId={currentRoute.collectionId}
             onNavigate={navigate}
             onOpenMaterial={(materialId) => handleOpenMaterial(materialId)}
+            onStartQuiz={handleStartQuiz}
           />
         </Suspense>
       )}

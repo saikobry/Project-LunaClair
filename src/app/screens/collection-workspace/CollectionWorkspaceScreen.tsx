@@ -1,20 +1,23 @@
 import { useCallback, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, FolderX, SquarePen, Trash2 } from 'lucide-react';
+import { BookOpen, BrainCircuit, FolderX, SquarePen, Trash2 } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { UpdateCollectionInput } from '../../../domain/collections/models/Collection';
+import type { QuizLaunchRequest } from '../../../features/quiz/types/quizFeature.types';
 import { useCollection } from '../../../features/collections/hooks/queries/useCollection';
 import { useCollectionMaterials } from '../../../features/collections/hooks/queries/useCollectionMaterials';
 import { useRemoveMaterialFromCollection } from '../../../features/collections/hooks/mutations/useRemoveMaterialFromCollection';
 import { useUpdateCollection } from '../../../features/collections/hooks/mutations/useUpdateCollection';
 import { useDeleteCollection } from '../../../features/collections/hooks/mutations/useDeleteCollection';
 import { EditCollectionModal } from '../../../features/collections/modals/EditCollectionModal';
+import { CollectionQuizExplorer } from '../../../features/collections/components/CollectionQuizExplorer';
 import { MaterialCard } from '../../../features/materials/components/MaterialCard';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Breadcrumbs } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
+import { TabList, Tab } from '../../../shared/ui/TabList/TabList';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { WorkspaceSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
 
@@ -55,12 +58,14 @@ export interface CollectionWorkspaceScreenProps {
   collectionId: string;
   onNavigate: (route: AppRoute) => void;
   onOpenMaterial?: (materialId: string) => void;
+  onStartQuiz?: (request: QuizLaunchRequest) => void;
 }
 
 export function CollectionWorkspaceScreen({
   collectionId,
   onNavigate,
   onOpenMaterial,
+  onStartQuiz,
 }: CollectionWorkspaceScreenProps) {
   const { collection, isLoading: collectionLoading } = useCollection(collectionId);
   const { materials, isLoading: materialsLoading } = useCollectionMaterials(collectionId);
@@ -69,6 +74,7 @@ export function CollectionWorkspaceScreen({
   const deleteMutation = useDeleteCollection();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
 
   const handleBackToLibrary = useCallback(() => {
     onNavigate({ kind: 'library' });
@@ -179,23 +185,44 @@ export function CollectionWorkspaceScreen({
           }
         />
       ) : (
-        <div {...stylex.props(styles.grid)}>
-          {materials.map((material) => (
-            <div key={material.id} {...stylex.props(styles.cardSlot)}>
-              <MaterialCard material={material} onOpen={(m) => onOpenMaterial?.(m.id)} />
-              <Button
-                label={`Remove ${material.title} from collection`}
-                variant="secondary"
-                icon={<Trash2 size={14} />}
-                onClick={() =>
-                  removeMutation.mutate({ collectionId: collection.id, materialId: material.id })
-                }
-              >
-                Remove from Collection
-              </Button>
+        <>
+          <TabList
+            value={activeTab}
+            onChange={(tab) => setActiveTab(tab as 'materials' | 'quizzes')}
+            layout="fill"
+            hasDivider
+            aria-label="Collection tabs"
+          >
+            <Tab value="materials" label="Materials" icon={<BookOpen size={15} />} />
+            <Tab value="quizzes" label="Quizzes" icon={<BrainCircuit size={15} />} />
+          </TabList>
+
+          {activeTab === 'materials' ? (
+            <div {...stylex.props(styles.grid)}>
+              {materials.map((material) => (
+                <div key={material.id} {...stylex.props(styles.cardSlot)}>
+                  <MaterialCard material={material} onOpen={(m) => onOpenMaterial?.(m.id)} />
+                  <Button
+                    label={`Remove ${material.title} from collection`}
+                    variant="secondary"
+                    icon={<Trash2 size={14} />}
+                    onClick={() =>
+                      removeMutation.mutate({ collectionId: collection.id, materialId: material.id })
+                    }
+                  >
+                    Remove from Collection
+                  </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          ) : (
+            <CollectionQuizExplorer
+              collectionId={collectionId}
+              materials={materials}
+              onStartQuiz={onStartQuiz}
+            />
+          )}
+        </>
       )}
 
       {collection && (

@@ -8,12 +8,17 @@ Owns playlist-model collection presentation and membership state: collection que
 
 - `queries/` — Cache key definitions:
   - `collectionQueryKeys.ts` — Query key factory for the `['collections', ...]` namespace (`lists`, `details`, `detail(id)`, `materials(collectionId)`, `materialCollections(materialId)`, `unassigned`).
+- `types/` — Feature contracts:
+  - `collectionQuizTree.types.ts` — `CollectionQuizItem` (quiz id, material id, title, question count, optional description) and `CollectionQuizMaterialGroup` (material groups owning quiz items).
 - `hooks/` — Collection state hooks (DI via `ApplicationContext`, never concrete infrastructure):
   - `queries/useCollections.ts` — All collections sorted by `order`.
   - `queries/useCollection.ts` — Single collection by ID.
   - `queries/useCollectionMaterials.ts` — Junction-ordered `StudyMaterial[]` for a collection (links via `CollectionMaterialRepository`, materials via `LibraryRepository`, order re-applied after map lookup).
   - `queries/useMaterialCollections.ts` — `Collection[]` + `collectionIds` containing a material.
   - `queries/useUnassignedMaterials.ts` — Materials with zero junction rows.
+  - `queries/useCollectionQuizTree.ts` — Quiz tree for a collection: fetches via the `QuizRepository` port (`getQuizzesForMaterials`), groups by material in collection material order, derives counts from `quiz.questionIds.length`. Key: `[...collectionQueryKeys.materials(collectionId), 'quiz-tree']`.
+- `components/` — Feature-owned presentation:
+  - `CollectionQuizExplorer.tsx` — Quizzes tab explorer: debounced (200ms) title search, material accordion groups with per-material and per-quiz checkboxes, Select All/Deselect All toolbar, `X questions` chips, empty state ("No quizzes available yet in this collection."), and a sticky action bar (`X quizzes · Y questions selected`) emitting single (`type: 'quiz'`) or unified (`type: 'quizzes'`) `QuizLaunchRequest` via `onStartQuiz`.
   - `mutations/useCreateCollection.ts`, `mutations/useUpdateCollection.ts`, `mutations/useDeleteCollection.ts` — Delegate to `useCases.collections.*`, invalidate `collectionQueryKeys.all` (+ `detail(id)` on update).
   - `mutations/useAddMaterialToCollection.ts`, `mutations/useRemoveMaterialFromCollection.ts` — Invalidate `materials(collectionId)`, `materialCollections(materialId)`, `unassigned`.
   - `mutations/useReorderCollectionMaterials.ts` — Invalidates `materials(collectionId)`.
@@ -25,7 +30,7 @@ Owns playlist-model collection presentation and membership state: collection que
 
 ## Local Contracts
 
-- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (`MaterialCard`, `LibraryRepository` port, `materialQueryKeys` invalidation scope is separate). Must not depend on `app/screens/`.
+- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (`MaterialCard`, `LibraryRepository` port, `materialQueryKeys` invalidation scope is separate), plus a type-only dependency on `quiz/types/quizFeature.types` (`QuizLaunchRequest` for the explorer launch contract — no runtime quiz imports, DAG stays acyclic). Must not depend on `app/screens/`.
 - Query hooks read through `context.repositories.collection` / `collectionMaterial` / `library`; mutation hooks delegate exclusively to `context.useCases.collections.*`.
 - `modals/` are pure presentation: they never import hooks, repositories, or infrastructure — parents own data fetching and pass `collections`, `assignedCollectionIds`, and `onToggle`/`onSave` callbacks. Non-goals in force: never add hook/query imports here; `src/app/routing/` and `ShellRoutes.tsx` are owned elsewhere.
 - Route-level workspace orchestration belongs to `src/app/screens/collection-workspace/CollectionWorkspaceScreen.tsx` (mounts `EditCollectionModal`, drives edit/delete mutations). The `ManageMaterialCollectionsModal` is composed in `src/app/screens/library/LibraryModals.tsx` and launched from `MaterialCard`'s `onManageCollections` callback via `LibraryHomeScreen`.
