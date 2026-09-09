@@ -15,7 +15,8 @@ export type AppRoute =
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute }
-  | { kind: 'share'; shareId: string };
+  | { kind: 'share'; shareId: string }
+  | { kind: 'collection'; collectionId: string };
 
 /**
  * Serialize an AppRoute to a URL path string.
@@ -36,6 +37,8 @@ export function routeToUrl(route: AppRoute): string {
       return '/terms';
     case 'share':
       return `/share/${route.shareId}`;
+    case 'collection':
+      return `/collections/${route.collectionId}`;
     case 'subject':
       return `/subjects/${route.subjectId}?tab=${route.activeTab}`;
     case 'workspace':
@@ -84,6 +87,12 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   if (subjectMatch) {
     const tab = (url.searchParams.get('tab') as 'materials' | 'quiz' | 'terms') ?? 'materials';
     return { kind: 'subject', subjectId: subjectMatch[1], activeTab: tab };
+  }
+
+  // /collections/:collectionId
+  const collectionMatch = url.pathname.match(/^\/collections\/([^/]+)$/);
+  if (collectionMatch) {
+    return { kind: 'collection', collectionId: collectionMatch[1] };
   }
 
   // /quiz/:quizId

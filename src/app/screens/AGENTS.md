@@ -28,6 +28,8 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
   - `ImporterScreen.tsx` — 5-step document import wizard route (`/importer`).
 - `shared-package/` — Shared Package Screen:
   - `SharedPackageScreen.tsx` — Cloud package inspection and import route (`/share/:shareId`, `/s/:code`).
+- `collection-workspace/` — Collection Workspace Screen:
+  - `CollectionWorkspaceScreen.tsx` — Playlist collection route (`/collections/:collectionId`) with header, material grid, and remove-from-collection actions.
 
 ## Local Contracts
 

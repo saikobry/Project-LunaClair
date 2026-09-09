@@ -6,6 +6,7 @@ import { createAiUseCases } from './use-cases/createAiUseCases';
 import { createImporterUseCases } from './use-cases/createImporterUseCases';
 import { createPackageUseCases } from './use-cases/createPackageUseCases';
 import { createSyncUseCases } from './use-cases/createSyncUseCases';
+import { createCollectionUseCases } from './use-cases/createCollectionUseCases';
 import type { Infrastructure } from './createInfrastructure';
 
 /**
@@ -34,6 +35,7 @@ export function createUseCases(infrastructure: Infrastructure) {
         package: packageSlices.package,
         sharing: packageSlices.sharing,
         sync: createSyncUseCases(infrastructure),
+        collections: createCollectionUseCases(infrastructure).collections,
     };
 }
 

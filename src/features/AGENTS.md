@@ -22,6 +22,8 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `importer/` | ✅ Implemented | Content Importer — 5-step wizard workflow (selecting → extracting → review → details → completed), drag-and-drop file ingestion, hybrid PDF extraction + OCR, adaptive review with Lexical `WriterEditor` and `MarkdownViewer`. |
 | `sync/` | ✅ Implemented | Cloud synchronization UX — Reactive status hook (`useSyncStatus`, `useConflictDrafts`), status presentation pill (`SyncStatusPill`), and interactive document conflict resolution modal (`ConflictDraftsModal`). |
 | `package/` | ✅ Implemented | Study Package (.lcpack) import/export and cloud sharing landing capabilities — `useExportStudyPackage`, `useImportStudyPackage`, `StudyPackagePreviewModal`, workspace/deck export triggers. |
+| `collections/` | 🚧 In progress (parallel ownership) | Playlist Collections — collection query/mutation hooks and cache keys (parallel owner), plus self-contained collection dialogs (`CreateCollectionModal`, `EditCollectionModal`, `ManageMaterialCollectionsModal`) for collection creation, editing, and material assignment. |
+| `collections/` | ✅ Implemented | Playlist-model collections — membership queries (`useCollections`, `useCollection`, `useCollectionMaterials`, `useMaterialCollections`, `useUnassignedMaterials`), membership mutations (`useCreateCollection`, `useUpdateCollection`, `useDeleteCollection`, `useAddMaterialToCollection`, `useRemoveMaterialFromCollection`, `useReorderCollectionMaterials`), and `collectionQueryKeys`. Edit dialogs in `modals/` are parallel-owned (do not touch). |
 
 ## Local Contracts
 
@@ -46,6 +48,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `flashcards` depends on `quiz`, `reader`, and `materials`.
   - `quiz-management` depends on `quiz`, `reader`, `package`, `materials`, and `ai`.
   - `package` depends on `subjects` and `terms`.
+  - `collections` depends unidirectionally on `materials` (membership resolution via the `LibraryRepository` port, `MaterialCard` presentation).
   - `ai` depends on `quiz` and never on `quiz-management`.
   - `analytics` and `sync` have zero feature-to-feature dependencies.
   - Enforced by `src/__tests__/architecture/featureBoundary.test.ts`.
@@ -65,10 +68,11 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `quiz-management/components/QuestionBankTab` → `features/ai/generator/components/AiQuestionGeneratorDialog`, `features/quiz/utils/quizBadgeAppearance`
     - `ai/generator/components/GeneratedQuestionPreviewCard` → `features/quiz/utils/quizBadgeAppearance`
     - `terms/components/SubjectTermsTab` → `features/materials/hooks/queries/useLibrary`
-    - `terms/hooks/queries/useTermUsageCounts` → `features/materials/hooks/queries/useLibrary`    - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`, `features/subjects/queries/subjectQueryKeys`
+    - `terms/hooks/queries/useTermUsageCounts` → `features/materials/hooks/queries/useLibrary`    - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`, `features/subjects/queries/subjectQueryKeys`
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
     - `package/components/StudyPackagePreviewModal` → `features/subjects/hooks/queries/useSubjects`, `features/terms/hooks/queries/useTerms`
+    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/materials/components/MaterialCard`
 
 ## Work Guidance
 
@@ -99,3 +103,5 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |
 | `src/features/sync/AGENTS.md` | `src/features/sync/` | Cloud Synchronization UX — Status pill, conflict resolution modal, reactive synchronization hooks |
 | `src/features/package/AGENTS.md` | `src/features/package/` | Study Package feature — .lcpack export & import hooks, package inspection & preview modal |
+| `src/features/collections/AGENTS.md` | `src/features/collections/` | Playlist Collections — collection hooks/queries (parallel owner) and self-contained collection dialogs |
+| `src/features/collections/AGENTS.md` | `src/features/collections/` | Playlist Collections — membership queries/mutations, collection query keys |

@@ -6,7 +6,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 ## Ownership
 
-- `bootstrap/` — Composition root: `createApplication()` composes the entire dependency graph by calling `createInfrastructure()` (instantiating Dexie repositories, Cloudflare transports, domain services, and reconcilers) and `createUseCases()` (delegating domain slice creation to 8 modular factories in `bootstrap/use-cases/`). Exposes `{ repositories, useCases, infrastructure }` to `ApplicationContext` (ADR-011).
+- `bootstrap/` — Composition root: `createApplication()` composes the entire dependency graph by calling `createInfrastructure()` (instantiating Dexie repositories including `collection`/`collectionMaterial`, Cloudflare transports, domain services, and reconcilers) and `createUseCases()` (delegating domain slice creation to 9 modular factories in `bootstrap/use-cases/`, including `createCollectionUseCases`). Exposes `{ repositories, useCases, infrastructure }` to `ApplicationContext` (ADR-011).
 - `bootstrap.ts` — Application initialization: calls `DatabaseInitializer.initialize()` (opens Dexie database, runs legacy localStorage migration — **no seeding**; a fresh install boots with an empty library).
 
 - `providers/` — React Context Providers:
@@ -17,13 +17,14 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 - `routing/` — Navigation Engine & View Switcher:
   - `routing/routing.ts` — `AppRoute` union types, URL path parser (`urlToRoute`), and URL serializers (`routeToUrl`).
-  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Terms / Analytics / Subject / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
+  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Terms / Analytics / Subject / Collection / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
 
 - `screens/` — Application Screen & Route Composition Layer (ADR-014):
   - Route-level screens and cross-feature orchestrations:
     - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (aggregates material and subject management dialogs).
     - `screens/subject-workspace/` — `SubjectWorkspaceScreen.tsx` & `SubjectQuizTab.tsx` (orchestrates subject metadata, materials tab, terms tab, and subject quiz tree).
-    - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
+    - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).
+    - `screens/collection-workspace/` — `CollectionWorkspaceScreen.tsx` (playlist collection route (`/collections/:collectionId`): header with title/description/color/count, Library breadcrumbs, Edit/Delete actions, junction-ordered `MaterialCard` grid with per-card "Remove from Collection", empty state).    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
     - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
     - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).

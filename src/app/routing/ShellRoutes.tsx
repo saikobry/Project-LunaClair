@@ -21,6 +21,9 @@ const SharedPackageScreen = lazy(() =>
   import('../screens/shared-package/SharedPackageScreen').then((m) => ({ default: m.SharedPackageScreen })),
 );
 const ImporterScreen = lazy(() => import('../screens/importer/ImporterScreen'));
+const CollectionWorkspaceScreen = lazy(
+  () => import('../screens/collection-workspace/CollectionWorkspaceScreen'),
+);
 
 interface ShellRoutesProps {
   currentRoute: AppRoute;
@@ -198,6 +201,15 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             materialIds={currentRoute.materialIds}
             quizIds={currentRoute.quizIds}
             onExit={handleExitQuiz}
+          />
+        </Suspense>
+      )}
+      {currentRoute.kind === 'collection' && (
+        <Suspense fallback={<WorkspaceSkeleton />}>
+          <CollectionWorkspaceScreen
+            collectionId={currentRoute.collectionId}
+            onNavigate={navigate}
+            onOpenMaterial={(materialId) => handleOpenMaterial(materialId)}
           />
         </Suspense>
       )}

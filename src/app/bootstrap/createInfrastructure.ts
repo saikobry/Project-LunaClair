@@ -16,6 +16,8 @@ import type { ImportAssetRepository } from '../../domain/importer/repositories/I
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
+import type { CollectionRepository } from '../../domain/collections/repositories/CollectionRepository';
+import type { CollectionMaterialRepository } from '../../domain/collections/repositories/CollectionMaterialRepository';
 
 import { HybridDocumentRepository } from '../../infrastructure/storage/repositories/HybridDocumentRepository';
 import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
@@ -41,6 +43,8 @@ import { createDefaultImporterRegistry } from '../../infrastructure/importer/reg
 import { dexieSyncQueueRepository } from '../../infrastructure/database/repositories/DexieSyncQueueRepository';
 import { dexieSyncStateRepository } from '../../infrastructure/database/repositories/DexieSyncStateRepository';
 import { dexieConflictDraftRepository } from '../../infrastructure/database/repositories/DexieConflictDraftRepository';
+import { dexieCollectionRepository } from '../../infrastructure/database/repositories/DexieCollectionRepository';
+import { dexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
 import { dexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { workerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import { workerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
@@ -76,6 +80,8 @@ export interface Repositories {
     syncQueue: SyncQueueRepository;
     syncState: SyncStateRepository;
     conflictDraft: ConflictDraftRepository;
+    collection: CollectionRepository;
+    collectionMaterial: CollectionMaterialRepository;
 }
 
 /**
@@ -132,6 +138,8 @@ export function createInfrastructure(): Infrastructure {
         syncQueue: dexieSyncQueueRepository,
         syncState: dexieSyncStateRepository,
         conflictDraft: dexieConflictDraftRepository,
+        collection: dexieCollectionRepository,
+        collectionMaterial: dexieCollectionMaterialRepository,
     };
 
     return {

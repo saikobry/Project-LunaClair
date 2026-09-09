@@ -195,6 +195,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `src/domain/AGENTS.md` | `src/domain/` | Business domain models and logic |
 | `src/features/AGENTS.md` | `src/features/` | Feature module policies and orchestration |
 | `src/features/materials/AGENTS.md` | `src/features/materials/` | Study Materials — local library management, material cards, material CRUD dialogs |
+| `src/features/collections/AGENTS.md` | `src/features/collections/` | Collections & Playlists — user-curated material collections, custom ordering, and collection modals |
 | `src/features/subjects/AGENTS.md` | `src/features/subjects/` | Academic Subjects — subject entities, cards, hierarchy, and subject modals |
 | `src/features/terms/AGENTS.md` | `src/features/terms/` | Academic Terms — terms management, subject-term junctions, and usage counts |
 | `src/features/discovery/AGENTS.md` | `src/features/discovery/` | Content Discovery — remote catalog exploration, public share cloning, and read-only previews |
