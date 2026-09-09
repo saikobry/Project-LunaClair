@@ -1,11 +1,9 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, GraduationCap, Sparkles, X } from 'lucide-react';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 import { Button } from '../../shared/ui/Button/Button';
 import logoSvg from '../../assets/logo.svg';
-import { ApplicationContext } from '../providers/ApplicationContext';
-import { useToast } from '../providers/ToastContext';
 
 /**
  * First-run onboarding tutorial (app-shell chrome).
@@ -17,12 +15,7 @@ import { useToast } from '../providers/ToastContext';
  * focus restoration for free. One-time and skippable, persisted via
  * `STORAGE_KEYS.settings.onboardingDone`.
  *
- * The tutorial is bundled app chrome — it never depends on the network — but
- * its Finish AND Skip actions call `SyncDefaultTermsUseCase`, which syncs the
- * canonical academic terms (Prelim / Midterm / Finals) from the bundled
- * `CANONICAL_DEFAULT_TERMS` constant into Dexie, so dismissal is never
- * punished. Terms additionally arrive via import (which writes its own term
- * rows).
+ * The tutorial is bundled app chrome — it never depends on the network.
  *
  * Unlike the PWA install surfaces, this is NOT gated off in dev — onboarding
  * is a real product flow and must be testable locally.
@@ -37,17 +30,17 @@ const SLIDES = [
   {
     icon: BookOpen,
     title: 'Your library, your choice',
-    body: 'Explore shared study packages and clone what you want to study. Subjects, materials, and terms live in your library.',
+    body: 'Explore shared study packages and clone what you want to study. Materials live in your library, organized into collections.',
   },
   {
     icon: GraduationCap,
-    title: 'Terms & quizzes',
-    body: 'Organize by academic terms — Prelim, Midterm, Finals — and test yourself with quizzes and flashcards.',
+    title: 'Collections & quizzes',
+    body: 'Organize materials into collections and test yourself with quizzes and flashcards.',
   },
   {
     icon: CheckCircle2,
     title: "You're all set",
-    body: 'Finishing prepares your default terms and marks you ready to start studying.',
+    body: 'Finish up and start studying.',
   },
 ] as const;
 
@@ -57,9 +50,6 @@ interface OnboardingTutorialProps {
 }
 
 export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialProps) {
-  const { useCases } = useContext(ApplicationContext) ?? {};
-  const { showToast } = useToast();
-
   // Shown until finished OR skipped — one-time per browser.
   const [done, setDone] = useState(
     () => localStorage.getItem(STORAGE_KEYS.settings.onboardingDone) === '1',
@@ -77,30 +67,14 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
     setDone(true);
   }, []);
 
-  const syncDefaultTerms = useCallback(async () => {
-    try {
-      const result = await useCases?.library.syncDefaultTerms.execute();
-      if (result?.synced && result.count > 0) {
-        showToast('Default terms ready — Prelim, Midterm, Finals', { intent: 'success' });
-      }
-    } catch {
-      // Failure-tolerant — terms arrive later via import.
-    }
-  }, [useCases, showToast]);
-
   const handleSkip = useCallback(() => {
-    // Skip syncs the same way as Finish — dismissal is never punished, and
-    // default terms land in Dexie either way. Fire-and-forget so Skip stays
-    // an instant dismiss; the success toast confirms the sync.
-    void syncDefaultTerms();
     markDone();
-  }, [syncDefaultTerms, markDone]);
+  }, [markDone]);
 
   const handleFinish = useCallback(async () => {
     setIsFinishing(true);
-    await syncDefaultTerms();
     markDone();
-  }, [syncDefaultTerms, markDone]);
+  }, [markDone]);
 
   // Open as a modal when shown — native <dialog> provides focus trapping,
   // Escape (via the `cancel` event), and the backdrop. Escape is handled in

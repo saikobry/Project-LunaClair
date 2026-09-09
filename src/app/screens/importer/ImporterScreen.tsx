@@ -12,7 +12,7 @@ import { useImportStudyPackage } from '../../../features/package/hooks/useImport
 import { StudyPackagePreviewModal } from '../../../features/package/components/StudyPackagePreviewModal';
 
 export interface ImporterScreenProps {
-  onOpenMaterial?: (materialId: string, subjectId?: string) => void;
+  onOpenMaterial?: (materialId: string) => void;
   onCancel?: () => void;
 }
 

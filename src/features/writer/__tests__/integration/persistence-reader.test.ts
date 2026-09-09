@@ -12,8 +12,6 @@ describe('Stage 4A — Production Dexie Persistence & Hybrid Resolution Integrat
     documentId: 'doc-anatomy-1',
     title: 'Integumentary System',
     description: 'Anatomy and physiology notes',
-    subjectId: 'sub-bio',
-    termId: 'term-prelim',
     order: 1,
     createdAt: '2026-08-01T00:00:00Z',
     updatedAt: '2026-08-01T00:00:00Z',

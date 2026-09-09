@@ -10,11 +10,11 @@ Owns Explore hub aggregation and public share discovery/cloning. Interfaces with
   - `useExploreContent.ts` — Shares-only explore aggregator: queries public shares, derives `isInLibrary` from the materials' `originShareId` set (exact clone identity, never title matching).
   - `usePublicShares.ts` — Query hook fetching public shares (`GET /api/shares`).
   - `useCloneShare.ts` — Mutation hook for 1-click cloning of published study packages into the local library.
-  - `mutations/useRemoveImportedMaterial.ts` — Mutation hook removing an imported material from Dexie (invalidates `materialQueryKeys` + `subjectQueryKeys`).
+  - `mutations/useRemoveImportedMaterial.ts` — Mutation hook removing an imported material from Dexie (invalidates `materialQueryKeys`).
 
 ## Local Contracts
 
-- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (for local library status check, invalidation, and import use cases) and `subjects/` (for invalidation). Must not depend on `reader/`, `quiz/`, or `app/screens/`.
+- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (for local library status check, invalidation, and import use cases). Must not depend on `reader/`, `quiz/`, or `app/screens/`.
 - The catalog is never auto-hydrated into Dexie on app startup. Materials enter the local library only through explicit user action (package import / share clone).
 - **Exact clone identity**: library membership for shares compares `material.originShareId === share.id`. Never reintroduce title-based matching. `ClonePublishedShareUseCase` stamps `originShareId` from the share ID at clone time (Dexie v12 index).
 - Route-level explore screen belongs to `src/app/screens/explore/ExploreScreen.tsx`. `/share/:id` (`SharedPackageScreen`) is the single non-imported-material viewing surface.

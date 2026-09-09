@@ -1,15 +1,9 @@
 import type { StudyMaterial } from '../models/StudyMaterial';
-import type { Subject } from '../models/Subject';
-import type { Term } from '../models/Term';
-import type { SubjectTerm } from '../models/SubjectTerm';
 import type { Question } from '../../quiz/models/Question';
 import type { Quiz } from '../../quiz/models/Quiz';
 import type { ImportedDocumentContent } from '../../reader/repositories/DocumentContentRepository';
 
 export interface ImportMaterialInput {
-  subject?: Subject;
-  term?: Term;
-  subjectTerm?: SubjectTerm;
   material: StudyMaterial;
   questions: Question[];
   quizzes: Quiz[];
@@ -19,8 +13,7 @@ export interface ImportMaterialInput {
 /**
  * Domain application service contract for the material import/removal
  * workflows that write across multiple Dexie stores and must commit
- * atomically (subjects, terms, subjectTerms, materials, questions, quizzes,
- * documentContents).
+ * atomically (materials, questions, quizzes, documentContents).
  *
  * Implementations live in the infrastructure layer (e.g.
  * `DexieLibraryImportService`) and are supplied to feature hooks through the
@@ -29,7 +22,6 @@ export interface ImportMaterialInput {
 export interface LibraryImportService {
   /**
    * Persists one imported material and everything that belongs to it:
-   * the subject/term/subjectTerm rows it references (idempotent puts),
    * the material row, its questions and quizzes (bulk put), and its
    * locally imported document content.
    */
@@ -37,8 +29,7 @@ export interface LibraryImportService {
 
   /**
    * Persists multiple imported materials atomically in a single transaction:
-   * deduplicates subject/term/subjectTerm rows across inputs, and bulk-inserts
-   * materials, questions, quizzes, and document contents.
+   * bulk-inserts materials, questions, quizzes, and document contents.
    */
   importMaterialBatch(inputs: ImportMaterialInput[]): Promise<void>;
 

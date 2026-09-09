@@ -105,23 +105,10 @@ describe('SharedPackageScreen', () => {
     downloadCount: 7,
   };
 
-  const mockSubjects = [
-    { id: 'sub-biochem', title: 'Biochemistry', order: 1 },
-    { id: 'sub-genetics', title: 'Genetics', order: 2 },
-  ];
-
-  const mockTerms = [
-    { id: 'term-prelim', title: 'Prelim Term' },
-    { id: 'term-midterm', title: 'Midterm Term' },
-  ];
-
   let queryClient: QueryClient;
   let mockFetchPublishedShare: ReturnType<typeof vi.fn>;
   let mockTrackShareDownload: ReturnType<typeof vi.fn>;
   let mockImportStudyPackage: ReturnType<typeof vi.fn>;
-  let mockSubjectRepository: { getSubjects: ReturnType<typeof vi.fn> };
-  let mockSubjectTermRepository: { getTermsBySubject: ReturnType<typeof vi.fn> };
-  let mockTermRepository: { getTerms: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -143,23 +130,11 @@ describe('SharedPackageScreen', () => {
       assetIds: ['local_asset_101'],
       idMap: new Map([['pkg_mat_1', 'local_mat_101']]),
     });
-
-    mockSubjectRepository = {
-      getSubjects: vi.fn().mockResolvedValue(mockSubjects),
-    };
-
-    mockSubjectTermRepository = {
-      getTermsBySubject: vi.fn().mockResolvedValue(mockTerms),
-    };
-
-    mockTermRepository = {
-      getTerms: vi.fn().mockResolvedValue(mockTerms),
-    };
   });
 
   function renderScreen(props: {
     shareId?: string;
-    onOpenMaterial?: (materialId: string, subjectId?: string) => void;
+    onOpenMaterial?: (materialId: string) => void;
     onCancel?: () => void;
   } = {}) {
     const onOpenMaterial = props.onOpenMaterial ?? vi.fn();
@@ -167,18 +142,6 @@ describe('SharedPackageScreen', () => {
     const shareId = props.shareId ?? 'share_public_123';
 
     const mockContextValue = {
-      repositories: {
-        subject: mockSubjectRepository,
-        subjectTerm: mockSubjectTermRepository,
-        term: mockTermRepository,
-      },
-      infrastructure: {
-        repositories: {
-          subject: mockSubjectRepository,
-          subjectTerm: mockSubjectTermRepository,
-          term: mockTermRepository,
-        },
-      },
       useCases: {
         sharing: {
           fetchPublishedShare: { execute: mockFetchPublishedShare },
@@ -344,17 +307,6 @@ describe('SharedPackageScreen', () => {
       expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
     });
 
-    // Select Subject & Term destination
-    const subjectSelect = screen.getByLabelText(/Subject \(Optional\)/i);
-    fireEvent.change(subjectSelect, { target: { value: 'sub-biochem' } });
-
-    await waitFor(() => {
-      expect(screen.getByText('Prelim Term')).toBeInTheDocument();
-    });
-
-    const termSelect = screen.getByLabelText(/Term \(Optional\)/i);
-    fireEvent.change(termSelect, { target: { value: 'term-prelim' } });
-
     const cloneButton = screen.getByRole('button', { name: /Clone to Library/i });
     fireEvent.click(cloneButton);
 
@@ -362,8 +314,6 @@ describe('SharedPackageScreen', () => {
       // 1. Verify importStudyPackage was called
       expect(mockImportStudyPackage).toHaveBeenCalledWith({
         package: mockPackage,
-        targetSubjectId: 'sub-biochem',
-        targetTermId: 'term-prelim',
       });
 
       // 2. Strict Requirement: trackShareDownload called ONLY after import succeeds
@@ -381,7 +331,7 @@ describe('SharedPackageScreen', () => {
     const openButton = screen.getByRole('button', { name: /Open Cloned Material/i });
     fireEvent.click(openButton);
 
-    expect(onOpenMaterial).toHaveBeenCalledWith('local_mat_101', 'sub-biochem');
+    expect(onOpenMaterial).toHaveBeenCalledWith('local_mat_101');
   });
 
   it('serializes package to blob, triggers file download, and tracks download metric', async () => {

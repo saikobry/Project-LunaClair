@@ -2,7 +2,7 @@
  
 ## Purpose
 
-User-facing 5-step import wizard allowing learners to ingest external study materials (PDFs, photos of notes), review and edit Markdown via Lexical Writer, optionally clean up text with AI diff comparison, assign materials to subjects/terms, and persist to local library storage with original asset preservation.
+User-facing 5-step import wizard allowing learners to ingest external study materials (PDFs, photos of notes), review and edit Markdown via Lexical Writer, optionally clean up text with AI diff comparison, and persist to local library storage with original asset preservation.
 
 ## Ownership
 
@@ -13,7 +13,7 @@ User-facing 5-step import wizard allowing learners to ingest external study mate
   - `ExtractionProgressView.tsx` — Multi-file extraction progress bar with active phase labels and cancellation.
   - `ImportReviewView.tsx` — Adaptive dual-pane review layout embedding Lexical `WriterEditor` and `MarkdownViewer` with per-page confidence badges.
   - `AiCleanupDiffView.tsx` — Opt-in AI cleanup diff comparison with side-by-side or stacked views and Accept/Reject actions.
-  - `MaterialDetailsView.tsx` — Title, Subject, and Academic Term assignment step.
+  - `MaterialDetailsView.tsx` — Title assignment step.
   - `ImportResultView.tsx` — Success confirmation with "Open Material" links and failed retry options.
   - `PasswordPromptDialog.tsx` — Dialog handling encrypted / password-protected PDFs.
 - `hooks/`

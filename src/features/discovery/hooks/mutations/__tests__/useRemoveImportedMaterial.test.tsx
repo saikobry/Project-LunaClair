@@ -5,7 +5,6 @@ import { useRemoveImportedMaterial } from '../useRemoveImportedMaterial';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../../../app/providers/ToastContext';
 import { materialQueryKeys } from '../../../../materials/queries/materialQueryKeys';
-import { subjectQueryKeys } from '../../../../subjects/queries/subjectQueryKeys';
 
 describe('useRemoveImportedMaterial', () => {
   let queryClient: QueryClient;
@@ -61,7 +60,7 @@ describe('useRemoveImportedMaterial', () => {
     );
   }
 
-  it('dispatches remove use case and invalidates materials and subjects queries on success', async () => {
+  it('dispatches remove use case and invalidates materials queries on success', async () => {
     const { result } = renderHook(() => useRemoveImportedMaterial(), {
       wrapper: createWrapper(),
     });
@@ -72,7 +71,6 @@ describe('useRemoveImportedMaterial', () => {
 
     expect(mockRemoveExecute).toHaveBeenCalledWith('mat-remove-123');
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: materialQueryKeys.materials() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: subjectQueryKeys.subjects() });
   });
 
   it('propagates error when remove use case fails', async () => {

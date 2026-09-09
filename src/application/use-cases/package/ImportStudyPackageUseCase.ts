@@ -10,8 +10,6 @@ import type {
 
 export interface ImportStudyPackageInput {
   package: StudyPackage | unknown;
-  targetSubjectId?: string;
-  targetTermId?: string;
   /** Cloud share ID this package was cloned from (records exact clone identity on materials). */
   originShareId?: string;
   idGenerator?: LocalIdGenerator;
@@ -60,8 +58,6 @@ export class ImportStudyPackageUseCase {
       title: mat.title,
       description: mat.description,
       documentId: mat.documentId,
-      subjectId: input.targetSubjectId || undefined,
-      termId: input.targetTermId || undefined,
       order: mat.order ?? 0,
       createdAt: now,
       updatedAt: now,

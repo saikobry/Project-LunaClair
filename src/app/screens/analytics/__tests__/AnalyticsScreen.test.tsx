@@ -35,46 +35,6 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
             { date: '2026-08-30', dueCount: 1, cumulativeDue: 7 },
             { date: '2026-08-31', dueCount: 0, cumulativeDue: 7 },
         ],
-        subjects: [
-            {
-                subjectId: 'sub-bio',
-                subjectName: 'Biology',
-                attemptCount: 15,
-                correctCount: 13,
-                rawAccuracy: 86.67,
-                weightedScore: 88.5,
-                totalQuizzes: 3,
-                topics: [
-                    {
-                        tag: 'Genetics',
-                        attemptCount: 8,
-                        correctCount: 7,
-                        rawAccuracy: 87.5,
-                        weightedScore: 90,
-                        status: 'mastered',
-                    },
-                    {
-                        tag: 'Cell Structure',
-                        attemptCount: 7,
-                        correctCount: 6,
-                        rawAccuracy: 85.71,
-                        weightedScore: 86,
-                        status: 'mastered',
-                    },
-                ],
-                strengths: [
-                    {
-                        tag: 'Genetics',
-                        attemptCount: 8,
-                        correctCount: 7,
-                        rawAccuracy: 87.5,
-                        weightedScore: 90,
-                        status: 'mastered',
-                    },
-                ],
-                weaknesses: [],
-            },
-        ],
         activity: Array(365).fill(null).map((_, i) => ({
             date: `2026-01-${String(i + 1).padStart(2, '0')}`,
             quizzesCount: i === 0 ? 2 : 0,
@@ -103,7 +63,6 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
             totalCards: 0,
         },
         forecast: [],
-        subjects: [],
         activity: [],
     };
 
@@ -169,11 +128,6 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
 
         // 3. Activity
         expect(screen.getByText('Study Activity')).toBeInTheDocument();
-
-        // 4. Subjects
-        expect(screen.getByText('Biology')).toBeInTheDocument();
-        expect(screen.getByText('Genetics')).toBeInTheDocument();
-        expect(screen.getByText('Top Strengths')).toBeInTheDocument();
     });
 
     it('renders error state when query rejects', async () => {

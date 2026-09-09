@@ -36,8 +36,6 @@ describe('ImporterScreen', () => {
     id: 'mat-imported-1',
     documentId: 'doc-imported-1',
     title: 'Extracted Lecture Notes',
-    subjectId: 'sub-bio',
-    termId: 'term-prelim',
     createdAt: '2026-09-02T12:00:00.000Z',
     updatedAt: '2026-09-02T12:00:00.000Z',
   };
@@ -98,14 +96,6 @@ describe('ImporterScreen', () => {
 
   function createWrapper() {
     const mockContextValue = {
-      repositories: {
-        subject: {
-          getSubjects: vi.fn().mockResolvedValue([]),
-        },
-        term: {
-          getTerms: vi.fn().mockResolvedValue([]),
-        },
-      },
       useCases: {
         importer: {
           extractContent: {
@@ -232,7 +222,7 @@ describe('ImporterScreen', () => {
     // Verify Open in Workspace CTA
     const openBtn = screen.getByRole('button', { name: /open in workspace/i });
     fireEvent.click(openBtn);
-    expect(onOpenMaterial).toHaveBeenCalledWith('mat-imported-1', 'sub-bio');
+    expect(onOpenMaterial).toHaveBeenCalledWith('mat-imported-1');
   });
 
   it('stages and opens preview modal when an .lcpack study package is added', async () => {

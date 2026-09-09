@@ -14,7 +14,6 @@ Provides learning insights, performance telemetry, spaced-repetition retention m
   - `overview/OverviewMetricCards.tsx` — Study streak, global quiz accuracy, completed quizzes, and accumulated card reviews.
   - `retention/CardMaturityBar.tsx` — Stacked maturity distribution (`new`, `learning`, `review`, `mastered`).
   - `retention/ReviewForecastChart.tsx` — 7-day review load forecast with overdue cards collapsed into today.
-  - `mastery/SubjectMasteryCard.tsx` / `SubjectMasteryGrid.tsx` — Subject proficiency scores, topic breakdown bars, strengths, and weaknesses badges.
   - `activity/ActivityHeatmap.tsx` — 52-week (365 days) activity calendar with honest labeling and intensity levels ($0\text{--}4$).
 
 ## Local Contracts

@@ -20,6 +20,4 @@ export interface ExploreContentItem {
   isVerified: boolean;
   /** Exact clone identity: the share's package already lives in the local library. */
   isInLibrary: boolean;
-  subjectId?: string;
-  termId?: string;
 }

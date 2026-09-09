@@ -1,16 +1,14 @@
 import * as stylex from '@stylexjs/stylex';
 import {
-  Plus,
   BookHeart,
   LibraryBig,
+  Plus,
 } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Subject } from '../../../domain/library/models/Subject';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import MaterialGrid from './MaterialGrid';
-import SubjectCardGrid from './SubjectCardGrid';
 import { CardGridSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
 
 const localStyles = stylex.create({
@@ -37,49 +35,33 @@ const localStyles = stylex.create({
 
 interface LibraryViewProps {
   isLoading?: boolean;
-  subjects: Subject[];
   materials: StudyMaterial[];
-  allMaterials: StudyMaterial[];
   onNewMaterial: () => void;
-  onNewSubject: () => void;
   onOpen: (material: StudyMaterial) => void;
-  onOpenSubject: (subjectId: string) => void;
   onEdit: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
   onManageCollections?: (material: StudyMaterial) => void;
   onBrowseAvailable: () => void;
-  isSavingReorder?: boolean;
-  onSubjectEdit: (subject: Subject) => void;
-  onSubjectDelete: (subject: Subject) => void;
-  onSubjectReorder: (orderedIds: string[]) => void;
 }
 
 export default function LibraryView({
   isLoading = false,
-  subjects,
   materials,
-  allMaterials,
   onNewMaterial,
-  onNewSubject,
   onOpen,
-  onOpenSubject,
   onEdit,
   onDelete,
   onStartQuiz,
   onManage,
   onManageCollections,
   onBrowseAvailable,
-  isSavingReorder,
-  onSubjectEdit,
-  onSubjectDelete,
-  onSubjectReorder,
 }: LibraryViewProps) {
-  const totalCount = allMaterials.length;
+  const totalCount = materials.length;
   const description = isLoading
     ? undefined
-    : `${subjects.length} ${subjects.length === 1 ? 'subject' : 'subjects'} · ${totalCount} ${totalCount === 1 ? 'material' : 'materials'}`;
+    : `${totalCount} ${totalCount === 1 ? 'material' : 'materials'}`;
 
   return (
     <Page
@@ -87,14 +69,6 @@ export default function LibraryView({
       description={description}
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            label="New Subject"
-            variant="secondary"
-            icon={<Plus size={18} />}
-            onClick={onNewSubject}
-          >
-            New Subject
-          </Button>
           <Button
             label="New Material"
             variant="primary"
@@ -110,30 +84,17 @@ export default function LibraryView({
       {isLoading && (
         <div {...stylex.props(localStyles.section)}>
           <div {...stylex.props(localStyles.sectionHeader)}>
-            <h2 {...stylex.props(localStyles.sectionTitle)}>Subjects</h2>
+            <h2 {...stylex.props(localStyles.sectionTitle)}>Materials</h2>
           </div>
           <CardGridSkeleton count={6} />
         </div>
       )}
 
-      {/* Subjects Grid */}
-      {!isLoading && subjects.length > 0 && (
-        <SubjectCardGrid
-          subjects={subjects}
-          allMaterials={allMaterials}
-          isSavingReorder={isSavingReorder}
-          onOpenSubject={onOpenSubject}
-          onSubjectEdit={onSubjectEdit}
-          onSubjectDelete={onSubjectDelete}
-          onSubjectReorder={onSubjectReorder}
-        />
-      )}
-
-      {/* Uncategorized Materials */}
+      {/* Materials */}
       {!isLoading && materials.length > 0 && (
         <div {...stylex.props(localStyles.section)}>
           <div {...stylex.props(localStyles.sectionHeader)}>
-            <h2 {...stylex.props(localStyles.sectionTitle)}>Uncategorized</h2>
+            <h2 {...stylex.props(localStyles.sectionTitle)}>Materials</h2>
             <span {...stylex.props(localStyles.sectionCount)}>
               {materials.length} {materials.length === 1 ? 'material' : 'materials'}
             </span>
@@ -151,7 +112,7 @@ export default function LibraryView({
       )}
 
       {/* Empty State — only shown when nothing exists at all */}
-      {!isLoading && subjects.length === 0 && materials.length === 0 && (
+      {!isLoading && materials.length === 0 && (
         <EmptyState
           icon={<BookHeart size={56} />}
           title="Your library is empty"

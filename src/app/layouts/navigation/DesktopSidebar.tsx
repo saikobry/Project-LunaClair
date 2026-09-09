@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, GraduationCap, Plus } from 'lucide-react';
+import { BookText, Plus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
@@ -13,15 +13,13 @@ import { getCollectionIcon } from '../../../features/collections/modals/collecti
 import { Button } from '../../../shared/ui/Button/Button';
 import type { CreateCollectionInput } from '../../../domain/collections/models/Collection';
 
-interface SubjectMaterialNavProps {
+interface ActiveMaterialNavProps {
   active: ViewportNavProps['active'];
   onNavigate: ViewportNavProps['onNavigate'];
-  subject?: ViewportNavProps['subject'];
   material?: ViewportNavProps['material'];
 }
 
-function SubjectMaterialNav({ active, onNavigate, subject, material }: SubjectMaterialNavProps) {
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+function ActiveMaterialNav({ active, onNavigate, material }: ActiveMaterialNavProps) {
   const isMaterialActive = active === 'none' && Boolean(material);
 
   if (active !== 'none') return null;
@@ -29,25 +27,6 @@ function SubjectMaterialNav({ active, onNavigate, subject, material }: SubjectMa
   return (
     <>
       <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-      {subject && (
-        <button
-          type="button"
-          {...stylex.props(styles.navItem, isSubjectActive && styles.navItemActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'subject',
-              subjectId: subject.id,
-              activeTab: 'materials',
-            })
-          }
-          aria-current={isSubjectActive ? 'page' : undefined}
-          title={`Subject: ${subject.title}`}
-        >
-          <GraduationCap size={18} />
-          <span {...stylex.props(styles.navLabel)}>{subject.title}</span>
-        </button>
-      )}
 
       {material && (
         <button
@@ -147,7 +126,6 @@ export function DesktopSidebar({
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  subject,
   material,
   collectionId,
 }: ViewportNavProps) {
@@ -233,10 +211,9 @@ export function DesktopSidebar({
             );
           })}
 
-          <SubjectMaterialNav
+          <ActiveMaterialNav
             active={active}
             onNavigate={onNavigate}
-            subject={subject}
             material={material}
           />
 

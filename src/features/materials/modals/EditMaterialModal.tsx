@@ -6,71 +6,26 @@ import { Button } from '../../../shared/ui/Button/Button';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { styles } from '../styles/library.stylex';
 import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../domain/quiz/utils/tags';
-import type { Subject } from '../../../domain/library/models/Subject';
-import type { Term } from '../../../domain/library/models/Term';
-
-const selectStyles = stylex.create({
-  select: {
-    padding: '10px 14px',
-    fontSize: 14,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'var(--color-border)',
-    borderRadius: 8,
-    color: 'var(--color-text-primary)',
-    backgroundColor: 'var(--color-background-surface)',
-    outlineStyle: 'none',
-    fontFamily: 'inherit',
-    transition: 'border-color 0.15s ease',
-    ':focus': {
-      borderColor: 'var(--color-accent)',
-      boxShadow: '0 0 0 3px var(--color-overlay-hover)',
-    },
-  },
-});
 
 interface EditMaterialModalProps {
   initialTitle: string;
   initialDescription: string;
-  initialSubjectId?: string | null;
-  initialTermId?: string | null;
   /** Initial tag list (material.tags ?? []). */
   initialTags?: string[];
-  subjects: Subject[];
-  terms?: Term[];
-  onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
+  onSave: (title: string, description: string, tags?: string[]) => void;
   onClose: () => void;
 }
 
 export default function EditMaterialModal({
   initialTitle,
   initialDescription,
-  initialSubjectId,
-  initialTermId,
   initialTags = [],
-  subjects,
-  terms = [],
   onSave,
   onClose,
 }: EditMaterialModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-    initialSubjectId ?? null,
-  );
-  const [selectedTermId, setSelectedTermId] = useState<string | null>(
-    initialTermId ?? null,
-  );
-  const availableTerms = selectedSubjectId ? terms : [];
-
-  // Reset term when subject changes and the current term doesn't belong to the new subject
-  const handleSubjectChange = (value: string) => {
-    const newSubjectId = value === '__unassigned__' ? null : value;
-    setSelectedSubjectId(newSubjectId);
-    // Clear term when subject changes — availableTerms will re-fetch
-    setSelectedTermId(null);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +33,6 @@ export default function EditMaterialModal({
       onSave(
         title.trim(),
         description.trim(),
-        selectedSubjectId,
-        selectedTermId,
         // Empty list clears tags (normalizeTags collapses [] to undefined, which the
         // repository treats as "leave unchanged" — so emit an explicit empty array).
         normalizeTags(tags) ?? [],
@@ -130,50 +83,6 @@ export default function EditMaterialModal({
           tagKey={tagKey}
           normalizeTags={(list) => normalizeTags(list) ?? []}
         />
-
-        {/* Subject selector */}
-        <div {...stylex.props(styles.fieldGroup)}>
-          <label {...stylex.props(styles.label)} htmlFor="edit-subject">
-            Subject
-          </label>
-          <select
-            id="edit-subject"
-            {...stylex.props(selectStyles.select)}
-            value={selectedSubjectId ?? '__unassigned__'}
-            onChange={(e) => handleSubjectChange(e.target.value)}
-          >
-            <option value="__unassigned__">Unassigned / General Library</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Term selector — only shown when a subject with terms is selected */}
-        {availableTerms.length > 0 && (
-          <div {...stylex.props(styles.fieldGroup)}>
-            <label {...stylex.props(styles.label)} htmlFor="edit-term">
-              Term
-            </label>
-            <select
-              id="edit-term"
-              {...stylex.props(selectStyles.select)}
-              value={selectedTermId ?? ''}
-              onChange={(e) =>
-                setSelectedTermId(e.target.value || null)
-              }
-            >
-              <option value="">No term</option>
-              {availableTerms.map((term) => (
-                <option key={term.id} value={term.id}>
-                  {term.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div {...stylex.props(styles.modalActions)}>
           <Button label="Cancel" variant="secondary" onClick={onClose} />

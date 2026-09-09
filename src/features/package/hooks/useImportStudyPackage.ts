@@ -6,7 +6,6 @@ import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { parseJsonFromBlob } from '../../../shared/utils/jsonBlobParser';
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { validateStudyPackage } from '../../../domain/package/engines/validateStudyPackage';
-import type { ImportOptions } from '../components/StudyPackagePreviewModal';
 
 export interface UseImportStudyPackageResult {
   stagedPackage: StudyPackage | null;
@@ -15,7 +14,7 @@ export interface UseImportStudyPackageResult {
   errorMessage: string | null;
   stagePackageFromFile: (file: Blob | File) => Promise<boolean>;
   closePreview: () => void;
-  confirmImport: (options?: ImportOptions) => Promise<void>;
+  confirmImport: () => Promise<void>;
 }
 
 /**
@@ -67,7 +66,7 @@ export function useImportStudyPackage(): UseImportStudyPackageResult {
   }, []);
 
   const confirmImport = useCallback(
-    async (options: ImportOptions = {}): Promise<void> => {
+    async (): Promise<void> => {
       if (!stagedPackage) {
         return;
       }
@@ -76,8 +75,6 @@ export function useImportStudyPackage(): UseImportStudyPackageResult {
       try {
         await context.useCases.package.importStudyPackage.execute({
           package: stagedPackage,
-          targetSubjectId: options.subjectId,
-          targetTermId: options.termId,
         });
 
         // Invalidate all query namespaces affected by importing materials, quizzes, and questions

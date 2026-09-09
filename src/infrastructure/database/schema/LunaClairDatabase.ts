@@ -3,9 +3,6 @@ import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
-import type { Subject } from '../../../domain/library/models/Subject';
-import type { Term } from '../../../domain/library/models/Term';
-import type { SubjectTerm } from '../../../domain/library/models/SubjectTerm';
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
@@ -66,7 +63,9 @@ export interface ImportAssetRecord {
  * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10 Cloud Synchronization.
  * Version 12: Adds the originShareId index on materials for exact clone identity.
  * Version 13: Adds collections + collectionMaterials (Playlist model) and the
- *            `*tags` multi-entry index on materials.
+ *            `*tags` multi-entry index on materials. Sunset: drops the
+ *            obsolete `subjects`, `terms`, and `subjectTerms` tables and the
+ *            `subjectId`/`termId` materials indexes.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -77,9 +76,6 @@ export class LunaClairDatabase extends Dexie {
     drawings!: Table<DrawingRecord, string>;
     preferences!: Table<PreferenceRecord, string>;
     metadata!: Table<MetadataRecord, string>;
-    subjects!: Table<Subject, string>;
-    terms!: Table<Term, string>;
-    subjectTerms!: Table<SubjectTerm, [string, string]>;
     quizEditingDrafts!: Table<QuizDraft, string>;
     flashcardReviews!: Table<ReviewState, string>;
     documentContents!: Table<ImportedDocumentContent, string>;

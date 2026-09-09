@@ -6,7 +6,7 @@ import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial
 interface ImportResultViewProps {
   createdMaterials: StudyMaterial[];
   onImportAnother: () => void;
-  onOpenMaterial?: (materialId: string, subjectId?: string) => void;
+  onOpenMaterial?: (materialId: string) => void;
 }
 
 export function ImportResultView({ createdMaterials, onImportAnother, onOpenMaterial }: ImportResultViewProps) {
@@ -41,7 +41,7 @@ export function ImportResultView({ createdMaterials, onImportAnother, onOpenMate
                   <button
                     type="button"
                     {...stylex.props(importerStyles.button, importerStyles.buttonPrimary)}
-                    onClick={() => onOpenMaterial(mat.id, mat.subjectId)}
+                    onClick={() => onOpenMaterial(mat.id)}
                     style={{ padding: '6px 12px', fontSize: '13px' }}
                   >
                     Open Material <ArrowRight size={14} />
@@ -60,7 +60,7 @@ export function ImportResultView({ createdMaterials, onImportAnother, onOpenMate
             <button
               type="button"
               {...stylex.props(importerStyles.button, importerStyles.buttonPrimary)}
-              onClick={() => onOpenMaterial(latestMaterial.id, latestMaterial.subjectId)}
+              onClick={() => onOpenMaterial(latestMaterial.id)}
             >
               Open in Workspace
             </button>

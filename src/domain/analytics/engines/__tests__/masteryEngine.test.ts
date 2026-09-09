@@ -1,12 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
     computeTopicMastery,
-    computeSubjectMasteries,
     deriveTopicMasteryStatus,
 } from '../masteryEngine';
 import type { QuizSession } from '../../../quiz/models/QuizSession';
-import type { Subject } from '../../../library/models/Subject';
-import type { StudyMaterial } from '../../../library/models/StudyMaterial';
 import type { Question } from '../../../quiz/models/Question';
 
 describe('masteryEngine', () => {
@@ -182,31 +179,15 @@ describe('masteryEngine', () => {
         });
     });
 
-    describe('computeSubjectMasteries() Attribution & Ranking', () => {
-        const sampleSubject: Subject = {
-            id: 'sub-bio',
-            title: 'Cellular Biology',
-            createdAt: '2026-08-01T00:00:00Z',
-            updatedAt: '2026-08-01T00:00:00Z',
-        };
-
-        const sampleMaterial: StudyMaterial = {
-            id: 'mat-bio',
-            documentId: 'doc-bio',
-            title: 'Cell Biology Notes',
-            subjectId: 'sub-bio',
-            createdAt: '2026-08-01T00:00:00Z',
-            updatedAt: '2026-08-01T00:00:00Z',
-        };
-
-        it('attributes historical quiz data via immutable snapshots to the correct subject', () => {
+    describe('computeTopicMastery() Historical Attribution & Determinism', () => {
+        it('attributes historical quiz data via immutable snapshots', () => {
             const session: QuizSession = {
                 id: 's1',
-                quizId: 'virtual:multi-subject',
+                quizId: 'virtual:multi-topic',
                 mode: 'exam',
                 status: 'completed',
                 questionSnapshots: {
-                    'q-easy': qEasy, // materialId: 'mat-bio' -> subjectId: 'sub-bio'
+                    'q-easy': qEasy,
                 },
                 answers: [
                     { questionId: 'q-easy', value: true, isCorrect: true, earnedPoints: 10 },
@@ -215,26 +196,24 @@ describe('masteryEngine', () => {
                 completedAt: '2026-08-20T10:05:00Z',
             };
 
-            const masteries = computeSubjectMasteries([sampleSubject], [sampleMaterial], [session]);
-            expect(masteries).toHaveLength(1);
-            expect(masteries[0].subjectId).toBe('sub-bio');
-            expect(masteries[0].attemptCount).toBe(1);
-            expect(masteries[0].correctCount).toBe(1);
-            expect(masteries[0].rawAccuracy).toBe(100);
-            expect(masteries[0].totalQuizzes).toBe(1);
-            expect(masteries[0].topics).toHaveLength(1);
+            const topics = computeTopicMastery([session]);
+            expect(topics).toHaveLength(1);
+            expect(topics[0].tag).toBe('respiration');
+            expect(topics[0].attemptCount).toBe(1);
+            expect(topics[0].correctCount).toBe(1);
+            expect(topics[0].rawAccuracy).toBe(100);
         });
 
-        it('ranks strengths and weaknesses deterministically requiring attemptCount >= 3', () => {
+        it('sorts topics alphabetically and scores each deterministically', () => {
             const qT1: Question = { ...qEasy, id: 'q-t1', tags: ['topic-a'] };
             const qT2: Question = { ...qEasy, id: 'q-t2', tags: ['topic-b'] };
             const qT3: Question = { ...qEasy, id: 'q-t3', tags: ['topic-c'] };
-            const qT4: Question = { ...qEasy, id: 'q-t4', tags: ['topic-d'] }; // Only 1 attempt -> excluded from strengths/weaknesses
+            const qT4: Question = { ...qEasy, id: 'q-t4', tags: ['topic-d'] };
 
             // topic-a: 3 attempts, 3 correct (100%)
             // topic-b: 3 attempts, 2 correct (66.67%)
             // topic-c: 3 attempts, 1 correct (33.33%)
-            // topic-d: 1 attempt, 0 correct (0%) -> excluded because attemptCount < 3
+            // topic-d: 1 attempt, 0 correct (0%)
             const session: QuizSession = {
                 id: 's-rank',
                 quizId: 'quiz-rank',
@@ -257,20 +236,19 @@ describe('masteryEngine', () => {
                 completedAt: '2026-08-20T10:05:00Z',
             };
 
-            const masteries = computeSubjectMasteries([sampleSubject], [sampleMaterial], [session]);
-            const bio = masteries[0];
+            const topics = computeTopicMastery([session]);
 
-            expect(bio.strengths.map((s) => s.tag)).toEqual(['topic-a', 'topic-b', 'topic-c']);
-            expect(bio.weaknesses.map((w) => w.tag)).toEqual(['topic-c', 'topic-b', 'topic-a']);
-            // topic-d is excluded because it only has 1 attempt
-            expect(bio.weaknesses.some((w) => w.tag === 'topic-d')).toBe(false);
+            expect(topics.map((t) => t.tag)).toEqual(['topic-a', 'topic-b', 'topic-c', 'topic-d']);
+            expect(topics[0].weightedScore).toBe(100);
+            expect(topics[0].status).toBe('mastered');
+            expect(topics[1].weightedScore).toBe(66.67);
+            expect(topics[2].weightedScore).toBe(33.33);
+            expect(topics[3].attemptCount).toBe(1);
         });
 
-        it('does not mutate input subject, material, or session arrays', () => {
-            const subjects = Object.freeze([sampleSubject]);
-            const materials = Object.freeze([sampleMaterial]);
+        it('does not mutate input session arrays', () => {
             const sessions = Object.freeze([]);
-            expect(() => computeSubjectMasteries(subjects, materials, sessions)).not.toThrow();
+            expect(() => computeTopicMastery(sessions)).not.toThrow();
         });
     });
 });

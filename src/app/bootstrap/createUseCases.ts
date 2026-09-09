@@ -25,7 +25,6 @@ export function createUseCases(infrastructure: Infrastructure) {
         quiz: quizSlices.quiz,
         quizManagement: quizSlices.quizManagement,
         library: librarySlices.library,
-        subject: librarySlices.subject,
         reader: readerSlices.reader,
         content: readerSlices.content,
         analytics: createAnalyticsUseCases(infrastructure),

@@ -27,9 +27,6 @@ import type { StudyMaterial } from '../../../../domain/library/models/StudyMater
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
-import type { Subject } from '../../../../domain/library/models/Subject';
-import type { Term } from '../../../../domain/library/models/Term';
-import type { SubjectTerm } from '../../../../domain/library/models/SubjectTerm';
 import type { QuizDraft } from '../../../../application/quiz-management/drafts/QuizDraft';
 import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
@@ -73,8 +70,6 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
             title: 'Cardiovascular Physiology',
             description: 'Core concepts of cardiac mechanics',
             documentId: 'doc-cardio-1',
-            subjectId: 'subj-med-1',
-            termId: 'term-prelim-1',
             createdAt: '2026-08-01T08:00:00.000Z',
             updatedAt: '2026-08-01T08:00:00.000Z',
             lastOpenedAt: '2026-08-02T10:30:00.000Z',
@@ -162,27 +157,6 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
             createdAt: '2026-08-01T08:20:00.000Z',
         };
 
-        const testSubject: Subject = {
-            id: 'subj-med-1',
-            title: 'Internal Medicine',
-            description: 'Clinical disease pathophysiology',
-            createdAt: '2026-08-01T07:00:00.000Z',
-            updatedAt: '2026-08-01T07:00:00.000Z',
-        };
-
-        const testTerm: Term = {
-            id: 'term-prelim-1',
-            title: 'Prelim',
-            createdAt: '2026-08-01T07:00:00.000Z',
-            updatedAt: '2026-08-01T07:00:00.000Z',
-        };
-
-        const testSubjectTerm: SubjectTerm = {
-            subjectId: 'subj-med-1',
-            termId: 'term-prelim-1',
-            order: 1,
-        };
-
         const testQuizDraft: QuizDraft = {
             draftId: 'draft-cardio-1',
             quizId: 'quiz-cardio-1',
@@ -257,9 +231,6 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         await v10Db.table('quizSessions').put(testQuizSession);
         await v10Db.table('highlights').put(testHighlight);
         await v10Db.table('drawings').put(testDrawing);
-        await v10Db.table('subjects').put(testSubject);
-        await v10Db.table('terms').put(testTerm);
-        await v10Db.table('subjectTerms').put(testSubjectTerm);
         await v10Db.table('quizEditingDrafts').put(testQuizDraft);
         await v10Db.table('flashcardReviews').put(testReviewState);
         await v10Db.table('documentContents').put(testDocContent);
@@ -276,9 +247,10 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         const v11Db = new LunaClairDatabase();
         await v11Db.open();
 
-        // v12 (originShareId index) and v13 (collections + collectionMaterials,
-        // `*tags` index) are non-destructive additive upgrades,
-        // so LunaClairDatabase opens at the latest schema version.
+        // v12 (originShareId index) is a non-destructive additive upgrade;
+        // v13 adds collections + `*tags` and sunsets the obsolete subjects,
+        // terms, and subjectTerms tables — so LunaClairDatabase opens at the
+        // latest schema version with those tables dropped.
         expect(v11Db.verno).toBe(13);
 
         // 4. Verify all seeded v10 records are preserved untouched
@@ -300,14 +272,11 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         const preservedDrawing = await v11Db.drawings.get('dr-cardio-1');
         expect(preservedDrawing).toEqual(testDrawing);
 
-        const preservedSubject = await v11Db.subjects.get('subj-med-1');
-        expect(preservedSubject).toEqual(testSubject);
-
-        const preservedTerm = await v11Db.terms.get('term-prelim-1');
-        expect(preservedTerm).toEqual(testTerm);
-
-        const preservedSubjectTerm = await v11Db.subjectTerms.get(['subj-med-1', 'term-prelim-1']);
-        expect(preservedSubjectTerm).toEqual(testSubjectTerm);
+        // Sunset invariant: the obsolete subject/term stores are dropped at v13.
+        const legacyTables = v11Db as unknown as Record<string, unknown>;
+        expect(legacyTables['subjects']).toBeUndefined();
+        expect(legacyTables['terms']).toBeUndefined();
+        expect(legacyTables['subjectTerms']).toBeUndefined();
 
         const preservedQuizDraft = await v11Db.quizEditingDrafts.get('draft-cardio-1');
         expect(preservedQuizDraft).toEqual(testQuizDraft);

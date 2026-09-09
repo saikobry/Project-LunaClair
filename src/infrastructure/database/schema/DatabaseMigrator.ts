@@ -12,7 +12,7 @@ const V3_MIGRATION_KEY = 'lunaclair.migration.v3.complete';
 /**
  * Handles one-time migration of legacy localStorage data into IndexedDB.
  * v1: Migrates materials, highlights, drawings from localStorage.
- * v2: Sets default subjectId/termId on legacy materials.
+ * v2: Legacy metadata checkpoint (historical; performed no data rewrite).
  * v3: Normalizes stored question tags (strip '#', dedup case-insensitively,
  *     preserve first-seen casing) — the write-boundary normalization that now
  *     guards every new tag write cannot repair tags created before it existed.
@@ -119,7 +119,7 @@ export class DatabaseMigrator {
         ]);
     }
 
-    // ── Version 2 — Subject/Term support ───────────────────────
+    // ── Version 2 — Legacy metadata checkpoint ───────────────────────
 
     private async migrateV2IfNeeded(): Promise<void> {
         const flag = localStorage.getItem(V2_MIGRATION_KEY);

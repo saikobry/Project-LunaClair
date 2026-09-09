@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, GraduationCap, Focus } from 'lucide-react';
+import { BookText, Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
@@ -10,36 +10,16 @@ const nonMobile = '@media (min-width: 769px)';
 interface ContextDockButtonsProps {
   active: ViewportNavProps['active'];
   onNavigate: ViewportNavProps['onNavigate'];
-  subject?: ViewportNavProps['subject'];
   material?: ViewportNavProps['material'];
 }
 
-function ContextDockButtons({ active, onNavigate, subject, material }: ContextDockButtonsProps) {
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+function ContextDockButtons({ active, onNavigate, material }: ContextDockButtonsProps) {
   const isMaterialActive = active === 'none' && Boolean(material);
 
   if (active !== 'none') return null;
 
   return (
     <>
-      {subject && (
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, isSubjectActive && styles.dockButtonActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'subject',
-              subjectId: subject.id,
-              activeTab: 'materials',
-            })
-          }
-          aria-current={isSubjectActive ? 'page' : undefined}
-          title={`Subject: ${subject.title}`}
-        >
-          <GraduationCap size={20} />
-        </button>
-      )}
-
       {material && (
         <button
           type="button"
@@ -67,7 +47,6 @@ export function MobileBottomDock({
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  subject,
   material,
 }: ViewportNavProps) {
   const dockRef = useRef<HTMLElement>(null);
@@ -206,7 +185,6 @@ export function MobileBottomDock({
         <ContextDockButtons
           active={active}
           onNavigate={onNavigate}
-          subject={subject}
           material={material}
         />
       </div>

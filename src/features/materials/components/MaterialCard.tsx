@@ -11,8 +11,6 @@ import { ActionMenuItem } from '../../../shared/components/ActionMenu/ActionMenu
 
 export interface MaterialCardProps {
   material: StudyMaterial;
-  /** Optional term chip label (e.g. "Week 3") */
-  termTitle?: string;
   onOpen: (material: StudyMaterial) => void;
   onEdit?: (material: StudyMaterial) => void;
   onDelete?: (material: StudyMaterial) => void;
@@ -37,7 +35,6 @@ function formatDate(iso: string | undefined): string {
 
 export function MaterialCard({
   material,
-  termTitle,
   onOpen,
   onEdit,
   onDelete,
@@ -94,9 +91,6 @@ export function MaterialCard({
         <div {...stylex.props(cardStyles.header)}>
           <div {...stylex.props(cardStyles.titleColumn)}>
             <h3 {...stylex.props(cardStyles.title)}>{material.title}</h3>
-            <div {...stylex.props(cardStyles.badgeRow)}>
-              {termTitle && <Chip variant="accent">{termTitle}</Chip>}
-            </div>
           </div>
           {hasMenuActions && (
             <ActionMenu>

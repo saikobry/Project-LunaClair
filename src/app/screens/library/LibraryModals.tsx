@@ -1,14 +1,10 @@
 import { useCallback, useState } from 'react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Subject } from '../../../domain/library/models/Subject';
 import EditMaterialModal from '../../../features/materials/modals/EditMaterialModal';
-import EditSubjectModal from '../../../features/subjects/modals/EditSubjectModal';
-import CreateSubjectModal from '../../../features/subjects/modals/CreateSubjectModal';
 import CreateMaterialModal from '../../../features/materials/modals/CreateMaterialModal';
 import DeleteConfirmationModal from '../../../features/materials/modals/DeleteConfirmationModal';
 import ManageMaterialCollectionsModal from '../../../features/collections/modals/ManageMaterialCollectionsModal';
 import CreateCollectionModal from '../../../features/collections/modals/CreateCollectionModal';
-import { useTerms } from '../../../features/terms/hooks/queries/useTerms';
 import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
 import { useMaterialCollections } from '../../../features/collections/hooks/queries/useMaterialCollections';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
@@ -16,22 +12,12 @@ import { useAddMaterialToCollection } from '../../../features/collections/hooks/
 import { useRemoveMaterialFromCollection } from '../../../features/collections/hooks/mutations/useRemoveMaterialFromCollection';
 
 export interface LibraryModalsProps {
-  subjects: Subject[];
   editTarget: StudyMaterial | null;
   deleteTarget: StudyMaterial | null;
-  subjectEditTarget: Subject | null;
-  subjectDeleteTarget: Subject | null;
-  showCreateSubject: boolean;
   showCreateMaterial: boolean;
-  onEditSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
+  onEditSave: (title: string, description: string, tags?: string[]) => void;
   onEditClose: () => void;
-  onSubjectEditSave: (title: string, description: string) => void;
-  onSubjectEditClose: () => void;
-  onSubjectDeleteConfirm: () => void;
-  onSubjectDeleteClose: () => void;
-  onCreateSubjectSave: (title: string, description: string) => void;
-  onCreateSubjectClose: () => void;
-  onCreateMaterialSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
+  onCreateMaterialSave: (title: string, description: string, tags?: string[]) => void;
   onCreateMaterialClose: () => void;
   onDeleteConfirm: () => void;
   onDeleteClose: () => void;
@@ -40,21 +26,11 @@ export interface LibraryModalsProps {
 }
 
 export function LibraryModals({
-  subjects,
   editTarget,
   deleteTarget,
-  subjectEditTarget,
-  subjectDeleteTarget,
-  showCreateSubject,
   showCreateMaterial,
   onEditSave,
   onEditClose,
-  onSubjectEditSave,
-  onSubjectEditClose,
-  onSubjectDeleteConfirm,
-  onSubjectDeleteClose,
-  onCreateSubjectSave,
-  onCreateSubjectClose,
   onCreateMaterialSave,
   onCreateMaterialClose,
   onDeleteConfirm,
@@ -62,7 +38,6 @@ export function LibraryModals({
   managingCollectionsMaterial,
   onCloseManageCollections,
 }: LibraryModalsProps) {
-  const { terms } = useTerms();
   const { collections } = useCollections();
   const { collectionIds } = useMaterialCollections(managingCollectionsMaterial?.id);
   const createCollectionMutation = useCreateCollection();
@@ -105,11 +80,7 @@ export function LibraryModals({
         <EditMaterialModal
           initialTitle={editTarget.title}
           initialDescription={editTarget.description ?? ''}
-          initialSubjectId={editTarget.subjectId}
-          initialTermId={editTarget.termId}
           initialTags={editTarget.tags ?? []}
-          subjects={subjects}
-          terms={terms}
           onSave={onEditSave}
           onClose={onEditClose}
         />
@@ -123,34 +94,8 @@ export function LibraryModals({
         />
       )}
 
-      {subjectEditTarget && (
-        <EditSubjectModal
-          initialTitle={subjectEditTarget.title}
-          initialDescription={subjectEditTarget.description ?? ''}
-          onSave={onSubjectEditSave}
-          onClose={onSubjectEditClose}
-        />
-      )}
-
-      {subjectDeleteTarget && (
-        <DeleteConfirmationModal
-          title={subjectDeleteTarget.title}
-          onConfirm={onSubjectDeleteConfirm}
-          onClose={onSubjectDeleteClose}
-        />
-      )}
-
-      {showCreateSubject && (
-        <CreateSubjectModal
-          onSave={onCreateSubjectSave}
-          onClose={onCreateSubjectClose}
-        />
-      )}
-
       {showCreateMaterial && (
         <CreateMaterialModal
-          subjects={subjects}
-          terms={terms}
           onSave={onCreateMaterialSave}
           onClose={onCreateMaterialClose}
         />

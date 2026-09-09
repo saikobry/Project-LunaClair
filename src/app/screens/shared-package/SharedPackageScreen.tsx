@@ -33,12 +33,10 @@ import { serializePackageToBlob } from '../../../domain/package/engines/StudyPac
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
 import type { ImportStudyPackageResult } from '../../../application/use-cases/package/ImportStudyPackageUseCase';
-import { useSubjects } from '../../../features/subjects/hooks/queries/useSubjects';
-import { useTerms } from '../../../features/terms/hooks/queries/useTerms';
 
 export interface SharedPackageScreenProps {
   shareId: string;
-  onOpenMaterial: (materialId: string, subjectId?: string) => void;
+  onOpenMaterial: (materialId: string) => void;
   onCancel: () => void;
 }
 
@@ -508,12 +506,10 @@ function PackageMetaRow({
 
 function CloneSuccessBanner({
   firstMaterialId,
-  subjectId,
   onOpenMaterial,
 }: {
   firstMaterialId: string;
-  subjectId?: string;
-  onOpenMaterial: (materialId: string, subjectId?: string) => void;
+  onOpenMaterial: (materialId: string) => void;
 }) {
   return (
     <div {...stylex.props(styles.successBanner)}>
@@ -526,7 +522,7 @@ function CloneSuccessBanner({
           variant="primary"
           label="Open Cloned Material"
           icon={<BookOpen size={15} />}
-          onClick={() => onOpenMaterial(firstMaterialId, subjectId)}
+          onClick={() => onOpenMaterial(firstMaterialId)}
         >
           Open Cloned Material
         </Button>
@@ -575,75 +571,6 @@ function QuestionTypesCard({
             {formatQuestionType(type)}: <strong>{count}</strong>
           </span>
         ))}
-      </div>
-    </div>
-  );
-}
-
-interface DestinationCardProps {
-  subjects: Array<{ id: string; title: string }>;
-  terms: Array<{ id: string; title: string }>;
-  selectedSubjectId: string;
-  selectedTermId: string;
-  disabled: boolean;
-  onSubjectChange: (value: string) => void;
-  onTermChange: (value: string) => void;
-}
-
-function DestinationCard({
-  subjects,
-  terms,
-  selectedSubjectId,
-  selectedTermId,
-  disabled,
-  onSubjectChange,
-  onTermChange,
-}: DestinationCardProps) {
-  return (
-    <div {...stylex.props(styles.card)}>
-      <h3 {...stylex.props(styles.sectionTitle)}>Destination in Library</h3>
-      <div {...stylex.props(styles.destinationGrid)}>
-        <div {...stylex.props(styles.fieldGroup)}>
-          <label htmlFor="share-dest-subject" {...stylex.props(styles.label)}>
-            Subject (Optional)
-          </label>
-          <select
-            id="share-dest-subject"
-            aria-label="Subject (Optional)"
-            {...stylex.props(styles.select)}
-            value={selectedSubjectId}
-            onChange={(e) => onSubjectChange(e.target.value)}
-            disabled={disabled}
-          >
-            <option value="">Unassigned (General Library)</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div {...stylex.props(styles.fieldGroup)}>
-          <label htmlFor="share-dest-term" {...stylex.props(styles.label)}>
-            Term (Optional)
-          </label>
-          <select
-            id="share-dest-term"
-            aria-label="Term (Optional)"
-            {...stylex.props(styles.select)}
-            value={selectedTermId}
-            onChange={(e) => onTermChange(e.target.value)}
-            disabled={disabled || terms.length === 0}
-          >
-            <option value="">No Term</option>
-            {terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
     </div>
   );
@@ -791,7 +718,7 @@ function useSharedPackageFetch(shareId: string) {
 }
 
 /**
- * Owns clone/download actions, their busy flags, destination selection, and
+ * Owns clone/download actions, their busy flags, and
  * the success result banner state.
  */
 function useSharedPackageActions(
@@ -802,19 +729,9 @@ function useSharedPackageActions(
 ) {
   const context = useContextOrThrow(ApplicationContext, 'SharedPackageScreen');
 
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [isCloning, setIsCloning] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [clonedResult, setClonedResult] = useState<ImportStudyPackageResult | null>(null);
-
-  const { subjects } = useSubjects();
-  const { terms } = useTerms(selectedSubjectId || undefined);
-
-  const handleSubjectChange = (value: string) => {
-    setSelectedSubjectId(value);
-    setSelectedTermId('');
-  };
 
   const handleClone = async () => {
     if (!share?.package || isCloning) return;
@@ -822,8 +739,6 @@ function useSharedPackageActions(
     try {
       const result = await context.useCases.package.importStudyPackage.execute({
         package: share.package,
-        targetSubjectId: selectedSubjectId || undefined,
-        targetTermId: selectedTermId || undefined,
       });
 
       // Strict requirement: ONLY after Dexie transaction succeeds, call trackShareDownload
@@ -884,15 +799,9 @@ function useSharedPackageActions(
   };
 
   return {
-    subjects,
-    terms,
-    selectedSubjectId,
-    selectedTermId,
     isCloning,
     isDownloading,
     clonedResult,
-    handleSubjectChange,
-    handleTermChange: setSelectedTermId,
     handleClone,
     handleDownload,
   };
@@ -923,15 +832,9 @@ export function SharedPackageScreen({
   }, [share]);
 
   const {
-    subjects,
-    terms,
-    selectedSubjectId,
-    selectedTermId,
     isCloning,
     isDownloading,
     clonedResult,
-    handleSubjectChange,
-    handleTermChange,
     handleClone,
     handleDownload,
   } = useSharedPackageActions(shareId, share, queryClient, showToast);
@@ -981,7 +884,6 @@ export function SharedPackageScreen({
         {clonedResult && (
           <CloneSuccessBanner
             firstMaterialId={firstMaterialId}
-            subjectId={selectedSubjectId || undefined}
             onOpenMaterial={onOpenMaterial}
           />
         )}
@@ -994,17 +896,6 @@ export function SharedPackageScreen({
 
         {/* Question Type Breakdown */}
         <QuestionTypesCard entries={questionTypeEntries} />
-
-        {/* Destination Selector */}
-        <DestinationCard
-          subjects={subjects}
-          terms={terms}
-          selectedSubjectId={selectedSubjectId}
-          selectedTermId={selectedTermId}
-          disabled={isCloning || !!clonedResult}
-          onSubjectChange={handleSubjectChange}
-          onTermChange={handleTermChange}
-        />
 
         {/* Actions Bar */}
         <SharedPackageActionsBar

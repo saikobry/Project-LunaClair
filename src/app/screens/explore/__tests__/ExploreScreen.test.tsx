@@ -197,8 +197,6 @@ describe('ExploreScreen (shares-only)', () => {
       expect(mockContext.useCases.sharing.clonePublishedShare.execute).toHaveBeenCalledWith({
         shareId: 'share_chem',
         passcode: undefined,
-        targetSubjectId: undefined,
-        targetTermId: undefined,
       });
     });
   });

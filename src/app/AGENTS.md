@@ -17,15 +17,13 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 - `routing/` — Navigation Engine & View Switcher:
   - `routing/routing.ts` — `AppRoute` union types, URL path parser (`urlToRoute`), and URL serializers (`routeToUrl`).
-  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Terms / Analytics / Subject / Collection / MaterialWorkspace / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
+  - `routing/useAppRoute.ts` — `useAppRoute` hook: parses URL on mount, syncs URL on navigation via `pushState`, and tracks `popstate` history.  - `routing/ShellRoutes.tsx` — Per-route screen switcher table: conditionally renders route screens (Library / Explore / Analytics / MaterialWorkspace / Collection / QuizCanvasBuilder / QuizScreen) with `lazy()` and `<Suspense>` boundaries.
 
 - `screens/` — Application Screen & Route Composition Layer (ADR-014):
   - Route-level screens and cross-feature orchestrations:
-    - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (aggregates material and subject management dialogs).
-    - `screens/subject-workspace/` — `SubjectWorkspaceScreen.tsx` & `SubjectQuizTab.tsx` (orchestrates subject metadata, materials tab, terms tab, and subject quiz tree).
+    - `screens/library/` — `LibraryHomeScreen.tsx` & `LibraryModals.tsx` (material creation/edit dialogs + collection assignment dialogs).
     - `screens/material-workspace/` — `MaterialWorkspaceScreen.tsx` (composite material workspace: Read, Write, Quiz, Flashcards, and Manage tabs).
-    - `screens/collection-workspace/` — `CollectionWorkspaceScreen.tsx` (playlist collection route (`/collections/:collectionId`): header with title/description/color/count, Library breadcrumbs, `EditCollectionModal` wired to `useUpdateCollection`, `ConfirmationDialog` delete wired to `useDeleteCollection` + Library return, junction-ordered `MaterialCard` grid with per-card "Remove from Collection", empty state).    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
-    - `screens/terms/` — `TermManagerScreen.tsx` (academic term manager and global usage counts).
+    - `screens/collection-workspace/` — `CollectionWorkspaceScreen.tsx` (playlist collection route (`/collections/:collectionId`): header with title/description/color/count, Library breadcrumbs, `EditCollectionModal` wired to `useUpdateCollection`, `ConfirmationDialog` delete wired to `useDeleteCollection` + Library return, junction-ordered `MaterialCard` grid with per-card "Remove from Collection", empty state).    - `screens/explore/` — `ExploreScreen.tsx` (shares-only public study-package hub with 1-click cloning).
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
     - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).
     - `screens/analytics/` — `AnalyticsScreen.tsx` (learning insights and study metrics screen).
@@ -36,7 +34,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
   - `layouts/AppShell.tsx` — Thin composition root: wires `useAppRoute`, `useShellFocusMode`, `useFocusModeMotion` (GSAP rail layout animation), `AppHeader`, `AppSidebar`, `<ShellRoutes>`, and mounts transient overlays from `overlays/`.
   - `layouts/AppHeader.tsx` & `layouts/appHeader.stylex.ts` — Global Top Bar (`height: 52px`, `zIndex: 110`): renders brand identity (Logo, Project LunaClair, `v0.2.0` badge) on the left, and global actions/status (PWA install affordance, `SyncStatusPill`) on the right. Automatically morphs into floating glass capsules with icon-only presentation on scroll (`useHeaderScroll`) or when Focus Mode is active.
   - `layouts/useHeaderScroll.ts` — Throttled passive scroll depth tracker with hysteresis for header compaction.
-  - `layouts/AppSidebar.tsx` — Viewport navigation router: resolves `subject`/`material` entities, threads `collectionId`, and delegates to `DesktopSidebar`, `TabletRail`, and `MobileBottomDock`.
+  - `layouts/AppSidebar.tsx` — Viewport navigation router: resolves the `material` entity, threads `collectionId`, and delegates to `DesktopSidebar`, `TabletRail`, and `MobileBottomDock`.
   - `layouts/navigation/` — Viewport navigation slices:
     - `navigation/DesktopSidebar.tsx` & `navigation/DesktopTrapezoidButton.tsx` — 240px vertical sidebar with Option A $240\times58\text{px}$ rounded trapezoid drawer continuously morphing into the $44\times44\text{px}$ corner restore button. Owns the dynamic Collections section (`CollectionsNav`: `useCollections` list with `getCollectionIcon` icons + color styling, active state via `collectionId`, quick-add `CreateCollectionModal` that navigates to the new collection on save).
     - `navigation/TabletRail.tsx` — 60px floating vertical icon rail with in-place link fade and vertical collapse into the $44\times44\text{px}$ corner card.
@@ -47,7 +45,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 
 - `overlays/` — Transient System UI (Out of Document Flow):
   - `overlays/OfflineBanner.tsx` — Global connectivity status indicator (`zIndex: 200`). Draggable, auto-collapsing offline pill with magnetic screen border snapping.
-  - `overlays/OnboardingTutorial.tsx` — First-run welcome tutorial full-screen takeover rendered as a native `<dialog>` (`showModal()`). Finish and Skip sync default terms via `SyncDefaultTermsUseCase`.
+  - `overlays/OnboardingTutorial.tsx` — First-run welcome tutorial full-screen takeover rendered as a native `<dialog>` (`showModal()`).
   - `overlays/InstallPrompt.tsx` — PWA install surfaces: one-time iOS install card (`InstallPrompt`) and platform-aware instructions dialog (`InstallInstructionsDialog`).
   - `overlays/installDetection.ts` — Pure PWA detection helpers: `isIOS()` and `isStandalone()`.
 
@@ -60,7 +58,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
 - Route state lives in `useAppRoute` via the `AppRoute` union. Navigation helpers live in `src/app/routing/routing.ts`.
 - Focus Mode contract: `useShellFocusMode` owns `isFocusMode` (initialized from `localStorage`, persisted on every toggle) and `AppShell` passes `isFocusMode` + `onToggleFocusMode` to `AppSidebar`. `Cmd+B` (macOS) / `Ctrl+B` (Windows/Linux) toggles it from any page. On desktop, `useFocusModeMotion` collapses the rail to `width: 0` (so main content fills the full viewport) while keeping `opacity: 1` and applying `pointer-events: none` — the `DesktopSidebar` handles its own focus-mode visuals internally (fade links, transparent bg, morph trapezoid to a44×44 pill). The trapezoid button's `focusModeButton` style sets `pointer-events: auto` to remain clickable through the rail. On tablet/mobile, the rail stays visible and `FocusRestoreFAB` provides the exit affordance.
 - Query hooks access domain repositories through DI context (`context.repositories.*`, ADR-011). Mutation hooks and domain workflows call `ApplicationContext.useCases.*` and never import concrete implementations directly. Shell-level bootstrap coordinates infrastructure via `context.infrastructure.*`.
-- First-run onboarding contract: one-time per browser, skippable, rendered as a native `<dialog>`. Syncs default terms via `SyncDefaultTermsUseCase` on Finish AND Skip.
+- First-run onboarding contract: one-time per browser, skippable, rendered as a native `<dialog>`.
 
 ## Verification
 

@@ -62,8 +62,7 @@ export interface SaveQuizToRepositoryResult {
  *
  * Implementations must persist all question changes and the quiz record
  * within a single database transaction so a failure can never leave the
- * catalog and the question bank out of sync. Mirrors the `TermService`
- * pattern for atomic multi-entity workflows.
+ * catalog and the question bank out of sync.
  */
 export interface QuizEditorService {
     saveQuiz(input: SaveQuizToRepositoryInput): Promise<SaveQuizToRepositoryResult>;

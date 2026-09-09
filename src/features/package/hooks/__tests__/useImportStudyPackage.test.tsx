@@ -203,7 +203,7 @@ describe('useImportStudyPackage', () => {
     expect(result.current.errorMessage).toBeNull();
   });
 
-  it('executes confirmImport with destination context, invalidates query keys, and closes preview', async () => {
+  it('executes confirmImport, invalidates query keys, and closes preview', async () => {
     const { result } = renderHook(() => useImportStudyPackage(), {
       wrapper: createWrapper(),
     });
@@ -214,16 +214,11 @@ describe('useImportStudyPackage', () => {
     });
 
     await act(async () => {
-      await result.current.confirmImport({
-        subjectId: 'sub-genetics',
-        termId: 'term-finals',
-      });
+      await result.current.confirmImport();
     });
 
     expect(mockImportExecute).toHaveBeenCalledWith({
       package: mockValidPackage,
-      targetSubjectId: 'sub-genetics',
-      targetTermId: 'term-finals',
     });
 
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['catalog'] });

@@ -35,8 +35,6 @@ describe('useImportSession', () => {
     id: 'mat-imported-1',
     documentId: 'doc-imported-1',
     title: 'Extracted Chapter 1',
-    subjectId: 'sub-bio',
-    termId: 'term-prelim',
     createdAt: '2026-09-02T12:00:00.000Z',
     updatedAt: '2026-09-02T12:00:00.000Z',
   };
@@ -260,19 +258,6 @@ describe('useImportSession', () => {
     expect(result.current.session.candidates[0].title).toBe('Updated Title');
   });
 
-  it('sets subjectId and termId in session', () => {
-    const { result } = renderHook(() => useImportSession(), {
-      wrapper: createWrapper(),
-    });
-
-    act(() => {
-      result.current.setSubjectAndTerm('sub-genetics', 'term-finals');
-    });
-
-    expect(result.current.session.subjectId).toBe('sub-genetics');
-    expect(result.current.session.termId).toBe('term-finals');
-  });
-
   it('commits session, persists materials via commitImport use case, invalidates query cache, and transitions to completed', async () => {
     const { result } = renderHook(() => useImportSession(), {
       wrapper: createWrapper(),
@@ -287,10 +272,6 @@ describe('useImportSession', () => {
       await result.current.startExtraction();
     });
 
-    act(() => {
-      result.current.setSubjectAndTerm('sub-bio', 'term-prelim');
-    });
-
     let created: StudyMaterial[] = [];
     await act(async () => {
       created = await result.current.commitSession();
@@ -303,8 +284,6 @@ describe('useImportSession', () => {
       importMetadata: expect.objectContaining({
         originalFilename: 'chapter1.pdf',
       }),
-      subjectId: 'sub-bio',
-      termId: 'term-prelim',
     });
 
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['library', 'materials'] });

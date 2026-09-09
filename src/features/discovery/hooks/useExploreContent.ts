@@ -42,8 +42,6 @@ export function useExploreContent(options: UseExploreContentOptions = {}) {
         createdAt: share.createdAt,
         isVerified: Boolean((share as { isVerified?: unknown }).isVerified),
         isInLibrary: localOriginSet.has(share.id),
-        subjectId: (share as { subjectId?: string }).subjectId,
-        termId: (share as { termId?: string }).termId,
       })),
     [publicSharesData, localOriginSet],
   );

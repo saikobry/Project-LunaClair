@@ -43,8 +43,6 @@ describe('ImportStudyPackageUseCase', () => {
 
         const result = await useCase.execute({
             package: validPackage,
-            targetSubjectId: 'sub-bio',
-            targetTermId: 'term-prelim',
         });
 
         expect(mockImportService.importStudyPackage).toHaveBeenCalledTimes(1);

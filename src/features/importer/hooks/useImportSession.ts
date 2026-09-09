@@ -111,15 +111,11 @@ export function useImportSession() {
     }));
   }, []);
 
-  const setSubjectAndTerm = useCallback((subjectId?: string, termId?: string) => {
-    setSession(prev => ({ ...prev, subjectId, termId }));
-  }, []);
-
   const commitSession = useCallback(async () => {
     setSession(prev => ({ ...prev, status: 'saving' }));
-    
+
     const results: StudyMaterial[] = [];
-    
+
     for (const candidate of session.candidates) {
       if (candidate.status === 'review' && candidate.markdown && candidate.title && candidate.importMetadata) {
         const material = await commitImport.execute({
@@ -127,8 +123,6 @@ export function useImportSession() {
           markdown: candidate.markdown,
           file: candidate.file,
           importMetadata: candidate.importMetadata,
-          subjectId: session.subjectId,
-          termId: session.termId,
         });
         results.push(material);
         setSession(prev => ({
@@ -142,7 +136,7 @@ export function useImportSession() {
     await queryClient.invalidateQueries({ queryKey: materialQueryKeys.materials() });
     setSession(prev => ({ ...prev, status: 'completed' }));
     return results;
-  }, [session.candidates, session.subjectId, session.termId, commitImport, queryClient]);
+  }, [session.candidates, commitImport, queryClient]);
 
   const resetSession = useCallback(() => {
     setSession({
@@ -172,7 +166,6 @@ export function useImportSession() {
     cancelExtraction,
     updateCandidateMarkdown,
     updateCandidateTitle,
-    setSubjectAndTerm,
     commitSession,
     resetSession,
     goToStep,

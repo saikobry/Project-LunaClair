@@ -128,11 +128,16 @@ export const DB_NAME = 'lunaclair-db';
  * Version 13: Adds collections + collectionMaterials for the Collections
  * Playlist model (a material can belong to multiple collections via the
  * explicit `collectionMaterials` junction; each collection keeps its own
- * independent material ordering). Also indexes `*tags` on materials.
+ * independent material ordering). Indexes `*tags` on materials.
+ * Sunset: drops the obsolete `subjects`, `terms`, and `subjectTerms` tables
+ * (null = delete) and removes `subjectId`/`termId` from the materials index.
  */
 export const SCHEMA_V13 = {
     ...SCHEMA_V12,
+    subjects: null,
+    terms: null,
+    subjectTerms: null,
     collections: 'id, title, order, createdAt',
     collectionMaterials: '++id, [collectionId+materialId], collectionId, materialId, order',
-    materials: 'id, documentId, subjectId, termId, order, createdAt, updatedAt, lastOpenedAt, originShareId, *tags',
+    materials: 'id, documentId, order, createdAt, updatedAt, lastOpenedAt, originShareId, *tags',
 } as const;

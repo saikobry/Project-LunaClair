@@ -15,8 +15,6 @@ describe('MaterializeStudyPackageUseCase', () => {
         title: 'Cell Biology Notes',
         description: 'Comprehensive study guide',
         documentId: 'doc-local-1',
-        subjectId: 'sub-bio',
-        termId: 'term-prelim',
         order: 1,
         createdAt: '2026-09-01T00:00:00.000Z',
         updatedAt: '2026-09-01T00:00:00.000Z',

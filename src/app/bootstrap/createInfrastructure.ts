@@ -5,9 +5,6 @@ import type { LibraryRepository } from '../../domain/library/repositories/Librar
 import type { QuestionRepository } from '../../domain/quiz/repositories/QuestionRepository';
 import type { QuizRepository } from '../../domain/quiz/repositories/QuizRepository';
 import type { QuizSessionRepository } from '../../domain/quiz/repositories/QuizSessionRepository';
-import type { SubjectRepository } from '../../domain/library/repositories/SubjectRepository';
-import type { TermRepository } from '../../domain/library/repositories/TermRepository';
-import type { SubjectTermRepository } from '../../domain/library/repositories/SubjectTermRepository';
 import type { QuizDraftRepository } from '../../application/quiz-management/drafts/QuizDraftRepository';
 import type { FlashcardReviewRepository } from '../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { AnalyticsRepository } from '../../domain/analytics/repositories/AnalyticsRepository';
@@ -27,15 +24,11 @@ import { dexieQuestionRepository } from '../../infrastructure/database/repositor
 import { dexieQuizDraftRepository } from '../../infrastructure/database/repositories/DexieQuizDraftRepository';
 import { dexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
 import { dexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
-import { dexieSubjectRepository } from '../../infrastructure/database/repositories/DexieSubjectRepository';
-import { dexieSubjectTermRepository } from '../../infrastructure/database/repositories/DexieSubjectTermRepository';
-import { dexieTermRepository } from '../../infrastructure/database/repositories/DexieTermRepository';
 import { dexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
 import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/adapters/WorkerAiAdapter';
 import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
-import { DexieTermService } from '../../infrastructure/database/services/DexieTermService';
 import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
 import { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
@@ -69,9 +62,6 @@ export interface Repositories {
     question: QuestionRepository;
     quiz: QuizRepository;
     quizSession: QuizSessionRepository;
-    subject: SubjectRepository;
-    term: TermRepository;
-    subjectTerm: SubjectTermRepository;
     quizDraft: QuizDraftRepository;
     flashcardReview: FlashcardReviewRepository;
     analytics: AnalyticsRepository;
@@ -92,7 +82,6 @@ export interface Infrastructure {
     db: LunaClairDatabase;
     repositories: Repositories;
     services: {
-        term: DexieTermService;
         quizEditor: DexieQuizEditorService;
         libraryImport: DexieLibraryImportService;
         studyPackageImport: DexieStudyPackageImportService;
@@ -127,9 +116,6 @@ export function createInfrastructure(): Infrastructure {
         question: dexieQuestionRepository,
         quiz: dexieQuizRepository,
         quizSession: dexieQuizSessionRepository,
-        subject: dexieSubjectRepository,
-        term: dexieTermRepository,
-        subjectTerm: dexieSubjectTermRepository,
         quizDraft: dexieQuizDraftRepository,
         flashcardReview: dexieFlashcardReviewRepository,
         analytics: dexieAnalyticsRepository,
@@ -146,7 +132,6 @@ export function createInfrastructure(): Infrastructure {
         db,
         repositories,
         services: {
-            term: new DexieTermService(db),
             quizEditor: new DexieQuizEditorService(db),
             libraryImport: new DexieLibraryImportService(db),
             studyPackageImport: new DexieStudyPackageImportService(db),

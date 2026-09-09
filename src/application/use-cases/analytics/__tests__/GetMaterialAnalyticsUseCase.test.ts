@@ -26,7 +26,6 @@ describe('GetMaterialAnalyticsUseCase', () => {
     it('delegates to AnalyticsRepository.getMaterialAnalytics with materialId', async () => {
         const mockRepo: AnalyticsRepository = {
             getGlobalAnalytics: vi.fn(),
-            getSubjectAnalytics: vi.fn(),
             getMaterialAnalytics: vi.fn().mockResolvedValue(mockMaterialAnalytics),
         };
 
@@ -40,7 +39,6 @@ describe('GetMaterialAnalyticsUseCase', () => {
     it('returns null when materialId is empty', async () => {
         const mockRepo: AnalyticsRepository = {
             getGlobalAnalytics: vi.fn(),
-            getSubjectAnalytics: vi.fn(),
             getMaterialAnalytics: vi.fn(),
         };
 

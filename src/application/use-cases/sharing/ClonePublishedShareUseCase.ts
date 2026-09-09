@@ -6,8 +6,6 @@ import type { PublishedShare } from '../../../domain/sharing/models/sharing.type
 export interface ClonePublishedShareInput {
   shareId: string;
   passcode?: string;
-  targetSubjectId?: string;
-  targetTermId?: string;
 }
 
 export interface ClonePublishedShareResult {
@@ -40,12 +38,10 @@ export class ClonePublishedShareUseCase {
       signal,
     );
 
-    // 2. Commit atomic transaction to Dexie with target destination.
+    // 2. Commit atomic transaction to Dexie.
     // originShareId stamps exact clone identity onto every imported material.
     const importResult = await this.importStudyPackage.execute({
       package: share.package,
-      targetSubjectId: input.targetSubjectId,
-      targetTermId: input.targetTermId,
       originShareId: input.shareId,
     });
 

@@ -14,8 +14,6 @@ describe('CommitImportUseCase', () => {
                     id: input.id || 'mat-123',
                     title: input.title,
                     documentId: input.documentId || 'doc-123',
-                    subjectId: input.subjectId,
-                    termId: input.termId,
                     createdAt: input.createdAt,
                     updatedAt: input.updatedAt,
                 };
@@ -46,13 +44,9 @@ describe('CommitImportUseCase', () => {
                 pageCount: 1,
                 usedOcr: false,
             },
-            subjectId: 'sub-bio',
-            termId: 'term-prelim',
         });
 
         expect(result.title).toBe('Anatomy Notes');
-        expect(result.subjectId).toBe('sub-bio');
-        expect(result.termId).toBe('term-prelim');
         expect(createdMaterial).toBeDefined();
         expect(createdMaterial.title).toBe('Anatomy Notes');
         expect(putContent.content).toContain('Anatomy Notes');

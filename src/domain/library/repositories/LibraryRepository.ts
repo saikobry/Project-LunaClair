@@ -4,8 +4,6 @@ export interface CreateMaterialInput {
   title: string;
   description?: string;
   documentId?: string;
-  subjectId?: string;
-  termId?: string;
   order?: number;
   tags?: string[];
 }
@@ -14,8 +12,6 @@ export interface UpdateMaterialInput {
   title?: string;
   description?: string;
   lastOpenedAt?: string;
-  subjectId?: string | null;
-  termId?: string | null;
   /** Tags are normalized at the write boundary; an empty array clears tags, undefined leaves them unchanged. */
   tags?: string[];
 }

@@ -2,7 +2,6 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../../schema/LunaClairDatabase';
 import { DexieAnalyticsRepository } from '../DexieAnalyticsRepository';
-import type { Subject } from '../../../../domain/library/models/Subject';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
@@ -12,25 +11,10 @@ import type { ReviewState } from '../../../../domain/flashcards/engines/schedule
 describe('DexieAnalyticsRepository Integration', () => {
     let repo: DexieAnalyticsRepository;
 
-    const sampleSubjectBio: Subject = {
-        id: 'sub-bio',
-        title: 'Biology',
-        createdAt: '2026-08-01T00:00:00Z',
-        updatedAt: '2026-08-01T00:00:00Z',
-    };
-
-    const sampleSubjectCS: Subject = {
-        id: 'sub-cs',
-        title: 'Computer Science',
-        createdAt: '2026-08-01T00:00:00Z',
-        updatedAt: '2026-08-01T00:00:00Z',
-    };
-
     const sampleMaterialBio: StudyMaterial = {
         id: 'mat-bio-1',
         documentId: 'doc-bio-1',
         title: 'Genetics Notes',
-        subjectId: 'sub-bio',
         createdAt: '2026-08-01T00:00:00Z',
         updatedAt: '2026-08-01T00:00:00Z',
     };
@@ -39,7 +23,6 @@ describe('DexieAnalyticsRepository Integration', () => {
         id: 'mat-cs-1',
         documentId: 'doc-cs-1',
         title: 'Data Structures',
-        subjectId: 'sub-cs',
         createdAt: '2026-08-01T00:00:00Z',
         updatedAt: '2026-08-01T00:00:00Z',
     };
@@ -127,9 +110,7 @@ describe('DexieAnalyticsRepository Integration', () => {
         await db.questions.clear();
         await db.quizzes.clear();
         await db.materials.clear();
-        await db.subjects.clear();
 
-        await db.subjects.bulkPut([sampleSubjectBio, sampleSubjectCS]);
         await db.materials.bulkPut([sampleMaterialBio, sampleMaterialCS]);
         await db.questions.bulkPut([sampleQuestionBio1, sampleQuestionBio2, sampleQuestionCS1]);
         await db.quizzes.bulkPut([sampleQuizBio, sampleQuizCS]);
@@ -142,7 +123,7 @@ describe('DexieAnalyticsRepository Integration', () => {
     });
 
     describe('getGlobalAnalytics()', () => {
-        it('aggregates system-wide overview, maturity, forecast, subjects, and activity', async () => {
+        it('aggregates system-wide overview, maturity, forecast, and activity', async () => {
             const sessionBio: QuizSession = {
                 id: 'sess-bio',
                 quizId: 'quiz-bio-1',
@@ -233,13 +214,6 @@ describe('DexieAnalyticsRepository Integration', () => {
             // Forecast checks
             expect(analytics.forecast).toHaveLength(7);
 
-            // Subject masteries
-            expect(analytics.subjects).toHaveLength(2);
-            const bioSub = analytics.subjects.find((s) => s.subjectId === 'sub-bio');
-            expect(bioSub?.totalQuizzes).toBe(1);
-            expect(bioSub?.attemptCount).toBe(2);
-            expect(bioSub?.rawAccuracy).toBe(100);
-
             // Activity calendar checks
             expect(analytics.activity).toHaveLength(365);
         });
@@ -248,44 +222,6 @@ describe('DexieAnalyticsRepository Integration', () => {
             const controller = new AbortController();
             controller.abort();
             await expect(repo.getGlobalAnalytics(controller.signal)).rejects.toThrow();
-        });
-    });
-
-    describe('getSubjectAnalytics()', () => {
-        it('returns SubjectMastery for the specified subject', async () => {
-            const sessionBio: QuizSession = {
-                id: 'sess-bio',
-                quizId: 'quiz-bio-1',
-                mode: 'practice',
-                status: 'completed',
-                questionSnapshots: {
-                    'q-bio-1': sampleQuestionBio1,
-                    'q-bio-2': sampleQuestionBio2,
-                },
-                answers: [
-                    { questionId: 'q-bio-1', value: 'DNA', isCorrect: true, earnedPoints: 10 },
-                    { questionId: 'q-bio-2', value: false, isCorrect: false, earnedPoints: 0 },
-                ],
-                startedAt: '2026-08-25T10:00:00Z',
-                completedAt: '2026-08-25T10:05:00Z',
-            };
-
-            await db.quizSessions.put(sessionBio);
-
-            const subjectMastery = await repo.getSubjectAnalytics('sub-bio');
-            expect(subjectMastery).not.toBeNull();
-            expect(subjectMastery?.subjectId).toBe('sub-bio');
-            expect(subjectMastery?.subjectName).toBe('Biology');
-            expect(subjectMastery?.attemptCount).toBe(2);
-            expect(subjectMastery?.correctCount).toBe(1);
-            expect(subjectMastery?.rawAccuracy).toBe(50);
-            expect(subjectMastery?.totalQuizzes).toBe(1);
-            expect(subjectMastery?.topics.length).toBeGreaterThan(0);
-        });
-
-        it('returns null for non-existent subject', async () => {
-            const res = await repo.getSubjectAnalytics('non-existent');
-            expect(res).toBeNull();
         });
     });
 

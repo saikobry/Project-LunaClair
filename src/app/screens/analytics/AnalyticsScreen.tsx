@@ -5,7 +5,6 @@ import { AnalyticsEmptyState } from '../../../features/analytics/components/Anal
 import { OverviewMetricCards } from '../../../features/analytics/components/overview/OverviewMetricCards';
 import { CardMaturityBar } from '../../../features/analytics/components/retention/CardMaturityBar';
 import { ReviewForecastChart } from '../../../features/analytics/components/retention/ReviewForecastChart';
-import { SubjectMasteryGrid } from '../../../features/analytics/components/mastery/SubjectMasteryGrid';
 import { ActivityHeatmap } from '../../../features/analytics/components/activity/ActivityHeatmap';
 
 const styles = stylex.create({
@@ -86,9 +85,6 @@ export function AnalyticsScreen() {
 
           {/* 3. 52-Week Activity Heatmap */}
           <ActivityHeatmap activity={analytics.activity} />
-
-          {/* 4. Subject & Topic Mastery Matrix */}
-          <SubjectMasteryGrid subjects={analytics.subjects} />
         </div>
       )}
     </Page>

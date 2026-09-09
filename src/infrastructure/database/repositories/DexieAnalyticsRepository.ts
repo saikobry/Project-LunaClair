@@ -1,12 +1,11 @@
 import type { AnalyticsRepository } from '../../../domain/analytics/repositories/AnalyticsRepository';
 import type {
     GlobalAnalytics,
-    SubjectMastery,
     MaterialAnalytics,
 } from '../../../domain/analytics/models/analytics.types';
 import { computeStudyOverview } from '../../../domain/analytics/engines/overviewEngine';
 import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/engines/retentionEngine';
-import { computeSubjectMasteries, computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
+import { computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
 import { buildActivityCalendar } from '../../../domain/analytics/engines/activityEngine';
 import { db } from '../schema/LunaClairDatabase';
 
@@ -15,12 +14,10 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
         // Fetch all raw datasets concurrently
-        const [sessions, reviews, questions, materials, subjects] = await Promise.all([
+        const [sessions, reviews, questions] = await Promise.all([
             db.quizSessions.filter((s) => s.status === 'completed').toArray(),
             db.flashcardReviews.toArray(),
             db.questions.filter((q) => q.status !== 'archived').toArray(),
-            db.materials.toArray(),
-            db.subjects.toArray(),
         ]);
 
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -29,33 +26,14 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
         const overview = computeStudyOverview(sessions, reviews);
         const maturity = computeCardMaturity(reviews, questions.length);
         const forecast = computeReviewForecast(reviews, 7);
-        const subjectMasteries = computeSubjectMasteries(subjects, materials, sessions);
         const activity = buildActivityCalendar(sessions, reviews, 365);
 
         return {
             overview,
             maturity,
             forecast,
-            subjects: subjectMasteries,
             activity,
         };
-    }
-
-    async getSubjectAnalytics(subjectId: string, signal?: AbortSignal): Promise<SubjectMastery | null> {
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-
-        const subject = await db.subjects.get(subjectId);
-        if (!subject) return null;
-
-        const [materials, sessions] = await Promise.all([
-            db.materials.where('subjectId').equals(subjectId).toArray(),
-            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
-        ]);
-
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-
-        const [subjectMastery] = computeSubjectMasteries([subject], materials, sessions);
-        return subjectMastery ?? null;
     }
 
     async getMaterialAnalytics(materialId: string, signal?: AbortSignal): Promise<MaterialAnalytics | null> {

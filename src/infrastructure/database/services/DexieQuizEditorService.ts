@@ -22,8 +22,7 @@ function generateQuizId(): string {
  * `saveQuiz` persists every question change and the quiz record inside a
  * single `db.transaction('rw')` spanning the `questions` and `quizzes`
  * stores, so a failure can never leave the Quiz Catalog and the Question
- * Bank out of sync. Mirrors the `TermService` pattern for atomic
- * multi-entity workflows.
+ * Bank out of sync.
  *
  * Version increment rule: `bumpVersion` changes update the bank question
  * and increment `version`; metadata-only changes keep the version pinned.

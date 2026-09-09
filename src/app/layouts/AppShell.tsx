@@ -22,25 +22,15 @@ const mobile = '@media (max-width: 768px)';
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 
 /**
- * Derives the sidebar context (subject/material/active section) and overlay
+ * Derives the sidebar context (material/active section) and overlay
  * suppression from the current route.
  */
 function getShellRouteContext(currentRoute: AppRoute): {
-  subjectId?: string;
   materialId?: string;
   collectionId?: string;
   active: NavActiveSection;
   suppressOverlays: boolean;
 } {
-  let subjectId: string | undefined;
-  if (currentRoute.kind === 'subject') {
-    subjectId = currentRoute.subjectId;
-  } else if (currentRoute.kind === 'workspace' && currentRoute.workspace === 'material') {
-    subjectId = currentRoute.subjectId;
-  } else if (currentRoute.kind === 'quiz-session') {
-    subjectId = currentRoute.subjectId;
-  }
-
   const materialId =
     currentRoute.kind === 'workspace' && currentRoute.workspace === 'material'
       ? currentRoute.materialId
@@ -60,8 +50,6 @@ function getShellRouteContext(currentRoute: AppRoute): {
     active = 'import';
   } else if (currentRoute.kind === 'analytics') {
     active = 'analytics';
-  } else if (currentRoute.kind === 'terms') {
-    active = 'terms';
   }
 
   const suppressOverlays =
@@ -69,7 +57,7 @@ function getShellRouteContext(currentRoute: AppRoute): {
 
   const collectionId = currentRoute.kind === 'collection' ? currentRoute.collectionId : undefined;
 
-  return { subjectId, materialId, collectionId, active, suppressOverlays };
+  return { materialId, collectionId, active, suppressOverlays };
 }
 
 /**
@@ -262,7 +250,7 @@ export default function AppShell() {
 
   const railRef = useFocusModeMotion(isFocusMode);
 
-  const { subjectId: routeSubjectId, materialId: routeMaterialId, collectionId: routeCollectionId, active, suppressOverlays } =
+  const { materialId: routeMaterialId, collectionId: routeCollectionId, active, suppressOverlays } =
     getShellRouteContext(currentRoute);
 
   return (
@@ -278,7 +266,6 @@ export default function AppShell() {
         {/* Navigation Rail */}
         <div ref={railRef} {...stylex.props(styles.rail, isFocusMode && styles.railFocus)}>
           <AppSidebar
-            subjectId={routeSubjectId}
             materialId={routeMaterialId}
             collectionId={routeCollectionId}
             active={active}

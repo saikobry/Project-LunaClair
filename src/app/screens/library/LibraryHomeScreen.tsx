@@ -1,12 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Subject } from '../../../domain/library/models/Subject';
 import type { QuizLaunchRequest } from '../../../features/quiz/types/quizFeature.types';
-import { useSubjects } from '../../../features/subjects/hooks/queries/useSubjects';
-import { useCreateSubject } from '../../../features/subjects/hooks/mutations/useCreateSubject';
-import { useEditSubject } from '../../../features/subjects/hooks/mutations/useEditSubject';
-import { useDeleteSubject } from '../../../features/subjects/hooks/mutations/useDeleteSubject';
-import { useReorderSubjects } from '../../../features/subjects/hooks/mutations/useReorderSubjects';
 import { useLibrary } from '../../../features/materials/hooks/queries/useLibrary';
 import { useCreateMaterial } from '../../../features/materials/hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from '../../../features/materials/hooks/mutations/useDeleteMaterial';
@@ -16,47 +10,30 @@ import LibraryModals from './LibraryModals';
 
 export interface LibraryHomeScreenProps {
   onOpenMaterial: (materialId: string) => void;
-  onOpenSubject: (subjectId: string) => void;
   onStartQuiz: (request: QuizLaunchRequest) => void;
-  onManage: (materialId: string, subjectId?: string) => void;
+  onManage: (materialId: string) => void;
   onBrowseAvailable: () => void;
 }
 
 export function LibraryHomeScreen({
   onOpenMaterial,
-  onOpenSubject,
   onStartQuiz,
   onManage,
   onBrowseAvailable,
 }: LibraryHomeScreenProps) {
   const { materials, isLoading: materialsLoading } = useLibrary();
-  const { subjects, isLoading: subjectsLoading } = useSubjects();
-  const isLibraryLoading = materialsLoading || subjectsLoading;
 
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
   const editMutation = useEditMaterial();
-  const createSubjectMutation = useCreateSubject();
-  const editSubjectMutation = useEditSubject();
-  const deleteSubjectMutation = useDeleteSubject();
-  const reorderSubjectsMutation = useReorderSubjects();
 
   const [editTarget, setEditTarget] = useState<StudyMaterial | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
-  const [subjectEditTarget, setSubjectEditTarget] = useState<Subject | null>(null);
-  const [subjectDeleteTarget, setSubjectDeleteTarget] = useState<Subject | null>(null);
-  const [showCreateSubject, setShowCreateSubject] = useState(false);
   const [showCreateMaterial, setShowCreateMaterial] = useState(false);
   const [managingCollectionsMaterial, setManagingCollectionsMaterial] = useState<StudyMaterial | null>(null);
 
-  const uncategorizedMaterials = materials.filter((m) => !m.subjectId);
-
   const handleNewMaterial = useCallback(() => {
     setShowCreateMaterial(true);
-  }, []);
-
-  const handleNewSubject = useCallback(() => {
-    setShowCreateSubject(true);
   }, []);
 
   const handleOpen = useCallback(
@@ -71,11 +48,11 @@ export function LibraryHomeScreen({
   }, []);
 
   const handleEditSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
+    (title: string, description: string, tags?: string[]) => {
       if (!editTarget) return;
       editMutation.mutate({
         id: editTarget.id,
-        input: { title, description, subjectId, termId, tags },
+        input: { title, description, tags },
       });
       setEditTarget(null);
     },
@@ -87,8 +64,8 @@ export function LibraryHomeScreen({
   }, []);
 
   const handleCreateMaterialSave = useCallback(
-    (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => {
-      createMutation.mutate({ title, description, subjectId: subjectId ?? undefined, termId: termId ?? undefined, tags });
+    (title: string, description: string, tags?: string[]) => {
+      createMutation.mutate({ title, description, tags });
       setShowCreateMaterial(false);
     },
     [createMutation],
@@ -97,59 +74,6 @@ export function LibraryHomeScreen({
   const handleCreateMaterialClose = useCallback(() => {
     setShowCreateMaterial(false);
   }, []);
-
-  const handleCreateSubjectSave = useCallback(
-    (title: string, description: string) => {
-      createSubjectMutation.mutate({ title, description });
-      setShowCreateSubject(false);
-    },
-    [createSubjectMutation],
-  );
-
-  const handleCreateSubjectClose = useCallback(() => {
-    setShowCreateSubject(false);
-  }, []);
-
-  const handleSubjectEdit = useCallback((subject: Subject) => {
-    setSubjectEditTarget(subject);
-  }, []);
-
-  const handleSubjectEditSave = useCallback(
-    (title: string, description: string) => {
-      if (!subjectEditTarget) return;
-      editSubjectMutation.mutate({
-        id: subjectEditTarget.id,
-        input: { title, description },
-      });
-      setSubjectEditTarget(null);
-    },
-    [subjectEditTarget, editSubjectMutation],
-  );
-
-  const handleSubjectEditClose = useCallback(() => {
-    setSubjectEditTarget(null);
-  }, []);
-
-  const handleSubjectDelete = useCallback((subject: Subject) => {
-    setSubjectDeleteTarget(subject);
-  }, []);
-
-  const handleSubjectDeleteConfirm = useCallback(() => {
-    if (!subjectDeleteTarget) return;
-    deleteSubjectMutation.mutate(subjectDeleteTarget.id);
-    setSubjectDeleteTarget(null);
-  }, [subjectDeleteTarget, deleteSubjectMutation]);
-
-  const handleSubjectDeleteClose = useCallback(() => {
-    setSubjectDeleteTarget(null);
-  }, []);
-
-  const handleSubjectReorder = useCallback(
-    (orderedIds: string[]) => {
-      reorderSubjectsMutation.mutate({ orderedIds });
-    },
-    [reorderSubjectsMutation],
-  );
 
   const handleDeleteTrigger = useCallback((material: StudyMaterial) => {
     setDeleteTarget(material);
@@ -167,7 +91,7 @@ export function LibraryHomeScreen({
 
   const handleStartQuiz = useCallback(
     (material: StudyMaterial) => {
-      onStartQuiz({ type: 'quiz', quizId: material.id, materialId: material.id, source: 'library', subjectId: material.subjectId });
+      onStartQuiz({ type: 'quiz', quizId: material.id, materialId: material.id, source: 'library' });
     },
     [onStartQuiz],
   );
@@ -183,41 +107,23 @@ export function LibraryHomeScreen({
   return (
     <>
       <LibraryView
-        isLoading={isLibraryLoading}
-        subjects={subjects}
-        materials={uncategorizedMaterials}
-        allMaterials={materials}
+        isLoading={materialsLoading}
+        materials={materials}
         onNewMaterial={handleNewMaterial}
-        onNewSubject={handleNewSubject}
         onOpen={handleOpen}
-        onOpenSubject={onOpenSubject}
         onEdit={handleEditTrigger}
         onDelete={handleDeleteTrigger}
         onStartQuiz={handleStartQuiz}
-        onManage={(m) => onManage(m.id, m.subjectId)}
+        onManage={(m) => onManage(m.id)}
         onManageCollections={handleManageCollections}
         onBrowseAvailable={onBrowseAvailable}
-        isSavingReorder={reorderSubjectsMutation.isPending}
-        onSubjectEdit={handleSubjectEdit}
-        onSubjectDelete={handleSubjectDelete}
-        onSubjectReorder={handleSubjectReorder}
       />
       <LibraryModals
-        subjects={subjects}
         editTarget={editTarget}
         deleteTarget={deleteTarget}
-        subjectEditTarget={subjectEditTarget}
-        subjectDeleteTarget={subjectDeleteTarget}
-        showCreateSubject={showCreateSubject}
         showCreateMaterial={showCreateMaterial}
         onEditSave={handleEditSave}
         onEditClose={handleEditClose}
-        onSubjectEditSave={handleSubjectEditSave}
-        onSubjectEditClose={handleSubjectEditClose}
-        onSubjectDeleteConfirm={handleSubjectDeleteConfirm}
-        onSubjectDeleteClose={handleSubjectDeleteClose}
-        onCreateSubjectSave={handleCreateSubjectSave}
-        onCreateSubjectClose={handleCreateSubjectClose}
         onCreateMaterialSave={handleCreateMaterialSave}
         onCreateMaterialClose={handleCreateMaterialClose}
         onDeleteConfirm={handleDeleteConfirm}

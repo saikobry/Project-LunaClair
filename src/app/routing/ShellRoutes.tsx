@@ -8,10 +8,6 @@ import MaterialWorkspaceScreen from '../screens/material-workspace/MaterialWorks
 
 // Route-level code-splitting for screen compositions
 const ExploreScreen = lazy(() => import('../screens/explore/ExploreScreen'));
-const SubjectWorkspaceScreen = lazy(() => import('../screens/subject-workspace/SubjectWorkspaceScreen'));
-const TermManagerScreen = lazy(() =>
-  import('../screens/terms/TermManagerScreen').then((m) => ({ default: m.TermManagerScreen })),
-);
 const AnalyticsScreen = lazy(() => import('../screens/analytics/AnalyticsScreen'));
 const QuizCanvasBuilderScreen = lazy(() =>
   import('../screens/quiz-canvas/QuizCanvasBuilderScreen').then((m) => ({ default: m.QuizCanvasBuilderScreen })),
@@ -34,25 +30,18 @@ interface ShellRoutesProps {
 
 /**
  * Renders the screen for the current route and owns the navigation handlers
- * the route screens need (open material/subject, launch quiz, manage, exit).
+ * the route screens need (open material, launch quiz, manage, exit).
  * Extracted from `AppShell` so the shell stays a thin composition root.
  */
 export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutesProps) {
   const touchMutation = useTouchMaterial();
 
   const handleOpenMaterial = useCallback(
-    (materialId: string, subjectId?: string) => {
+    (materialId: string) => {
       touchMutation.mutate(materialId);
-      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'read' });
+      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'read' });
     },
     [navigate, touchMutation],
-  );
-
-  const handleOpenSubject = useCallback(
-    (subjectId: string) => {
-      navigate({ kind: 'subject', subjectId, activeTab: 'materials' });
-    },
-    [navigate],
   );
 
   const handleStartQuiz = useCallback(
@@ -64,7 +53,6 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             kind: 'workspace',
             workspace: 'material',
             materialId: request.materialId,
-            subjectId: request.subjectId,
             activeTab: 'quiz',
           });
         } else {
@@ -73,10 +61,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             kind: 'quiz-session',
             quizId: request.quizId ?? '',
             materialIds: [],
-            subjectId: request.subjectId,
-            returnTo: request.subjectId
-              ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
-              : { kind: 'library' },
+            returnTo: { kind: 'library' },
           });
         }
       } else {
@@ -86,10 +71,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           quizId: `unified-${Date.now()}`,
           materialIds: [],
           quizIds: request.quizIds,
-          subjectId: request.subjectId,
-          returnTo: request.subjectId
-            ? { kind: 'subject', subjectId: request.subjectId, activeTab: 'quiz' }
-            : { kind: 'library' },
+          returnTo: { kind: 'library' },
         });
       }
     },
@@ -97,8 +79,8 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
   );
 
   const handleManageQuiz = useCallback(
-    (materialId: string, subjectId?: string) => {
-      navigate({ kind: 'workspace', workspace: 'material', materialId, subjectId, activeTab: 'manage' });
+    (materialId: string) => {
+      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'manage' });
     },
     [navigate],
   );
@@ -116,7 +98,6 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       {currentRoute.kind === 'library' && (
         <LibraryHomeScreen
           onOpenMaterial={handleOpenMaterial}
-          onOpenSubject={handleOpenSubject}
           onStartQuiz={handleStartQuiz}
           onManage={handleManageQuiz}
           onBrowseAvailable={() => navigate({ kind: 'explore' })}
@@ -128,11 +109,6 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
             onOpenMaterial={handleOpenMaterial}
             onOpenShare={(shareId) => navigate({ kind: 'share', shareId })}
           />
-        </Suspense>
-      )}
-      {currentRoute.kind === 'terms' && (
-        <Suspense fallback={<WorkspaceSkeleton />}>
-          <TermManagerScreen />
         </Suspense>
       )}
       {currentRoute.kind === 'analytics' && (
@@ -157,22 +133,10 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           />
         </Suspense>
       )}
-      {currentRoute.kind === 'subject' && (
-        <Suspense fallback={<WorkspaceSkeleton />}>
-          <SubjectWorkspaceScreen
-            subjectId={currentRoute.subjectId}
-            activeTab={currentRoute.activeTab}
-            onNavigate={navigate}
-            onOpenMaterial={handleOpenMaterial}
-            onStartQuiz={handleStartQuiz}
-          />
-        </Suspense>
-      )}
       {currentRoute.kind === 'workspace' && currentRoute.workspace === 'material' && (
         <MaterialWorkspaceScreen
           materialId={currentRoute.materialId}
           activeTab={currentRoute.activeTab}
-          subjectId={currentRoute.subjectId}
           onNavigate={navigate}
         />
       )}

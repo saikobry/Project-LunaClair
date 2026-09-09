@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, GraduationCap, Focus } from 'lucide-react';
+import { BookText, Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
@@ -10,12 +10,10 @@ const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
 interface ContextRailButtonsProps {
   active: ViewportNavProps['active'];
   onNavigate: ViewportNavProps['onNavigate'];
-  subject?: ViewportNavProps['subject'];
   material?: ViewportNavProps['material'];
 }
 
-function ContextRailButtons({ active, onNavigate, subject, material }: ContextRailButtonsProps) {
-  const isSubjectActive = active === 'none' && Boolean(subject) && !material;
+function ContextRailButtons({ active, onNavigate, material }: ContextRailButtonsProps) {
   const isMaterialActive = active === 'none' && Boolean(material);
 
   if (active !== 'none') return null;
@@ -23,24 +21,6 @@ function ContextRailButtons({ active, onNavigate, subject, material }: ContextRa
   return (
     <>
       <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-      {subject && (
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, isSubjectActive && styles.iconButtonActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'subject',
-              subjectId: subject.id,
-              activeTab: 'materials',
-            })
-          }
-          aria-current={isSubjectActive ? 'page' : undefined}
-          title={`Subject: ${subject.title}`}
-        >
-          <GraduationCap size={20} />
-        </button>
-      )}
 
       {material && (
         <button
@@ -69,7 +49,6 @@ export function TabletRail({
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  subject,
   material,
 }: ViewportNavProps) {
   const railRef = useRef<HTMLElement>(null);
@@ -231,7 +210,6 @@ export function TabletRail({
         <ContextRailButtons
           active={active}
           onNavigate={onNavigate}
-          subject={subject}
           material={material}
         />
       </div>

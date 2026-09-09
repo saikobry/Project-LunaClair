@@ -12,15 +12,13 @@ export function useCloneShare() {
   const [cloningId, setCloningId] = useState<string | null>(null);
 
   const cloneShare = useCallback(
-    async (shareId: string, options?: { passcode?: string; targetSubjectId?: string; targetTermId?: string }) => {
+    async (shareId: string, options?: { passcode?: string }) => {
       if (cloningId) return null;
       setCloningId(shareId);
       try {
         const result = await context.useCases.sharing.clonePublishedShare.execute({
           shareId,
           passcode: options?.passcode,
-          targetSubjectId: options?.targetSubjectId,
-          targetTermId: options?.targetTermId,
         });
 
         await Promise.all([

@@ -17,8 +17,6 @@ describe('FlashcardScreen', () => {
         id: 'mat-1',
         title: 'Cell Biology',
         documentId: 'doc-1',
-        subjectId: 'sub-1',
-        termId: 'term-1',
         createdAt: '2026-09-02T10:00:00.000Z',
         updatedAt: '2026-09-02T10:00:00.000Z',
     };

@@ -1,5 +1,4 @@
 import type { AppRoute } from '../routing/routing';
-import { useSubject } from '../../features/subjects/hooks/queries/useSubject';
 import { useMaterial } from '../../features/materials/hooks/queries/useMaterial';
 import type { NavActiveSection } from './navigation/navigation.types';
 import { DesktopSidebar } from './navigation/DesktopSidebar';
@@ -7,7 +6,6 @@ import { TabletRail } from './navigation/TabletRail';
 import { MobileBottomDock } from './navigation/MobileBottomDock';
 
 export interface AppSidebarProps {
-  subjectId?: string;
   materialId?: string;
   collectionId?: string;
   active: NavActiveSection;
@@ -22,7 +20,6 @@ export interface AppSidebarProps {
  * layout models and tailored Focus Mode physics.
  */
 export function AppSidebar({
-  subjectId,
   materialId,
   collectionId,
   active,
@@ -30,7 +27,6 @@ export function AppSidebar({
   onToggleFocusMode,
   onNavigate,
 }: AppSidebarProps) {
-  const { subject } = useSubject(subjectId);
   const { material } = useMaterial(materialId);
 
   const sharedProps = {
@@ -38,7 +34,6 @@ export function AppSidebar({
     isFocusMode,
     onToggleFocusMode,
     onNavigate,
-    subject,
     material,
     collectionId: collectionId ?? null,
   };

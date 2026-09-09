@@ -25,7 +25,7 @@ Owns playlist-model collection presentation and membership state: collection que
 
 ## Local Contracts
 
-- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (`MaterialCard`, `LibraryRepository` port, `materialQueryKeys` invalidation scope is separate). Must not depend on `subjects/`, `terms/`, or `app/screens/`.
+- **Directed Dependencies (ADR-014)**: Depends unidirectionally on `materials/` (`MaterialCard`, `LibraryRepository` port, `materialQueryKeys` invalidation scope is separate). Must not depend on `app/screens/`.
 - Query hooks read through `context.repositories.collection` / `collectionMaterial` / `library`; mutation hooks delegate exclusively to `context.useCases.collections.*`.
 - `modals/` are pure presentation: they never import hooks, repositories, or infrastructure — parents own data fetching and pass `collections`, `assignedCollectionIds`, and `onToggle`/`onSave` callbacks. Non-goals in force: never add hook/query imports here; `src/app/routing/` and `ShellRoutes.tsx` are owned elsewhere.
 - Route-level workspace orchestration belongs to `src/app/screens/collection-workspace/CollectionWorkspaceScreen.tsx` (mounts `EditCollectionModal`, drives edit/delete mutations). The `ManageMaterialCollectionsModal` is composed in `src/app/screens/library/LibraryModals.tsx` and launched from `MaterialCard`'s `onManageCollections` callback via `LibraryHomeScreen`.

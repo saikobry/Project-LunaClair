@@ -1,21 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UpdateMaterialUseCase } from '../UpdateMaterialUseCase';
 import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
-import type { SubjectTermRepository } from '../../../../domain/library/repositories/SubjectTermRepository';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 describe('UpdateMaterialUseCase', () => {
     const existingMaterial: StudyMaterial = {
         id: 'mat-1',
         title: 'Cell Notes',
-        subjectId: 'sub-1',
-        termId: 'term-1',
         documentId: 'doc-1',
         createdAt: '2026-09-01T00:00:00.000Z',
         updatedAt: '2026-09-01T00:00:00.000Z',
     };
 
-    const createServices = (material: StudyMaterial | null = existingMaterial, isLinked = true) => {
+    const createServices = (material: StudyMaterial | null = existingMaterial) => {
         const library: LibraryRepository = {
             getMaterialById: vi.fn().mockResolvedValue(material),
             updateMaterial: vi.fn().mockImplementation((id, input) =>
@@ -31,23 +28,12 @@ describe('UpdateMaterialUseCase', () => {
             deleteMaterial: vi.fn(),
         };
 
-        const subjectTerms: SubjectTermRepository = {
-            hasTerm: vi.fn().mockResolvedValue(isLinked),
-            getTermsBySubject: vi.fn(),
-            getSubjectTermViews: vi.fn(),
-            getSubjectIdsByTerm: vi.fn(),
-            syncTerms: vi.fn(),
-            reorderTerms: vi.fn(),
-            addTerm: vi.fn(),
-            removeTerm: vi.fn(),
-        };
-
-        return { library, subjectTerms };
+        return { library };
     };
 
-    it('updates material fields when association is valid', async () => {
-        const { library, subjectTerms } = createServices(existingMaterial, true);
-        const useCase = new UpdateMaterialUseCase(library, subjectTerms);
+    it('updates material fields', async () => {
+        const { library } = createServices(existingMaterial);
+        const useCase = new UpdateMaterialUseCase(library);
 
         const result = await useCase.execute('mat-1', {
             title: 'Updated Cell Biology Notes',
@@ -61,22 +47,12 @@ describe('UpdateMaterialUseCase', () => {
     });
 
     it('throws error when material does not exist', async () => {
-        const { library, subjectTerms } = createServices(null);
-        const useCase = new UpdateMaterialUseCase(library, subjectTerms);
+        const { library } = createServices(null);
+        const useCase = new UpdateMaterialUseCase(library);
 
         await expect(
             useCase.execute('mat-missing', { title: 'New Title' }),
         ).rejects.toThrow('Material not found: mat-missing');
-        expect(library.updateMaterial).not.toHaveBeenCalled();
-    });
-
-    it('validates new termId against existing subjectId', async () => {
-        const { library, subjectTerms } = createServices(existingMaterial, false);
-        const useCase = new UpdateMaterialUseCase(library, subjectTerms);
-
-        await expect(
-            useCase.execute('mat-1', { termId: 'term-unlinked' }),
-        ).rejects.toThrow('Term "term-unlinked" is not linked to subject "sub-1"');
         expect(library.updateMaterial).not.toHaveBeenCalled();
     });
 });

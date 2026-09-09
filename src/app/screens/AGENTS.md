@@ -7,17 +7,12 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
 ## Ownership
 
 - `library/` — Library Home Screen:
-  - `LibraryHomeScreen.tsx` — Main dashboard route screen (`/`) displaying local subjects, materials, and quick stats.
-  - `LibraryModals.tsx` — Composed dialog container managing material creation/edit and subject creation/edit modals.
-- `subject-workspace/` — Subject Workspace Screen:
-  - `SubjectWorkspaceScreen.tsx` — Subject workspace route (`/subjects/:subjectId`) with Materials, Terms, and Quizzes tabs.
-  - `SubjectQuizTab.tsx` — Quiz tab container orchestrating the subject quiz hierarchy tree.
+  - `LibraryHomeScreen.tsx` — Main dashboard route screen (`/`) displaying local materials and quick stats.
+  - `LibraryModals.tsx` — Composed dialog container managing material creation/edit and collection assignment modals.
 - `material-workspace/` — Material Workspace Screen:
   - `MaterialWorkspaceScreen.tsx` — Material workspace route (`/materials/:materialId`) with Read, Write, Quiz, Flashcards, and Manage tabs.
 - `explore/` — Explore Hub Screen:
   - `ExploreScreen.tsx` — Content discovery route (`/explore`), shares-only: one unified card list of published `.lcpack` shares (verified/community badge, exact `originShareId` clone identity, 1-click cloning). No catalog section and no source filter; `onOpenMaterial` remains an optional no-op-compatible prop for route wiring.
-- `terms/` — Academic Terms Manager Screen:
-  - `TermManagerScreen.tsx` — Academic term management route (`/terms`) with term CRUD and catalog usage metrics.
 - `quiz-session/` — Quiz Session Runner Screen:
   - `QuizSessionScreen.tsx` — Active quiz taking route (`/quiz/session/:id`) hosting the live quiz evaluation runner.
 - `quiz-canvas/` — Quiz Canvas Builder Screen:
@@ -34,7 +29,7 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
 ## Local Contracts
 
 - **Screen Layer Exclusivity (ADR-014)**: Features must never own route screens; all route screens live here.
-- **Cross-Feature Composition**: When an interaction requires multiple domain capabilities (e.g. `SubjectWorkspace` coordinating subjects, terms, materials, and quizzes), the composition occurs in this screen layer.
+- **Cross-Feature Composition**: When an interaction requires multiple domain capabilities (e.g. collection workspace coordinating collections and materials), the composition occurs in this screen layer.
 - Screens consume features strictly via direct module paths (ADR-010). Features must not import from `src/app/screens/`.
 
 ## Work Guidance

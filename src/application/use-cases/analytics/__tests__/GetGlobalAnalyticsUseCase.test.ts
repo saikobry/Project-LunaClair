@@ -23,14 +23,12 @@ describe('GetGlobalAnalyticsUseCase', () => {
             totalCards: 20,
         },
         forecast: [],
-        subjects: [],
         activity: [],
     };
 
     it('delegates to AnalyticsRepository.getGlobalAnalytics and returns calculated snapshot', async () => {
         const mockRepo: AnalyticsRepository = {
             getGlobalAnalytics: vi.fn().mockResolvedValue(mockGlobalAnalytics),
-            getSubjectAnalytics: vi.fn(),
             getMaterialAnalytics: vi.fn(),
         };
 

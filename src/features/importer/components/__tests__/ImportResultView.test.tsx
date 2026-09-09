@@ -9,7 +9,6 @@ describe('ImportResultView', () => {
       id: 'mat-1',
       title: 'Human Anatomy',
       documentId: 'doc-1',
-      subjectId: 'sub-med',
       createdAt: '2026-09-02T10:00:00.000Z',
       updatedAt: '2026-09-02T10:00:00.000Z',
     },
@@ -20,7 +19,6 @@ describe('ImportResultView', () => {
       id: 'mat-1',
       title: 'Human Anatomy',
       documentId: 'doc-1',
-      subjectId: 'sub-med',
       createdAt: '2026-09-02T10:00:00.000Z',
       updatedAt: '2026-09-02T10:00:00.000Z',
     },
@@ -28,7 +26,6 @@ describe('ImportResultView', () => {
       id: 'mat-2',
       title: 'Physiology Basics',
       documentId: 'doc-2',
-      subjectId: 'sub-med',
       createdAt: '2026-09-02T10:00:00.000Z',
       updatedAt: '2026-09-02T10:00:00.000Z',
     },
@@ -52,11 +49,11 @@ describe('ImportResultView', () => {
 
     const openMaterialBtn = screen.getByRole('button', { name: /open material/i });
     fireEvent.click(openMaterialBtn);
-    expect(onOpenMaterial).toHaveBeenCalledWith('mat-1', 'sub-med');
+    expect(onOpenMaterial).toHaveBeenCalledWith('mat-1');
 
     const openInWorkspaceBtn = screen.getByRole('button', { name: /open in workspace/i });
     fireEvent.click(openInWorkspaceBtn);
-    expect(onOpenMaterial).toHaveBeenCalledWith('mat-1', 'sub-med');
+    expect(onOpenMaterial).toHaveBeenCalledWith('mat-1');
 
     const importMoreBtn = screen.getByRole('button', { name: /import more files/i });
     fireEvent.click(importMoreBtn);
@@ -83,7 +80,7 @@ describe('ImportResultView', () => {
     expect(openButtons).toHaveLength(2);
 
     fireEvent.click(openButtons[1]);
-    expect(onOpenMaterial).toHaveBeenCalledWith('mat-2', 'sub-med');
+    expect(onOpenMaterial).toHaveBeenCalledWith('mat-2');
 
     // Open in Workspace should not be rendered for multiple materials
     expect(screen.queryByRole('button', { name: /open in workspace/i })).not.toBeInTheDocument();

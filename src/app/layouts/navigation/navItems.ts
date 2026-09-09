@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Home, Compass, FileUp, TrendingUp, Tag } from 'lucide-react';
+import { Home, Compass, FileUp, TrendingUp } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { NavActiveSection } from './navigation.types';
 
 export interface PrimaryNavItem {
-  id: 'library' | 'explore' | 'import' | 'analytics' | 'terms';
+  id: 'library' | 'explore' | 'import' | 'analytics';
   /** Visible label for desktop sidebar. */
   label: string;
   /** Tooltip / accessible name. */
@@ -14,7 +14,7 @@ export interface PrimaryNavItem {
   isActive: (active: NavActiveSection) => boolean;
 }
 
-/** The five static destinations shared by every viewport navigation variant. */
+/** The four static destinations shared by every viewport navigation variant. */
 export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
   {
     id: 'library',
@@ -47,13 +47,5 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     icon: TrendingUp,
     route: { kind: 'analytics' },
     isActive: (active) => active === 'analytics',
-  },
-  {
-    id: 'terms',
-    label: 'Terms',
-    title: 'Manage Terms',
-    icon: Tag,
-    route: { kind: 'terms' },
-    isActive: (active) => active === 'terms',
   },
 ];

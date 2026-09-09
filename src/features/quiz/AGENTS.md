@@ -10,19 +10,15 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 |---|---|
 | `QuizScreen.tsx` | Feature-root screen orchestrator. Manages quiz launch requests (exam vs practice mode, single quiz vs virtual composite), wraps session flow, and handles completion transitions. |
 | `components/` | Presentational views: `QuestionRenderer` (MC, MS, TF, Identification, FillBlank), `QuizStartView`, `QuizView`, `QuizResultView`, `QuestionSkeleton`. |
-| `components/SubjectQuizExplorer.tsx` | Subject-scoped quiz hierarchy tree viewer embedded into `catalog/subjects/components/SubjectQuizTab`. |
 | `hooks/session/` | Active session state machine hooks: `useQuizSessionFlow` (master orchestrator), `useQuizProgress` (index bounds & answer map), `useQuizPersistence` (start/submit/abandon dispatches), `useQuizLoader` (single quiz, virtual quiz composite, or material questions). |
-| `hooks/queries/` | Read queries: `useSubjectQuizTree`, `useQuizTreeSelection`, `useQuestions`, `useQuizzes`. |
+| `hooks/queries/` | Read queries: `useQuestions`, `useQuizzes`. |
 | `hooks/repositories/` | Context repository access adapters: `useQuestionRepository`, `useQuizRepository`. |
 | `queries/` | Assessment query key factory (`assessmentQueryKeys.ts`). |
-| `types/` | Feature contracts: `quizFeature.types.ts` (`QuizLaunchRequest`), `quizTree.types.ts`. |
+| `types/` | Feature contracts: `quizFeature.types.ts` (`QuizLaunchRequest`). |
 
 ## Local Contracts
 
 - **Feature-Root Screen Orchestrator**: `QuizScreen.tsx` sits at the feature root as the primary route-level screen for active quiz sessions.
-- **Browsing vs Live Session Separation**:
-  - `SubjectQuizExplorer` provides read-only hierarchy browsing and selection, emitting a `QuizLaunchRequest`.
-  - `QuizScreen` provides the active session execution context (exam vs practice mode, timer, questions, and immediate/delayed feedback).
 - **Session State Machine Invariants**:
   - `useQuizSessionFlow` manages phase transitions: `loading` $\rightarrow$ `ready` $\rightarrow$ `completed`.
   - Answers recorded during progress are held in an in-memory `Map<string, QuestionAnswerPayload>` preserved across forward/backward question navigation.

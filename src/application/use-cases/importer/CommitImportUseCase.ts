@@ -13,10 +13,6 @@ export interface CommitImportInput {
   file: File;
   /** Import provenance metadata */
   importMetadata: ImportMetadata;
-  /** Optional subject assignment */
-  subjectId?: string;
-  /** Optional term assignment */
-  termId?: string;
 }
 
 export class CommitImportUseCase {
@@ -43,8 +39,6 @@ export class CommitImportUseCase {
     const materialInput: CreateMaterialInput = {
       title: input.title,
       documentId,
-      subjectId: input.subjectId,
-      termId: input.termId,
     };
     
     // In the prompt this was casted directly but CreateMaterialInput doesn't have id/createdAt, 

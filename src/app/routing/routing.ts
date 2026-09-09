@@ -10,11 +10,9 @@ export type AppRoute =
   | { kind: 'available' }
   | { kind: 'analytics' }
   | { kind: 'import' }
-  | { kind: 'terms' }
-  | { kind: 'subject'; subjectId: string; activeTab: 'materials' | 'quiz' | 'terms' }
-  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage'; subjectId?: string }
+  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage' }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
-  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; subjectId?: string; returnTo: AppRoute }
+  | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; returnTo: AppRoute }
   | { kind: 'share'; shareId: string }
   | { kind: 'collection'; collectionId: string };
 
@@ -33,16 +31,12 @@ export function routeToUrl(route: AppRoute): string {
       return '/analytics';
     case 'import':
       return '/import';
-    case 'terms':
-      return '/terms';
     case 'share':
       return `/share/${route.shareId}`;
     case 'collection':
       return `/collections/${route.collectionId}`;
-    case 'subject':
-      return `/subjects/${route.subjectId}?tab=${route.activeTab}`;
     case 'workspace':
-      return `/materials/${route.materialId}?tab=${route.activeTab}${route.subjectId ? `&subject=${route.subjectId}` : ''}`;
+      return `/materials/${route.materialId}?tab=${route.activeTab}`;
     case 'quiz-canvas':
       return `/materials/${route.materialId}/builder${route.quizId ? `/${route.quizId}` : ''}`;
     case 'quiz-session':
@@ -78,15 +72,7 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   const materialMatch = url.pathname.match(/^\/materials\/([^/]+)$/);
   if (materialMatch) {
     const tab = (url.searchParams.get('tab') as 'read' | 'write' | 'quiz' | 'flashcards' | 'manage') ?? 'read';
-    const subjectId = url.searchParams.get('subject') ?? undefined;
-    return { kind: 'workspace', workspace: 'material', materialId: materialMatch[1], activeTab: tab, subjectId };
-  }
-
-  // /subjects/:subjectId
-  const subjectMatch = url.pathname.match(/^\/subjects\/([^/]+)$/);
-  if (subjectMatch) {
-    const tab = (url.searchParams.get('tab') as 'materials' | 'quiz' | 'terms') ?? 'materials';
-    return { kind: 'subject', subjectId: subjectMatch[1], activeTab: tab };
+    return { kind: 'workspace', workspace: 'material', materialId: materialMatch[1], activeTab: tab };
   }
 
   // /collections/:collectionId
@@ -99,11 +85,6 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   const quizMatch = url.pathname.match(/^\/quiz\/([^/]+)$/);
   if (quizMatch) {
     return { kind: 'quiz-session', quizId: quizMatch[1], materialIds: [], returnTo: { kind: 'library' } };
-  }
-
-  // /terms
-  if (url.pathname === '/terms') {
-    return { kind: 'terms' };
   }
 
   // /explore

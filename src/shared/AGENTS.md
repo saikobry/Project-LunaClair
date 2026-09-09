@@ -17,7 +17,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 ## Local Contracts
 
 - Nothing in `shared/` may depend on any feature module.
-- Nothing in `shared/` may own or reference business capabilities such as Subjects, Materials, Terms, or Quizzes.
+- Nothing in `shared/` may own or reference business capabilities such as Materials, Collections, or Quizzes.
 - Query and mutation hooks, cache key factories, dialogs, and domain-specific composites belong to their owning feature.
 - Shared composites must accept domain-neutral props and render without business workflows.
 - Zero barrel boundaries (ADR-010): `shared/` has no root or sub-component barrel files (`index.ts`); all consumers import direct module paths (e.g. `shared/ui/Button/Button`, `shared/ui/Card/Card`, `shared/ui/EmptyState/EmptyState`, `shared/ui/ErrorState/ErrorState`, `shared/ui/Input/Input`, `shared/ui/Page/Page`, `shared/components/ActionMenu/ActionMenu`).

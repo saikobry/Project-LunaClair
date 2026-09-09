@@ -80,8 +80,6 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
       title: 'Cellular Respiration & Glycolysis',
       description: 'Metabolic pathways in eukaryotic cells.',
       documentId: originalDocId,
-      subjectId: 'subj_biology',
-      termId: 'term_midterm',
       order: 1,
       createdAt: now,
       updatedAt: now,
@@ -253,8 +251,6 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     // 3. Import package into local Dexie storage
     const importResult = await importUseCase.execute({
       package: parsedPkg,
-      targetSubjectId: 'subj_imported_target',
-      targetTermId: 'term_imported_target',
     });
 
     // Invariant Assertions on Imported Entities:
@@ -267,8 +263,6 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     const importedMaterial = await db.materials.get(importedMatId);
     expect(importedMaterial).toBeDefined();
     expect(importedMaterial?.title).toBe('Cellular Respiration & Glycolysis');
-    expect(importedMaterial?.subjectId).toBe('subj_imported_target');
-    expect(importedMaterial?.termId).toBe('term_imported_target');
 
     // Verify imported document content in Dexie
     const importedDoc = await db.documentContents.get(importedMaterial!.documentId);

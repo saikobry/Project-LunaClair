@@ -6,60 +6,19 @@ import { Button } from '../../../shared/ui/Button/Button';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { styles } from '../styles/library.stylex';
 import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../domain/quiz/utils/tags';
-import type { Subject } from '../../../domain/library/models/Subject';
-import type { Term } from '../../../domain/library/models/Term';
-
-const selectStyles = stylex.create({
-    select: {
-        padding: '10px 14px',
-        fontSize: 14,
-        borderWidth: 1,
-        borderStyle: 'solid',
-        borderColor: 'var(--color-border)',
-        borderRadius: 8,
-        color: 'var(--color-text-primary)',
-        backgroundColor: 'var(--color-background-surface)',
-        outlineStyle: 'none',
-        fontFamily: 'inherit',
-        transition: 'border-color 0.15s ease',
-        ':focus': {
-            borderColor: 'var(--color-accent)',
-            boxShadow: '0 0 0 3px var(--color-overlay-hover)',
-        },
-    },
-});
 
 interface CreateMaterialModalProps {
-    subjects: Subject[];
-    /** Pre-selected subject ID (e.g. when opened from SubjectWorkspace) */
-    initialSubjectId?: string;
-    /** Academic terms available for the material */
-    terms?: Term[];
-    onSave: (title: string, description: string, subjectId?: string | null, termId?: string | null, tags?: string[]) => void;
+    onSave: (title: string, description: string, tags?: string[]) => void;
     onClose: () => void;
 }
 
 export default function CreateMaterialModal({
-    subjects,
-    initialSubjectId,
-    terms = [],
     onSave,
     onClose,
 }: CreateMaterialModalProps) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState<string[]>([]);
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-        initialSubjectId ?? null,
-    );
-    const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
-    const availableTerms = selectedSubjectId ? terms : [];
-
-    const handleSubjectChange = (value: string) => {
-        const newSubjectId = value === '__unassigned__' ? null : value;
-        setSelectedSubjectId(newSubjectId);
-        setSelectedTermId(null);
-    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,8 +26,6 @@ export default function CreateMaterialModal({
             onSave(
                 title.trim(),
                 description.trim(),
-                selectedSubjectId,
-                selectedTermId,
                 normalizeTags(tags),
             );
         }
@@ -117,50 +74,6 @@ export default function CreateMaterialModal({
                     tagKey={tagKey}
                     normalizeTags={(list) => normalizeTags(list) ?? []}
                 />
-
-                {/* Subject selector */}
-                <div {...stylex.props(styles.fieldGroup)}>
-                    <label {...stylex.props(styles.label)} htmlFor="create-subject">
-                        Subject
-                    </label>
-                    <select
-                        id="create-subject"
-                        {...stylex.props(selectStyles.select)}
-                        value={selectedSubjectId ?? '__unassigned__'}
-                        onChange={(e) => handleSubjectChange(e.target.value)}
-                    >
-                        <option value="__unassigned__">Unassigned / General Library</option>
-                        {subjects.map((subject) => (
-                            <option key={subject.id} value={subject.id}>
-                                {subject.title}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Term selector — only shown when a subject with terms is selected */}
-                {availableTerms.length > 0 && (
-                    <div {...stylex.props(styles.fieldGroup)}>
-                        <label {...stylex.props(styles.label)} htmlFor="create-term">
-                            Term
-                        </label>
-                        <select
-                            id="create-term"
-                            {...stylex.props(selectStyles.select)}
-                            value={selectedTermId ?? ''}
-                            onChange={(e) =>
-                                setSelectedTermId(e.target.value || null)
-                            }
-                        >
-                            <option value="">No term</option>
-                            {availableTerms.map((term) => (
-                                <option key={term.id} value={term.id}>
-                                    {term.title}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
 
                 <div {...stylex.props(styles.modalActions)}>
                     <Button label="Cancel" variant="secondary" onClick={onClose} />

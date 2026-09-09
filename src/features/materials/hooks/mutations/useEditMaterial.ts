@@ -28,19 +28,11 @@ export function useEditMaterial() {
       await queryClient.cancelQueries({ queryKey: materialQueryKeys.materials() });
       const previous = queryClient.getQueryData<StudyMaterial[]>(materialQueryKeys.materials());
 
-      // Convert null to undefined for subjectId/termId to match StudyMaterial type
-      const { subjectId, termId, ...rest } = input;
-      const sanitizedInput: Partial<StudyMaterial> = {
-        ...rest,
-        ...(subjectId !== undefined ? { subjectId: subjectId ?? undefined } : {}),
-        ...(termId !== undefined ? { termId: termId ?? undefined } : {}),
-      };
-
       queryClient.setQueryData<StudyMaterial[]>(materialQueryKeys.materials(), (old) =>
         old
           ? old.map((m) =>
               m.id === id
-                ? { ...m, ...sanitizedInput, updatedAt: new Date().toISOString() }
+                ? { ...m, ...input, updatedAt: new Date().toISOString() }
                 : m,
             )
           : [],

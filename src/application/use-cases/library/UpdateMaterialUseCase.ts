@@ -1,19 +1,12 @@
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { LibraryRepository, UpdateMaterialInput } from '../../../domain/library/repositories/LibraryRepository';
-import type { SubjectTermRepository } from '../../../domain/library/repositories/SubjectTermRepository';
 
 export class UpdateMaterialUseCase {
-    private readonly library: LibraryRepository; private readonly subjectTerms: SubjectTermRepository;
-    constructor(library: LibraryRepository, subjectTerms: SubjectTermRepository) { this.library = library; this.subjectTerms = subjectTerms; }
+    private readonly library: LibraryRepository;
+    constructor(library: LibraryRepository) { this.library = library; }
     async execute(id: string, input: UpdateMaterialInput): Promise<StudyMaterial> {
         const existing = await this.library.getMaterialById(id);
         if (!existing) throw new Error(`Material not found: ${id}`);
-        const subjectId = input.subjectId === undefined ? existing.subjectId : input.subjectId ?? undefined;
-        const termId = input.termId === undefined ? existing.termId : input.termId ?? undefined;
-        if (termId) {
-            if (!subjectId) throw new Error('subjectId is required when termId is set');
-            if (!(await this.subjectTerms.hasTerm(subjectId, termId))) throw new Error(`Term "${termId}" is not linked to subject "${subjectId}"`);
-        }
         return this.library.updateMaterial(id, input);
     }
 }

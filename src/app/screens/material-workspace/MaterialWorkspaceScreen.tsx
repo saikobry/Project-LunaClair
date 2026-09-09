@@ -3,8 +3,6 @@ import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import { useMaterial } from '../../../features/materials/hooks/queries/useMaterial';
-import { useSubject } from '../../../features/subjects/hooks/queries/useSubject';
-import { useTerm } from '../../../features/terms/hooks/queries/useTerm';
 import { useDocument } from '../../../features/reader/hooks/useDocument';
 import { useExportStudyPackage } from '../../../features/package/hooks/useExportStudyPackage';
 import { Page } from '../../../shared/ui/Page/Page';
@@ -60,20 +58,16 @@ const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[
 export interface MaterialWorkspaceScreenProps {
   materialId: string;
   activeTab: MaterialTab;
-  subjectId?: string;
   onNavigate: (route: AppRoute) => void;
 }
 
 export function MaterialWorkspaceScreen({
   materialId,
   activeTab,
-  subjectId,
   onNavigate,
 }: MaterialWorkspaceScreenProps) {
   const { material, isLoading } = useMaterial(materialId);
   const { data: doc, isLoading: isDocLoading } = useDocument(material ?? null);
-  const { subject } = useSubject(subjectId || material?.subjectId);
-  const { term } = useTerm(material?.termId);
 
   // AI Chat Drawer workspace state
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -115,8 +109,8 @@ export function MaterialWorkspaceScreen({
   // Define callbacks before hooks that consume them (avoids temporal dead zone)
   const handleTabChange = useCallback((tab: string) => {
     const materialTab = tab as MaterialTab;
-    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab, subjectId });
-  }, [onNavigate, materialId, subjectId]);
+    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab });
+  }, [onNavigate, materialId]);
 
   // If a brand-new material has empty content and user navigated via default route (activeTab === 'read'),
   // automatically route to 'write' on first load
@@ -126,28 +120,19 @@ export function MaterialWorkspaceScreen({
       hasAutoRoutedRef.current = true;
       const isContentEmpty = !doc?.content || doc.content.trim().length === 0;
       if (activeTab === 'read' && isContentEmpty) {
-        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write', subjectId });
+        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write' });
       }
     }
-  }, [isDocLoading, doc, activeTab, materialId, subjectId, onNavigate]);
+  }, [isDocLoading, doc, activeTab, materialId, onNavigate]);
 
   const breadcrumbItems = useMemo(() => {
     if (!material) return [];
     const items: BreadcrumbItem[] = [
       { label: 'Library', onClick: () => onNavigate({ kind: 'library' }) },
     ];
-    if (subject) {
-      items.push({
-        label: subject.title,
-        onClick: () => onNavigate({ kind: 'subject', subjectId: subject.id, activeTab: 'materials' }),
-      });
-    }
-    if (term) {
-      items.push({ label: term.title });
-    }
     items.push({ label: material.title });
     return items;
-  }, [material, subject, term, onNavigate]);
+  }, [material, onNavigate]);
 
   if (isLoading) {
     return (

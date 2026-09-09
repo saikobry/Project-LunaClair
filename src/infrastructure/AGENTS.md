@@ -25,18 +25,14 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`
     - `DexieQuizRepository.ts` → `QuizRepository`
     - `DexieQuizSessionRepository.ts` → `QuizSessionRepository`
-    - `DexieSubjectRepository.ts` → `SubjectRepository`
     - `DexieCollectionRepository.ts` → `CollectionRepository`
     - `DexieCollectionMaterialRepository.ts` → `CollectionMaterialRepository`
-    - `DexieSubjectTermRepository.ts` → `SubjectTermRepository`
     - `DexieSyncQueueRepository.ts` → `SyncQueueRepository`
     - `DexieSyncStateRepository.ts` → `SyncStateRepository`
-    - `DexieTermRepository.ts` → `TermRepository`
   - `services/` — Multi-table atomic Dexie transactional application services:
     - `DexieLibraryImportService.ts` → `LibraryImportService`
     - `DexieQuizEditorService.ts` → `QuizEditorService`
     - `DexieStudyPackageImportService.ts` → `StudyPackageImportService`
-    - `DexieTermService.ts` → `TermService`
   - `sync/` — Dexie-level sync reconciliation and transactional outbox:
     - `DexieSyncReconciler.ts` → `SyncReconciler`
     - `transactionalOutbox.ts` → `runSyncableTransaction`
@@ -75,7 +71,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - **Architectural Boundary Guardrails**: Features are statically prohibited by Oxlint from importing `src/infrastructure/**`. All feature writes route through application use cases. Composition roots (`createInfrastructure.ts`, `bootstrap.ts`) and test suites are the sole authorized consumers.
 - **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
 - **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
-- **Atomic Dexie Transactions**: Multi-table operations (`DexieTermService.createAndAssignTerm`, `DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
+- **Atomic Dexie Transactions**: Multi-table operations (`DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
 - **No Auto-Hydration**: The app boots with an empty local library; courses are discovered via StudyPackage shares or imported as `.lcpack` bundles and explicitly cloned/imported by user action.
 
 ## Work Guidance

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StudyPackagePreviewModal, type ImportOptions } from '../StudyPackagePreviewModal';
+import { StudyPackagePreviewModal } from '../StudyPackagePreviewModal';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
@@ -79,20 +79,7 @@ describe('StudyPackagePreviewModal', () => {
     ],
   };
 
-  const mockSubjects = [
-    { id: 'sub-bio', title: 'Biology', order: 1 },
-    { id: 'sub-chem', title: 'Chemistry', order: 2 },
-  ];
-
-  const mockTerms = [
-    { id: 'term-prelim', title: 'Prelim Term' },
-    { id: 'term-midterm', title: 'Midterm' },
-  ];
-
   let queryClient: QueryClient;
-  let mockSubjectRepository: { getSubjects: ReturnType<typeof vi.fn> };
-  let mockSubjectTermRepository: { getTermsBySubject: ReturnType<typeof vi.fn> };
-  let mockTermRepository: { getTerms: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     queryClient = new QueryClient({
@@ -102,38 +89,13 @@ describe('StudyPackagePreviewModal', () => {
         },
       },
     });
-
-    mockSubjectRepository = {
-      getSubjects: vi.fn().mockResolvedValue(mockSubjects),
-    };
-
-    mockSubjectTermRepository = {
-      getTermsBySubject: vi.fn().mockResolvedValue(mockTerms),
-    };
-
-    mockTermRepository = {
-      getTerms: vi.fn().mockResolvedValue(mockTerms),
-    };
   });
 
   function renderModal(props: Partial<Parameters<typeof StudyPackagePreviewModal>[0]> = {}) {
     const onClose = vi.fn();
     const onConfirmImport = vi.fn().mockResolvedValue(undefined);
 
-    const mockContextValue = {
-      repositories: {
-        subject: mockSubjectRepository,
-        subjectTerm: mockSubjectTermRepository,
-        term: mockTermRepository,
-      },
-      infrastructure: {
-        repositories: {
-          subject: mockSubjectRepository,
-          subjectTerm: mockSubjectTermRepository,
-          term: mockTermRepository,
-        },
-      },
-    } as unknown as ApplicationContextValue;
+    const mockContextValue = {} as unknown as ApplicationContextValue;
 
     const utils = render(
       <QueryClientProvider client={queryClient}>
@@ -201,49 +163,17 @@ describe('StudyPackagePreviewModal', () => {
     expect(screen.getByText(/True\/False/)).toBeInTheDocument();
   });
 
-  it('populates subject and term options from catalog hooks', async () => {
-    renderModal();
-
-    await waitFor(() => {
-      expect(screen.getByText('Biology')).toBeInTheDocument();
-      expect(screen.getByText('Chemistry')).toBeInTheDocument();
-    });
-
-    const subjectSelect = screen.getByLabelText(/Subject \(Optional\)/i);
-    fireEvent.change(subjectSelect, { target: { value: 'sub-bio' } });
-
-    await waitFor(() => {
-      expect(screen.getByText('Prelim Term')).toBeInTheDocument();
-      expect(screen.getByText('Midterm')).toBeInTheDocument();
-    });
-  });
-
-  it('confirms import with selected external destination context without mutating packageData', async () => {
+  it('confirms import without mutating packageData', async () => {
     const frozenPackage = structuredClone(mockPackage);
     Object.freeze(frozenPackage);
 
     const { onConfirmImport } = renderModal({ packageData: frozenPackage });
 
-    await waitFor(() => {
-      expect(screen.getByText('Biology')).toBeInTheDocument();
-    });
-
-    const subjectSelect = screen.getByLabelText(/Subject \(Optional\)/i);
-    fireEvent.change(subjectSelect, { target: { value: 'sub-bio' } });
-
-    await waitFor(() => {
-      expect(screen.getByText('Prelim Term')).toBeInTheDocument();
-    });
-
-    const termSelect = screen.getByLabelText(/Term \(Optional\)/i);
-    fireEvent.change(termSelect, { target: { value: 'term-prelim' } });
-
     const importButton = screen.getByText('Import to Library');
     fireEvent.click(importButton);
 
-    expect(onConfirmImport).toHaveBeenCalledWith<[ImportOptions]>({
-      subjectId: 'sub-bio',
-      termId: 'term-prelim',
+    await waitFor(() => {
+      expect(onConfirmImport).toHaveBeenCalledTimes(1);
     });
 
     // Verify original package is untouched

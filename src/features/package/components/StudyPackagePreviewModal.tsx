@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
   BookOpen,
@@ -14,19 +14,12 @@ import {
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
-import { useSubjects } from '../../subjects/hooks/queries/useSubjects';
-import { useTerms } from '../../terms/hooks/queries/useTerms';
-
-export interface ImportOptions {
-  subjectId?: string;
-  termId?: string;
-}
 
 export interface StudyPackagePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   packageData: StudyPackage | null;
-  onConfirmImport: (options: ImportOptions) => Promise<void>;
+  onConfirmImport: () => Promise<void>;
   isImporting?: boolean;
 }
 
@@ -239,12 +232,6 @@ export function StudyPackagePreviewModal({
   onConfirmImport,
   isImporting = false,
 }: StudyPackagePreviewModalProps) {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedTermId, setSelectedTermId] = useState<string>('');
-
-  const { subjects } = useSubjects();
-  const { terms } = useTerms(selectedSubjectId || undefined);
-
   // Derive all inspection statistics purely from inspectStudyPackage
   const summary = useMemo(() => {
     if (!packageData) return null;
@@ -260,17 +247,8 @@ export function StudyPackagePreviewModal({
     return null;
   }
 
-  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedSubjectId(e.target.value);
-    setSelectedTermId('');
-  };
-
   const handleConfirm = async () => {
-    const options: ImportOptions = {
-      subjectId: selectedSubjectId || undefined,
-      termId: selectedTermId || undefined,
-    };
-    await onConfirmImport(options);
+    await onConfirmImport();
   };
 
   const questionTypeEntries = Object.entries(summary.questionsByType);
@@ -396,52 +374,6 @@ export function StudyPackagePreviewModal({
             </div>
           </div>
         )}
-
-        {/* Destination Assignment Picker */}
-        <div {...stylex.props(styles.destinationSection)}>
-          <span {...stylex.props(styles.sectionTitle)}>Destination in Library</span>
-          <div {...stylex.props(styles.fieldGrid)}>
-            <div {...stylex.props(styles.fieldGroup)}>
-              <label htmlFor="package-dest-subject" {...stylex.props(styles.label)}>
-                Subject (Optional)
-              </label>
-              <select
-                id="package-dest-subject"
-                {...stylex.props(styles.select)}
-                value={selectedSubjectId}
-                onChange={handleSubjectChange}
-                disabled={isImporting}
-              >
-                <option value="">Unassigned (General Library)</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div {...stylex.props(styles.fieldGroup)}>
-              <label htmlFor="package-dest-term" {...stylex.props(styles.label)}>
-                Term (Optional)
-              </label>
-              <select
-                id="package-dest-term"
-                {...stylex.props(styles.select)}
-                value={selectedTermId}
-                onChange={(e) => setSelectedTermId(e.target.value)}
-                disabled={isImporting || terms.length === 0}
-              >
-                <option value="">No Term</option>
-                {terms.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
     </Dialog>
   );

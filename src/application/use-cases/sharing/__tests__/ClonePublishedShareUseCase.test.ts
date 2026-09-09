@@ -56,13 +56,11 @@ describe('ClonePublishedShareUseCase', () => {
 
         const useCase = new ClonePublishedShareUseCase(mockFetch, mockImport, mockTrack);
 
-        const result = await useCase.execute({ shareId: 'share_test', targetSubjectId: 'sub_1' });
+        const result = await useCase.execute({ shareId: 'share_test' });
 
         expect(mockFetch.execute).toHaveBeenCalledWith({ shareId: 'share_test', passcode: undefined }, undefined);
         expect(mockImport.execute).toHaveBeenCalledWith({
             package: mockPackage,
-            targetSubjectId: 'sub_1',
-            targetTermId: undefined,
             originShareId: 'share_test',
         });
         expect(mockTrack.execute).toHaveBeenCalledWith({ shareId: 'share_test' }, undefined);
