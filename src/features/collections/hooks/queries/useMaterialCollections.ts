@@ -20,8 +20,8 @@ export function useMaterialCollections(materialId: string | undefined) {
       if (links.length === 0) return [];
       const ids = new Set(links.map((l) => l.collectionId));
       const all = await context.repositories.collection.getAll(signal);
-      return [...all]
-        .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
+      return all
+        .toSorted((a, b) => a.order - b.order || a.title.localeCompare(b.title))
         .filter((c) => ids.has(c.id));
     },
     enabled: !!materialId,

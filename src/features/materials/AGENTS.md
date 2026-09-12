@@ -7,9 +7,9 @@ Owns the core study material entity presentation and local library state managem
 ## Ownership
 
 - `components/` — Material presentation components:
-  - `MaterialCard.tsx` — Individual study material card with `#tag` chips (when `material.tags` is non-empty), and action menu (Edit, Delete, and optional `onManageCollections` for collection assignment).
-  - `MaterialGrid.tsx` — Grid container for study material cards; threads optional `onManageCollections` callback from LibraryView to each card.
-  - `LibraryView.tsx` — Pure presentation view for the user's local study materials library; threads optional `onManageCollections` to MaterialGrid.
+  - `MaterialCard.tsx` — Individual study material card with `#tag` chips, inline collection assignment popover (`FolderPlus` trigger, one real `<button>` row per collection), collection membership badges (or "Not in a collection yet" indicator), and action menu (Edit, Delete). The card shell is **presentational**: the title is the card's single open affordance (a `<button>` inside the `<h3>`), so popover rows and badges keep independent semantics and focus order rather than nesting inside a `role="button"` wrapper. Internal `MaterialCollectionsPopover` / `MaterialCollectionBadges` subcomponents hold the extracted branches.
+  - `MaterialGrid.tsx` — Grid container for study material cards; threads the optional `onManage` callback from LibraryView to each card.
+  - `LibraryView.tsx` — Pure presentation view for the user's local study materials library; threads the optional `onManage` callback to MaterialGrid. Unfiled mode (`unfiledMode`) renders the "Unfiled" title, unassigned description, and cleared-unfiled empty state with a "Browse all materials" action (`onBrowseLibrary`). Internal `LibraryFilterBar` (search + tag pills; tag membership resolved against one `Set`) and `LibraryEmptyStates` subcomponents hold the extracted branches.
 - `modals/` — Material creation and modification dialogs:
   - `CreateMaterialModal.tsx` — Modal for creating a new study material (tags via shared `TagInput`, emitted through the 3rd `onSave` argument as `normalizeTags(tags)`).
   - `EditMaterialModal.tsx` — Modal for editing material title, description, and tags (`initialTags` prop, shared `TagInput`). Emits `normalizeTags(tags) ?? []` so an emptied tag list CLEARS tags rather than leaving them unchanged.

@@ -48,4 +48,30 @@ describe('useReorderCollectionMaterials', () => {
       queryKey: collectionQueryKeys.materials('c-1'),
     });
   });
+
+  it('optimistically reorders the query cache and rolls back on failure', async () => {
+    const initialMaterials = [
+      { id: 'm-1', title: 'First' },
+      { id: 'm-2', title: 'Second' },
+    ];
+    queryClient.setQueryData(collectionQueryKeys.materials('c-1'), initialMaterials);
+
+    mockExecute.mockRejectedValueOnce(new Error('Network failure'));
+
+    const { result } = renderHook(() => useReorderCollectionMaterials(), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({
+          collectionId: 'c-1',
+          orderedMaterialIds: ['m-2', 'm-1'],
+        });
+      } catch {}
+    });
+
+    // Rolled back to previous state
+    expect(queryClient.getQueryData(collectionQueryKeys.materials('c-1'))).toEqual(initialMaterials);
+  });
 });

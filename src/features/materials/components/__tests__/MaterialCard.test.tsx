@@ -1,6 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MaterialCard } from '../MaterialCard';
+import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
+import { ToastProvider } from '../../../../app/providers/ToastContext';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 const mockMaterial: StudyMaterial = {
@@ -11,45 +14,43 @@ const mockMaterial: StudyMaterial = {
   updatedAt: '2026-09-01T00:00:00.000Z',
 };
 
+let queryClient: QueryClient;
+
+beforeEach(() => {
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+});
+
 function renderCard(props: Partial<Parameters<typeof MaterialCard>[0]> = {}) {
   const onOpen = vi.fn();
-  const onManageCollections = vi.fn();
+  const onNavigate = vi.fn();
+  const mockContextValue = {
+    repositories: {
+      collection: { getAll: vi.fn().mockResolvedValue([]) },
+      collectionMaterial: { getByMaterialId: vi.fn().mockResolvedValue([]) },
+      library: { getMaterials: vi.fn().mockResolvedValue([mockMaterial]) },
+    },
+    useCases: { collections: {} },
+  } as unknown as ApplicationContextValue;
   const utils = render(
-    <MaterialCard
-      material={mockMaterial}
-      onOpen={onOpen}
-      onManageCollections={onManageCollections}
-      {...props}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <ApplicationContext.Provider value={mockContextValue}>
+          <MaterialCard
+            material={mockMaterial}
+            onOpen={onOpen}
+            onNavigate={onNavigate}
+            {...props}
+          />
+        </ApplicationContext.Provider>
+      </ToastProvider>
+    </QueryClientProvider>,
   );
-  return { ...utils, onOpen, onManageCollections };
+  return { ...utils, onOpen, onNavigate };
 }
 
 describe('MaterialCard', () => {
   it('renders the card with material title', () => {
     renderCard();
     expect(screen.getByText('Cell Biology')).toBeInTheDocument();
-  });
-
-  it('shows "Add to Collection..." menu item when onManageCollections is provided', () => {
-    renderCard();
-    expect(screen.getByText('Add to Collection...')).toBeInTheDocument();
-  });
-
-  it('hides "Add to Collection..." when onManageCollections is not provided', () => {
-    render(
-      <MaterialCard
-        material={mockMaterial}
-        onOpen={vi.fn()}
-      />,
-    );
-    expect(screen.queryByText('Add to Collection...')).not.toBeInTheDocument();
-  });
-
-  it('calls onManageCollections when "Add to Collection..." is clicked', () => {
-    const { onManageCollections } = renderCard();
-    fireEvent.click(screen.getByText('Add to Collection...'));
-    expect(onManageCollections).toHaveBeenCalledTimes(1);
-    expect(onManageCollections).toHaveBeenCalledWith(mockMaterial);
   });
 });

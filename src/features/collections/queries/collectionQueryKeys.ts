@@ -9,4 +9,5 @@ export const collectionQueryKeys = {
   materials: (collectionId: string) => [...collectionQueryKeys.all, 'materials', collectionId] as const,
   materialCollections: (materialId: string) => [...collectionQueryKeys.all, 'material-collections', materialId] as const,
   unassigned: () => [...collectionQueryKeys.all, 'unassigned'] as const,
+  materialCounts: () => [...collectionQueryKeys.all, 'material-counts'] as const,
 };

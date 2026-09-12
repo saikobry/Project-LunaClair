@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CollectionQuizExplorer } from '../CollectionQuizExplorer';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
+import { FocusModeProvider } from '../../../../app/providers/FocusModeContext';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 import type { QuizLaunchRequest } from '../../../quiz/types/quizFeature.types';
@@ -50,7 +51,9 @@ describe('CollectionQuizExplorer', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ApplicationContext.Provider value={mockContextValue}>
-          <CollectionQuizExplorer collectionId="c-1" materials={materials} onStartQuiz={onStartQuiz} />
+          <FocusModeProvider isFocusMode={false}>
+            <CollectionQuizExplorer collectionId="c-1" materials={materials} onStartQuiz={onStartQuiz} />
+          </FocusModeProvider>
         </ApplicationContext.Provider>
       </QueryClientProvider>,
     );
@@ -91,9 +94,44 @@ describe('CollectionQuizExplorer', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Motion Quiz' }));
 
     await waitFor(() => {
-      expect(screen.getByText('1 quiz · 2 questions selected')).toBeInTheDocument();
+      expect(screen.getByText('A little focus goes a long way.')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeInTheDocument();
+    expect(screen.getByText('1 selected · 2 questions')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start Quiz: Motion Quiz' })).toBeInTheDocument();
+  });
+
+  it('clears the selection from the floating action bar', async () => {
+    renderExplorer();
+
+    await waitFor(() => {
+      expect(screen.getByText('Motion Quiz')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Motion Quiz' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('A little focus goes a long way.')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('A little focus goes a long way.')).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Start Quiz: Motion Quiz' })).not.toBeInTheDocument();
+  });
+
+  it('shows difficulty badges and the toolbar summary', async () => {
+    renderExplorer();
+
+    await waitFor(() => {
+      expect(screen.getByText('Motion Quiz')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Select All (3)')).toBeInTheDocument();
+    expect(screen.getByText('3 quizzes · 9 questions')).toBeInTheDocument();
+    expect(screen.getAllByText('Foundations')).toHaveLength(2);
+    expect(screen.getByText('Apply')).toBeInTheDocument();
   });
 
   it('starts a single quiz with a quiz launch request', async () => {
@@ -105,7 +143,7 @@ describe('CollectionQuizExplorer', () => {
     });
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Motion Quiz' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Start Quiz' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Quiz: Motion Quiz' }));
 
     expect(onStartQuiz).toHaveBeenCalledWith({ type: 'quiz', quizId: 'quiz-1', source: 'library' });
   });
@@ -122,9 +160,10 @@ describe('CollectionQuizExplorer', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Force Quiz' }));
 
     const unifiedButton = await screen.findByRole('button', {
-      name: 'Start Unified Quiz (2 quizzes)',
+      name: 'Start Unified Quiz (2 quizzes · 6 questions)',
     });
-    expect(screen.getByText('2 quizzes · 6 questions selected')).toBeInTheDocument();
+    expect(screen.getByText('One session. Connected knowledge.')).toBeInTheDocument();
+    expect(screen.getByText('2 selected · 6 questions')).toBeInTheDocument();
     fireEvent.click(unifiedButton);
 
     expect(onStartQuiz).toHaveBeenCalledWith({
@@ -141,16 +180,16 @@ describe('CollectionQuizExplorer', () => {
       expect(screen.getByText('Motion Quiz')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select All (3)' }));
 
     await waitFor(() => {
-      expect(screen.getByText('3 quizzes · 9 questions selected')).toBeInTheDocument();
+      expect(screen.getByText('3 selected · 9 questions')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Deselect All' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select All (3)' }));
 
     await waitFor(() => {
-      expect(screen.queryByText(/questions selected/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/selected ·/)).not.toBeInTheDocument();
     });
   });
 

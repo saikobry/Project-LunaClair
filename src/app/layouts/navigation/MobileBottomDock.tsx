@@ -1,53 +1,19 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, Fragment } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, Focus } from 'lucide-react';
+import { Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
+import { CompactCollectionsPopover } from './CompactCollectionsPopover';
 
 const nonMobile = '@media (min-width: 769px)';
-
-interface ContextDockButtonsProps {
-  active: ViewportNavProps['active'];
-  onNavigate: ViewportNavProps['onNavigate'];
-  material?: ViewportNavProps['material'];
-}
-
-function ContextDockButtons({ active, onNavigate, material }: ContextDockButtonsProps) {
-  const isMaterialActive = active === 'none' && Boolean(material);
-
-  if (active !== 'none') return null;
-
-  return (
-    <>
-      {material && (
-        <button
-          type="button"
-          {...stylex.props(styles.dockButton, isMaterialActive && styles.dockButtonActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'workspace',
-              workspace: 'material',
-              materialId: material.id,
-              activeTab: 'read',
-            })
-          }
-          aria-current={isMaterialActive ? 'page' : undefined}
-          title={`Material: ${material.title}`}
-        >
-          <BookText size={20} />
-        </button>
-      )}
-    </>
-  );
-}
 
 export function MobileBottomDock({
   active,
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  material,
+  collectionId,
 }: ViewportNavProps) {
   const dockRef = useRef<HTMLElement>(null);
   const navGroupRef = useRef<HTMLDivElement>(null);
@@ -168,25 +134,29 @@ export function MobileBottomDock({
       <div ref={navGroupRef} {...stylex.props(styles.navGroup)}>
         {PRIMARY_NAV_ITEMS.map((item) => {
           const isActive = item.isActive(active);
+          const isExplore = item.id === 'explore';
           return (
-            <button
-              key={item.id}
-              type="button"
-              {...stylex.props(styles.dockButton, isActive && styles.dockButtonActive)}
-              onClick={() => onNavigate(item.route)}
-              aria-current={isActive ? 'page' : undefined}
-              title={item.title}
-            >
-              <item.icon size={20} />
-            </button>
+            <Fragment key={item.id}>
+              <button
+                type="button"
+                {...stylex.props(styles.dockButton, isActive && styles.dockButtonActive)}
+                onClick={() => onNavigate(item.route)}
+                aria-current={isActive ? 'page' : undefined}
+                title={item.title}
+              >
+                <item.icon size={20} />
+              </button>
+              {isExplore && (
+                <CompactCollectionsPopover
+                  placement="dock"
+                  activeCollectionId={collectionId}
+                  onNavigate={onNavigate}
+                />
+              )}
+            </Fragment>
           );
         })}
 
-        <ContextDockButtons
-          active={active}
-          onNavigate={onNavigate}
-          material={material}
-        />
       </div>
 
       {/* Focus Mode trigger / restore button */}
@@ -249,7 +219,6 @@ const styles = stylex.create({
     minWidth: 0,
   },
   dockButton: {
-    width: 44,
     height: 44,
     borderRadius: 14,
     borderWidth: 0,
@@ -262,7 +231,10 @@ const styles = stylex.create({
     cursor: 'pointer',
     transition: 'background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease',
     outline: 'none',
-    flexShrink: 0,
+    // Flexible sizing: 44px ideal, but shrink equally with siblings on small
+    // screens (floor 32px) so all destinations fit without clipping.
+    flex: '0 1 44px',
+    minWidth: 32,
     ':hover': {
       backgroundColor: 'var(--color-background-muted)',
       color: 'var(--color-text-primary)',

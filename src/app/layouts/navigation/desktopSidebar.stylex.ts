@@ -31,6 +31,10 @@ export const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
+    flex: 1,
+    minHeight: 0,
+    // Clips the scroll pane below; the collections list owns its own scrolling.
+    overflow: 'hidden',
   },
   activePill: {
     position: 'absolute',
@@ -47,6 +51,8 @@ export const styles = stylex.create({
     flexDirection: 'column',
     gap: 4,
     width: '100%',
+    // Keep the primary links pinned while the collections pane below scrolls.
+    flexShrink: 0,
   },
   navItem: {
     display: 'flex',
@@ -84,15 +90,25 @@ export const styles = stylex.create({
       color: 'var(--color-accent)',
     },
   },
-  navItemMaterialActive: {
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-accent)',
-    fontWeight: 600,
-  },
   navLabel: {
+    flex: 1,
+    minWidth: 0,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  countBadge: {
+    flexShrink: 0,
+    fontSize: 10,
+    fontWeight: 600,
+    lineHeight: 1.4,
+    paddingTop: 2,
+    paddingBottom: 2,
+    paddingLeft: 6,
+    paddingRight: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    color: 'var(--color-text-secondary)',
   },
   divider: {
     height: 1,
@@ -101,6 +117,7 @@ export const styles = stylex.create({
     marginBottom: 8,
     marginLeft: 4,
     marginRight: 4,
+    flexShrink: 0,
   },
   sectionHeader: {
     display: 'flex',
@@ -116,6 +133,23 @@ export const styles = stylex.create({
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--color-text-secondary)',
+  },
+  /**
+   * Independent collections scroll pane: the list grows
+   * inside a `flex: 1` pane that scrolls while the primary links above and the
+   * trapezoid footer below stay pinned — no more pushing the footer off-screen.
+   */
+  collectionsScroll: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    boxSizing: 'border-box',
+    // Slim scrollbar so the pane stays visually quiet inside the 240px rail.
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--color-border) transparent',
   },
   collectionIcon: {
     display: 'inline-flex',

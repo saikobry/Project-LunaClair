@@ -10,3 +10,13 @@ describe('collection routing', () => {
     expect(urlToRoute('/collections/c-1', '')).toEqual({ kind: 'collection', collectionId: 'c-1' });
   });
 });
+
+describe('unfiled routing', () => {
+  it('serializes an unfiled route to /unfiled', () => {
+    expect(routeToUrl({ kind: 'unfiled' })).toBe('/unfiled');
+  });
+
+  it('parses /unfiled into an unfiled route', () => {
+    expect(urlToRoute('/unfiled', '')).toEqual({ kind: 'unfiled' });
+  });
+});

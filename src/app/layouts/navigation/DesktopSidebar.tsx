@@ -1,55 +1,19 @@
 import { useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { styles } from './desktopSidebar.stylex';
 import { DesktopTrapezoidButton } from './DesktopTrapezoidButton';
 import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
+import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
+import { useUnassignedMaterials } from '../../../features/collections/hooks/queries/useUnassignedMaterials';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
 import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
 import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { CreateCollectionInput } from '../../../domain/collections/models/Collection';
-
-interface ActiveMaterialNavProps {
-  active: ViewportNavProps['active'];
-  onNavigate: ViewportNavProps['onNavigate'];
-  material?: ViewportNavProps['material'];
-}
-
-function ActiveMaterialNav({ active, onNavigate, material }: ActiveMaterialNavProps) {
-  const isMaterialActive = active === 'none' && Boolean(material);
-
-  if (active !== 'none') return null;
-
-  return (
-    <>
-      <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-      {material && (
-        <button
-          type="button"
-          {...stylex.props(styles.navItem, isMaterialActive && styles.navItemMaterialActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'workspace',
-              workspace: 'material',
-              materialId: material.id,
-              activeTab: 'read',
-            })
-          }
-          aria-current={isMaterialActive ? 'page' : undefined}
-          title={`Material: ${material.title}`}
-        >
-          <BookText size={18} />
-          <span {...stylex.props(styles.navLabel)}>{material.title}</span>
-        </button>
-      )}
-    </>
-  );
-}
 
 /**
  * Dynamic Collections section: browsable playlist nav items with a quick-add
@@ -64,6 +28,7 @@ function CollectionsNav({
   onNavigate: ViewportNavProps['onNavigate'];
 }) {
   const { collections } = useCollections();
+  const { counts } = useCollectionMaterialCounts();
   const createMutation = useCreateCollection();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -74,50 +39,56 @@ function CollectionsNav({
   };
 
   return (
-    <>
-      <div {...stylex.props(styles.divider)} aria-hidden="true" />
+    <div {...stylex.props(styles.collectionsScroll)}>
+      <div {...stylex.props(styles.navSection)}>
+        <div {...stylex.props(styles.sectionHeader)}>
+          <span {...stylex.props(styles.sectionLabel)}>Collections</span>
+          <Button
+            label="New Collection"
+            tooltip="New Collection"
+            isIconOnly
+            variant="ghost"
+            icon={<Plus size={16} />}
+            onClick={() => setIsCreateOpen(true)}
+          />
+        </div>
 
-      <div {...stylex.props(styles.sectionHeader)}>
-        <span {...stylex.props(styles.sectionLabel)}>Collections</span>
-        <Button
-          label="New Collection"
-          tooltip="New Collection"
-          isIconOnly
-          variant="ghost"
-          icon={<Plus size={16} />}
-          onClick={() => setIsCreateOpen(true)}
+        {collections.map((collection) => {
+          const isActive = activeCollectionId === collection.id;
+          const Icon = getCollectionIcon(collection.icon);
+          const count = counts[collection.id] ?? 0;
+          return (
+            <button
+              key={collection.id}
+              type="button"
+              {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
+              onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
+              aria-current={isActive ? 'page' : undefined}
+              title={`Collection: ${collection.title}`}
+            >
+              <span
+                {...stylex.props(styles.collectionIcon)}
+                style={collection.color ? { color: collection.color } : undefined}
+              >
+                <Icon size={18} />
+              </span>
+              <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
+              {count > 0 && (
+                <span {...stylex.props(styles.countBadge)} aria-hidden="true">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        <CreateCollectionModal
+          isOpen={isCreateOpen}
+          onSave={handleSave}
+          onClose={() => setIsCreateOpen(false)}
         />
       </div>
-
-      {collections.map((collection) => {
-        const isActive = activeCollectionId === collection.id;
-        const Icon = getCollectionIcon(collection.icon);
-        return (
-          <button
-            key={collection.id}
-            type="button"
-            {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
-            onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
-            aria-current={isActive ? 'page' : undefined}
-            title={`Collection: ${collection.title}`}
-          >
-            <span
-              {...stylex.props(styles.collectionIcon)}
-              style={collection.color ? { color: collection.color } : undefined}
-            >
-              <Icon size={18} />
-            </span>
-            <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
-          </button>
-        );
-      })}
-
-      <CreateCollectionModal
-        isOpen={isCreateOpen}
-        onSave={handleSave}
-        onClose={() => setIsCreateOpen(false)}
-      />
-    </>
+    </div>
   );
 }
 
@@ -126,12 +97,13 @@ export function DesktopSidebar({
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  material,
   collectionId,
 }: ViewportNavProps) {
   const containerRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const didInitialFade = useRef(false);
+  const { materials: unassignedMaterials } = useUnassignedMaterials();
+  const unassignedCount = unassignedMaterials.length;
 
   // ── GSAP: Upper navigation link & container background fade ──
   useEffect(() => {
@@ -196,6 +168,7 @@ export function DesktopSidebar({
         <div {...stylex.props(styles.navSection)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
             const isActive = item.isActive(active);
+            const badgeCount = item.id === 'unfiled' ? unassignedCount : 0;
             return (
               <button
                 key={item.id}
@@ -207,21 +180,25 @@ export function DesktopSidebar({
               >
                 <item.icon size={18} />
                 <span {...stylex.props(styles.navLabel)}>{item.label}</span>
+                {badgeCount > 0 && (
+                  <span {...stylex.props(styles.countBadge)} aria-hidden="true">
+                    {badgeCount}
+                  </span>
+                )}
               </button>
             );
           })}
 
-          <ActiveMaterialNav
-            active={active}
-            onNavigate={onNavigate}
-            material={material}
-          />
-
-          <CollectionsNav
-            activeCollectionId={collectionId}
-            onNavigate={onNavigate}
-          />
         </div>
+
+        <div {...stylex.props(styles.divider)} aria-hidden="true" />
+
+        {/* Independent scroll pane: collections grow here while the links above
+            and the trapezoid footer below stay pinned. */}
+        <CollectionsNav
+          activeCollectionId={collectionId}
+          onNavigate={onNavigate}
+        />
       </div>
 
       {/* Connected Option A Rounded Trapezoid Drawer Button */}

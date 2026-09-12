@@ -18,7 +18,11 @@ export function useCollectionQuizTree(collectionId: string, materials: StudyMate
   const materialIds = materials.map((m) => m.id);
 
   const { data, isLoading } = useQuery({
-    queryKey: [...collectionQueryKeys.materials(collectionId), 'quiz-tree'] as const,
+    // Keyed on materialIds (content-hashed by TanStack Query) so the tree
+    // refetches once the collection's materials resolve — the workspace hero
+    // reads this hook before materials load, while the quiz explorer mounts
+    // after. Same contents hash to the same key, so there is no refetch loop.
+    queryKey: [...collectionQueryKeys.materials(collectionId), 'quiz-tree', materialIds] as const,
     queryFn: async ({ signal }) => {
       if (materialIds.length === 0) return [];
       return context.repositories.quiz.getQuizzesForMaterials(materialIds, signal);

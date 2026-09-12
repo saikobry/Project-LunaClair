@@ -10,6 +10,7 @@ export type AppRoute =
   | { kind: 'available' }
   | { kind: 'analytics' }
   | { kind: 'import' }
+  | { kind: 'unfiled' }
   | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage' }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; returnTo: AppRoute }
@@ -35,6 +36,8 @@ export function routeToUrl(route: AppRoute): string {
       return `/share/${route.shareId}`;
     case 'collection':
       return `/collections/${route.collectionId}`;
+    case 'unfiled':
+      return '/unfiled';
     case 'workspace':
       return `/materials/${route.materialId}?tab=${route.activeTab}`;
     case 'quiz-canvas':
@@ -85,6 +88,11 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   const quizMatch = url.pathname.match(/^\/quiz\/([^/]+)$/);
   if (quizMatch) {
     return { kind: 'quiz-session', quizId: quizMatch[1], materialIds: [], returnTo: { kind: 'library' } };
+  }
+
+  // /unfiled — unassigned materials
+  if (url.pathname === '/unfiled') {
+    return { kind: 'unfiled' };
   }
 
   // /explore

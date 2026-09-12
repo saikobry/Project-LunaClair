@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { QuizLaunchRequest } from '../../../features/quiz/types/quizFeature.types';
 import { useLibrary } from '../../../features/materials/hooks/queries/useLibrary';
+import { useUnassignedMaterials } from '../../../features/collections/hooks/queries/useUnassignedMaterials';
 import { useCreateMaterial } from '../../../features/materials/hooks/mutations/useCreateMaterial';
 import { useDeleteMaterial } from '../../../features/materials/hooks/mutations/useDeleteMaterial';
 import { useEditMaterial } from '../../../features/materials/hooks/mutations/useEditMaterial';
@@ -13,6 +14,10 @@ export interface LibraryHomeScreenProps {
   onStartQuiz: (request: QuizLaunchRequest) => void;
   onManage: (materialId: string) => void;
   onBrowseAvailable: () => void;
+  /** Unfiled mode: shows only materials assigned to no collection. */
+  unfiledOnly?: boolean;
+  /** Navigates back to the full library (unfiled empty state). */
+  onBrowseLibrary?: () => void;
 }
 
 export function LibraryHomeScreen({
@@ -20,8 +25,13 @@ export function LibraryHomeScreen({
   onStartQuiz,
   onManage,
   onBrowseAvailable,
+  unfiledOnly = false,
+  onBrowseLibrary,
 }: LibraryHomeScreenProps) {
-  const { materials, isLoading: materialsLoading } = useLibrary();
+  const { materials: libraryMaterials, isLoading: materialsLoading } = useLibrary();
+  const { materials: unfiledMaterials, isLoading: unfiledLoading } = useUnassignedMaterials();
+  const materials = unfiledOnly ? unfiledMaterials : libraryMaterials;
+  const isLoading = unfiledOnly ? unfiledLoading : materialsLoading;
 
   const createMutation = useCreateMaterial();
   const deleteMutation = useDeleteMaterial();
@@ -31,6 +41,69 @@ export function LibraryHomeScreen({
   const [deleteTarget, setDeleteTarget] = useState<StudyMaterial | null>(null);
   const [showCreateMaterial, setShowCreateMaterial] = useState(false);
   const [managingCollectionsMaterial, setManagingCollectionsMaterial] = useState<StudyMaterial | null>(null);
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Extract all unique tags from materials, sorted alphabetically
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    materials.forEach((m) => {
+      m.tags?.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [materials]);
+
+  // Helper to check if material matches search query
+  const matchesSearch = useCallback(
+    (material: StudyMaterial, query: string) => {
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return (
+        material.title.toLowerCase().includes(q) ||
+        material.description?.toLowerCase().includes(q) ||
+        material.tags?.some((tag) => tag.toLowerCase().includes(q)) ||
+        false
+      );
+    },
+    [],
+  );
+
+  // Helper to check if material matches selected tags (AND logic)
+  const matchesTags = useCallback(
+    (material: StudyMaterial, tags: string[]) => {
+      if (tags.length === 0) return true;
+      const materialTags = new Set(material.tags);
+      return tags.every((tag) => materialTags.has(tag));
+    },
+    [],
+  );
+
+  // Filter materials
+  const filteredMaterials = useMemo(() => {
+    return materials.filter(
+      (m) => matchesSearch(m, searchQuery) && matchesTags(m, selectedTags),
+    );
+  }, [materials, searchQuery, selectedTags, matchesSearch, matchesTags]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+  }, []);
+
+  const handleToggleTag = useCallback((tag: string) => {
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((t) => t !== tag);
+      }
+      return [...prev, tag];
+    });
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedTags([]);
+  }, []);
 
   const handleNewMaterial = useCallback(() => {
     setShowCreateMaterial(true);
@@ -96,10 +169,6 @@ export function LibraryHomeScreen({
     [onStartQuiz],
   );
 
-  const handleManageCollections = useCallback((material: StudyMaterial) => {
-    setManagingCollectionsMaterial(material);
-  }, []);
-
   const handleCloseManageCollections = useCallback(() => {
     setManagingCollectionsMaterial(null);
   }, []);
@@ -107,16 +176,23 @@ export function LibraryHomeScreen({
   return (
     <>
       <LibraryView
-        isLoading={materialsLoading}
-        materials={materials}
+        isLoading={isLoading}
+        materials={filteredMaterials}
+        allTags={allTags}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        selectedTags={selectedTags}
+        onToggleTag={handleToggleTag}
+        onClearFilters={handleClearFilters}
         onNewMaterial={handleNewMaterial}
         onOpen={handleOpen}
         onEdit={handleEditTrigger}
         onDelete={handleDeleteTrigger}
         onStartQuiz={handleStartQuiz}
         onManage={(m) => onManage(m.id)}
-        onManageCollections={handleManageCollections}
         onBrowseAvailable={onBrowseAvailable}
+        unfiledMode={unfiledOnly}
+        onBrowseLibrary={onBrowseLibrary}
       />
       <LibraryModals
         editTarget={editTarget}

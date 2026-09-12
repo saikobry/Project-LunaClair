@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CollectionWorkspaceScreen } from '../CollectionWorkspaceScreen';
 import { ApplicationContext, type ApplicationContextValue } from '../../../providers/ApplicationContext';
+import { FocusModeProvider } from '../../../providers/FocusModeContext';
 import { ToastProvider } from '../../../providers/ToastContext';
 import type { Collection } from '../../../../domain/collections/models/Collection';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
@@ -68,15 +69,19 @@ describe('CollectionWorkspaceScreen', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <ApplicationContext.Provider value={mockContextValue}>
-            <CollectionWorkspaceScreen collectionId="c-1" onNavigate={mockNavigate} onStartQuiz={onStartQuiz} />
-          </ApplicationContext.Provider>
+          {/* The Quizzes tab hosts `CollectionQuizExplorer`, which is nav-aware
+              through `useFocusMode`; in the app the provider comes from AppShell. */}
+          <FocusModeProvider isFocusMode={false}>
+            <ApplicationContext.Provider value={mockContextValue}>
+              <CollectionWorkspaceScreen collectionId="c-1" onNavigate={mockNavigate} onStartQuiz={onStartQuiz} />
+            </ApplicationContext.Provider>
+          </FocusModeProvider>
         </ToastProvider>
       </QueryClientProvider>,
     );
   }
 
-  it('renders the collection header and its materials', async () => {
+  it('renders the collection hero and its materials', async () => {
     renderScreen();
 
     await waitFor(() => {
@@ -84,7 +89,86 @@ describe('CollectionWorkspaceScreen', () => {
     });
 
     expect(screen.getByText('Kinematics')).toBeInTheDocument();
-    expect(screen.getByText('1 material in this collection')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === '1 Material · 0 Quizzes · 0% Average mastery',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Collection title, edit inline')).toHaveValue('Physics Playlist');
+    expect(screen.getByLabelText('Collection description, edit inline')).toHaveValue('Mechanics');
+  });
+
+  it('commits inline title edits on blur', async () => {
+    renderScreen();
+
+    const titleInput = await screen.findByLabelText('Collection title, edit inline');
+    fireEvent.change(titleInput, { target: { value: 'Renamed Inline' } });
+    fireEvent.blur(titleInput);
+
+    await waitFor(() => {
+      expect(mockUpdateExecute).toHaveBeenCalledWith('c-1', { title: 'Renamed Inline' });
+    });
+  });
+
+  it('reverts an empty inline title instead of saving', async () => {
+    renderScreen();
+
+    const titleInput = await screen.findByLabelText('Collection title, edit inline');
+    fireEvent.change(titleInput, { target: { value: '   ' } });
+    fireEvent.blur(titleInput);
+
+    await waitFor(() => {
+      expect(titleInput).toHaveValue('Physics Playlist');
+    });
+    expect(mockUpdateExecute).not.toHaveBeenCalled();
+  });
+
+  it('commits inline description edits on blur', async () => {
+    renderScreen();
+
+    const descriptionInput = await screen.findByLabelText('Collection description, edit inline');
+    fireEvent.change(descriptionInput, { target: { value: 'New purpose' } });
+    fireEvent.blur(descriptionInput);
+
+    await waitFor(() => {
+      expect(mockUpdateExecute).toHaveBeenCalledWith('c-1', { description: 'New purpose' });
+    });
+  });
+
+  it('disables Quick Study when the collection has no quizzes', async () => {
+    renderScreen();
+
+    expect(await screen.findByRole('button', { name: 'Quick Study' })).toBeDisabled();
+  });
+
+  it('launches Quick Study with all collection quizzes', async () => {
+    const onStartQuiz = vi.fn();
+    mockGetQuizzesForMaterials.mockResolvedValueOnce([
+      {
+        id: 'quiz-1',
+        materialId: 'm-1',
+        title: 'Kinematics Quiz',
+        status: 'published',
+        questionIds: ['q-1', 'q-2'],
+        items: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    renderScreen(onStartQuiz);
+
+    const quickStudy = await screen.findByRole('button', { name: 'Quick Study' });
+    await waitFor(() => {
+      expect(quickStudy).toBeEnabled();
+    });
+
+    fireEvent.click(quickStudy);
+
+    expect(onStartQuiz).toHaveBeenCalledWith({
+      type: 'quizzes',
+      quizIds: ['quiz-1'],
+      source: 'library',
+    });
   });
 
   it('renders an empty state when the collection has no materials', async () => {
@@ -132,13 +216,12 @@ describe('CollectionWorkspaceScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Collection' }));
 
-    const titleInput = screen.getByLabelText('Title');
-    expect(titleInput).toHaveValue('Physics Playlist');
-    fireEvent.change(titleInput, { target: { value: 'Renamed' } });
+    const greenSwatch = screen.getByLabelText('Green color');
+    fireEvent.click(greenSwatch);
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => {
-      expect(mockUpdateExecute).toHaveBeenCalledWith('c-1', expect.objectContaining({ title: 'Renamed' }));
+      expect(mockUpdateExecute).toHaveBeenCalledWith('c-1', expect.objectContaining({ color: '#4ade80' }));
     });
   });
 
@@ -166,7 +249,9 @@ describe('CollectionWorkspaceScreen', () => {
   });
 
   it('switches between the Materials and Quizzes tabs', async () => {
-    mockGetQuizzesForMaterials.mockResolvedValueOnce([
+    // Persistent mock: both the workspace hero and the quiz explorer observe
+    // the quiz-tree query, so the repository can be hit more than once.
+    mockGetQuizzesForMaterials.mockResolvedValue([
       {
         id: 'quiz-1',
         materialId: 'm-1',
@@ -203,7 +288,9 @@ describe('CollectionWorkspaceScreen', () => {
 
   it('forwards quiz launches from the quiz explorer', async () => {
     const onStartQuiz = vi.fn();
-    mockGetQuizzesForMaterials.mockResolvedValueOnce([
+    // Persistent mock: both the workspace hero and the quiz explorer observe
+    // the quiz-tree query, so the repository can be hit more than once.
+    mockGetQuizzesForMaterials.mockResolvedValue([
       {
         id: 'quiz-1',
         materialId: 'm-1',
@@ -228,7 +315,7 @@ describe('CollectionWorkspaceScreen', () => {
     });
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Kinematics Quiz' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Start Quiz' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Quiz: Kinematics Quiz' }));
 
     expect(onStartQuiz).toHaveBeenCalledWith({
       type: 'quiz',

@@ -1,55 +1,19 @@
-import { useRef, useLayoutEffect, useEffect } from 'react';
+import { useRef, useLayoutEffect, useEffect, Fragment } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookText, Focus } from 'lucide-react';
+import { Focus } from 'lucide-react';
 import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
+import { CompactCollectionsPopover } from './CompactCollectionsPopover';
 
 const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
-
-interface ContextRailButtonsProps {
-  active: ViewportNavProps['active'];
-  onNavigate: ViewportNavProps['onNavigate'];
-  material?: ViewportNavProps['material'];
-}
-
-function ContextRailButtons({ active, onNavigate, material }: ContextRailButtonsProps) {
-  const isMaterialActive = active === 'none' && Boolean(material);
-
-  if (active !== 'none') return null;
-
-  return (
-    <>
-      <div {...stylex.props(styles.divider)} aria-hidden="true" />
-
-      {material && (
-        <button
-          type="button"
-          {...stylex.props(styles.iconButton, isMaterialActive && styles.iconButtonActive)}
-          onClick={() =>
-            onNavigate({
-              kind: 'workspace',
-              workspace: 'material',
-              materialId: material.id,
-              activeTab: 'read',
-            })
-          }
-          aria-current={isMaterialActive ? 'page' : undefined}
-          title={`Material: ${material.title}`}
-        >
-          <BookText size={20} />
-        </button>
-      )}
-    </>
-  );
-}
 
 export function TabletRail({
   active,
   isFocusMode,
   onToggleFocusMode,
   onNavigate,
-  material,
+  collectionId,
 }: ViewportNavProps) {
   const railRef = useRef<HTMLElement>(null);
   const navGroupRef = useRef<HTMLDivElement>(null);
@@ -193,25 +157,29 @@ export function TabletRail({
       <div ref={navGroupRef} {...stylex.props(styles.navGroup)}>
         {PRIMARY_NAV_ITEMS.map((item) => {
           const isActive = item.isActive(active);
+          const isExplore = item.id === 'explore';
           return (
-            <button
-              key={item.id}
-              type="button"
-              {...stylex.props(styles.iconButton, isActive && styles.iconButtonActive)}
-              onClick={() => onNavigate(item.route)}
-              aria-current={isActive ? 'page' : undefined}
-              title={item.title}
-            >
-              <item.icon size={20} />
-            </button>
+            <Fragment key={item.id}>
+              <button
+                type="button"
+                {...stylex.props(styles.iconButton, isActive && styles.iconButtonActive)}
+                onClick={() => onNavigate(item.route)}
+                aria-current={isActive ? 'page' : undefined}
+                title={item.title}
+              >
+                <item.icon size={20} />
+              </button>
+              {isExplore && (
+                <CompactCollectionsPopover
+                  placement="rail"
+                  activeCollectionId={collectionId}
+                  onNavigate={onNavigate}
+                />
+              )}
+            </Fragment>
           );
         })}
 
-        <ContextRailButtons
-          active={active}
-          onNavigate={onNavigate}
-          material={material}
-        />
       </div>
 
       {/* Focus Mode Trigger / Restore button */}
@@ -324,12 +292,5 @@ const styles = stylex.create({
       borderColor: 'transparent',
       color: 'var(--color-accent)',
     },
-  },
-  divider: {
-    width: 32,
-    height: 1,
-    backgroundColor: 'var(--color-border)',
-    marginTop: 4,
-    marginBottom: 4,
   },
 });

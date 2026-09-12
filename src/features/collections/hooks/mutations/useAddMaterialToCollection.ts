@@ -12,7 +12,7 @@ export interface AddMaterialToCollectionVariables {
 /**
  * Mutation hook for adding a material to a collection.
  * On success: invalidates the collection materials, material-collections,
- * and unassigned-materials caches.
+ * unassigned-materials, and material-counts caches.
  */
 export function useAddMaterialToCollection() {
   const queryClient = useQueryClient();
@@ -32,6 +32,7 @@ export function useAddMaterialToCollection() {
         queryKey: collectionQueryKeys.materialCollections(variables.materialId),
       });
       queryClient.invalidateQueries({ queryKey: collectionQueryKeys.unassigned() });
+      queryClient.invalidateQueries({ queryKey: collectionQueryKeys.materialCounts() });
     },
 
     onError: () => {

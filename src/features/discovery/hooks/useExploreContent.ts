@@ -26,7 +26,10 @@ export function useExploreContent(options: UseExploreContentOptions = {}) {
   });
 
   const localOriginSet = useMemo(
-    () => new Set(localMaterials.map((m) => m.originShareId).filter(Boolean) as string[]),
+    () =>
+      new Set(
+        localMaterials.flatMap((m) => (m.originShareId ? [m.originShareId] : [])),
+      ),
     [localMaterials],
   );
 

@@ -1,4 +1,20 @@
 export default {
+  // Suppressions scoped to a single local exception. Kept narrower than a
+  // `rules` off-switch so the rule stays active everywhere else.
+  ignore: {
+    overrides: [
+      {
+        // The mobile hold-to-drag `setTimeout` lives inside the `pointerdown`
+        // handler this effect merely DEFINES and attaches, so it cannot be
+        // scheduled on mount or a re-run — the rule's own SUPPRESS (1)
+        // predicate. The effect still returns a teardown that clears pending
+        // hold timers and detaches their window listeners.
+        // Evidence: .react-doctor/false-positives.md
+        files: ['src/app/screens/collection-workspace/useCollectionMaterialReorder.ts'],
+        rules: ['react-doctor/effect-needs-cleanup'],
+      },
+    ],
+  },
   rules: {
     // Intentional suppressions — see root AGENTS.md (React Doctor score notes):
     // - async-await-in-loop: sequential processing mandated by Dexie transaction

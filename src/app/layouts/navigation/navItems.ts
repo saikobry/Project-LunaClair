@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Home, Compass, FileUp, TrendingUp } from 'lucide-react';
+import { Home, Compass, FileUp, Inbox, TrendingUp } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { NavActiveSection } from './navigation.types';
 
 export interface PrimaryNavItem {
-  id: 'library' | 'explore' | 'import' | 'analytics';
+  id: 'library' | 'explore' | 'import' | 'analytics' | 'unfiled';
   /** Visible label for desktop sidebar. */
   label: string;
   /** Tooltip / accessible name. */
@@ -14,7 +14,7 @@ export interface PrimaryNavItem {
   isActive: (active: NavActiveSection) => boolean;
 }
 
-/** The four static destinations shared by every viewport navigation variant. */
+/** The static destinations shared by every viewport navigation variant. */
 export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
   {
     id: 'library',
@@ -23,6 +23,14 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     icon: Home,
     route: { kind: 'library' },
     isActive: (active) => active === 'library',
+  },
+  {
+    id: 'unfiled',
+    label: 'Unfiled',
+    title: 'Unfiled — Unassigned Materials',
+    icon: Inbox,
+    route: { kind: 'unfiled' },
+    isActive: (active) => active === 'unfiled',
   },
   {
     id: 'explore',

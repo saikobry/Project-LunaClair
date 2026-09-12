@@ -1,17 +1,20 @@
 import { useCallback, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, BrainCircuit, FolderX, SquarePen, Trash2 } from 'lucide-react';
+import { BookOpen, BrainCircuit, FolderX } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { UpdateCollectionInput } from '../../../domain/collections/models/Collection';
 import type { QuizLaunchRequest } from '../../../features/quiz/types/quizFeature.types';
 import { useCollection } from '../../../features/collections/hooks/queries/useCollection';
 import { useCollectionMaterials } from '../../../features/collections/hooks/queries/useCollectionMaterials';
+import { useCollectionQuizTree } from '../../../features/collections/hooks/queries/useCollectionQuizTree';
 import { useRemoveMaterialFromCollection } from '../../../features/collections/hooks/mutations/useRemoveMaterialFromCollection';
+import { useReorderCollectionMaterials } from '../../../features/collections/hooks/mutations/useReorderCollectionMaterials';
 import { useUpdateCollection } from '../../../features/collections/hooks/mutations/useUpdateCollection';
 import { useDeleteCollection } from '../../../features/collections/hooks/mutations/useDeleteCollection';
 import { EditCollectionModal } from '../../../features/collections/modals/EditCollectionModal';
 import { CollectionQuizExplorer } from '../../../features/collections/components/CollectionQuizExplorer';
-import { MaterialCard } from '../../../features/materials/components/MaterialCard';
+import { CollectionMaterialList } from './CollectionMaterialList';
+import { CollectionHero } from './CollectionHero';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Breadcrumbs } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -20,37 +23,13 @@ import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
 import { TabList, Tab } from '../../../shared/ui/TabList/TabList';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { WorkspaceSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
+import { AddMaterialsDrawer } from './AddMaterialsDrawer';
 
 const styles = stylex.create({
   loadingContainer: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-  },
-  headerMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  colorDot: {
-    width: 14,
-    height: 14,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  count: {
-    fontSize: 13,
-    color: 'var(--color-text-secondary)',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: 16,
-  },
-  cardSlot: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
   },
 });
 
@@ -70,11 +49,15 @@ export function CollectionWorkspaceScreen({
   const { collection, isLoading: collectionLoading } = useCollection(collectionId);
   const { materials, isLoading: materialsLoading } = useCollectionMaterials(collectionId);
   const removeMutation = useRemoveMaterialFromCollection();
+  const reorderMutation = useReorderCollectionMaterials();
   const updateMutation = useUpdateCollection();
   const deleteMutation = useDeleteCollection();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAddMaterialsOpen, setIsAddMaterialsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
+
+  const { tree } = useCollectionQuizTree(collectionId, materials);
 
   const handleBackToLibrary = useCallback(() => {
     onNavigate({ kind: 'library' });
@@ -94,6 +77,32 @@ export function CollectionWorkspaceScreen({
     if (!collection) return;
     deleteMutation.mutateAsync(collection.id).then(handleBackToLibrary);
   }, [collection, deleteMutation, handleBackToLibrary]);
+
+  const handleUpdateTitle = useCallback(
+    (title: string) => {
+      if (!collection) return;
+      updateMutation.mutate({ id: collection.id, input: { title } });
+    },
+    [collection, updateMutation],
+  );
+
+  const handleUpdateDescription = useCallback(
+    (description: string) => {
+      if (!collection) return;
+      updateMutation.mutate({ id: collection.id, input: { description } });
+    },
+    [collection, updateMutation],
+  );
+
+  const handleQuickStudy = useCallback(() => {
+    const allQuizIds = tree.flatMap((group) => group.quizzes.map((quiz) => quiz.id));
+    if (allQuizIds.length === 0) return;
+    onStartQuiz?.({ type: 'quizzes', quizIds: allQuizIds, source: 'library' });
+  }, [tree, onStartQuiz]);
+
+  const handleAddMaterials = useCallback(() => {
+    setIsAddMaterialsOpen(true);
+  }, []);
 
   if (collectionLoading || materialsLoading) {
     return (
@@ -122,14 +131,15 @@ export function CollectionWorkspaceScreen({
     );
   }
 
-  const description = [collection.description, `${materials.length} ${materials.length === 1 ? 'material' : 'materials'}`]
-    .filter(Boolean)
-    .join(' · ');
+  const quizCount = tree.reduce((sum, group) => sum + group.quizzes.length, 0);
+  // StudyMaterial carries no mastery field — average mastery stays 0 until a
+  // real mastery signal exists. Kept as a computed value for the hero stats row.
+  const averageMastery = 0;
 
   return (
     <Page
       title={collection.title}
-      description={description}
+      headerHidden
       breadcrumb={
         <Breadcrumbs
           items={[
@@ -138,39 +148,19 @@ export function CollectionWorkspaceScreen({
           ]}
         />
       }
-      actions={
-        <>
-          <Button
-            label="Edit Collection"
-            variant="secondary"
-            icon={<SquarePen size={16} />}
-            onClick={() => setIsEditOpen(true)}
-          >
-            Edit Collection
-          </Button>
-          <Button
-            label="Delete Collection"
-            variant="secondary"
-            icon={<Trash2 size={16} />}
-            onClick={() => setIsDeleteOpen(true)}
-          >
-            Delete Collection
-          </Button>
-        </>
-      }
     >
-      <div {...stylex.props(styles.headerMeta)}>
-        {collection.color && (
-          <span
-            {...stylex.props(styles.colorDot)}
-            style={{ backgroundColor: collection.color }}
-            aria-label={`Collection color ${collection.color}`}
-          />
-        )}
-        <span {...stylex.props(styles.count)}>
-          {materials.length} {materials.length === 1 ? 'material' : 'materials'} in this collection
-        </span>
-      </div>
+      <CollectionHero
+        collection={collection}
+        materials={materials}
+        quizCount={quizCount}
+        averageMastery={averageMastery}
+        onUpdateTitle={handleUpdateTitle}
+        onUpdateDescription={handleUpdateDescription}
+        onQuickStudy={handleQuickStudy}
+        onAddMaterials={handleAddMaterials}
+        onEdit={() => setIsEditOpen(true)}
+        onDelete={() => setIsDeleteOpen(true)}
+      />
 
       {materials.length === 0 ? (
         <EmptyState
@@ -198,23 +188,21 @@ export function CollectionWorkspaceScreen({
           </TabList>
 
           {activeTab === 'materials' ? (
-            <div {...stylex.props(styles.grid)}>
-              {materials.map((material) => (
-                <div key={material.id} {...stylex.props(styles.cardSlot)}>
-                  <MaterialCard material={material} onOpen={(m) => onOpenMaterial?.(m.id)} />
-                  <Button
-                    label={`Remove ${material.title} from collection`}
-                    variant="secondary"
-                    icon={<Trash2 size={14} />}
-                    onClick={() =>
-                      removeMutation.mutate({ collectionId: collection.id, materialId: material.id })
-                    }
-                  >
-                    Remove from Collection
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <CollectionMaterialList
+              collectionId={collection.id}
+              materials={materials}
+              onOpenMaterial={onOpenMaterial}
+              onRemoveMaterial={(materialId) =>
+                removeMutation.mutate({ collectionId: collection.id, materialId })
+              }
+              onReorder={(orderedIds) =>
+                reorderMutation.mutate({
+                  collectionId: collection.id,
+                  orderedMaterialIds: orderedIds,
+                })
+              }
+              onAddMaterials={handleAddMaterials}
+            />
           ) : (
             <CollectionQuizExplorer
               collectionId={collectionId}
@@ -230,7 +218,20 @@ export function CollectionWorkspaceScreen({
           collection={collection}
           isOpen={isEditOpen}
           onSave={handleEditSave}
+          onDelete={() => {
+            setIsEditOpen(false);
+            setIsDeleteOpen(true);
+          }}
           onClose={() => setIsEditOpen(false)}
+        />
+      )}
+
+      {collection && (
+        <AddMaterialsDrawer
+          isOpen={isAddMaterialsOpen}
+          collection={collection}
+          currentMaterialIds={materials.map((m) => m.id)}
+          onClose={() => setIsAddMaterialsOpen(false)}
         />
       )}
 

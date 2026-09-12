@@ -22,7 +22,7 @@ export function useCollectionMaterials(collectionId: string | undefined) {
         signal,
       );
       if (links.length === 0) return [];
-      const ordered = [...links].sort((a, b) => a.order - b.order);
+      const ordered = links.toSorted((a, b) => a.order - b.order);
       const all = await context.repositories.library.getMaterials(signal);
       const byId = new Map(all.map((m) => [m.id, m]));
       return ordered.flatMap((link) => {

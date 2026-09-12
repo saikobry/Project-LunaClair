@@ -1,95 +1,18 @@
 import { useState, type ComponentType, type FormEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { ArrowRight } from 'lucide-react';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../shared/ui/Input/Input';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { Button } from '../../../shared/ui/Button/Button';
 import { COLLECTION_COLOR_PRESETS, COLLECTION_ICON_NAMES, getCollectionIcon } from './collectionAppearance';
+import { collectionModalStyles as styles } from './collectionModal.stylex';
 
 export interface CreateCollectionModalProps {
     isOpen: boolean;
     onSave: (input: { title: string; description?: string; icon?: string; color?: string }) => void;
     onClose: () => void;
 }
-
-const styles = stylex.create({
-    form: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-    },
-    fieldLabel: {
-        fontSize: 12,
-        fontWeight: 600,
-        color: 'var(--color-text-secondary)',
-    },
-    fieldGroup: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-    },
-    swatchRow: {
-        display: 'flex',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-    swatch: {
-        width: 28,
-        height: 28,
-        borderRadius: '50%',
-        border: '2px solid transparent',
-        cursor: 'pointer',
-        padding: 0,
-        transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-        ':hover': {
-            transform: 'scale(1.1)',
-        },
-        ':focus-visible': {
-            outline: '2px solid var(--color-accent)',
-            outlineOffset: 2,
-        },
-    },
-    swatchSelected: {
-        boxShadow: '0 0 0 2px var(--color-background-surface), 0 0 0 4px var(--color-accent)',
-    },
-    iconRow: {
-        display: 'flex',
-        gap: 6,
-        flexWrap: 'wrap',
-    },
-    iconButton: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 36,
-        height: 36,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderStyle: 'solid',
-        borderColor: 'var(--color-border)',
-        backgroundColor: 'var(--color-background-surface)',
-        color: 'var(--color-text-secondary)',
-        cursor: 'pointer',
-        transition: 'border-color 0.12s ease, color 0.12s ease',
-        ':hover': {
-            borderColor: 'var(--color-accent)',
-        },
-        ':focus-visible': {
-            outline: '2px solid var(--color-accent)',
-            outlineOffset: 2,
-        },
-    },
-    iconButtonSelected: {
-        borderColor: 'var(--color-accent)',
-        color: 'var(--color-accent)',
-        backgroundColor: 'var(--color-overlay-hover)',
-    },
-    modalActions: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 8,
-    },
-});
 
 export function CreateCollectionModal({ isOpen, onSave, onClose }: CreateCollectionModalProps) {
     const [title, setTitle] = useState('');
@@ -112,6 +35,19 @@ export function CreateCollectionModal({ isOpen, onSave, onClose }: CreateCollect
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
+        submitDraft();
+    };
+
+    /**
+     * Footer submit bridges the docked `Dialog footer=` action back into the
+     * body form: the footer lives outside the `<form>` (sticky slot), so the
+     * primary button reuses the same trimmed-title guard as `handleSubmit`.
+     */
+    const handleFooterSubmit = () => {
+        submitDraft();
+    };
+
+    function submitDraft() {
         const trimmed = title.trim();
         if (!trimmed) return;
         onSave({
@@ -120,10 +56,31 @@ export function CreateCollectionModal({ isOpen, onSave, onClose }: CreateCollect
             icon,
             color,
         });
-    };
+    }
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title="New Collection" width={460} purpose="form">
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            title="New Collection"
+            width={460}
+            purpose="form"
+            footer={
+                <div {...stylex.props(styles.modalFooter)}>
+                    <div {...stylex.props(styles.modalActions)}>
+                        <Button label="Cancel" variant="secondary" onClick={onClose} />
+                        <Button
+                            label="Create Collection"
+                            variant="primary"
+                            icon={<ArrowRight size={15} />}
+                            isDisabled={!title.trim()}
+                            onClick={handleFooterSubmit}
+                            style={{ flex: 1 }}
+                        />
+                    </div>
+                </div>
+            }
+        >
             <form onSubmit={handleSubmit} {...stylex.props(styles.form)}>
                 <Input
                     label="Title"
@@ -194,15 +151,6 @@ export function CreateCollectionModal({ isOpen, onSave, onClose }: CreateCollect
                     </div>
                 </div>
 
-                <div {...stylex.props(styles.modalActions)}>
-                    <Button label="Cancel" variant="secondary" onClick={onClose} />
-                    <Button
-                        label="Create Collection"
-                        variant="primary"
-                        type="submit"
-                        isDisabled={!title.trim()}
-                    />
-                </div>
             </form>
         </Dialog>
     );

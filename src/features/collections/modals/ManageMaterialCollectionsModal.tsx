@@ -107,6 +107,9 @@ export function ManageMaterialCollectionsModal({
 }: ManageMaterialCollectionsModalProps) {
     const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
+    // Membership is re-checked for every row, so resolve it once per render.
+    const assignedIdSet = new Set(assignedCollectionIds);
+
     const handleToggle = (collectionId: string, currentlyAssigned: boolean) => {
         setTogglingIds((prev) => {
             const next = new Set(prev);
@@ -177,7 +180,7 @@ export function ManageMaterialCollectionsModal({
             ) : (
                 <div role="group" aria-label="Collections" {...stylex.props(styles.list)}>
                     {collections.map((collection) => {
-                        const isAssigned = assignedCollectionIds.includes(collection.id);
+                        const isAssigned = assignedIdSet.has(collection.id);
                         const isToggling = togglingIds.has(collection.id);
                         const IconComponent = getCollectionIcon(collection.icon);
                         return (

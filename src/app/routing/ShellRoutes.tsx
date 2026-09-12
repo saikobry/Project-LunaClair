@@ -103,6 +103,16 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           onBrowseAvailable={() => navigate({ kind: 'explore' })}
         />
       )}
+      {currentRoute.kind === 'unfiled' && (
+        <LibraryHomeScreen
+          unfiledOnly
+          onOpenMaterial={handleOpenMaterial}
+          onStartQuiz={handleStartQuiz}
+          onManage={handleManageQuiz}
+          onBrowseAvailable={() => navigate({ kind: 'explore' })}
+          onBrowseLibrary={() => navigate({ kind: 'library' })}
+        />
+      )}
       {(currentRoute.kind === 'explore' || currentRoute.kind === 'available') && (
         <Suspense fallback={<WorkspaceSkeleton />}>
           <ExploreScreen

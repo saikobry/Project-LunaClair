@@ -75,8 +75,16 @@ code {
   background: var(--color-background-muted);
 }
 
-/* Breadcrumb button resets — eliminate native button artifacts */
-nav[aria-label] button {
+/* Breadcrumb button resets — eliminate native button artifacts.
+   Scoped to the breadcrumb landmark only: the app shell's navigation
+   landmarks (`nav[aria-label='Desktop Navigation']`, etc.) host shared
+   Astryx `Button`s — including dialogs opened from the sidebar, which
+   render inline inside the nav subtree — and must keep the design-system
+   typography (14px/500). `nav[aria-label] button { font: inherit }` was
+   resetting those buttons to body defaults (15px/400). Astryx breadcrumb
+   items carry their own `buttonReset`; this rule stays as a defensive
+   reset for the semantic breadcrumb trail. */
+nav[aria-label='Breadcrumb'] button {
   appearance: none;
   background: transparent;
   border: none;

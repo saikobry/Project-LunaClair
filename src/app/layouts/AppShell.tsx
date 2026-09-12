@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useContext, useCallback } from 'react';
 import gsap from 'gsap';
 import * as stylex from '@stylexjs/stylex';
 import { FocusModeProvider } from '../providers/FocusModeContext';
@@ -26,18 +26,10 @@ const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
  * suppression from the current route.
  */
 function getShellRouteContext(currentRoute: AppRoute): {
-  materialId?: string;
   collectionId?: string;
   active: NavActiveSection;
   suppressOverlays: boolean;
 } {
-  const materialId =
-    currentRoute.kind === 'workspace' && currentRoute.workspace === 'material'
-      ? currentRoute.materialId
-      : currentRoute.kind === 'quiz-canvas'
-        ? currentRoute.materialId
-        : undefined;
-
   let active: NavActiveSection = 'none';
   if (currentRoute.kind === 'library') {
     active = 'library';
@@ -50,6 +42,8 @@ function getShellRouteContext(currentRoute: AppRoute): {
     active = 'import';
   } else if (currentRoute.kind === 'analytics') {
     active = 'analytics';
+  } else if (currentRoute.kind === 'unfiled') {
+    active = 'unfiled';
   }
 
   const suppressOverlays =
@@ -57,7 +51,7 @@ function getShellRouteContext(currentRoute: AppRoute): {
 
   const collectionId = currentRoute.kind === 'collection' ? currentRoute.collectionId : undefined;
 
-  return { materialId, collectionId, active, suppressOverlays };
+  return { collectionId, active, suppressOverlays };
 }
 
 /**
@@ -109,56 +103,107 @@ function useMainBottomInset(mainRef: React.RefObject<HTMLElement | null>, isFocu
   return bottomInset;
 }
 
+const mobileMedia = '(max-width: 768px)';
+const tabletMedia = '(min-width: 769px) and (max-width: 1023px)';
+
 /**
- * Focus Mode shell motion: GSAP animates the sidebar rail layout width
- * when the mode toggles.
+ * Focus Mode shell motion: GSAP animates the sidebar rail layout width when the
+ * mode toggles.
+ *
+ * GSAP writes inline `width`/`opacity` styles which beat the stylesheet media
+ * queries (`rail`: 240px desktop / 64px tablet / 0px mobile). A stale inline
+ * width left on the rail after an interrupted tweens/resize produced a
+ * 240px/64px blank strip on small screens (the flex `shell` still reserved the
+ * rail slot). This hook therefore owns the rail's inline state deterministically:
+ * every transition and every resize re-derives the exact inline state from the
+ * current focus mode + viewport breakpoint, so no stale width can survive.
  */
 function useFocusModeMotion(isFocusMode: boolean) {
   const railRef = useRef<HTMLDivElement>(null);
   const didInitialRail = useRef(false);
 
-  // Keep GSAP inline styles and CSS breakpoint media queries in lockstep during window resizes.
+  /**
+   * Clears every GSAP-led inline layout property on the rail so the stylesheet
+   * rules (240 / 64 / 0) are the single source of truth for the current
+   * breakpoint. This is the "release" state — used for non-focus viewports and
+   * unconditionally at the mobile breakpoint.
+   */
+  const releaseRail = useCallback((rail: HTMLElement) => {
+    gsap.killTweensOf(rail, 'width,opacity');
+    rail.style.removeProperty('width');
+    rail.style.removeProperty('opacity');
+  }, []);
+
+  /**
+   * Collapses the rail to width 0 for Focus Mode at desktop/tablet. The inline
+   * `width: 0px` must persist at ≥769px because the stylesheet widths (240/64)
+   * would otherwise reassert and re-expand the rail.
+   */
+  const collapseRail = useCallback((rail: HTMLElement) => {
+    gsap.killTweensOf(rail, 'width,opacity');
+    rail.style.setProperty('width', '0px');
+    rail.style.setProperty('opacity', '1');
+  }, []);
+
+  /**
+   * Re-syncs the rail's inline state to the CURRENT viewport media query.
+   * Mobile always releases (CSS `width: 0` already hides the slot; any leftover
+   * inline width there is exactly the small-screen blank-gap bug class).
+   */
+  const syncRail = useCallback(
+    (rail: HTMLElement) => {
+      const isMobile = window.matchMedia(mobileMedia).matches;
+      if (isMobile) {
+        releaseRail(rail);
+      } else if (isFocusMode) {
+        collapseRail(rail);
+      } else {
+        releaseRail(rail);
+      }
+    },
+    [isFocusMode, releaseRail, collapseRail],
+  );
+
+  // Keep GSAP inline styles and CSS breakpoint media queries in lockstep during
+  // window resizes (re-evaluates the breakpoint + focus state on every resize).
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
 
-    const handleResize = () => {
-      if (isFocusMode) {
-        gsap.set(rail, { width: 0, opacity: 1 });
-      } else {
-        gsap.set(rail, { clearProps: 'width,opacity' });
-      }
-    };
-
+    const handleResize = () => syncRail(rail);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isFocusMode]);
+  }, [syncRail]);
 
   // ── GSAP: animate the rail layout width when Focus Mode toggles ──
   useLayoutEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
 
-    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
-    const isTabletViewport = window.matchMedia('(min-width: 769px) and (max-width: 1023px)').matches;
+    const isMobileViewport = window.matchMedia(mobileMedia).matches;
+    const isTabletViewport = window.matchMedia(tabletMedia).matches;
 
     if (isMobileViewport) {
+      // Mobile never needs an inline width; CSS `width: 0` owns the slot.
+      releaseRail(rail);
       didInitialRail.current = true;
-      gsap.set(rail, { clearProps: 'width,opacity' });
       return;
     }
-
-    const openWidth = isTabletViewport ? 64 : 240;
 
     if (!didInitialRail.current) {
       didInitialRail.current = true;
       if (isFocusMode) {
-        gsap.set(rail, { width: 0, opacity: 1 });
+        collapseRail(rail);
       } else {
-        gsap.set(rail, { clearProps: 'width,opacity' });
+        releaseRail(rail);
       }
       return;
     }
+
+    // Kill any in-flight tween first so an interrupted animation can never freeze
+    // a stale intermediate width inline. onComplete then applies the correct
+    // persistent state (locked 0px for focus, released to CSS otherwise).
+    gsap.killTweensOf(rail, 'width,opacity');
 
     if (isFocusMode) {
       gsap.to(rail, {
@@ -167,18 +212,20 @@ function useFocusModeMotion(isFocusMode: boolean) {
         duration: 0.35,
         ease: 'power2.inOut',
         overwrite: 'auto',
+        onComplete: () => collapseRail(rail),
       });
     } else {
+      const openWidth = isTabletViewport ? 64 : 240;
       gsap.to(rail, {
         width: openWidth,
         opacity: 1,
         duration: 0.35,
         ease: 'power2.inOut',
         overwrite: 'auto',
-        onComplete: () => gsap.set(rail, { clearProps: 'width,opacity' }),
+        onComplete: () => releaseRail(rail),
       });
     }
-  }, [isFocusMode]);
+  }, [isFocusMode, releaseRail, collapseRail]);
 
   return railRef;
 }
@@ -250,7 +297,7 @@ export default function AppShell() {
 
   const railRef = useFocusModeMotion(isFocusMode);
 
-  const { materialId: routeMaterialId, collectionId: routeCollectionId, active, suppressOverlays } =
+  const { collectionId: routeCollectionId, active, suppressOverlays } =
     getShellRouteContext(currentRoute);
 
   return (
@@ -266,7 +313,6 @@ export default function AppShell() {
         {/* Navigation Rail */}
         <div ref={railRef} {...stylex.props(styles.rail, isFocusMode && styles.railFocus)}>
           <AppSidebar
-            materialId={routeMaterialId}
             collectionId={routeCollectionId}
             active={active}
             isFocusMode={isFocusMode}
