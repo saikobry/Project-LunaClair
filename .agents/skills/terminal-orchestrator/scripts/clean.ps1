@@ -2,13 +2,13 @@ param(
     [switch]$All
 )
 
+# Clean legacy sentinels directory if present
 $sentinelsDir = ".orchestrator/sentinels"
 if (Test-Path $sentinelsDir) {
-    Get-ChildItem -Path $sentinelsDir -Filter "*.done" -ErrorAction SilentlyContinue | Remove-Item -Force
-    Write-Host "Cleaned active sentinels in $sentinelsDir" -ForegroundColor Green
+    Remove-Item $sentinelsDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Clean any root fallback sentinels
+# Clean any root fallback sentinel files
 Get-ChildItem -Path . -Filter ".done_*" -ErrorAction SilentlyContinue | Remove-Item -Force
 if (Test-Path ".freebuff_done") {
     Remove-Item ".freebuff_done" -Force
@@ -20,4 +20,6 @@ if ($All) {
     if (Test-Path $specsDir) { Remove-Item "$specsDir/*" -Recurse -Force -ErrorAction SilentlyContinue }
     if (Test-Path $reportsDir) { Remove-Item "$reportsDir/*" -Recurse -Force -ErrorAction SilentlyContinue }
     Write-Host "Cleaned all temporary specs and reports in .orchestrator/" -ForegroundColor Green
+} else {
+    Write-Host "Cleaned orchestrator staging." -ForegroundColor Green
 }
