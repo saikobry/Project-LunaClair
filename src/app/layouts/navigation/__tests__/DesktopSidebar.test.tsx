@@ -31,7 +31,7 @@ describe('DesktopSidebar collections section', () => {
     vi.clearAllMocks();
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockGetAll = vi.fn().mockResolvedValue(collections);
-    // c-1 holds m-1; c-2 is empty — m-2 stays unassigned (unfiled).
+    // c-1 holds m-1; c-2 is empty — m-2 stays unassigned (uncollected).
     mockGetByCollectionId = vi
       .fn()
       .mockImplementation((collectionId: string) =>
@@ -115,27 +115,52 @@ describe('DesktopSidebar collections section', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows the unfiled nav item with the unassigned count and navigates to it', async () => {
+  it('navigates to the library from the Library nav item', async () => {
     renderSidebar();
 
     const desktopNav = await screen.findByRole('navigation', { name: 'Desktop Navigation' });
-    const unfiledButton = within(desktopNav).getByRole('button', { name: 'Unfiled' });
-    await waitFor(() => {
-      expect(within(unfiledButton).getByText('1')).toBeInTheDocument();
-    });
+    const libraryButton = within(desktopNav).getByRole('button', { name: 'Library' });
 
-    fireEvent.click(unfiledButton);
-    expect(mockNavigate).toHaveBeenCalledWith({ kind: 'unfiled' });
+    fireEvent.click(libraryButton);
+    expect(mockNavigate).toHaveBeenCalledWith({ kind: 'library' });
   });
 
-  it('marks the unfiled nav item active on the unfiled section', async () => {
-    renderSidebar(null, 'unfiled');
+  it('renders no count badge on the Library nav item', async () => {
+    renderSidebar();
 
     const desktopNav = await screen.findByRole('navigation', { name: 'Desktop Navigation' });
-    expect(within(desktopNav).getByRole('button', { name: 'Unfiled' })).toHaveAttribute(
+    const libraryButton = within(desktopNav).getByRole('button', { name: 'Library' });
+
+    // The nav item holds only its icon and label.
+    expect(within(libraryButton).queryByText('1')).not.toBeInTheDocument();
+  });
+
+  it('does not render an Import nav item', async () => {
+    renderSidebar();
+
+    const desktopNav = await screen.findByRole('navigation', { name: 'Desktop Navigation' });
+    expect(
+      within(desktopNav).queryByRole('button', { name: 'Import' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('marks the Library nav item active on the library section', async () => {
+    renderSidebar(null, 'library');
+
+    const desktopNav = await screen.findByRole('navigation', { name: 'Desktop Navigation' });
+    expect(within(desktopNav).getByRole('button', { name: 'Library' })).toHaveAttribute(
       'aria-current',
       'page',
     );
+  });
+
+  it('renders Home as the first primary destination', async () => {
+    renderSidebar(null, 'home');
+
+    const desktopNav = await screen.findByRole('navigation', { name: 'Desktop Navigation' });
+    const homeButton = within(desktopNav).getByRole('button', { name: 'Home' });
+    expect(homeButton).toHaveAttribute('aria-current', 'page');
+    expect(within(desktopNav).queryByRole('button', { name: 'Unfiled' })).not.toBeInTheDocument();
   });
 
   it('navigates to the collection route when a collection is clicked', async () => {

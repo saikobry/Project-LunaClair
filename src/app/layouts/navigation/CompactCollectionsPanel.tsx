@@ -73,7 +73,7 @@ export function CompactCollectionsRailPanel({
       <div {...stylex.props(styles.panelBody)}>
         {collections.length === 0 ? (
           <p {...stylex.props(styles.panelEmpty)}>
-            No collections yet. Create your first playlist to organize your materials.
+            No collections yet. Create your first collection to organize your materials.
           </p>
         ) : (
           collections.map((collection) => {
@@ -226,7 +226,7 @@ export function CompactCollectionsDockDrawer({
       <div {...stylex.props(styles.drawerBody)}>
         {collections.length === 0 ? (
           <p {...stylex.props(styles.drawerEmpty)}>
-            No collections yet. Create your first playlist to organize your materials.
+            No collections yet. Create your first collection to organize your materials.
           </p>
         ) : (
           collections.map((collection) => {

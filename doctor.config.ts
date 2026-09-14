@@ -13,6 +13,16 @@ export default {
         files: ['src/app/screens/collection-workspace/useCollectionMaterialReorder.ts'],
         rules: ['react-doctor/effect-needs-cleanup'],
       },
+      {
+        // Whole-card pointer affordance: the shell `<div>` carries `onClick`
+        // with no `role` on purpose — `role="button"` around nested real
+        // buttons is invalid ARIA and a worse violation. Keyboard/AT parity
+        // lives in the title `<button>` plus the action menu's Open item, and
+        // the handler's `closest` guard keeps inner controls independent.
+        // Evidence: .react-doctor/false-positives.md
+        files: ['src/features/materials/components/MaterialCard.tsx'],
+        rules: ['react-doctor/no-static-element-interactions'],
+      },
     ],
   },
   rules: {

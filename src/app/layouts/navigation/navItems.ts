@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Home, Compass, FileUp, Inbox, TrendingUp } from 'lucide-react';
+import { Home, LibraryBig, Compass, TrendingUp } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { NavActiveSection } from './navigation.types';
 
 export interface PrimaryNavItem {
-  id: 'library' | 'explore' | 'import' | 'analytics' | 'unfiled';
+  id: 'home' | 'library' | 'explore' | 'analytics';
   /** Visible label for desktop sidebar. */
   label: string;
   /** Tooltip / accessible name. */
@@ -14,23 +14,30 @@ export interface PrimaryNavItem {
   isActive: (active: NavActiveSection) => boolean;
 }
 
-/** The static destinations shared by every viewport navigation variant. */
+/**
+ * The static destinations shared by every viewport navigation variant.
+ *
+ * `Home` is the dashboard ("what should I do next?"); `Library` owns collections
+ * and materials ("what do I have?"), including the `uncollected` membership
+ * lens for materials in no collection. Import is not a destination either: it
+ * is reached from Home's quick actions, so it does not occupy a nav slot.
+ */
 export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
+  {
+    id: 'home',
+    label: 'Home',
+    title: 'Home',
+    icon: Home,
+    route: { kind: 'home' },
+    isActive: (active) => active === 'home',
+  },
   {
     id: 'library',
     label: 'Library',
-    title: 'Library',
-    icon: Home,
+    title: 'Library — Collections & Materials',
+    icon: LibraryBig,
     route: { kind: 'library' },
     isActive: (active) => active === 'library',
-  },
-  {
-    id: 'unfiled',
-    label: 'Unfiled',
-    title: 'Unfiled — Unassigned Materials',
-    icon: Inbox,
-    route: { kind: 'unfiled' },
-    isActive: (active) => active === 'unfiled',
   },
   {
     id: 'explore',
@@ -39,14 +46,6 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     icon: Compass,
     route: { kind: 'explore' },
     isActive: (active) => active === 'explore' || active === 'available',
-  },
-  {
-    id: 'import',
-    label: 'Import',
-    title: 'Import Content',
-    icon: FileUp,
-    route: { kind: 'import' },
-    isActive: (active) => active === 'import',
   },
   {
     id: 'analytics',

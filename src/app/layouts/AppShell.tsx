@@ -31,7 +31,9 @@ function getShellRouteContext(currentRoute: AppRoute): {
   suppressOverlays: boolean;
 } {
   let active: NavActiveSection = 'none';
-  if (currentRoute.kind === 'library') {
+  if (currentRoute.kind === 'home') {
+    active = 'home';
+  } else if (currentRoute.kind === 'library') {
     active = 'library';
   } else if (
     currentRoute.kind === 'explore' ||
@@ -42,8 +44,6 @@ function getShellRouteContext(currentRoute: AppRoute): {
     active = 'import';
   } else if (currentRoute.kind === 'analytics') {
     active = 'analytics';
-  } else if (currentRoute.kind === 'unfiled') {
-    active = 'unfiled';
   }
 
   const suppressOverlays =

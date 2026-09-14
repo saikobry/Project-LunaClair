@@ -40,3 +40,29 @@ reshaped to satisfy a pattern matcher.
   effect's lifecycle. Remove the `ignore.overrides` entry together with the code
   change whenever this file is restructured to define the gesture outside the
   effect.
+
+## `react-doctor/no-static-element-interactions` — `src/features/materials/components/MaterialCard.tsx`
+
+- **Rule predicate used:** `no-static-element-interactions` → "Give clickable
+  static elements a `role`, or use a button or link."
+- **Observed evidence:**
+  - The card shell `<div>` carries `onClick` (whole-card pointer affordance)
+    with deliberately no `role`: the shell nests real `<button>`/`<input>` controls
+    (title, filing trigger, badges, popover rows, action menu), and wrapping
+    them in `role="button"` is invalid ARIA — the fix the rule suggests would
+    be the worse violation.
+  - Keyboard/AT parity is complete without the shell interaction: the title
+    `<button>` and the action menu's Open item both invoke `onOpen`, and every
+    inner control keeps independent semantics and focus order (no `role`
+    wrapper was removed to achieve this earlier).
+  - The handler itself guards with `closest('button, a, input, textarea,
+    select, [role="menu"], [role="dialog"]')` plus a `popoverRef.contains`
+    check, so inner-control clicks can never double-fire into `onOpen`.
+- **Outcome:** Rejected — documented intentional exception; no behavioural defect.
+- **Suppression:** `doctor.config.ts` → `ignore.overrides` scoped to this one file
+  and this one rule (not a repo-wide `rules` off-switch, so genuinely
+  interaction-less static elements elsewhere are still reported).
+- **Review condition:** Re-check if the shell gains `role`/`tabIndex` keyboard
+  handling (then the exception is obsolete — remove it) or if the title button
+  / menu Open item stop offering keyboard-equivalent opening (then the
+  exception is invalid — restore a real affordance instead).

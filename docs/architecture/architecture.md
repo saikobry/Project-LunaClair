@@ -30,7 +30,7 @@ src/
 
 ### `src/app/`
 
-Application-level orchestration: root shell layout (`AppShell`, `AppHeader`, `AppSidebar`, `ShellRoutes`, `MaterialWorkspace`), dedicated viewport navigation slices (`DesktopSidebar`, `TabletRail`, `MobileBottomDock`), route-level screen layer (`src/app/screens/` — `LibraryHomeScreen`, `ExploreScreen`, `SubjectWorkspaceScreen`, etc.), configuration constants, React providers (`AppProviders`, `ApplicationProvider`, `FocusModeProvider`), and the composition root (`bootstrap/` with domain slice factories).
+Application-level orchestration: root shell layout (`AppShell`, `AppHeader`, `AppSidebar`, `ShellRoutes`, `MaterialWorkspace`), dedicated viewport navigation slices (`DesktopSidebar`, `TabletRail`, `MobileBottomDock`), route-level screen layer (`src/app/screens/` — `HomeScreen`, `LibraryScreen`, `ExploreScreen`, etc.), configuration constants, React providers (`AppProviders`, `ApplicationProvider`, `FocusModeProvider`), and the composition root (`bootstrap/` with domain slice factories).
 
 ### `src/application/`
 

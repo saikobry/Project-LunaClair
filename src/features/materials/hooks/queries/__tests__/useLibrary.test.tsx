@@ -58,6 +58,41 @@ describe('useLibrary', () => {
     expect(result.current.isError).toBe(false);
   });
 
+  it('returns materials in authored order, not repository id order', async () => {
+    // `seed-m-10` sorts before `seed-m-2` by primary key — the hook must
+    // still expose 1, 2, 10.
+    mockGetMaterials.mockResolvedValueOnce([
+      { id: 'seed-m-1', documentId: 'doc-1', title: 'M 1', order: 0, createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+      { id: 'seed-m-10', documentId: 'doc-10', title: 'M 10', order: 2, createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+      { id: 'seed-m-2', documentId: 'doc-2', title: 'M 2', order: 1, createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+    ]);
+    const { result } = renderHook(() => useLibrary(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.materials.map((m) => m.id)).toEqual(['seed-m-1', 'seed-m-2', 'seed-m-10']);
+  });
+
+  it('sorts materials without order last, stably', async () => {
+    mockGetMaterials.mockResolvedValueOnce([
+      { id: 'b', documentId: 'doc-b', title: 'B', createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+      { id: 'a', documentId: 'doc-a', title: 'A', order: 0, createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+    ]);
+    const { result } = renderHook(() => useLibrary(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.materials.map((m) => m.id)).toEqual(['a', 'b']);
+  });
+
   it('handles errors when getMaterials fails', async () => {
     mockGetMaterials.mockRejectedValueOnce(new Error('IndexedDB failure'));
 

@@ -39,7 +39,7 @@ describe('useAddMaterialToCollection', () => {
     );
   }
 
-  it('executes the use case and invalidates materials + material-collections + unassigned', async () => {
+  it('executes the use case and invalidates materials + material-collections', async () => {
     const { result } = renderHook(() => useAddMaterialToCollection(), { wrapper: createWrapper() });
 
     await act(async () => {
@@ -53,6 +53,5 @@ describe('useAddMaterialToCollection', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: collectionQueryKeys.materialCollections('m-1'),
     });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: collectionQueryKeys.unassigned() });
   });
 });

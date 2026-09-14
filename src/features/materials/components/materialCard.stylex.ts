@@ -17,7 +17,8 @@ export const cardStyles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
-    padding: 16,
+    padding: 20,
+    height: '100%',
     userSelect: 'none',
   },
   header: {
@@ -25,6 +26,7 @@ export const cardStyles = stylex.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 10,
+    minHeight: 30,
   },
   titleColumn: {
     flex: 1,
@@ -73,30 +75,140 @@ export const cardStyles = stylex.create({
     },
   },
   description: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'var(--color-text-secondary)',
     margin: 0,
-    lineHeight: 1.5,
+    lineHeight: 1.7,
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',
     overflow: 'hidden',
+    minHeight: 41,
   },
   badgeRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
   },
   tagsRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
+    minHeight: 26,
+  },
+  /** Tag cloud inside the overflow viewer — wraps, unlike the single-line row. */
+  popoverTags: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
     flexWrap: 'wrap',
+  },
+  /** Off-screen width probe — same pills, never painted. */
+  measurer: {    position: 'absolute',
+    top: 0,
+    left: 0,
+    visibility: 'hidden',
+    pointerEvents: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'nowrap',
+    whiteSpace: 'nowrap',
   },
   tagChip: {
     textTransform: 'none',
     fontWeight: 600,
+  },
+  /** Card tag toggle — pill-rounded like the library filter pills. */
+  tagButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 10px',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border)',
+    backgroundColor: 'transparent',
+    fontFamily: 'inherit',
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    cursor: 'pointer',
+    transition: 'background-color 0.15s, border-color 0.15s, color 0.15s',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+      color: 'var(--color-text-primary)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
+  },
+  tagButtonActive: {
+    backgroundColor: 'var(--color-accent-muted)',
+    borderColor: 'var(--color-accent)',
+    color: 'var(--color-text-accent)',
+  },
+  /** Bordered-top footer (prototype direction): recency left, Quiz action right. */
+  footer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: 'var(--color-border)',
+    paddingTop: 12,
+    marginTop: 4,
+    minHeight: 45,
+  },
+  /** Promoted Quiz action (Manage lives in the ⋯ menu). */
+  quizButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '5px 12px',
+    borderRadius: 8,
+    borderWidth: 0,
+    borderStyle: 'none',
+    backgroundColor: 'var(--color-accent-muted)',
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--color-text-accent)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'background-color 0.15s, color 0.15s',
+    ':hover': {
+      backgroundColor: 'var(--color-accent)',
+      color: '#ffffff',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
+  },
+  /** Muted `+N` overflow pill (badges beyond the cap). */
+  badgeOverflow: {
+    backgroundColor: 'var(--color-background-muted)',
+    borderColor: 'var(--color-border)',
+    color: 'var(--color-text-secondary)',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'background-color 0.15s, border-color 0.15s, color 0.15s',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+      color: 'var(--color-accent)',
+      backgroundColor: 'var(--color-accent-muted)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
   },
   metaRow: {
     display: 'flex',
@@ -105,31 +217,30 @@ export const cardStyles = stylex.create({
     fontSize: 12,
     color: 'var(--color-text-disabled)',
   },
-  actionBar: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 8,
-    marginTop: 4,
-  },
   headerActions: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
   },
+  /**
+   * Rendered through a portal (`document.body`, fixed position from the
+   * trigger rect) so it escapes grid rows and virtualized-row transforms —
+   * an inline absolute popover slides under the next row's cards. Position
+   * comes from inline style; this holds the surface treatment only.
+   */
   popover: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 8,
     backgroundColor: 'var(--color-background-surface)',
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
     borderRadius: 12,
     boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-    zIndex: 100,
     minWidth: 280,
     maxWidth: 360,
+    maxHeight: 400,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
   popoverHeader: {
     padding: 16,
@@ -187,6 +298,14 @@ export const cardStyles = stylex.create({
       outlineOffset: '-2px',
     },
   },
+  /** In-flight row: dimmed and non-interactive so a toggle cannot double-fire. */
+  popoverRowPending: {
+    opacity: 0.55,
+    cursor: 'default',
+    ':hover': {
+      backgroundColor: 'transparent',
+    },
+  },
   popoverIcon: {
     width: 28,
     height: 28,
@@ -219,7 +338,20 @@ export const cardStyles = stylex.create({
     alignItems: 'center',
   },
   membershipSection: {
-    marginTop: 4,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  /** Badges + file trigger on one row — filing lives with the playlists. */
+  membershipRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 'auto',
+    minHeight: 30,
+  },
+  membershipBadges: {
+    flex: 1,
+    minWidth: 0,
   },
   membershipEmpty: {
     display: 'flex',
@@ -242,12 +374,17 @@ export const cardStyles = stylex.create({
   },
   badgeButtonClickable: {
     cursor: 'pointer',
+    transition: 'border-color 0.15s, filter 0.15s',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+      filter: 'brightness(1.2)',
+    },
   },
   badgeButtonStatic: {
     cursor: 'default',
   },
   badgeLabel: {
-    maxWidth: 80,
+    maxWidth: 160,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',

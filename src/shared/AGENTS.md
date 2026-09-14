@@ -9,9 +9,10 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 | Module | Contents |
 |---|---|
 | `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) |
+| `constants/listRendering.ts` | `VIRTUALIZE_AFTER_ITEM_COUNT` (25) — lists at/below render fully; larger lists virtualize (shelf, materials grid, sidebar nav) |
 | `ui/` | Design system primitive adapters and low-level container primitives — includes `Dialog` (native `<dialog>` wrapper over `@astryxdesign/core` with header/content/footer slots), `TagInput`, `EmptyState` (zero-data / filter empty), `ErrorState` (404 / missing entity / offline error), `Skeleton` (`CardGridSkeleton`, `WorkspaceSkeleton`, `QuestionSkeleton`) |
-| `components/` | Domain-neutral composites such as `ActionMenu` |
-| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
+| `components/` | Domain-neutral composites such as `ActionMenu` (ellipsis trigger; popup portaled to `document.body` with trigger-anchored fixed coords — an inline absolute popup gets trapped beneath sibling cards by their hover-lift stacking contexts) |
+| `hooks/` | Domain-agnostic UI and infrastructure hooks: `useDraftAutosave` (generic debounce/throttle/blur/unload autosave policy with an injected `persist` callback), `useDebounce` (generic value debouncer), `useMediaQuery` (media-query subscription with SSR/jsdom-safe default), `useStableListKeys` (stable per-row list keys for id-less string rows — never the array index) |
 | `utils/` | Domain-agnostic utility functions: `contextGuard` (strict context unwrapping with descriptive missing-provider assertion), `fileDownload` (safe client-side blob download trigger & filename sanitization), `jsonBlobParser` (typed JSON blob parsing) |
 
 ## Local Contracts

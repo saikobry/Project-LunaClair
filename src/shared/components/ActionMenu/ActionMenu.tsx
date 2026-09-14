@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import * as stylex from '@stylexjs/stylex';
 import { MoreHorizontal } from 'lucide-react';
 import { ToggleButton } from '@astryxdesign/core/ToggleButton';
@@ -23,9 +24,7 @@ const styles = stylex.create({
     position: 'relative',
   },
   popup: {
-    position: 'absolute',
-    top: 36,
-    right: 0,
+    position: 'fixed',
     minWidth: 150,
     background: 'rgba(255,255,255,0.88)',
     backdropFilter: 'blur(12px)',
@@ -82,17 +81,47 @@ export interface ActionMenuProps {
 export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  /** Fixed viewport coords for the portaled popup, right-anchored to the trigger. */
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
   }, []);
 
-  // Close menu on click outside
+  const updatePos = useCallback(() => {
+    const rect = menuRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const right = Math.max(8, window.innerWidth - rect.right);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 300 && rect.top > spaceBelow) {
+      setPos({ bottom: Math.max(8, window.innerHeight - rect.top + 6), right });
+    } else {
+      setPos({ top: rect.bottom + 6, right });
+    }
+  }, []);
+
+  // Measure before paint so the popup never flashes at a default spot, then
+  // track scroll/resize while open like the card popovers do.
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [menuOpen, updatePos]);
+
+  // Close menu on click outside (the portaled popup lives outside the wrapper,
+  // so both roots keep it open)
   useEffect(() => {
     if (!menuOpen) return;
     const handleClickOutside = (e: globalThis.MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        closeMenu();
-      }
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (popupRef.current?.contains(target)) return;
+      closeMenu();
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -111,9 +140,11 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
   }, [menuOpen, closeMenu]);
 
   const handleMenuBlur = (e: React.FocusEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      closeMenu();
+    const related = e.relatedTarget as Node | null;
+    if (related && (menuRef.current?.contains(related) || popupRef.current?.contains(related))) {
+      return;
     }
+    closeMenu();
   };
 
   // Provide DropdownMenuContext so DropdownMenuItem children
@@ -121,6 +152,14 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
   const contextValue: DropdownMenuContextValue = {
     closeMenu,
     menuSize: 'md',
+  };
+
+  // Right-anchored fixed coords — no width measuring needed. Unset until the
+  // layout effect measures (the popup stays display:none while closed anyway).
+  const popupStyle: CSSProperties = {
+    ...(pos?.top !== undefined ? { top: pos.top } : {}),
+    ...(pos?.bottom !== undefined ? { bottom: pos.bottom } : {}),
+    ...(pos ? { right: pos.right } : {}),
   };
 
   return (
@@ -143,22 +182,26 @@ export function ActionMenu({ label = 'Card actions', children }: ActionMenuProps
       />
 
       {/*
-        Always render the popup to keep the DOM subtree alive during
-        React's synthetic event dispatch. When a DropdownMenuItem
-        triggers closeMenu(), the state update is queued but the popup
-        hasn't been re-rendered yet — so the wrapper's onClick handler
-        receives the event and calls stopPropagation() before the native
-        event can reach parent card handlers.
+        Portaled to document.body with fixed positioning so the popup escapes
+        the card's stacking context (the hover lift transform traps an
+        absolutely-positioned popup beneath the next sibling card). React
+        events still bubble through the wrapper, so the stopPropagation guard
+        and the always-rendered subtree behavior are unchanged.
         Visibility is toggled with display:none instead.
       */}
-      <div
-        {...stylex.props(styles.popup, !menuOpen && styles.popupHidden)}
-        role="menu"
-      >
-        <DropdownMenuContext value={contextValue}>
-          {children}
-        </DropdownMenuContext>
-      </div>
+      {createPortal(
+        <div
+          ref={popupRef}
+          {...stylex.props(styles.popup, !menuOpen && styles.popupHidden)}
+          style={popupStyle}
+          role="menu"
+        >
+          <DropdownMenuContext value={contextValue}>
+            {children}
+          </DropdownMenuContext>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

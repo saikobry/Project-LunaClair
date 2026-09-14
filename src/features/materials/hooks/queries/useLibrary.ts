@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { materialQueryKeys } from '../../queries/materialQueryKeys';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
@@ -20,8 +21,19 @@ export function useLibrary() {
     queryFn: ({ signal }) => context.repositories.library.getMaterials(signal),
   });
 
+  // Dexie returns primary-key (lexicographic id) order, so `seed-m-10`
+  // would sort before `seed-m-2`. Re-apply the authored `order` here, in
+  // memory (indexed `orderBy` would drop rows with no `order`; unordered
+  // rows sort last, stably).
+  const materials = useMemo(() => {
+    if (!data) return [];
+    return [...data].sort(
+      (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+    );
+  }, [data]);
+
   return {
-    materials: data ?? [],
+    materials,
     isLoading,
     isError,
     error,

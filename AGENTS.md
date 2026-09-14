@@ -83,7 +83,7 @@ Default section order:
 
 ## Stack
 
-React 19 + TypeScript + Vite + Dexie.js (IndexedDB).
+React 19 + TypeScript + Vite + Dexie.js (IndexedDB) + TanStack Query/Virtual.
 
 ## Commands
 

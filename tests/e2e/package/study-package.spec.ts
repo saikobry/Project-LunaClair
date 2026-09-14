@@ -87,8 +87,8 @@ test.describe('Study Package (.lcpack) Export & Import E2E', () => {
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/Study package imported successfully/i)).toBeVisible({ timeout: 5000 });
 
-    // 9. Navigate to Library and assert two materials now exist (original + imported copy)
-    await page.goto('/');
+    // 9. Navigate to the Library and assert two materials now exist (original + imported copy)
+    await page.goto('/library');
     const libraryCards = page.getByText('Cell Structure & Function');
     await expect(libraryCards.first()).toBeVisible({ timeout: 10000 });
   });

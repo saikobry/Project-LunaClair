@@ -24,18 +24,26 @@ test.describe('Content Importer & AI Cleanup E2E', () => {
     });
   });
 
-  test('navigates to /import and shows the 5-step wizard drop zone', async ({ page }) => {
-    await page.goto('/');
-    
-    // Click "Import" in sidebar
-    const importNavLink = page.getByRole('button', { name: 'Import' });
-    await expect(importNavLink).toBeVisible({ timeout: 10000 });
-    await importNavLink.click();
+  test('shows the 5-step wizard drop zone at /import', async ({ page }) => {
+    await page.goto('/import');
 
     // Verify URL and wizard drop zone
     await expect(page).toHaveURL('/import');
     await expect(page.getByText('Drag & drop your study materials')).toBeVisible();
     await expect(page.getByText('PDF, PNG, JPG, JPEG, JFIF, WEBP')).toBeVisible();
+  });
+
+  test('reaches /import from the fresh-install Home empty state', async ({ page }) => {
+    await page.goto('/');
+
+    // With an empty library the dashboard is replaced by the first-run state,
+    // which must still keep Import reachable now that it has no nav slot.
+    const importAction = page.getByRole('button', { name: 'Import a PDF' });
+    await expect(importAction).toBeVisible({ timeout: 10000 });
+    await importAction.click();
+
+    await expect(page).toHaveURL('/import');
+    await expect(page.getByText('Drag & drop your study materials')).toBeVisible();
   });
 
   test('runs AI cleanup in review step and accepts cleaned diff', async ({ page }) => {

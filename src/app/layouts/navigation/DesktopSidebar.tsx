@@ -2,18 +2,119 @@ import { useRef, useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus } from 'lucide-react';
 import gsap from 'gsap';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { styles } from './desktopSidebar.stylex';
 import { DesktopTrapezoidButton } from './DesktopTrapezoidButton';
 import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
 import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
-import { useUnassignedMaterials } from '../../../features/collections/hooks/queries/useUnassignedMaterials';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
 import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
 import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
 import { Button } from '../../../shared/ui/Button/Button';
+import { VIRTUALIZE_AFTER_ITEM_COUNT } from '../../../shared/constants/listRendering';
 import type { CreateCollectionInput } from '../../../domain/collections/models/Collection';
+import type { Collection } from '../../../domain/collections/models/Collection';
+
+/** Sidebar estimate: 20px vertical padding + one text/icon row. */
+const ESTIMATED_NAV_ROW_HEIGHT = 40;
+
+function CollectionNavButton({
+  collection,
+  count,
+  isActive,
+  onNavigate,
+}: {
+  collection: Collection;
+  count: number;
+  isActive: boolean;
+  onNavigate: ViewportNavProps['onNavigate'];
+}) {
+  const Icon = getCollectionIcon(collection.icon);
+  return (
+    <button
+      type="button"
+      {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
+      onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
+      aria-current={isActive ? 'page' : undefined}
+      title={`Collection: ${collection.title}`}
+    >
+      <span
+        {...stylex.props(styles.collectionIcon)}
+        style={collection.color ? { color: collection.color } : undefined}
+      >
+        {/* eslint-disable-next-line react/static-components -- `Icon` is a stable registry lookup from above, not a render-created component. */}
+        <Icon size={18} />
+      </span>
+      <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
+      {count > 0 && (
+        <span {...stylex.props(styles.countBadge)} aria-hidden="true">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Virtualized collection rows for large libraries (past
+ * `VIRTUALIZE_AFTER_ITEM_COUNT`). Uniform single-column rows inside the
+ * sidebar's own scroll pane — the plain path stays for small libraries.
+ */
+function VirtualCollectionsNavItems({
+  collections,
+  counts,
+  activeCollectionId,
+  onNavigate,
+  getScrollElement,
+}: {
+  collections: Collection[];
+  counts: Record<string, number>;
+  activeCollectionId?: string | null;
+  onNavigate: ViewportNavProps['onNavigate'];
+  getScrollElement: () => HTMLElement | null;
+}) {
+  // eslint-disable-next-line react/incompatible-library -- `useVirtualizer` returns non-memoizable functions by design (upstream documented); the component takes no memoized inputs from it.
+  const virtualizer = useVirtualizer({
+    count: collections.length,
+    getScrollElement,
+    estimateSize: () => ESTIMATED_NAV_ROW_HEIGHT,
+    overscan: 8,
+    gap: 4,
+  });
+
+  return (
+    <div
+      style={{ position: 'relative', height: `${virtualizer.getTotalSize()}px`, width: '100%' }}
+    >
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const collection = collections[virtualRow.index];
+        return (
+          <div
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <CollectionNavButton
+              collection={collection}
+              count={counts[collection.id] ?? 0}
+              isActive={activeCollectionId === collection.id}
+              onNavigate={onNavigate}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Dynamic Collections section: browsable playlist nav items with a quick-add
@@ -31,6 +132,8 @@ function CollectionsNav({
   const { counts } = useCollectionMaterialCounts();
   const createMutation = useCreateCollection();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualized = collections.length > VIRTUALIZE_AFTER_ITEM_COUNT;
 
   const handleSave = async (input: CreateCollectionInput) => {
     const created = await createMutation.mutateAsync(input);
@@ -39,7 +142,7 @@ function CollectionsNav({
   };
 
   return (
-    <div {...stylex.props(styles.collectionsScroll)}>
+    <div {...stylex.props(styles.collectionsScroll)} ref={scrollRef}>
       <div {...stylex.props(styles.navSection)}>
         <div {...stylex.props(styles.sectionHeader)}>
           <span {...stylex.props(styles.sectionLabel)}>Collections</span>
@@ -53,34 +156,25 @@ function CollectionsNav({
           />
         </div>
 
-        {collections.map((collection) => {
-          const isActive = activeCollectionId === collection.id;
-          const Icon = getCollectionIcon(collection.icon);
-          const count = counts[collection.id] ?? 0;
-          return (
-            <button
+        {virtualized ? (
+          <VirtualCollectionsNavItems
+            collections={collections}
+            counts={counts}
+            activeCollectionId={activeCollectionId}
+            onNavigate={onNavigate}
+            getScrollElement={() => scrollRef.current}
+          />
+        ) : (
+          collections.map((collection) => (
+            <CollectionNavButton
               key={collection.id}
-              type="button"
-              {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
-              onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
-              aria-current={isActive ? 'page' : undefined}
-              title={`Collection: ${collection.title}`}
-            >
-              <span
-                {...stylex.props(styles.collectionIcon)}
-                style={collection.color ? { color: collection.color } : undefined}
-              >
-                <Icon size={18} />
-              </span>
-              <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
-              {count > 0 && (
-                <span {...stylex.props(styles.countBadge)} aria-hidden="true">
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+              collection={collection}
+              count={counts[collection.id] ?? 0}
+              isActive={activeCollectionId === collection.id}
+              onNavigate={onNavigate}
+            />
+          ))
+        )}
 
         <CreateCollectionModal
           isOpen={isCreateOpen}
@@ -102,8 +196,6 @@ export function DesktopSidebar({
   const containerRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const didInitialFade = useRef(false);
-  const { materials: unassignedMaterials } = useUnassignedMaterials();
-  const unassignedCount = unassignedMaterials.length;
 
   // ── GSAP: Upper navigation link & container background fade ──
   useEffect(() => {
@@ -168,7 +260,6 @@ export function DesktopSidebar({
         <div {...stylex.props(styles.navSection)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
             const isActive = item.isActive(active);
-            const badgeCount = item.id === 'unfiled' ? unassignedCount : 0;
             return (
               <button
                 key={item.id}
@@ -180,11 +271,6 @@ export function DesktopSidebar({
               >
                 <item.icon size={18} />
                 <span {...stylex.props(styles.navLabel)}>{item.label}</span>
-                {badgeCount > 0 && (
-                  <span {...stylex.props(styles.countBadge)} aria-hidden="true">
-                    {badgeCount}
-                  </span>
-                )}
               </button>
             );
           })}

@@ -166,7 +166,7 @@ export function CollectionWorkspaceScreen({
         <EmptyState
           icon={<BookOpen size={28} />}
           title="No materials in this collection yet"
-          description="Add study materials to this collection to organize them into a playlist you can work through."
+          description="Add study materials to this collection to organize them into a collection you can work through."
           headingLevel="h3"
           action={
             <Button label="Back to Library" variant="primary" onClick={handleBackToLibrary}>

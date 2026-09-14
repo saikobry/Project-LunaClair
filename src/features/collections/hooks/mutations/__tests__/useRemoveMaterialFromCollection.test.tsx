@@ -34,7 +34,7 @@ describe('useRemoveMaterialFromCollection', () => {
     );
   }
 
-  it('executes the use case and invalidates materials + material-collections + unassigned', async () => {
+  it('executes the use case and invalidates materials + material-collections', async () => {
     const { result } = renderHook(() => useRemoveMaterialFromCollection(), {
       wrapper: createWrapper(),
     });
@@ -50,6 +50,5 @@ describe('useRemoveMaterialFromCollection', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: collectionQueryKeys.materialCollections('m-1'),
     });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: collectionQueryKeys.unassigned() });
   });
 });

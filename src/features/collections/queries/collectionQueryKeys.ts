@@ -8,6 +8,7 @@ export const collectionQueryKeys = {
   detail: (id: string) => [...collectionQueryKeys.details(), id] as const,
   materials: (collectionId: string) => [...collectionQueryKeys.all, 'materials', collectionId] as const,
   materialCollections: (materialId: string) => [...collectionQueryKeys.all, 'material-collections', materialId] as const,
-  unassigned: () => [...collectionQueryKeys.all, 'unassigned'] as const,
+  /** Material ids that belong to at least one collection (drives the Library uncollected lens). */
+  assignedMaterialIds: () => [...collectionQueryKeys.all, 'assigned-material-ids'] as const,
   materialCounts: () => [...collectionQueryKeys.all, 'material-counts'] as const,
 };

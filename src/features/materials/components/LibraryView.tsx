@@ -1,13 +1,8 @@
 import * as stylex from '@stylexjs/stylex';
-import {
-  BookHeart,
-  Inbox,
-  LibraryBig,
-  Plus,
-  Search,
-} from 'lucide-react';
+import { useState } from 'react';
+import { BookHeart, Inbox, LibraryBig, Search, X } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import { Page } from '../../../shared/ui/Page/Page';
+import type { MaterialMembershipFilter } from '../types/libraryFilter.types';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Input } from '../../../shared/ui/Input/Input';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
@@ -47,6 +42,9 @@ const localStyles = stylex.create({
     alignItems: 'center',
   },
   filterPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
     padding: '4px 12px',
     borderRadius: 16,
     borderWidth: 1,
@@ -68,14 +66,66 @@ const localStyles = stylex.create({
     },
   },
   filterPillActive: {
-    backgroundColor: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent-muted)',
     borderColor: 'var(--color-accent)',
-    color: 'var(--color-text-on-accent)',
+    color: 'var(--color-text-accent)',
     ':hover': {
       borderColor: 'var(--color-accent)',
-      color: 'var(--color-text-on-accent)',
+      color: 'var(--color-text-accent)',
       backgroundColor: 'var(--color-accent-muted)',
     },
+  },
+  /** Dimmed `#` sigil; inherits the pill ink when selected. */
+  filterHash: {
+    color: 'var(--color-text-disabled)',
+  },
+  filterHashActive: {
+    color: 'inherit',
+  },
+  /** Membership lens — visually separated from the `#tag` pills beside it. */
+  membershipGroup: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    paddingRight: 12,
+    marginRight: 4,
+    borderRightWidth: 1,
+    borderRightStyle: 'solid',
+    borderRightColor: 'var(--color-border)',
+  },
+  membershipPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '4px 12px',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border)',
+    backgroundColor: 'var(--color-background)',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    transition: 'background-color 0.15s, border-color 0.15s, color 0.15s',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+      color: 'var(--color-text-primary)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
+  },
+  membershipPillActive: {
+    backgroundColor: 'var(--color-accent-muted)',
+    borderColor: 'var(--color-accent)',
+    color: 'var(--color-text-primary)',
+  },
+  membershipCaption: {
+    fontSize: 12,
+    color: 'var(--color-text-secondary)',
+    margin: '10px 0 0',
   },
   clearFiltersBtn: {
     fontSize: 12,
@@ -100,27 +150,43 @@ const localStyles = stylex.create({
   },
 });
 
-interface LibraryViewProps {
+const MEMBERSHIP_OPTIONS: { value: MaterialMembershipFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'collected', label: 'In a collection' },
+  { value: 'uncollected', label: 'Not in a collection' },
+];
+
+/** Tag pills shown before the `+N more` expander earns its place. */
+const VISIBLE_TAG_COUNT = 8;
+
+export interface LibraryViewProps {
   isLoading?: boolean;
+  /** Materials matching the active search + tags + membership filters. */
   materials: StudyMaterial[];
+  /**
+   * Caps the rendered cards (the header count still reflects the full list).
+   * The screen owns the stepper that grows this — overview previews stay small
+   * while the materials tab passes no limit.
+   */
+  limit?: number;
+  /** Total materials in the library, ignoring filters (drives the empty states). */
+  totalMaterialCount: number;
   allTags: string[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   selectedTags: string[];
   onToggleTag: (tag: string) => void;
   onClearFilters: () => void;
-  onNewMaterial: () => void;
+  membershipFilter: MaterialMembershipFilter;
+  onMembershipFilterChange: (filter: MaterialMembershipFilter) => void;
   onOpen: (material: StudyMaterial) => void;
   onEdit: (material: StudyMaterial) => void;
   onDelete: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
+  /** Navigates to a collection (material-card membership badges). */
   onNavigate?: (collectionId: string) => void;
   onBrowseAvailable: () => void;
-  /** Unfiled mode: unassigned-materials view (title, description, empty state). */
-  unfiledMode?: boolean;
-  /** Navigates back to the full library (unfiled empty state). */
-  onBrowseLibrary?: () => void;
 }
 
 interface LibraryFilterBarProps {
@@ -131,14 +197,15 @@ interface LibraryFilterBarProps {
   onToggleTag: (tag: string) => void;
   onClearFilters: () => void;
   materialCount: number;
+  membershipFilter: MaterialMembershipFilter;
+  onMembershipFilterChange: (filter: MaterialMembershipFilter) => void;
 }
 
 /**
- * Search + tag filter controls for the library.
+ * Search + membership + tag filter controls for the library.
  *
- * Extracted from `LibraryView` so the parent keeps a flat render tree, and so
- * tag membership resolves against one `Set` instead of re-scanning
- * `selectedTags` for every pill.
+ * `#tag` pills narrow by tag (AND); the membership lens is a separate, mutually
+ * exclusive control rendered in its own group so the two are never confused.
  */
 function LibraryFilterBar({
   searchQuery,
@@ -148,10 +215,18 @@ function LibraryFilterBar({
   onToggleTag,
   onClearFilters,
   materialCount,
+  membershipFilter,
+  onMembershipFilterChange,
 }: LibraryFilterBarProps) {
   const selectedTagSet = new Set(selectedTags);
   const hasActiveFilters = selectedTags.length > 0 || searchQuery.trim().length > 0;
-  const hasTagBar = allTags.length > 0 || hasActiveFilters;
+  // Capped pill row: the top tags plus any selected tag outside the cap
+  // (a chosen filter must never disappear under the expander).
+  const [showAllTags, setShowAllTags] = useState(false);
+  const visibleTags = showAllTags
+    ? allTags
+    : allTags.filter((tag, i) => i < VISIBLE_TAG_COUNT || selectedTagSet.has(tag));
+  const hiddenTagCount = allTags.length - visibleTags.length;
 
   return (
     <div {...stylex.props(localStyles.filterContainer)}>
@@ -168,70 +243,158 @@ function LibraryFilterBar({
           clearable
         />
       </div>
-      {hasTagBar && (
-        <div {...stylex.props(localStyles.filterBar)}>
-          {allTags.map((tag) => {
-            const isActive = selectedTagSet.has(tag);
+
+      <div {...stylex.props(localStyles.filterBar)}>
+        <div
+          {...stylex.props(localStyles.membershipGroup)}
+          role="group"
+          aria-label="Filter by collection membership"
+        >
+          {MEMBERSHIP_OPTIONS.map((option) => {
+            const isActive = membershipFilter === option.value;
             return (
               <button
-                key={tag}
+                key={option.value}
                 type="button"
                 aria-pressed={isActive}
-                {...stylex.props(localStyles.filterPill, isActive && localStyles.filterPillActive)}
-                onClick={() => onToggleTag(tag)}
+                {...stylex.props(
+                  localStyles.membershipPill,
+                  isActive && localStyles.membershipPillActive,
+                )}
+                onClick={() => onMembershipFilterChange(option.value)}
               >
-                #{tag}
+                {option.label}
               </button>
             );
           })}
-          {hasActiveFilters && (
-            <button
-              type="button"
-              {...stylex.props(localStyles.clearFiltersBtn)}
-              onClick={onClearFilters}
-            >
-              Clear filters
-            </button>
-          )}
-          {selectedTags.length > 1 && (
-            <span {...stylex.props(localStyles.resultCount)}>
-              Matching all selected tags · {materialCount} results
-            </span>
-          )}
         </div>
+
+        {visibleTags.map((tag) => {
+          const isActive = selectedTagSet.has(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              aria-pressed={isActive}
+              {...stylex.props(localStyles.filterPill, isActive && localStyles.filterPillActive)}
+              onClick={() => onToggleTag(tag)}
+            >
+              <span
+                aria-hidden="true"
+                {...stylex.props(localStyles.filterHash, isActive && localStyles.filterHashActive)}
+              >
+                #
+              </span>
+              {tag}
+              {isActive && <X size={10} aria-hidden="true" />}
+            </button>
+          );
+        })}
+
+        {hiddenTagCount > 0 && (
+          <button
+            type="button"
+            {...stylex.props(localStyles.clearFiltersBtn)}
+            onClick={() => setShowAllTags(true)}
+            aria-label={`Show ${hiddenTagCount} more tags`}
+          >
+            +{hiddenTagCount} more
+          </button>
+        )}
+        {showAllTags && allTags.length > VISIBLE_TAG_COUNT && (
+          <button
+            type="button"
+            {...stylex.props(localStyles.clearFiltersBtn)}
+            onClick={() => setShowAllTags(false)}
+          >
+            Show less
+          </button>
+        )}
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            {...stylex.props(localStyles.clearFiltersBtn)}
+            onClick={onClearFilters}
+          >
+            Clear filters
+          </button>
+        )}
+
+        {selectedTags.length > 1 && (
+          <span {...stylex.props(localStyles.resultCount)}>
+            Matching any selected tag · {materialCount} results
+          </span>
+        )}
+      </div>
+
+      {membershipFilter === 'uncollected' && (
+        <p {...stylex.props(localStyles.membershipCaption)}>
+          Materials in no collection.
+        </p>
+      )}
+      {membershipFilter === 'collected' && (
+        <p {...stylex.props(localStyles.membershipCaption)}>
+          Materials that belong to at least one collection.
+        </p>
       )}
     </div>
   );
 }
 
 interface LibraryEmptyStatesProps {
-  unfiledMode: boolean;
-  onBrowseLibrary?: () => void;
+  totalMaterialCount: number;
+  membershipFilter: MaterialMembershipFilter;
+  onMembershipFilterChange: (filter: MaterialMembershipFilter) => void;
+  onClearFilters: () => void;
   onBrowseAvailable: () => void;
 }
 
-/** Empty state for the unfiled view, or for a library with nothing in it yet. */
+/**
+ * Three distinct zero-result situations, in priority order:
+ * an empty library, a cleared `uncollected` lens, and an over-narrow filter.
+ */
 function LibraryEmptyStates({
-  unfiledMode,
-  onBrowseLibrary,
+  totalMaterialCount,
+  membershipFilter,
+  onMembershipFilterChange,
+  onClearFilters,
   onBrowseAvailable,
 }: LibraryEmptyStatesProps) {
-  if (unfiledMode) {
+  if (totalMaterialCount === 0) {
+    return (
+      <EmptyState
+        icon={<BookHeart size={56} />}
+        title="Your library is empty"
+        description="Explore study packages on the Explore hub and clone them to your library. Cloned packages are available offline, including their quizzes."
+        action={
+          <Button
+            label="Explore Study Packages"
+            variant="primary"
+            icon={<LibraryBig size={18} />}
+            onClick={onBrowseAvailable}
+          >
+            Explore Study Packages
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (membershipFilter === 'uncollected') {
     return (
       <EmptyState
         icon={<Inbox size={56} />}
         title="Everything has a home."
-        description="Your unfiled list is clear. Materials can still live in more than one collection."
+        description="No materials outside a collection. Materials can still live in more than one collection."
         action={
-          onBrowseLibrary ? (
-            <Button
-              label="Browse all materials"
-              variant="primary"
-              onClick={onBrowseLibrary}
-            >
-              Browse all materials
-            </Button>
-          ) : undefined
+          <Button
+            label="Browse all materials"
+            variant="primary"
+            onClick={() => onMembershipFilterChange('all')}
+          >
+            Browse all materials
+          </Button>
         }
       />
     );
@@ -239,33 +402,38 @@ function LibraryEmptyStates({
 
   return (
     <EmptyState
-      icon={<BookHeart size={56} />}
-      title="Your library is empty"
-      description="Explore study packages on the Explore hub and clone them to your library. Cloned packages are available offline, including their quizzes."
+      icon={<Search size={56} />}
+      title="No materials found"
+      description="Try another search or remove a tag to widen your view."
       action={
-        <Button
-          label="Explore Study Packages"
-          variant="primary"
-          icon={<LibraryBig size={18} />}
-          onClick={onBrowseAvailable}
-        >
-          Explore Study Packages
+        <Button label="Clear filters" variant="secondary" onClick={onClearFilters}>
+          Clear filters
         </Button>
       }
     />
   );
 }
 
+/**
+ * Library materials section — the search/membership/tag filter bar, the material
+ * grid, and the zero-result states.
+ *
+ * Page chrome (title, description, primary actions) belongs to the route screen;
+ * the Collections shelf is composed above this by `LibraryScreen`.
+ */
 export default function LibraryView({
   isLoading = false,
   materials,
+  limit,
+  totalMaterialCount,
   allTags,
   searchQuery,
   onSearchChange,
   selectedTags,
   onToggleTag,
   onClearFilters,
-  onNewMaterial,
+  membershipFilter,
+  onMembershipFilterChange,
   onOpen,
   onEdit,
   onDelete,
@@ -273,45 +441,25 @@ export default function LibraryView({
   onManage,
   onNavigate,
   onBrowseAvailable,
-  unfiledMode = false,
-  onBrowseLibrary,
 }: LibraryViewProps) {
-  const totalCount = materials.length;
-  const description = isLoading
-    ? undefined
-    : unfiledMode
-      ? 'Room to find a home · Materials not in any collection'
-      : `${totalCount} ${totalCount === 1 ? 'material' : 'materials'}`;
-
   return (
-    <Page
-      title={unfiledMode ? 'Unfiled' : 'Study Library'}
-      description={description}
-      actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            label="New Material"
-            variant="primary"
-            icon={<Plus size={18} />}
-            onClick={onNewMaterial}
-          >
-            New Material
-          </Button>
-        </div>
-      }
-    >
+    <section {...stylex.props(localStyles.section)} aria-labelledby="library-materials-heading">
+      <div {...stylex.props(localStyles.sectionHeader)}>
+        <h2 id="library-materials-heading" {...stylex.props(localStyles.sectionTitle)}>
+          Materials
+        </h2>
+        {!isLoading && (
+          <span {...stylex.props(localStyles.sectionCount)}>
+            {materials.length} {materials.length === 1 ? 'material' : 'materials'}
+          </span>
+        )}
+      </div>
+
       {/* Loading State — skeleton while queries are in-flight */}
-      {isLoading && (
-        <div {...stylex.props(localStyles.section)}>
-          <div {...stylex.props(localStyles.sectionHeader)}>
-            <h2 {...stylex.props(localStyles.sectionTitle)}>Materials</h2>
-          </div>
-          <CardGridSkeleton count={6} />
-        </div>
-      )}
+      {isLoading && <CardGridSkeleton count={6} />}
 
       {/* Filter Controls */}
-      {!isLoading && materials.length > 0 && (
+      {!isLoading && totalMaterialCount > 0 && (
         <LibraryFilterBar
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
@@ -320,38 +468,37 @@ export default function LibraryView({
           onToggleTag={onToggleTag}
           onClearFilters={onClearFilters}
           materialCount={materials.length}
+          membershipFilter={membershipFilter}
+          onMembershipFilterChange={onMembershipFilterChange}
         />
       )}
 
       {/* Materials */}
       {!isLoading && materials.length > 0 && (
-        <div {...stylex.props(localStyles.section)}>
-          <div {...stylex.props(localStyles.sectionHeader)}>
-            <h2 {...stylex.props(localStyles.sectionTitle)}>Materials</h2>
-            <span {...stylex.props(localStyles.sectionCount)}>
-              {materials.length} {materials.length === 1 ? 'material' : 'materials'}
-            </span>
-          </div>
-          <MaterialGrid
-            materials={materials}
-            onOpen={onOpen}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onStartQuiz={onStartQuiz}
-            onManage={onManage}
-            onNavigate={onNavigate}
-          />
-        </div>
+        <MaterialGrid
+          materials={limit === undefined ? materials : materials.slice(0, limit)}
+          onOpen={onOpen}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onStartQuiz={onStartQuiz}
+          onManage={onManage}
+          onNavigate={onNavigate}
+          onToggleTag={onToggleTag}
+          selectedTags={selectedTags}
+        />
       )}
 
-      {/* Empty State — unfiled variant, or an entirely empty library */}
+      {/* Empty States — empty library, cleared uncollected lens, or over-narrow filters */}
       {!isLoading && materials.length === 0 && (
         <LibraryEmptyStates
-          unfiledMode={unfiledMode}
-          onBrowseLibrary={onBrowseLibrary}
+          totalMaterialCount={totalMaterialCount}
+          membershipFilter={membershipFilter}
+          onMembershipFilterChange={onMembershipFilterChange}
+          onClearFilters={onClearFilters}
           onBrowseAvailable={onBrowseAvailable}
         />
       )}
-    </Page>
+
+    </section>
   );
 }

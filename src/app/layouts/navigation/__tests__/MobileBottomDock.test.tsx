@@ -33,14 +33,15 @@ describe('test MobileBottomDock', () => {
     );
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(7);
-    expect(buttons[0]).toHaveAttribute('title', 'Library');
-    expect(buttons[1]).toHaveAttribute('title', 'Unfiled — Unassigned Materials');
+    // 4 primary destinations + the collections popover trigger + Focus Mode.
+    // Import is not a destination — it is reached from Home's quick actions.
+    expect(buttons).toHaveLength(6);
+    expect(buttons[0]).toHaveAttribute('title', 'Home');
+    expect(buttons[1]).toHaveAttribute('title', 'Library — Collections & Materials');
     expect(buttons[2]).toHaveAttribute('title', 'Explore Content');
     expect(buttons[3]).toHaveAttribute('title', 'Collections');
-    expect(buttons[4]).toHaveAttribute('title', 'Import Content');
-    expect(buttons[5]).toHaveAttribute('title', 'Learning Insights & Analytics');
-    expect(buttons[6]).toHaveAttribute('title', 'Enter Focus Mode');
+    expect(buttons[4]).toHaveAttribute('title', 'Learning Insights & Analytics');
+    expect(buttons[5]).toHaveAttribute('title', 'Enter Focus Mode');
   });
 
   it('does not render an active material button in the dock', () => {
@@ -71,6 +72,6 @@ describe('test MobileBottomDock', () => {
     );
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(7);
+    expect(buttons).toHaveLength(6);
   });
 });

@@ -9,7 +9,7 @@ import { routeToUrl, urlToRoute, type AppRoute } from './routing';
 export function useAppRoute() {
   const [currentRoute, setCurrentRoute] = useState<AppRoute>(() => {
     const parsed = urlToRoute(window.location.pathname, window.location.search);
-    return parsed ?? { kind: 'library' };
+    return parsed ?? { kind: 'home' };
   });
 
   // Sync URL when route changes

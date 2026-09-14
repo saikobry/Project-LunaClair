@@ -44,9 +44,16 @@ interface UseCollectionMaterialReorderOptions {
  * GSAP-backed reordering for a collection's material list.
  *
  * Owns two drag affordances:
- * - `>= 640px` — the visible grip handle (`[data-drag-handle="true"]`).
+ * - `>= 640px` — the visible grip handle (`[data-drag-handle="true"]`),
+ *   driven by a GSAP `Draggable` per row.
  * - `< 640px` — a 280ms hold on the row itself, with a circular progress ring
- *   centered on the touch point and a border illumination on the row.
+ *   centered on the touch point and a border illumination on the row. The
+ *   post-hold drag is driven manually with Pointer Events (not
+ *   `Draggable.startDrag`): a programmatic start from the stale press event
+ *   leaves GSAP listening for the wrong move events (touch-only for a mouse,
+ *   scroll-claimed for touch), so the card never follows the pointer. Manual
+ *   tracking works uniformly for mouse/touch/pen, and a non-passive
+ *   `touchmove` lock suppresses native scrolling while armed.
  *
  * Every listener and timer this hook registers is owned by the same layout
  * effect that created it: rows re-register per run, and an in-flight hold is
@@ -92,6 +99,95 @@ export function useCollectionMaterialReorder({
       }
     }
 
+    // Armed manual drags (mobile hold path) owned by this run, so unmount or
+    // re-run detaches their window listeners and scroll locks.
+    const armedTeardowns: Array<() => void> = [];
+
+    /** Live row metrics: first-row height stands in for the uniform row height. */
+    const rowMetrics = () => {
+      const rows = Array.from(listEl.querySelectorAll<HTMLElement>('[data-material-id]'));
+      return { rows, rowHeight: rows[0]?.offsetHeight || 56 };
+    };
+
+    /** Slot index for a drag-center Y, with hysteresis against the last slot. */
+    const candidateForCenter = (centerY: number, rowHeight: number, count: number, prev: number) => {
+      const raw = Math.floor(centerY / (rowHeight + ROW_GAP));
+      const idx = Math.max(0, Math.min(count - 1, raw));
+      if (idx !== prev) {
+        const prevCenterY = prev * (rowHeight + ROW_GAP) + rowHeight / 2;
+        if (Math.abs(centerY - prevCenterY) < SLOT_HYSTERESIS_PX) return prev;
+      }
+      return idx;
+    };
+
+    /** Pushes every sibling toward the slot freed by a `fromIdx -> toIdx` move. */
+    const displaceSiblings = (materialId: string, fromIdx: number, toIdx: number, rowHeight: number) => {
+      materialsRef.current.forEach((m, i) => {
+        if (m.id === materialId) return;
+        const siblingEl = listEl.querySelector<HTMLElement>(`[data-material-id="${m.id}"]`);
+        if (!siblingEl) return;
+
+        let newSlot = i;
+        if (fromIdx < toIdx && i > fromIdx && i <= toIdx) {
+          newSlot = i - 1;
+        } else if (fromIdx > toIdx && i >= toIdx && i < fromIdx) {
+          newSlot = i + 1;
+        }
+
+        const dy = (newSlot - i) * (rowHeight + ROW_GAP);
+        gsap.to(siblingEl, {
+          y: dy,
+          duration: 0.3,
+          ease: 'power2.out',
+          overwrite: 'auto',
+        });
+      });
+    };
+
+    /** Commits a finished drag (or snaps back) and clears every row transform. */
+    const settleRow = (rowEl: HTMLElement, fromIdx: number, toIdx: number, rowHeight: number) => {
+      if (!rowEl.isConnected) return;
+      if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+        const finalDy = (toIdx - fromIdx) * (rowHeight + ROW_GAP);
+
+        gsap.to(rowEl, {
+          y: finalDy,
+          boxShadow: 'none',
+          borderColor: 'var(--color-border)',
+          duration: 0.2,
+          ease: 'power2.out',
+          overwrite: 'auto',
+          onComplete: () => {
+            const next = [...materialsRef.current];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+
+            // Update internal state immediately so React reconciles DOM into target order
+            setItems(next);
+            onReorder?.(next.map((m) => m.id));
+
+            const allRows = listEl.querySelectorAll<HTMLElement>('[data-material-id]');
+            gsap.killTweensOf(allRows, 'y');
+            requestAnimationFrame(() => {
+              allRows.forEach((r) => gsap.set(r, { clearProps: 'zIndex,y,boxShadow,borderColor,backgroundColor' }));
+            });
+          },
+        });
+      } else {
+        gsap.to(rowEl, {
+          y: 0,
+          boxShadow: 'none',
+          borderColor: 'var(--color-border)',
+          duration: 0.15,
+          ease: 'power2.out',
+          overwrite: 'auto',
+          onComplete: () => {
+            gsap.set(rowEl, { clearProps: 'zIndex,y,boxShadow,borderColor,backgroundColor' });
+          },
+        });
+      }
+    };
+
     for (const material of items) {
       const materialId = material.id;
       const rowEl = listEl.querySelector<HTMLElement>(`[data-material-id="${materialId}"]`);
@@ -123,99 +219,26 @@ export function useCollectionMaterialReorder({
             });
           },
           onDrag(this: Draggable) {
-            const currentList = materialsRef.current;
             const fromIdx = dragOriginIndexRef.current;
             if (fromIdx === -1) return;
 
+            const { rowHeight } = rowMetrics();
             const listRect = listEl.getBoundingClientRect();
             const rowRect = rowEl.getBoundingClientRect();
             const dragCenterY = rowRect.top - listRect.top + rowRect.height / 2;
 
-            const rows = Array.from(listEl.querySelectorAll<HTMLElement>('[data-material-id]'));
-            if (!rows.length) return;
-            const rowHeight = rows[0].offsetHeight || 56;
-
-            const rawCandidate = Math.floor(dragCenterY / (rowHeight + ROW_GAP));
-            const candidateIdx = Math.max(0, Math.min(currentList.length - 1, rawCandidate));
-
-            const prevCand = candidateIndexRef.current;
-            if (candidateIdx !== prevCand) {
-              const prevCenterY = prevCand * (rowHeight + ROW_GAP) + rowHeight / 2;
-              const dist = Math.abs(dragCenterY - prevCenterY);
-              if (dist < SLOT_HYSTERESIS_PX) return;
-              candidateIndexRef.current = candidateIdx;
-            }
-
-            const toIdx = candidateIndexRef.current;
-
-            currentList.forEach((m, i) => {
-              const currentMaterialId = m.id;
-              if (currentMaterialId === materialId) return;
-              const siblingEl = listEl.querySelector<HTMLElement>(`[data-material-id="${currentMaterialId}"]`);
-              if (!siblingEl) return;
-
-              let newSlot = i;
-              if (fromIdx < toIdx && i > fromIdx && i <= toIdx) {
-                newSlot = i - 1;
-              } else if (fromIdx > toIdx && i >= toIdx && i < fromIdx) {
-                newSlot = i + 1;
-              }
-
-              const dy = (newSlot - i) * (rowHeight + ROW_GAP);
-              gsap.to(siblingEl, {
-                y: dy,
-                duration: 0.3,
-                ease: 'power2.out',
-                overwrite: 'auto',
-              });
-            });
+            candidateIndexRef.current = candidateForCenter(
+              dragCenterY,
+              rowHeight,
+              materialsRef.current.length,
+              candidateIndexRef.current,
+            );
+            displaceSiblings(materialId, fromIdx, candidateIndexRef.current, rowHeight);
           },
           onRelease(this: Draggable) {
             rowEl.style.touchAction = '';
-            const fromIdx = dragOriginIndexRef.current;
-            const toIdx = candidateIndexRef.current;
-            const rows = Array.from(listEl.querySelectorAll<HTMLElement>('[data-material-id]'));
-            const rowHeight = rows[0]?.offsetHeight || 56;
-
-            if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
-              const finalDy = (toIdx - fromIdx) * (rowHeight + ROW_GAP);
-
-              gsap.to(rowEl, {
-                y: finalDy,
-                boxShadow: 'none',
-                borderColor: 'var(--color-border)',
-                duration: 0.2,
-                ease: 'power2.out',
-                overwrite: 'auto',
-                onComplete: () => {
-                  const next = [...materialsRef.current];
-                  const [moved] = next.splice(fromIdx, 1);
-                  next.splice(toIdx, 0, moved);
-
-                  // Update internal state immediately so React reconciles DOM into target order
-                  setItems(next);
-                  onReorder?.(next.map((m) => m.id));
-
-                  const allRows = listEl.querySelectorAll<HTMLElement>('[data-material-id]');
-                  gsap.killTweensOf(allRows, 'y');
-                  requestAnimationFrame(() => {
-                    allRows.forEach((r) => gsap.set(r, { clearProps: 'zIndex,y,boxShadow,borderColor,backgroundColor' }));
-                  });
-                },
-              });
-            } else {
-              gsap.to(rowEl, {
-                y: 0,
-                boxShadow: 'none',
-                borderColor: 'var(--color-border)',
-                duration: 0.15,
-                ease: 'power2.out',
-                overwrite: 'auto',
-                onComplete: () => {
-                  gsap.set(rowEl, { clearProps: 'zIndex,y,boxShadow,borderColor,backgroundColor' });
-                },
-              });
-            }
+            const { rowHeight } = rowMetrics();
+            settleRow(rowEl, dragOriginIndexRef.current, candidateIndexRef.current, rowHeight);
           },
         });
         draggablesRef.current.set(materialId, instance);
@@ -345,21 +368,90 @@ export function useCollectionMaterialReorder({
         });
 
         holdTimer = setTimeout(() => {
+          if (!rowEl.isConnected) {
+            cleanupHold(false);
+            return;
+          }
           cleanupHold(true);
           if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
             try {
               navigator.vibrate(30);
             } catch {}
           }
+
+          // Manual armed drag: Pointer Events track mouse/touch/pen uniformly
+          // from the live gesture (GSAP cannot — see the hook comment).
+          const indexMap = new Map(materialsRef.current.map((m, idx) => [m.id, idx]));
+          const fromIdx = indexMap.get(materialId) ?? -1;
+          if (fromIdx === -1) return;
+          let armedIdx = fromIdx;
+          const startY = e.clientY;
+          // Hoisted `function` handlers below lose the outer narrowing, so pin
+          // non-null locals for them.
+          const armedRow: HTMLElement = rowEl;
+          const armedList: HTMLDivElement = listEl;
+
+          gsap.set(rowEl, { zIndex: 100 });
+          gsap.to(rowEl, {
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            borderColor: 'var(--color-accent, #a78bfa)',
+            duration: 0.15,
+            overwrite: 'auto',
+          });
+
           rowEl.style.touchAction = 'none';
           try {
             rowEl.setPointerCapture?.(pointerId);
           } catch {}
 
-          const currentDraggable = draggablesRef.current.get(materialId);
-          if (currentDraggable) {
-            currentDraggable.startDrag(e);
+          // The press predates the takeover, so `touch-action` alone cannot be
+          // trusted mid-gesture: suppress native scrolling while armed.
+          const stopScroll = (touchEvt: TouchEvent) => {
+            touchEvt.preventDefault();
+          };
+          window.addEventListener('touchmove', stopScroll, { passive: false });
+
+          let armedDone = false;
+          function teardownArmed() {
+            if (armedDone) return;
+            armedDone = true;
+            window.removeEventListener('pointermove', onArmedMove);
+            window.removeEventListener('pointerup', onArmedUp);
+            window.removeEventListener('pointercancel', onArmedCancel);
+            window.removeEventListener('touchmove', stopScroll);
+            armedRow.style.touchAction = '';
           }
+          armedTeardowns.push(teardownArmed);
+
+          function finishArmed(commit: boolean) {
+            teardownArmed();
+            const { rowHeight } = rowMetrics();
+            settleRow(armedRow, fromIdx, commit ? armedIdx : fromIdx, rowHeight);
+          }
+
+          function onArmedMove(moveEvt: PointerEvent) {
+            if (moveEvt.pointerId !== pointerId || !armedRow.isConnected) return;
+            gsap.set(armedRow, { y: moveEvt.clientY - startY });
+            const { rowHeight } = rowMetrics();
+            const listRect = armedList.getBoundingClientRect();
+            const rowRect = armedRow.getBoundingClientRect();
+            const centerY = rowRect.top - listRect.top + rowRect.height / 2;
+            armedIdx = candidateForCenter(centerY, rowHeight, materialsRef.current.length, armedIdx);
+            displaceSiblings(materialId, fromIdx, armedIdx, rowHeight);
+          }
+
+          function onArmedUp(upEvt: PointerEvent) {
+            if (upEvt.pointerId !== pointerId) return;
+            finishArmed(true);
+          }
+
+          function onArmedCancel() {
+            finishArmed(false);
+          }
+
+          window.addEventListener('pointermove', onArmedMove, { passive: true });
+          window.addEventListener('pointerup', onArmedUp);
+          window.addEventListener('pointercancel', onArmedCancel);
         }, HOLD_DURATION_MS);
 
         holds.set(pointerId, { timer: holdTimer, cleanup: () => cleanupHold(false) });
@@ -393,6 +485,7 @@ export function useCollectionMaterialReorder({
       }
       rowListeners.length = 0;
       cancelPendingHolds();
+      for (const teardown of armedTeardowns.splice(0)) teardown();
     };
   }, [items, onReorder, setItems]);
 

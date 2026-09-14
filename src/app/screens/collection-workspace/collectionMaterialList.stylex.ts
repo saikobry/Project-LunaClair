@@ -29,6 +29,10 @@ export const styles = stylex.create({
     borderColor: 'var(--color-border)',
     backgroundColor: 'var(--color-background-surface, #17181d)',
     transition: 'border-color 0.16s, background-color 0.16s',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+      backgroundColor: 'var(--color-background-muted)',
+    },
     WebkitFontSmoothing: 'antialiased',
     userSelect: 'none',
   },
@@ -111,6 +115,10 @@ export const styles = stylex.create({
     cursor: 'pointer',
     display: 'block',
     width: '100%',
+    transition: 'color 0.15s ease',
+    ':hover': {
+      color: 'var(--color-accent)',
+    },
   },
   tags: {
     display: 'flex',
@@ -215,6 +223,16 @@ export const styles = stylex.create({
     justifyContent: 'center',
     gap: 8,
     fontSize: 13,
+    transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+    ':hover': {
+      backgroundColor: 'var(--color-background-muted)',
+      borderColor: 'var(--color-accent)',
+      color: 'var(--color-accent)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
   },
   footerText: {
     fontSize: 12,

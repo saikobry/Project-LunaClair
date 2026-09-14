@@ -1,6 +1,7 @@
 import { useCallback, lazy, Suspense } from 'react';
 import type { QuizLaunchRequest } from '../../features/quiz/types/quizFeature.types';
-import LibraryHomeScreen from '../screens/library/LibraryHomeScreen';
+import HomeScreen from '../screens/home/HomeScreen';
+import LibraryScreen from '../screens/library/LibraryScreen';
 import { useTouchMaterial } from '../../features/materials/hooks/mutations/useTouchMaterial';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
 import type { AppRoute } from './routing';
@@ -95,22 +96,31 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
 
   return (
     <>
-      {currentRoute.kind === 'library' && (
-        <LibraryHomeScreen
+      {currentRoute.kind === 'home' && (
+        <HomeScreen
           onOpenMaterial={handleOpenMaterial}
           onStartQuiz={handleStartQuiz}
-          onManage={handleManageQuiz}
-          onBrowseAvailable={() => navigate({ kind: 'explore' })}
+          onNavigateToLibrary={() => navigate({ kind: 'library' })}
+          onNavigateToExplore={() => navigate({ kind: 'explore' })}
+          onNavigateToImport={() => navigate({ kind: 'import' })}
         />
       )}
-      {currentRoute.kind === 'unfiled' && (
-        <LibraryHomeScreen
-          unfiledOnly
+      {currentRoute.kind === 'library' && (
+        <LibraryScreen
+          filter={currentRoute.filter}
+          view={currentRoute.view}
+          // `all` and `overview` are the defaults — keep the canonical `/library` URL.
+          onFilterChange={(filter) =>
+            navigate({ kind: 'library', filter: filter === 'all' ? undefined : filter, view: currentRoute.view })
+          }
+          onViewChange={(view) =>
+            navigate({ kind: 'library', filter: currentRoute.filter, view: view === 'overview' ? undefined : view })
+          }
           onOpenMaterial={handleOpenMaterial}
           onStartQuiz={handleStartQuiz}
           onManage={handleManageQuiz}
+          onOpenCollection={(collectionId) => navigate({ kind: 'collection', collectionId })}
           onBrowseAvailable={() => navigate({ kind: 'explore' })}
-          onBrowseLibrary={() => navigate({ kind: 'library' })}
         />
       )}
       {(currentRoute.kind === 'explore' || currentRoute.kind === 'available') && (

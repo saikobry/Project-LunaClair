@@ -20,8 +20,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `importer/` | ✅ Implemented | Content Importer — 5-step wizard workflow (selecting → extracting → review → details → completed), drag-and-drop file ingestion, hybrid PDF extraction + OCR, adaptive review with Lexical `WriterEditor` and `MarkdownViewer`. |
 | `sync/` | ✅ Implemented | Cloud synchronization UX — Reactive status hook (`useSyncStatus`, `useConflictDrafts`), status presentation pill (`SyncStatusPill`), and interactive document conflict resolution modal (`ConflictDraftsModal`). |
 | `package/` | ✅ Implemented | Study Package (.lcpack) import/export and cloud sharing landing capabilities — `useExportStudyPackage`, `useImportStudyPackage`, `StudyPackagePreviewModal`, workspace/deck export triggers. |
-| `collections/` | 🚧 In progress (parallel ownership) | Playlist Collections — collection query/mutation hooks and cache keys (parallel owner), plus self-contained collection dialogs (`CreateCollectionModal`, `EditCollectionModal`, `ManageMaterialCollectionsModal`) for collection creation, editing, and material assignment. |
-| `collections/` | ✅ Implemented | Playlist-model collections — membership queries (`useCollections`, `useCollection`, `useCollectionMaterials`, `useMaterialCollections`, `useUnassignedMaterials`), membership mutations (`useCreateCollection`, `useUpdateCollection`, `useDeleteCollection`, `useAddMaterialToCollection`, `useRemoveMaterialFromCollection`, `useReorderCollectionMaterials`), and `collectionQueryKeys`. Edit dialogs in `modals/` are parallel-owned (do not touch). |
+| `collections/` | ✅ Implemented | Playlist-model collections — membership queries (`useCollections`, `useCollection`, `useCollectionMaterials`, `useMaterialCollections`, `useAssignedMaterialIds`), membership mutations (`useCreateCollection`, `useUpdateCollection`, `useDeleteCollection`, `useAddMaterialToCollection`, `useRemoveMaterialFromCollection`, `useReorderCollectionMaterials`), `collectionQueryKeys`, and the Library `CollectionShelf` presentation component. Dialogs in `modals/` are parallel-owned (do not touch). |
 
 ## Local Contracts
 
@@ -34,7 +33,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `Features → Context Repositories`: Permitted for query/read hooks; mutations must never invoke repository methods directly.
 - **Features represent bounded capabilities, not route screens (ADR-014).**
   - Features own domain capabilities, state hooks, queries, mutations, and feature-owned presentation components (e.g. `MaterialCard`, `ReaderView`, `MaterialGrid`).
-  - Route-level page layouts, routing compositions, and cross-feature orchestrations belong exclusively to `src/app/screens/` (e.g. `LibraryHomeScreen`, `MaterialWorkspaceScreen`, `ExploreScreen`).
+  - Route-level page layouts, routing compositions, and cross-feature orchestrations belong exclusively to `src/app/screens/` (e.g. `HomeScreen`, `LibraryScreen`, `MaterialWorkspaceScreen`, `ExploreScreen`).
 - **Directed Acyclic Graph (DAG) Dependency Model (ADR-014):**
   - Cross-feature dependencies have an intentional direction and must NEVER form cycles.
   - `materials` is a foundational leaf capability with zero dependencies on other features.
@@ -53,7 +52,8 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 - **Feature-Root Barrels Prohibited (ADR-010).** Features do not expose root `index.ts` boundary barrels; cross-feature consumption uses approved direct module paths.
 - **react-doctor `no-barrel-import` — resolved project-wide (Aug 2026), codified in [ADR-010](../../docs/architecture/adr/ADR-010-replace-barrel-based-feature-boundaries.md).**
   - **Cross-feature direct paths allow-list:**
-    - `screens/library/*` → `features/materials/components/LibraryView`, `features/materials/modals/*`
+    - `screens/home/*` → `features/materials/hooks/queries/useLibrary`, `features/materials/modals/CreateMaterialModal`, `features/analytics/hooks/queries/useGlobalAnalytics`
+    - `screens/library/*` → `features/materials/components/LibraryView`, `features/materials/modals/*`, `features/materials/hooks/queries/useLibrary`, `features/materials/hooks/mutations/*`, `features/materials/types/libraryFilter.types`, `features/collections/components/CollectionShelf`, `features/collections/hooks/queries/useAssignedMaterialIds`, `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`
     - `screens/material-workspace/*` → `features/materials/hooks/queries/useMaterial`, `features/reader/ReaderScreen`, `features/writer/components/MaterialWriterTab`, `features/quiz/QuizScreen`, `features/quiz-management/QuizManagementScreen`, `features/flashcards/FlashcardScreen`, `features/ai/components/AiChatDrawer`    - `screens/explore/*` → `features/discovery/hooks/useExploreContent`, `features/discovery/hooks/useCloneShare`
     - `writer/components/MaterialWriterTab` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
     - `writer/hooks/useMaterialWriterState` → `features/materials/hooks/queries/useMaterial`, `features/reader/hooks/useDocument`
@@ -65,8 +65,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
     - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/queries/useCollectionQuizTree`, `features/collections/components/CollectionQuizExplorer`, `features/collections/types/collectionQuizTree.types`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/materials/components/MaterialCard`, `features/quiz/types/quizFeature.types`
-    - `screens/library/*` → `features/collections/hooks/queries/useUnassignedMaterials` (unfiled mode)
-    - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/queries/useUnassignedMaterials`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
+    - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
     - `layouts/navigation/*` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
 
 ## Work Guidance
@@ -96,5 +95,4 @@ Feature-based modules, each containing bounded domain capabilities: components, 
 | `src/features/writer/AGENTS.md` | `src/features/writer/` | Writer feature — standard Lexical WYSIWYG authoring, lossless Markdown transformation |
 | `src/features/sync/AGENTS.md` | `src/features/sync/` | Cloud Synchronization UX — Status pill, conflict resolution modal, reactive synchronization hooks |
 | `src/features/package/AGENTS.md` | `src/features/package/` | Study Package feature — .lcpack export & import hooks, package inspection & preview modal |
-| `src/features/collections/AGENTS.md` | `src/features/collections/` | Playlist Collections — collection hooks/queries (parallel owner) and self-contained collection dialogs |
-| `src/features/collections/AGENTS.md` | `src/features/collections/` | Playlist Collections — membership queries/mutations, collection query keys |
+| `src/features/collections/AGENTS.md` | `src/features/collections/` | Playlist Collections — membership queries/mutations, collection query keys, CollectionShelf |

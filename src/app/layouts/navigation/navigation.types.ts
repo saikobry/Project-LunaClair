@@ -2,12 +2,12 @@ import type { AppRoute } from '../../routing/routing';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 
 export type NavActiveSection =
+  | 'home'
   | 'library'
   | 'explore'
   | 'available'
   | 'import'
   | 'analytics'
-  | 'unfiled'
   | 'none';
 
 /** Workspace tabs a material can be open on (`/materials/:id?tab=...`). */

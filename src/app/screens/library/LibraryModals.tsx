@@ -1,78 +1,63 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import EditMaterialModal from '../../../features/materials/modals/EditMaterialModal';
 import CreateMaterialModal from '../../../features/materials/modals/CreateMaterialModal';
 import DeleteConfirmationModal from '../../../features/materials/modals/DeleteConfirmationModal';
-import ManageMaterialCollectionsModal from '../../../features/collections/modals/ManageMaterialCollectionsModal';
 import CreateCollectionModal from '../../../features/collections/modals/CreateCollectionModal';
-import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
-import { useMaterialCollections } from '../../../features/collections/hooks/queries/useMaterialCollections';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
-import { useAddMaterialToCollection } from '../../../features/collections/hooks/mutations/useAddMaterialToCollection';
-import { useRemoveMaterialFromCollection } from '../../../features/collections/hooks/mutations/useRemoveMaterialFromCollection';
 
 export interface LibraryModalsProps {
   editTarget: StudyMaterial | null;
   deleteTarget: StudyMaterial | null;
   showCreateMaterial: boolean;
+  showCreateCollection: boolean;
   onEditSave: (title: string, description: string, tags?: string[]) => void;
   onEditClose: () => void;
   onCreateMaterialSave: (title: string, description: string, tags?: string[]) => void;
   onCreateMaterialClose: () => void;
   onDeleteConfirm: () => void;
   onDeleteClose: () => void;
-  managingCollectionsMaterial: StudyMaterial | null;
-  onCloseManageCollections: () => void;
+  /** Receives the created collection so the caller can navigate to it. */
+  onCreateCollectionSave: (input: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+  }) => void;
+  onCreateCollectionClose: () => void;
 }
 
+/**
+ * Dialog container for the Library screen: material create/edit/delete plus
+ * collection creation.
+ *
+ * Material-to-collection assignment is NOT here — `MaterialCard` owns an inline
+ * collections popover, so the previous (never-opened) modal wiring was removed
+ * rather than duplicated.
+ */
 export function LibraryModals({
   editTarget,
   deleteTarget,
   showCreateMaterial,
+  showCreateCollection,
   onEditSave,
   onEditClose,
   onCreateMaterialSave,
   onCreateMaterialClose,
   onDeleteConfirm,
   onDeleteClose,
-  managingCollectionsMaterial,
-  onCloseManageCollections,
+  onCreateCollectionSave,
+  onCreateCollectionClose,
 }: LibraryModalsProps) {
-  const { collections } = useCollections();
-  const { collectionIds } = useMaterialCollections(managingCollectionsMaterial?.id);
   const createCollectionMutation = useCreateCollection();
-  const addMaterialMutation = useAddMaterialToCollection();
-  const removeMaterialMutation = useRemoveMaterialFromCollection();
-
-  const [showCreateCollection, setShowCreateCollection] = useState(false);
-
-  const handleToggleCollection = useCallback(
-    async (collectionId: string, assigned: boolean) => {
-      if (!managingCollectionsMaterial) return;
-      if (assigned) {
-        await addMaterialMutation.mutateAsync({ collectionId, materialId: managingCollectionsMaterial.id });
-      } else {
-        await removeMaterialMutation.mutateAsync({ collectionId, materialId: managingCollectionsMaterial.id });
-      }
-    },
-    [managingCollectionsMaterial, addMaterialMutation, removeMaterialMutation],
-  );
 
   const handleCreateCollectionSave = useCallback(
     (input: { title: string; description?: string; icon?: string; color?: string }) => {
       createCollectionMutation.mutate(input);
-      setShowCreateCollection(false);
+      onCreateCollectionSave(input);
     },
-    [createCollectionMutation],
+    [createCollectionMutation, onCreateCollectionSave],
   );
-
-  const handleOpenCreateCollection = useCallback(() => {
-    setShowCreateCollection(true);
-  }, []);
-
-  const handleCloseCreateCollection = useCallback(() => {
-    setShowCreateCollection(false);
-  }, []);
 
   return (
     <>
@@ -101,26 +86,11 @@ export function LibraryModals({
         />
       )}
 
-      {managingCollectionsMaterial && (
-        <ManageMaterialCollectionsModal
-          isOpen={Boolean(managingCollectionsMaterial)}
-          materialId={managingCollectionsMaterial.id}
-          materialTitle={managingCollectionsMaterial.title}
-          collections={collections}
-          assignedCollectionIds={collectionIds}
-          onToggle={handleToggleCollection}
-          onCreateNewCollection={handleOpenCreateCollection}
-          onClose={onCloseManageCollections}
-        />
-      )}
-
-      {showCreateCollection && (
-        <CreateCollectionModal
-          isOpen={showCreateCollection}
-          onSave={handleCreateCollectionSave}
-          onClose={handleCloseCreateCollection}
-        />
-      )}
+      <CreateCollectionModal
+        isOpen={showCreateCollection}
+        onSave={handleCreateCollectionSave}
+        onClose={onCreateCollectionClose}
+      />
     </>
   );
 }
