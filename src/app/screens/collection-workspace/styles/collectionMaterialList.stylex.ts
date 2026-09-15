@@ -120,14 +120,11 @@ export const styles = stylex.create({
       color: 'var(--color-accent)',
     },
   },
+  /** Tag pills use the shared neutral `Chip`; the row only wraps them. */
   tags: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 4,
-  },
-  tagChip: {
-    fontSize: 10,
-    color: 'var(--color-text-secondary)',
+    gap: 6,
   },
   masterySection: {
     display: {

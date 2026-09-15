@@ -37,10 +37,12 @@ interface ShellRoutesProps {
 export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutesProps) {
   const touchMutation = useTouchMaterial();
 
+  // `fromCollectionId` is the entry-point origin the workspace breadcrumb needs
+  // (only the collection route has one today); every other caller omits it.
   const handleOpenMaterial = useCallback(
-    (materialId: string) => {
+    (materialId: string, fromCollectionId?: string) => {
       touchMutation.mutate(materialId);
-      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'read' });
+      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'read', fromCollectionId });
     },
     [navigate, touchMutation],
   );
@@ -157,6 +159,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
         <MaterialWorkspaceScreen
           materialId={currentRoute.materialId}
           activeTab={currentRoute.activeTab}
+          fromCollectionId={currentRoute.fromCollectionId}
           onNavigate={navigate}
         />
       )}
@@ -193,7 +196,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           <CollectionWorkspaceScreen
             collectionId={currentRoute.collectionId}
             onNavigate={navigate}
-            onOpenMaterial={(materialId) => handleOpenMaterial(materialId)}
+            onOpenMaterial={(materialId) => handleOpenMaterial(materialId, currentRoute.collectionId)}
             onStartQuiz={handleStartQuiz}
           />
         </Suspense>

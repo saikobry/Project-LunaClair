@@ -7,6 +7,7 @@ import { useAddMaterialToCollection } from "../../../../features/collections/hoo
 import { useToast } from "../../../../app/providers/ToastContext";
 import { useModalDialog } from "../../../../shared/hooks/useModalDialog";
 import { Button } from "../../../../shared/ui/Button/Button";
+import { Chip } from "../../../../shared/ui/Chip/Chip";
 import { IconButton } from "../../../../shared/ui/IconButton/IconButton";
 import { Input } from "../../../../shared/ui/Input/Input";
 import type { Collection } from "../../../../domain/collections/models/Collection";
@@ -44,9 +45,9 @@ function MaterialPickerRow({
         {material.tags && material.tags.length > 0 && (
           <div {...stylex.props(styles.materialTags)}>
             {material.tags.slice(0, 2).map((tag) => (
-              <span key={tag} {...stylex.props(styles.tag)}>
+              <Chip key={tag} variant="neutral">
                 #{tag}
-              </span>
+              </Chip>
             ))}
           </div>
         )}

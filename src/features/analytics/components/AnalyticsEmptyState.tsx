@@ -15,7 +15,7 @@ const styles = stylex.create({
 
 export function AnalyticsEmptyState() {
     return (
-        <Card className={stylex.props(styles.cardWrapper).className}>
+        <Card xstyle={styles.cardWrapper}>
             <EmptyState
                 icon={<Sparkles size={28} />}
                 title="Your learning journey starts here"

@@ -136,14 +136,12 @@ export const styles = stylex.create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  /** Tag pills use the shared neutral `Chip`; the row only wraps them. */
   materialTags: {
     display: 'flex',
-    gap: 4,
+    flexWrap: 'wrap',
+    gap: 6,
     marginTop: 4,
-  },
-  tag: {
-    fontSize: 11,
-    color: 'var(--color-text-secondary)',
   },
   footer: {
     padding: 16,

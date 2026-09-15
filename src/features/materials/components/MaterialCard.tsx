@@ -837,7 +837,7 @@ export function MaterialCard({
   };
 
   return (
-    <Card>
+    <Card xstyle={cardStyles.cardHoverBorder}>
       <div
         ref={shellRef}
         {...stylex.props(cardStyles.interactive, cardStyles.clickableArea)}

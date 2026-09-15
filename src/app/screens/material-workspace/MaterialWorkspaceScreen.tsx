@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import { useMaterial } from '../../../features/materials/hooks/queries/useMaterial';
+import { useCollection } from '../../../features/collections/hooks/queries/useCollection';
 import { useDocument } from '../../../features/reader/hooks/useDocument';
 import { useExportStudyPackage } from '../../../features/package/hooks/useExportStudyPackage';
 import { Page } from '../../../shared/ui/Page/Page';
@@ -16,6 +17,7 @@ import ReaderScreen from '../../../features/reader/ReaderScreen';
 import { AiDrawerToggleButton } from '../../../features/ai/components/AiDrawerToggleButton';
 import { extractSectionContext } from '../../../domain/ai/context/extractSectionContext';
 import type { SelectionContext } from '../../../features/ai/components/AiChatDrawer';
+import { workspaceBreadcrumbs } from './utils/workspaceBreadcrumbs';
 
 // Lazy load secondary workspace tabs and modals
 const MaterialWriterTab = lazy(() =>
@@ -58,16 +60,22 @@ const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[
 export interface MaterialWorkspaceScreenProps {
   materialId: string;
   activeTab: MaterialTab;
+  /** Collection the user opened this material from, when there was one (`?from=`). */
+  fromCollectionId?: string;
   onNavigate: (route: AppRoute) => void;
 }
 
 export function MaterialWorkspaceScreen({
   materialId,
   activeTab,
+  fromCollectionId,
   onNavigate,
 }: MaterialWorkspaceScreenProps) {
   const { material, isLoading } = useMaterial(materialId);
   const { data: doc, isLoading: isDocLoading } = useDocument(material ?? null);
+  // Origin, not membership: only the collection the user actually came from
+  // earns a breadcrumb. A deleted origin resolves to null and the crumb drops.
+  const { collection: originCollection } = useCollection(fromCollectionId);
 
   // AI Chat Drawer workspace state
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -106,11 +114,13 @@ export function MaterialWorkspaceScreen({
   const { exportPackage, isExporting } = useExportStudyPackage();
   const [isShareOpen, setIsShareOpen] = useState(false);
 
-  // Define callbacks before hooks that consume them (avoids temporal dead zone)
+  // Every route the workspace re-emits preserves `fromCollectionId`: the tab is
+  // the only thing changing, so dropping the origin here would silently erase
+  // the collection breadcrumb on the first tab click.
   const handleTabChange = useCallback((tab: string) => {
     const materialTab = tab as MaterialTab;
-    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab });
-  }, [onNavigate, materialId]);
+    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab, fromCollectionId });
+  }, [onNavigate, materialId, fromCollectionId]);
 
   // If a brand-new material has empty content and user navigated via default route (activeTab === 'read'),
   // automatically route to 'write' on first load
@@ -120,19 +130,18 @@ export function MaterialWorkspaceScreen({
       hasAutoRoutedRef.current = true;
       const isContentEmpty = !doc?.content || doc.content.trim().length === 0;
       if (activeTab === 'read' && isContentEmpty) {
-        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write' });
+        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write', fromCollectionId });
       }
     }
-  }, [isDocLoading, doc, activeTab, materialId, onNavigate]);
+  }, [isDocLoading, doc, activeTab, materialId, fromCollectionId, onNavigate]);
 
-  const breadcrumbItems = useMemo(() => {
+  const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     if (!material) return [];
-    const items: BreadcrumbItem[] = [
-      { label: 'Library', onClick: () => onNavigate({ kind: 'library' }) },
-    ];
-    items.push({ label: material.title });
-    return items;
-  }, [material, onNavigate]);
+    return workspaceBreadcrumbs(material.title, originCollection).map((crumb) => {
+      const target = crumb.target;
+      return { label: crumb.label, onClick: target ? () => onNavigate(target) : undefined };
+    });
+  }, [material, originCollection, onNavigate]);
 
   if (isLoading) {
     return (

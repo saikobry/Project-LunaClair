@@ -193,7 +193,7 @@ describe('CollectionWorkspaceScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith({ kind: 'library' });
   });
 
-  it('removes a material from the collection on card action', async () => {
+  it('removes a material after confirming the removal dialog', async () => {
     renderScreen();
 
     await waitFor(() => {
@@ -202,9 +202,32 @@ describe('CollectionWorkspaceScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Kinematics from collection' }));
 
+    expect(
+      await screen.findByText('Remove "Kinematics" from this collection? (The material stays in your Library)'),
+    ).toBeInTheDocument();
+    expect(mockRemoveExecute).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
     await waitFor(() => {
       expect(mockRemoveExecute).toHaveBeenCalledWith('c-1', 'm-1');
     });
+  });
+
+  it('keeps the material when the removal dialog is cancelled', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Kinematics from collection' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Kinematics')).toBeInTheDocument();
+    });
+    expect(mockRemoveExecute).not.toHaveBeenCalled();
   });
 
   it('edits the collection through the edit modal', async () => {

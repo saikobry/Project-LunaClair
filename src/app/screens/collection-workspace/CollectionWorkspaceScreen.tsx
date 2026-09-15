@@ -56,6 +56,9 @@ export function CollectionWorkspaceScreen({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAddMaterialsOpen, setIsAddMaterialsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
+  // Removal is confirmed through a dialog, so the row action only targets a
+  // material and the mutation fires on confirm.
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
 
   const { tree } = useCollectionQuizTree(collectionId, materials);
 
@@ -104,6 +107,20 @@ export function CollectionWorkspaceScreen({
     setIsAddMaterialsOpen(true);
   }, []);
 
+  const handleRemoveMaterial = useCallback((materialId: string) => {
+    setPendingRemovalId(materialId);
+  }, []);
+
+  const handleRemoveConfirm = useCallback(() => {
+    if (!collection || !pendingRemovalId) return;
+    removeMutation.mutate({ collectionId: collection.id, materialId: pendingRemovalId });
+    setPendingRemovalId(null);
+  }, [collection, pendingRemovalId, removeMutation]);
+
+  const handleRemoveCancel = useCallback(() => {
+    setPendingRemovalId(null);
+  }, []);
+
   if (collectionLoading || materialsLoading) {
     return (
       <Page title="Collection">
@@ -130,6 +147,10 @@ export function CollectionWorkspaceScreen({
       </Page>
     );
   }
+
+  const pendingRemoval = pendingRemovalId
+    ? materials.find((material) => material.id === pendingRemovalId) ?? null
+    : null;
 
   const quizCount = tree.reduce((sum, group) => sum + group.quizzes.length, 0);
   // StudyMaterial carries no mastery field — average mastery stays 0 until a
@@ -192,9 +213,7 @@ export function CollectionWorkspaceScreen({
               collectionId={collection.id}
               materials={materials}
               onOpenMaterial={onOpenMaterial}
-              onRemoveMaterial={(materialId) =>
-                removeMutation.mutate({ collectionId: collection.id, materialId })
-              }
+              onRemoveMaterial={handleRemoveMaterial}
               onReorder={(orderedIds) =>
                 reorderMutation.mutate({
                   collectionId: collection.id,
@@ -234,6 +253,16 @@ export function CollectionWorkspaceScreen({
           onClose={() => setIsAddMaterialsOpen(false)}
         />
       )}
+
+      <ConfirmationDialog
+        isOpen={pendingRemoval !== null}
+        title="Remove from Collection"
+        message={`Remove "${pendingRemoval?.title ?? ''}" from this collection? (The material stays in your Library)`}
+        confirmLabel="Remove"
+        intent="danger"
+        onConfirm={handleRemoveConfirm}
+        onCancel={handleRemoveCancel}
+      />
 
       <ConfirmationDialog
         isOpen={isDeleteOpen}

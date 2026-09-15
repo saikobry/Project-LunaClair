@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import type { StyleXStyles } from '@stylexjs/stylex';
 import { Card as AstryxCard } from '@astryxdesign/core/Card';
 
 export interface CardProps {
@@ -16,6 +17,12 @@ export interface CardProps {
   className?: string;
   /** Inline styles. */
   style?: React.CSSProperties;
+  /**
+   * StyleX overrides applied to the card surface. Use this — not `className` —
+   * when the card's own surface needs to change (e.g. a hover border): the
+   * border lives on the card element, so styling a child cannot express it.
+   */
+  xstyle?: StyleXStyles;
 }
 
 /**
@@ -33,6 +40,7 @@ export function Card({
   minHeight,
   className,
   style,
+  xstyle,
 }: CardProps) {
   return (
     <AstryxCard
@@ -40,6 +48,7 @@ export function Card({
       height={height}
       maxWidth={maxWidth}
       minHeight={minHeight}
+      xstyle={xstyle}
       className={className}
       style={{ overflow: 'visible', ...style }}
     >

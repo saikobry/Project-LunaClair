@@ -11,6 +11,79 @@ describe('collection routing', () => {
   });
 });
 
+describe('material workspace routing', () => {
+  it('serializes the workspace route with its tab', () => {
+    expect(
+      routeToUrl({ kind: 'workspace', workspace: 'material', materialId: 'm-1', activeTab: 'read' }),
+    ).toBe('/materials/m-1?tab=read');
+  });
+
+  it('carries the collection origin into the URL as ?from=', () => {
+    expect(
+      routeToUrl({
+        kind: 'workspace',
+        workspace: 'material',
+        materialId: 'm-1',
+        activeTab: 'write',
+        fromCollectionId: 'c-1',
+      }),
+    ).toBe('/materials/m-1?tab=write&from=c-1');
+  });
+
+  it('parses a workspace URL without an origin', () => {
+    expect(urlToRoute('/materials/m-1', '?tab=quiz')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'quiz',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('parses the origin back out of ?from=', () => {
+    expect(urlToRoute('/materials/m-1', '?from=c-1&tab=read')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'read',
+      fromCollectionId: 'c-1',
+    });
+  });
+
+  it('parses params regardless of order (only serialization fixes the order)', () => {
+    expect(urlToRoute('/materials/m-1', '?from=c-1&tab=read')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'read',
+      fromCollectionId: 'c-1',
+    });
+  });
+
+  it('ignores an empty origin param', () => {
+    expect(urlToRoute('/materials/m-1', '?from=')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'read',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('round-trips a workspace route through its URL', () => {
+    const route = {
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'flashcards',
+      fromCollectionId: 'c-1',
+    } as const;
+
+    const url = routeToUrl(route);
+    expect(urlToRoute(url.split('?')[0], `?${url.split('?')[1]}`)).toEqual(route);
+  });
+});
+
 describe('home routing', () => {
   it('serializes a home route to /', () => {
     expect(routeToUrl({ kind: 'home' })).toBe('/');

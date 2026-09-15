@@ -41,7 +41,20 @@ export type AppRoute =
   | { kind: 'available' }
   | { kind: 'analytics' }
   | { kind: 'import' }
-  | { kind: 'workspace'; workspace: 'material'; materialId: string; activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage' }
+  /**
+   * Material workspace. `fromCollectionId` records the playlist the user
+   * opened the material from, so the breadcrumb can render
+   * `Library / {collection} / {material}` instead of losing the context on
+   * click. It is URL state (`?from=`), so it survives reload and links, and
+   * it is provenance — never a membership claim.
+   */
+  | {
+      kind: 'workspace';
+      workspace: 'material';
+      materialId: string;
+      activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage';
+      fromCollectionId?: string;
+    }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; returnTo: AppRoute }
   | { kind: 'share'; shareId: string }
@@ -49,6 +62,11 @@ export type AppRoute =
 
 /**
  * Serialize an AppRoute to a URL path string.
+ *
+ * Query-param order is a convention, not a contract — parsing reads named
+ * params and is order-agnostic. Keep it deterministic: always-present params
+ * first, optional qualifiers after (e.g. `?tab=read&from=c-1`), so the
+ * identifying param stays at a stable position for substring/regex matching.
  */
 export function routeToUrl(route: AppRoute): string {
   switch (route.kind) {
@@ -73,8 +91,12 @@ export function routeToUrl(route: AppRoute): string {
       return `/share/${route.shareId}`;
     case 'collection':
       return `/collections/${route.collectionId}`;
-    case 'workspace':
-      return `/materials/${route.materialId}?tab=${route.activeTab}`;
+    case 'workspace': {
+      const params = new URLSearchParams();
+      params.set('tab', route.activeTab);
+      if (route.fromCollectionId) params.set('from', route.fromCollectionId);
+      return `/materials/${route.materialId}?${params.toString()}`;
+    }
     case 'quiz-canvas':
       return `/materials/${route.materialId}/builder${route.quizId ? `/${route.quizId}` : ''}`;
     case 'quiz-session':
@@ -106,11 +128,18 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
     return { kind: 'quiz-canvas', materialId: builderMatch[1], quizId: builderMatch[2] ?? undefined };
   }
 
-  // /materials/:materialId
+  // /materials/:materialId(?tab=&from=)
   const materialMatch = url.pathname.match(/^\/materials\/([^/]+)$/);
   if (materialMatch) {
     const tab = (url.searchParams.get('tab') as 'read' | 'write' | 'quiz' | 'flashcards' | 'manage') ?? 'read';
-    return { kind: 'workspace', workspace: 'material', materialId: materialMatch[1], activeTab: tab };
+    const from = url.searchParams.get('from');
+    return {
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: materialMatch[1],
+      activeTab: tab,
+      fromCollectionId: from || undefined,
+    };
   }
 
   // /collections/:collectionId

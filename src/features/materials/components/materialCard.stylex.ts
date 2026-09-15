@@ -1,6 +1,22 @@
 import * as stylex from '@stylexjs/stylex';
 
 export const cardStyles = stylex.create({
+  /**
+   * Card-surface hover affordance. The border belongs to the `Card` element
+   * (its default variant draws `--color-border-emphasized`), so the emphasis is
+   * applied there through `Card`'s `xstyle` — the inner shell has no border of
+   * its own and would render a doubled box if it were given one.
+   *
+   * Matches the app's interactive-surface idiom (Home `recentCard`,
+   * `CollectionMaterialRow`): resting border untouched, accent on hover, same
+   * 0.18s timing as the lift below so the two read as one gesture.
+   */
+  cardHoverBorder: {
+    transition: 'border-color 0.18s ease',
+    ':hover': {
+      borderColor: 'var(--color-accent)',
+    },
+  },
   interactive: {
     cursor: 'pointer',
     position: 'relative',

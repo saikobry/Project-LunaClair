@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
+import { Chip } from '../../../../shared/ui/Chip/Chip';
 import { IconButton } from '../../../../shared/ui/IconButton/IconButton';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import { styles } from '../styles/collectionMaterialList.stylex';
@@ -53,9 +54,9 @@ export function CollectionMaterialRow({
         {material.tags && material.tags.length > 0 && (
           <div {...stylex.props(styles.tags)}>
             {material.tags.slice(0, 3).map((tag) => (
-              <span key={tag} {...stylex.props(styles.tagChip)}>
+              <Chip key={tag} variant="neutral">
                 #{tag}
-              </span>
+              </Chip>
             ))}
           </div>
         )}
