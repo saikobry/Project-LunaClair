@@ -65,7 +65,7 @@ const styles = stylex.create({
   group: {
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--color-border, #e5e7eb)',
+    borderColor: 'var(--color-border)',
     borderRadius: 10,
     overflow: 'hidden',
   },
@@ -90,7 +90,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     borderTopWidth: 1,
     borderTopStyle: 'solid',
-    borderTopColor: 'var(--color-border, #e5e7eb)',
+    borderTopColor: 'var(--color-border)',
   },
   quizRow: {
     display: 'flex',
@@ -104,19 +104,19 @@ const styles = stylex.create({
   },
   foundationsBadge: {
     fontSize: 9,
-    color: '#92b5a5',
-    backgroundColor: 'rgba(143, 197, 172, 0.08)',
+    color: 'var(--color-text-teal)',
+    backgroundColor: 'var(--color-background-teal)',
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'rgba(143, 197, 172, 0.2)',
+    borderColor: 'var(--color-border-teal)',
   },
   applyBadge: {
     fontSize: 9,
-    color: '#c2a784',
-    backgroundColor: 'rgba(201, 160, 108, 0.08)',
+    color: 'var(--color-text-orange)',
+    backgroundColor: 'var(--color-background-orange)',
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'rgba(201, 160, 108, 0.2)',
+    borderColor: 'var(--color-border-orange)',
   },
   actionBar: {
     position: 'fixed',
@@ -143,7 +143,8 @@ const styles = stylex.create({
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
-    boxShadow: '0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 0 24px rgba(167, 139, 250, 0.08)',
+    boxShadow:
+      '0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 0 24px color-mix(in srgb, var(--color-accent) 8%, transparent)',
     // Glide with the sidebar: the rail animates width 240<->0 over 0.35s
     // power2.inOut on Focus toggle — matching duration/easing here keeps the
     // bar glued to the content region instead of jumping between offsets.

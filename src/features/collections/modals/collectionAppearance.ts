@@ -34,3 +34,26 @@ export const COLLECTION_ICON_NAMES = Object.keys(COLLECTION_ICONS);
 export function getCollectionIcon(name: string | undefined): ComponentType<{ size?: number | string }> {
     return (name && COLLECTION_ICONS[name]) || COLLECTION_ICONS.folder;
 }
+
+/**
+ * Tints a persisted collection color with an alpha suffix, falling back to
+ * `color-mix` for non-hex values.
+ *
+ * These derive from the collection's own `color` (persisted user data), not from
+ * a design token — the derivation is legitimate, while the accent/token rules
+ * still govern chrome that is not collection-colored.
+ */
+export function collectionTint(color: string, alphaHex: string, percent: number): string {
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+        return `${color}${alphaHex}`;
+    }
+    return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+}
+
+/** Builds a subtle tinted gradient from a collection color at low opacity. */
+export function collectionHeroBackground(color: string): string {
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+        return `radial-gradient(120% 160% at 0% 0%, ${color}26 0%, transparent 60%), radial-gradient(100% 140% at 100% 100%, ${color}14 0%, transparent 55%)`;
+    }
+    return `radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent) 0%, transparent 60%)`;
+}

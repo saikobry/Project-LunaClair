@@ -1,8 +1,8 @@
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
-import { IconButton } from '../../../shared/ui/IconButton/IconButton';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import { styles } from './collectionMaterialList.stylex';
+import { IconButton } from '../../../../shared/ui/IconButton/IconButton';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import { styles } from '../styles/collectionMaterialList.stylex';
 
 export interface CollectionMaterialRowProps {
   material: StudyMaterial;

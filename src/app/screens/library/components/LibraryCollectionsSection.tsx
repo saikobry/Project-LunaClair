@@ -1,13 +1,13 @@
 import * as stylex from '@stylexjs/stylex';
 import { Search } from 'lucide-react';
-import type { Collection } from '../../../domain/collections/models/Collection';
-import { CollectionShelf } from '../../../features/collections/components/CollectionShelf';
-import { Button } from '../../../shared/ui/Button/Button';
-import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
-import { Input } from '../../../shared/ui/Input/Input';
-import { screenStyles } from './libraryScreen.stylex';
+import type { Collection } from '../../../../domain/collections/models/Collection';
+import { CollectionShelf } from '../../../../features/collections/components/CollectionShelf';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
+import { Input } from '../../../../shared/ui/Input/Input';
+import { screenStyles } from '../styles/libraryScreen.stylex';
 import { PreviewStepper } from './PreviewStepper';
-import { OVERVIEW_STEPS } from './overviewSteps';
+import { OVERVIEW_STEPS } from '../utils/overviewSteps';
 
 export interface LibraryCollectionsSectionProps {
   /** False outside overview + collections views — renders nothing. */

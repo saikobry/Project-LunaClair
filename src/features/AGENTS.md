@@ -36,7 +36,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - Route-level page layouts, routing compositions, and cross-feature orchestrations belong exclusively to `src/app/screens/` (e.g. `HomeScreen`, `LibraryScreen`, `MaterialWorkspaceScreen`, `ExploreScreen`).
 - **Directed Acyclic Graph (DAG) Dependency Model (ADR-014):**
   - Cross-feature dependencies have an intentional direction and must NEVER form cycles.
-  - `materials` is a foundational leaf capability with zero dependencies on other features.
+  - `materials` consumes `collections` (`MaterialCard`'s filing popover — the sole material-to-collection assignment surface). Verified Sep 2026: the edge is one-way and `collections` imports nothing from `materials`, so the DAG stays acyclic. The earlier "zero dependencies" wording did not match the code.
   - `reader` depends on `materials`.
   - `writer` depends on `reader` and `materials`.
   - `discovery` depends on `materials`.
@@ -44,7 +44,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `flashcards` depends on `quiz`, `reader`, and `materials`.
   - `quiz-management` depends on `quiz`, `reader`, `package`, `materials`, and `ai`.
   - `package` depends on `materials`.
-  - `collections` depends unidirectionally on `materials` (membership resolution via the `LibraryRepository` port, `MaterialCard` presentation) plus a type-only dependency on `quiz` (`QuizLaunchRequest` launch contract for `CollectionQuizExplorer`; no runtime quiz imports).
+  - `collections` has **no feature dependencies**. Membership reads go through the `LibraryRepository` **domain** port, not the `materials` feature. It carries a type-only dependency on `quiz` (`QuizLaunchRequest` launch contract for `CollectionQuizExplorer`; no runtime quiz imports).
   - `ai` depends on `quiz` and never on `quiz-management`.
   - `analytics` and `sync` have zero feature-to-feature dependencies.
   - Enforced by `src/__tests__/architecture/featureBoundary.test.ts`.
@@ -64,7 +64,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `discovery/hooks/mutations/useRemoveImportedMaterial` → `features/materials/hooks/useLibraryRepository`, `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useCloneShare` → `features/materials/queries/materialQueryKeys`
     - `discovery/hooks/useExploreContent` → `features/materials/hooks/queries/useLibrary`
-    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/queries/useCollectionQuizTree`, `features/collections/components/CollectionQuizExplorer`, `features/collections/types/collectionQuizTree.types`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/materials/components/MaterialCard`, `features/quiz/types/quizFeature.types`
+    - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/queries/useCollectionQuizTree`, `features/collections/components/CollectionQuizExplorer`, `features/collections/types/collectionQuizTree.types`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/collections/modals/collectionAppearance`, `features/materials/components/MaterialCard`, `features/quiz/types/quizFeature.types`
     - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
     - `layouts/navigation/*` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
 

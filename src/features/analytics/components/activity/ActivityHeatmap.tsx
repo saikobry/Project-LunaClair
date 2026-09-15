@@ -51,16 +51,16 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-background-muted)',
     },
     level1: {
-        backgroundColor: 'rgba(16, 185, 129, 0.30)',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 30%, transparent)',
     },
     level2: {
-        backgroundColor: 'rgba(16, 185, 129, 0.55)',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 55%, transparent)',
     },
     level3: {
-        backgroundColor: 'rgba(16, 185, 129, 0.80)',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 80%, transparent)',
     },
     level4: {
-        backgroundColor: '#10B981',
+        backgroundColor: 'var(--color-success)',
     },
     footer: {
         display: 'flex',

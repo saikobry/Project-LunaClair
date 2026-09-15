@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
-import type { LibraryViewMode } from '../../routing/routing';
-import { screenStyles } from './libraryScreen.stylex';
+import type { LibraryViewMode } from '../../../routing/routing';
+import { screenStyles } from '../styles/libraryScreen.stylex';
 
 export interface LibraryViewSwitcherProps {
   activeView: LibraryViewMode;

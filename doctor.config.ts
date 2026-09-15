@@ -8,9 +8,15 @@ export default {
         // handler this effect merely DEFINES and attaches, so it cannot be
         // scheduled on mount or a re-run — the rule's own SUPPRESS (1)
         // predicate. The effect still returns a teardown that clears pending
-        // hold timers and detaches their window listeners.
+        // hold timers (`cancelPendingHolds`) and detaches their window
+        // listeners. Relocated here from `useCollectionMaterialReorder.ts`
+        // when the reorder engine was decomposed (Sep 2026) and again into
+        // `hooks/` when the screen folder was reorganized; the gesture code
+        // moved verbatim, so the exception moved with it.
         // Evidence: .react-doctor/false-positives.md
-        files: ['src/app/screens/collection-workspace/useCollectionMaterialReorder.ts'],
+        files: [
+          'src/app/screens/collection-workspace/hooks/useHoldToDragArming.ts',
+        ],
         rules: ['react-doctor/effect-needs-cleanup'],
       },
       {

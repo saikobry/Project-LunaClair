@@ -1,8 +1,8 @@
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { MaterialMembershipFilter } from '../../../features/materials/types/libraryFilter.types';
-import LibraryView from '../../../features/materials/components/LibraryView';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { MaterialMembershipFilter } from '../../../../features/materials/types/libraryFilter.types';
+import LibraryView from '../../../../features/materials/components/LibraryView';
 import { PreviewStepper } from './PreviewStepper';
-import { OVERVIEW_STEPS } from './overviewSteps';
+import { OVERVIEW_STEPS } from '../utils/overviewSteps';
 
 export interface LibraryMaterialsSectionProps {
   /** False outside overview + materials views — renders nothing. */

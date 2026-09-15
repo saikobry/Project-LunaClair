@@ -81,7 +81,7 @@ const styles = stylex.create({
     },
   },
   accessTypeCardActive: {
-    borderColor: 'var(--color-primary, #6366f1)',
+    borderColor: 'var(--color-accent)',
     backgroundColor: 'rgba(99, 102, 241, 0.05)',
   },
   accessTypeHeader: {
@@ -124,7 +124,7 @@ const styles = stylex.create({
     fontFamily: 'inherit',
     transition: 'border-color 0.15s ease',
     ':focus': {
-      borderColor: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
       boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
     },
   },
@@ -141,7 +141,7 @@ const styles = stylex.create({
     fontFamily: 'inherit',
     transition: 'border-color 0.15s ease',
     ':focus': {
-      borderColor: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
       boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
     },
   },
@@ -178,14 +178,14 @@ const styles = stylex.create({
     },
   },
   btnPrimary: {
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
     ':hover:not(:disabled)': {
       opacity: 0.9,
     },
   },
   btnSuccess: {
-    backgroundColor: 'var(--color-success, #10b981)',
+    backgroundColor: 'var(--color-success)',
     color: '#ffffff',
   },
   // Success View Styles
@@ -200,8 +200,8 @@ const styles = stylex.create({
     gap: 12,
     padding: '14px 16px',
     borderRadius: 10,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    border: '1px solid rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--color-success) 25%, transparent)',
     color: 'var(--color-text-primary)',
   },
   successMessageText: {
@@ -229,7 +229,7 @@ const styles = stylex.create({
     borderColor: 'var(--color-border)',
     borderRadius: 8,
     color: 'var(--color-text-primary)',
-    backgroundColor: 'var(--color-background-muted, #f9fafb)',
+    backgroundColor: 'var(--color-background-muted)',
     fontFamily: 'monospace',
     outlineStyle: 'none',
   },
@@ -239,7 +239,7 @@ const styles = stylex.create({
     justifyContent: 'space-between',
     padding: '10px 14px',
     borderRadius: 8,
-    backgroundColor: 'var(--color-background-muted, #f9fafb)',
+    backgroundColor: 'var(--color-background-muted)',
     border: '1px solid var(--color-border)',
     fontSize: 12,
     color: 'var(--color-text-secondary)',
@@ -247,7 +247,7 @@ const styles = stylex.create({
   shortLinkCode: {
     fontFamily: 'monospace',
     fontWeight: 600,
-    color: 'var(--color-primary, #6366f1)',
+    color: 'var(--color-accent)',
   },
   metaPillsRow: {
     display: 'flex',
@@ -304,7 +304,7 @@ function PublishedSharePanel({
   return (
     <div {...stylex.props(styles.successContainer)}>
       <div {...stylex.props(styles.successMessageCard)}>
-        <CheckCircle2 size={20} color="var(--color-success, #10b981)" />
+        <CheckCircle2 size={20} color="var(--color-success)" />
         <p {...stylex.props(styles.successMessageText)}>
           Anyone with the link can view and import this study package into their LunaClair library.
         </p>
@@ -450,7 +450,7 @@ function ShareStudyPackageBody({
         </span>
         <div {...stylex.props(styles.accessTypesGrid)} role="radiogroup" aria-label="Access Permission">
           <AccessTypeOption
-            icon={<Globe size={15} color="var(--color-primary, #6366f1)" />}
+            icon={<Globe size={15} color="var(--color-accent)" />}
             label="Public"
             description="Openly discoverable and importable by anyone."
             checked={accessType === 'public'}
@@ -458,7 +458,7 @@ function ShareStudyPackageBody({
             onClick={() => onAccessTypeChange('public')}
           />
           <AccessTypeOption
-            icon={<Link2 size={15} color="var(--color-primary, #6366f1)" />}
+            icon={<Link2 size={15} color="var(--color-accent)" />}
             label="Unlisted"
             description="Only accessible to people who have the direct link."
             checked={accessType === 'unlisted'}
@@ -466,7 +466,7 @@ function ShareStudyPackageBody({
             onClick={() => onAccessTypeChange('unlisted')}
           />
           <AccessTypeOption
-            icon={<Lock size={15} color="var(--color-primary, #6366f1)" />}
+            icon={<Lock size={15} color="var(--color-accent)" />}
             label="Passcode"
             description="Requires a secret passcode to access."
             checked={isPasscodeSelected}

@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import EditMaterialModal from '../../../features/materials/modals/EditMaterialModal';
-import CreateMaterialModal from '../../../features/materials/modals/CreateMaterialModal';
-import DeleteConfirmationModal from '../../../features/materials/modals/DeleteConfirmationModal';
-import CreateCollectionModal from '../../../features/collections/modals/CreateCollectionModal';
-import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import EditMaterialModal from '../../../../features/materials/modals/EditMaterialModal';
+import CreateMaterialModal from '../../../../features/materials/modals/CreateMaterialModal';
+import DeleteConfirmationModal from '../../../../features/materials/modals/DeleteConfirmationModal';
+import CreateCollectionModal from '../../../../features/collections/modals/CreateCollectionModal';
+import { useCreateCollection } from '../../../../features/collections/hooks/mutations/useCreateCollection';
 
 export interface LibraryModalsProps {
   editTarget: StudyMaterial | null;

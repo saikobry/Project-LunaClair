@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { GlobalAnalytics } from '../../../domain/analytics/models/analytics.types';
+import type { GlobalAnalytics } from '../../../../domain/analytics/models/analytics.types';
 
 export interface HomeStats {
   streakDays: number;

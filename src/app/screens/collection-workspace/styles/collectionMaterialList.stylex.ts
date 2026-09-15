@@ -77,8 +77,8 @@ export const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(167, 139, 250, 0.08)',
-    color: 'var(--color-accent, #a78bfa)',
+    backgroundColor: 'var(--color-overlay-hover)',
+    color: 'var(--color-accent)',
     flexShrink: 0,
   },
   content: {
@@ -154,7 +154,7 @@ export const styles = stylex.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: 'var(--color-accent, #a78bfa)',
+    backgroundColor: 'var(--color-accent)',
   },
   actions: {
     display: 'flex',

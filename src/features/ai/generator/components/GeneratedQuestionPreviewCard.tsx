@@ -22,11 +22,11 @@ const styles = stylex.create({
     transition: 'border-color 0.15s ease',
   },
   cardSelected: {
-    borderColor: 'var(--color-primary, #6366f1)',
+    borderColor: 'var(--color-accent)',
     backgroundColor: 'var(--color-background-surface-hover, #fafafa)',
   },
   cardInvalid: {
-    borderColor: 'var(--color-danger, #ef4444)',
+    borderColor: 'var(--color-error)',
   },
   headerRow: {
     display: 'flex',
@@ -49,7 +49,7 @@ const styles = stylex.create({
     width: 18,
     height: 18,
     cursor: 'pointer',
-    accentColor: 'var(--color-primary, #6366f1)',
+    accentColor: 'var(--color-accent)',
   },
   badge: {
     padding: '2px 8px',
@@ -81,22 +81,22 @@ const styles = stylex.create({
     gap: 6,
     padding: '8px 10px',
     borderRadius: 6,
-    backgroundColor: 'var(--color-background-subtle, #f3f4f6)',
+    backgroundColor: 'var(--color-background-muted)',
     fontSize: 13,
   },
   choiceRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    color: 'var(--color-text-secondary, #4b5563)',
+    color: 'var(--color-text-secondary)',
   },
   choiceRowCorrect: {
     fontWeight: 600,
-    color: 'var(--color-success, #10b981)',
+    color: 'var(--color-success)',
   },
   explanationRow: {
     fontSize: 12,
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     fontStyle: 'italic',
     marginTop: 2,
   },
@@ -117,7 +117,7 @@ const styles = stylex.create({
     gap: 4,
     fontSize: 11,
     fontWeight: 600,
-    color: 'var(--color-success, #10b981)',
+    color: 'var(--color-success)',
   },
   statusInvalid: {
     display: 'flex',
@@ -125,7 +125,7 @@ const styles = stylex.create({
     gap: 4,
     fontSize: 11,
     fontWeight: 600,
-    color: 'var(--color-danger, #ef4444)',
+    color: 'var(--color-error)',
   },
 });
 
@@ -195,7 +195,7 @@ const EditQuestionForm: React.FC<EditQuestionFormProps> = ({
         <button
           type="button"
           onClick={() => onSave(prompt.trim() || initialPrompt, explanation.trim() || undefined)}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-primary, #6366f1)', color: '#fff', border: 'none' }}
+          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-accent)', color: '#fff', border: 'none' }}
         >
           Save
         </button>
@@ -276,7 +276,7 @@ function PayloadPreview({ payload, explanation }: { payload: GeneratedQuestionDr
       body = (
         <div style={{ fontWeight: 600 }}>
           Correct Answer:{' '}
-          <span style={{ color: payload.correctAnswer ? 'var(--color-success)' : 'var(--color-danger)' }}>
+          <span style={{ color: payload.correctAnswer ? 'var(--color-success)' : 'var(--color-error)' }}>
             {payload.correctAnswer ? 'True' : 'False'}
           </span>
         </div>
@@ -330,12 +330,12 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
 
   const validation = validateQuestionDraft(draft);
   const typeMeta = QUESTION_TYPE_APPEARANCE[draft.type] ?? {
-    bg: '#f3f4f6',
-    fg: '#374151',
+    bg: 'var(--color-background-muted)',
+    fg: 'var(--color-text-secondary)',
   };
   const diffMeta = DIFFICULTY_APPEARANCE[draft.difficulty] ?? {
-    bg: '#f3f4f6',
-    fg: '#374151',
+    bg: 'var(--color-background-muted)',
+    fg: 'var(--color-text-secondary)',
   };
 
   const handleSaveEdit = (newPrompt: string, newExplanation?: string) => {

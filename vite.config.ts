@@ -81,7 +81,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the app shell only (~1.5 MB). Study materials (documents and
+        // Precache the app shell only (~2.8 MB across 51 entries, measured at build). Study materials (documents and
         // figure images) live in Cloudflare D1 and are fetched on demand via the
         // Worker API, then cached by the service worker via runtimeCaching.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,woff2}'],

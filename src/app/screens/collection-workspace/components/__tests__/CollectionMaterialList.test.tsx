@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CollectionMaterialList } from '../CollectionMaterialList';
-import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { StudyMaterial } from '../../../../../domain/library/models/StudyMaterial';
 
 const makeMaterial = (id: string, title: string, tags?: string[]): StudyMaterial => ({
   id,

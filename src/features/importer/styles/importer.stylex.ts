@@ -17,10 +17,10 @@ export const importerStyles = stylex.create({
     alignItems: 'center',
     gap: '12px',
     fontSize: '14px',
-    color: '#6b7280',
+    color: 'var(--color-text-secondary)',
   },
   activeStep: {
-    color: '#2563eb',
+    color: 'var(--color-accent)',
     fontWeight: 'bold',
   },
   content: {
@@ -29,7 +29,7 @@ export const importerStyles = stylex.create({
     overflowY: 'auto',
   },
   dropZone: {
-    border: '2px dashed #d1d5db',
+    border: '2px dashed var(--color-border-emphasized)',
     borderRadius: '12px',
     padding: '48px',
     display: 'flex',
@@ -37,23 +37,23 @@ export const importerStyles = stylex.create({
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'var(--color-background-muted)',
     textAlign: 'center',
   },
   dropZoneActive: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    borderColor: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent-muted)',
   },
   dropZoneText: {
     marginTop: '16px',
     fontSize: '16px',
-    color: '#1f2937',
+    color: 'var(--color-text-primary)',
     fontWeight: 500,
   },
   dropZoneHint: {
     marginTop: '8px',
     fontSize: '14px',
-    color: '#6b7280',
+    color: 'var(--color-text-secondary)',
   },
   formatBadges: {
     display: 'flex',
@@ -63,9 +63,9 @@ export const importerStyles = stylex.create({
   badge: {
     padding: '4px 8px',
     borderRadius: '16px',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: 'var(--color-background-muted)',
     fontSize: '12px',
-    color: '#4b5563',
+    color: 'var(--color-text-secondary)',
     fontWeight: 500,
   },
   fileList: {
@@ -106,11 +106,11 @@ export const importerStyles = stylex.create({
     fontSize: '12px',
     fontWeight: 500,
   },
-  statusPending: { backgroundColor: '#f3f4f6', color: '#4b5563' },
-  statusExtracting: { backgroundColor: '#eff6ff', color: '#2563eb' },
+  statusPending: { backgroundColor: 'var(--color-background-muted)', color: 'var(--color-text-secondary)' },
+  statusExtracting: { backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent)' },
   statusReview: { backgroundColor: '#fef3c7', color: '#d97706' },
   statusError: { backgroundColor: '#fee2e2', color: '#dc2626' },
-  statusDone: { backgroundColor: '#d1fae5', color: '#059669' },
+  statusDone: { backgroundColor: 'var(--color-success-muted)', color: 'var(--color-success)' },
   progressContainer: {
     marginTop: '8px',
     width: '100%',
@@ -121,7 +121,7 @@ export const importerStyles = stylex.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#2563eb',
+    backgroundColor: 'var(--color-accent)',
     transition: 'width 0.3s ease',
   },
   reviewLayout: {
@@ -175,20 +175,20 @@ export const importerStyles = stylex.create({
     border: 'none',
   },
   buttonPrimary: {
-    backgroundColor: '#2563eb',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
   },
   buttonSecondary: {
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
+    backgroundColor: 'var(--color-background-muted)',
+    color: 'var(--color-text-primary)',
   },
   buttonDanger: {
-    backgroundColor: '#dc2626',
+    backgroundColor: 'var(--color-error)',
     color: '#ffffff',
   },
   buttonGhost: {
     backgroundColor: 'transparent',
-    color: '#4b5563',
+    color: 'var(--color-text-secondary)',
   },
   diffModal: {
     position: 'fixed',
@@ -258,9 +258,9 @@ export const importerStyles = stylex.create({
   },
   resultCard: {
     padding: '24px',
-    border: '1px solid #10b981',
+    border: '1px solid var(--color-success)',
     borderRadius: '8px',
-    backgroundColor: '#d1fae5',
+    backgroundColor: 'var(--color-success-muted)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

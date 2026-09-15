@@ -26,7 +26,7 @@ type CustomRoleTokens =
  *   primary:  #08060d  (near-black)
  *   secondary:#6b6375  (muted gray)
  *   border:   #e5e4e7
- *   danger:   #dc2626
+ *   error:    #dc2626
  *   bg:       #ffffff
  *   muted:    #f9fafb
  */

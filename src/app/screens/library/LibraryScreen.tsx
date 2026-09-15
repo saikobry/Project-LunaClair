@@ -10,12 +10,12 @@ import { useCollections } from '../../../features/collections/hooks/queries/useC
 import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
-import LibraryModals from './LibraryModals';
-import { OVERVIEW_STEPS } from './overviewSteps';
-import { LibraryViewSwitcher } from './LibraryViewSwitcher';
-import { LibraryCollectionsSection } from './LibraryCollectionsSection';
-import { LibraryMaterialsSection } from './LibraryMaterialsSection';
-import { useLibraryModals } from './useLibraryModals';
+import LibraryModals from './modals/LibraryModals';
+import { OVERVIEW_STEPS } from './utils/overviewSteps';
+import { LibraryViewSwitcher } from './components/LibraryViewSwitcher';
+import { LibraryCollectionsSection } from './components/LibraryCollectionsSection';
+import { LibraryMaterialsSection } from './components/LibraryMaterialsSection';
+import { useLibraryModals } from './hooks/useLibraryModals';
 import {
   useBaseMaterials,
   useFacetedTags,
@@ -23,7 +23,7 @@ import {
   useVisibleCollections,
   formatLibraryDescription,
   shouldShowViewSwitcher,
-} from './useLibraryData';
+} from './hooks/useLibraryData';
 
 export interface LibraryScreenProps {
   /** Active membership lens from the URL. `undefined` reads as `all`. */

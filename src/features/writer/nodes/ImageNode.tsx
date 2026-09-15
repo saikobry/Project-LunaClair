@@ -38,7 +38,7 @@ const imgStyle: CSSProperties = {
   height: 'auto',
   borderRadius: '8px',
   boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)',
-  border: '1px solid var(--color-border, #e5e7eb)',
+  border: '1px solid var(--color-border)',
 };
 
 const fallbackStyle: CSSProperties = {
@@ -46,17 +46,17 @@ const fallbackStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: '16px 24px',
-  backgroundColor: 'var(--color-background-muted, #f3f4f6)',
+  backgroundColor: 'var(--color-background-muted)',
   borderRadius: '8px',
-  border: '1px dashed var(--color-border, #d1d5db)',
-  color: 'var(--color-text-secondary, #6b7280)',
+  border: '1px dashed var(--color-border)',
+  color: 'var(--color-text-secondary)',
   fontSize: '13px',
 };
 
 const captionStyle: CSSProperties = {
   display: 'block',
   fontSize: '13px',
-  color: 'var(--color-text-secondary, #6b7280)',
+  color: 'var(--color-text-secondary)',
   marginTop: '6px',
   fontStyle: 'italic',
 };

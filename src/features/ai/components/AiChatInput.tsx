@@ -16,7 +16,7 @@ const styles = stylex.create({
     gap: 8,
     padding: '12px 16px',
     backgroundColor: 'var(--color-surface, #ffffff)',
-    borderTop: '1px solid var(--color-border, #e5e7eb)',
+    borderTop: '1px solid var(--color-border)',
   },
   selectionBanner: {
     display: 'flex',
@@ -28,7 +28,7 @@ const styles = stylex.create({
     backgroundColor: 'rgba(99, 102, 241, 0.08)',
     border: '1px solid rgba(99, 102, 241, 0.18)',
     fontSize: '12px',
-    color: 'var(--color-primary, #6366f1)',
+    color: 'var(--color-accent)',
   },
   selectionContent: {
     display: 'flex',
@@ -55,7 +55,7 @@ const styles = stylex.create({
     background: 'none',
     padding: 2,
     cursor: 'pointer',
-    color: 'var(--color-primary, #6366f1)',
+    color: 'var(--color-accent)',
     borderRadius: '4px',
     display: 'inline-flex',
     alignItems: 'center',
@@ -69,12 +69,12 @@ const styles = stylex.create({
     alignItems: 'flex-end',
     gap: 8,
     backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.04))',
-    border: '1px solid var(--color-border, #e5e7eb)',
+    border: '1px solid var(--color-border)',
     borderRadius: '12px',
     padding: '6px 8px 6px 12px',
     transition: 'border-color 0.15s ease',
     ':focus-within': {
-      borderColor: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
       backgroundColor: 'var(--color-surface, #ffffff)',
       boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.12)',
     },
@@ -110,10 +110,10 @@ const styles = stylex.create({
     flexShrink: 0,
   },
   sendButton: {
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
     ':hover': {
-      backgroundColor: 'var(--color-primary-hover, #4f46e5)',
+      backgroundColor: 'color-mix(in srgb, var(--color-accent) 85%, black)',
     },
     ':disabled': {
       opacity: 0.4,
@@ -122,7 +122,7 @@ const styles = stylex.create({
     },
   },
   stopButton: {
-    backgroundColor: 'var(--color-danger, #ef4444)',
+    backgroundColor: 'var(--color-error)',
     color: '#ffffff',
     ':hover': {
       backgroundColor: '#dc2626',

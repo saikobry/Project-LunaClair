@@ -2,7 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import type { Collection } from '../../../domain/collections/models/Collection';
+import { DEFAULT_COLLECTION_COLOR, type Collection } from '../../../domain/collections/models/Collection';
 import { getCollectionIcon } from '../modals/collectionAppearance';
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery';
 import { shelfStyles } from './collectionShelf.stylex';
@@ -90,8 +90,8 @@ export function VirtualShelfGrid({ collections, counts, onOpen }: VirtualShelfGr
                       <span
                         {...stylex.props(shelfStyles.cardIcon)}
                         style={{
-                          backgroundColor: `${collection.color ?? '#a78bfa'}12`,
-                          border: `1px solid ${collection.color ?? '#a78bfa'}25`,
+                          backgroundColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}12`,
+                          border: `1px solid ${collection.color ?? DEFAULT_COLLECTION_COLOR}25`,
                           color,
                         }}
                         aria-hidden="true"

@@ -188,7 +188,7 @@ const styles = stylex.create({
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     cursor: 'pointer',
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     boxSizing: 'border-box',
     transition: 'color 0.15s ease, background-color 0.15s ease',
     ':hover': {
@@ -231,7 +231,7 @@ const styles = stylex.create({
     transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
     ':hover': {
       boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-      borderColor: 'var(--color-accent, #6366f1)',
+      borderColor: 'var(--color-accent)',
     },
   },
   miniTocHeaderBtn: {
@@ -303,9 +303,9 @@ const styles = stylex.create({
   },
   miniBarActive: {
     height: 3,
-    backgroundColor: 'var(--color-accent, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     opacity: 1,
-    boxShadow: '0 0 4px var(--color-accent, #6366f1)',
+    boxShadow: '0 0 4px var(--color-accent)',
   },
 });
 

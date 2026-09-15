@@ -37,7 +37,7 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
       <div {...stylex.props(importerStyles.reviewLeft)}>
         <h4>Files</h4>
         {candidates.map(c => (
-          <div key={c.id} style={{ padding: '8px', borderRadius: '4px', backgroundColor: c.id === activeCandidate.id ? '#eff6ff' : 'transparent', fontWeight: c.id === activeCandidate.id ? 600 : 400 }}>
+          <div key={c.id} style={{ padding: '8px', borderRadius: '4px', backgroundColor: c.id === activeCandidate.id ? 'var(--color-accent-muted)' : 'transparent', fontWeight: c.id === activeCandidate.id ? 600 : 400 }}>
             {c.filename}
           </div>
         ))}
@@ -89,7 +89,7 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
           <div {...stylex.props(importerStyles.diffCard)}>
             <div {...stylex.props(importerStyles.diffHeader)}>
               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={18} color="#2563eb" /> AI Cleanup Diff Comparison
+                <Sparkles size={18} color="var(--color-accent)" /> AI Cleanup Diff Comparison
               </h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -114,7 +114,7 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
                 <MarkdownViewer text={diffResult.original} />
               </div>
               <div {...stylex.props(importerStyles.diffPane)}>
-                <h4 style={{ marginTop: 0, color: '#2563eb' }}>AI Cleaned Structure</h4>
+                <h4 style={{ marginTop: 0, color: 'var(--color-accent)' }}>AI Cleaned Structure</h4>
                 <MarkdownViewer text={diffResult.cleaned} />
               </div>
             </div>

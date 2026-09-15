@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { screenStyles } from './libraryScreen.stylex';
-import { MAX_PREVIEW_LEVEL, OVERVIEW_STEPS } from './overviewSteps';
+import { screenStyles } from '../styles/libraryScreen.stylex';
+import { MAX_PREVIEW_LEVEL, OVERVIEW_STEPS } from '../utils/overviewSteps';
 
 export interface PreviewStepperProps {
   /** Items shown at the current level (already capped). */

@@ -41,8 +41,8 @@ const styles = stylex.create({
     transition: 'all 0.15s ease',
   },
   pillActive: {
-    borderColor: 'var(--color-primary, #6366f1)',
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    borderColor: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
     fontWeight: 600,
   },
@@ -266,7 +266,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
 
         {isGenerating && (
           <div {...stylex.props(styles.loadingContainer)}>
-            <Loader2 size={32} className="lucide-spin" color="var(--color-primary, #6366f1)" />
+            <Loader2 size={32} className="lucide-spin" color="var(--color-accent)" />
             <div {...stylex.props(styles.loadingText)}>{phaseMessage || 'Generating...'}</div>
           </div>
         )}
@@ -310,7 +310,7 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
 
         {status === 'done' && (
           <div {...stylex.props(styles.successContainer)}>
-            <CheckCircle2 size={40} color="var(--color-success, #10b981)" />
+            <CheckCircle2 size={40} color="var(--color-success)" />
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Flashcards Saved!</h3>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
               Added {savedCards.length} flashcards to your deck. Ready for spaced repetition practice!

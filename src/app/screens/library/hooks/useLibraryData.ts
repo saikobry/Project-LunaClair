@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Collection } from '../../../domain/collections/models/Collection';
-import type { MaterialMembershipFilter } from '../../../features/materials/types/libraryFilter.types';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import type { Collection } from '../../../../domain/collections/models/Collection';
+import type { MaterialMembershipFilter } from '../../../../features/materials/types/libraryFilter.types';
 
 /**
  * Screen-owned library queries: tag ranking, material filtering, and the

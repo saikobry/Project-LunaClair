@@ -107,9 +107,9 @@ const styles = stylex.create({
     borderStyle: 'solid',
   },
   serverBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    color: '#2563eb',
+    backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
+    borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+    color: 'var(--color-accent)',
   },
   localBadge: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -157,7 +157,7 @@ const styles = stylex.create({
     resize: 'vertical',
     outline: 'none',
     ':focus': {
-      borderColor: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
       boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
     },
   },
@@ -194,7 +194,7 @@ const styles = stylex.create({
     },
   },
   btnPrimary: {
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
     ':hover:not(:disabled)': {
       opacity: 0.9,
@@ -230,7 +230,7 @@ function DiffContent({
         <div {...stylex.props(styles.versionCard)}>
           <div {...stylex.props(styles.versionHeader)}>
             <div {...stylex.props(styles.versionTitleGroup)}>
-              <Server size={16} color="#2563eb" />
+              <Server size={16} color="var(--color-accent)" />
               <span>Server Version (Canonical)</span>
             </div>
             <span {...stylex.props(styles.badge, styles.serverBadge)}>
@@ -496,7 +496,7 @@ export function ConflictDraftsModal({
           </div>
         ) : !activeDraft ? (
           <div {...stylex.props(styles.emptyState)}>
-            <Check size={28} color="#10b981" />
+            <Check size={28} color="var(--color-success)" />
             <span>All conflicts have been resolved.</span>
           </div>
         ) : (

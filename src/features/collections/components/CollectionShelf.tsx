@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { ChevronRight, Layers, Plus } from 'lucide-react';
-import type { Collection } from '../../../domain/collections/models/Collection';
+import { DEFAULT_COLLECTION_COLOR, type Collection } from '../../../domain/collections/models/Collection';
 import { Button } from '../../../shared/ui/Button/Button';
 import { VIRTUALIZE_AFTER_ITEM_COUNT } from '../../../shared/constants/listRendering';
 import { getCollectionIcon } from '../modals/collectionAppearance';
@@ -107,8 +107,8 @@ export function CollectionShelf({
                 <span
                   {...stylex.props(shelfStyles.cardIcon)}
                   style={{
-                    backgroundColor: `${collection.color ?? '#a78bfa'}12`,
-                    border: `1px solid ${collection.color ?? '#a78bfa'}25`,
+                    backgroundColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}12`,
+                    border: `1px solid ${collection.color ?? DEFAULT_COLLECTION_COLOR}25`,
                     color,
                   }}
                   aria-hidden="true"

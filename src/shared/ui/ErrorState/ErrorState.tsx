@@ -26,7 +26,7 @@ const styles = stylex.create({
     height: 56,
     borderRadius: 16,
     backgroundColor: 'rgba(220, 38, 38, 0.08)',
-    color: 'var(--color-danger, #dc2626)',
+    color: 'var(--color-error)',
     marginBottom: 4,
     flexShrink: 0,
   },

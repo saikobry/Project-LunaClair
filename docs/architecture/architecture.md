@@ -76,7 +76,7 @@ Reusable domain-agnostic types, constants, utility functions, design tokens, and
 ## Cloud Sync & Content Layer (Cloudflare D1 & Workers)
 
 - The PWA stays local-first (Dexie/IndexedDB); Cloudflare D1 (`lunaclair` database) serves as the **study content store** (materials & figures), the **cloud sync replication layer** (Phase 10), and the **cloud sharing link store** (Phase 11).
-- Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~1.5 MB.
+- Study materials (markdown & figure images) are hosted in D1, served on demand by the `api` Worker (`https://api.project-lunaclair.workers.dev`), and cached by the Service Worker via Workbox `CacheFirst` runtime caching, reducing initial app precache from 7.6 MB to ~2.8 MB across 51 entries (measured at build).
 - D1 is only reachable through the `api` Cloudflare Worker (`worker/`, config in root `wrangler.jsonc`): browser → Worker REST API → D1 binding (`DB`).
 - Schema lives as versioned migrations in `worker/migrations/`; canonical markdown files live in `content/materials/` and are seeded via `scripts/seed-materials.mjs`.
 - **Study-package distribution.** `.lcpack` StudyPackage sharing (`/api/shares`, `SharedPackageScreen`) is the exclusive content distribution mechanism — the legacy catalog/quiz endpoints and tables were retired (Phase 5, Sep 2026). The app does not auto-hydrate D1 into Dexie on boot — a fresh install starts with an empty library. Coursework and community study packs are surfaced via the **Explore Hub** (`/explore`); users clone shares into their local Dexie library.

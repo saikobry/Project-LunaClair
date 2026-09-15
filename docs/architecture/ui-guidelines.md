@@ -83,6 +83,17 @@ Features own their specific page content (search, filtering, breadcrumbs) — do
 - **Astryx theme tokens** provide color, spacing, radius, shadow, and typography via CSS custom properties.
 - LunaClair has no separate supplement-token file — use Astryx CSS variables for color, spacing, radius, shadow, and typography, and StyleX for layout. Avoid hardcoded values.
 
+### Semantic Role Vocabulary
+
+**Application code references colour by role via `var(--color-*)`. Literal colour values live only in `src/shared/theme/lunaclairTheme.ts`.** That split is Astryx's own model — the theme is its designated literal layer (`neutralTheme` resolves every component token to a literal too), so a literal in `lunaclairTheme` is idiomatic while the same literal in a component is a leak.
+
+- **Sentiment roles are exactly `--color-{success,error,warning}`** plus their `-muted` and `-on-*` siblings. That is the complete set Astryx defines (`@astryxdesign/core` `colorDefaults`; `@astryxdesign/theme-neutral` `theme.css`).
+- **`--color-danger` does not exist and must never be added as an alias.** Astryx's Button variant is `destructive` (action severity, the only place that concept appears); every state-carrying component uses `error` — Banner `variant:info|neutral|success|warning|error`, Badge `variant:success|warning|error|accent`, `status:error` — and resolves through `--color-error`. "danger" is Bootstrap-era vocabulary that leaked in, and a second name for one role is precisely how the roles drift apart.
+- **Never rely on a fallback for a role token.** `var(--color-role, #hex)` is safe only when the token is guaranteed defined. An undefined token is *invalid at computed-value time*: the declaration does not degrade to the nearest sibling role, it drops to the inherited/initial value. A bare `var(--color-danger)` silently rendered uncoloured text until Sep 2026.
+- **Alpha tints of a role** use `color-mix(in srgb, var(--color-accent) N%, transparent)` — or a matching `--color-overlay-*` token where the value coincides (`--color-overlay-hover` is exactly `rgba(99,102,241,0.08)`) — never a hardcoded `rgba()` from an earlier palette generation.
+- **Multi-hue differentiation uses the theme's hue families, not literals.** The theme declares `--color-{text,background,border}-{blue,cyan,gray,green,orange,pink,purple,red,teal,yellow}` (values live in `@astryxdesign/theme-neutral/dist/theme.css`). Distinct-category chips — e.g. `CollectionQuizExplorer`'s Foundations/Apply difficulty chips — differentiate through a family triplet (`teal` / `orange`) instead of inventing per-chip hex values.
+- **`collection.color` values are persisted user data**, so Collection/annotation colour derivation (swatches, `tint()`, `heroBackground()`) legitimately stays dynamic and literal-adjacent; it is not a token violation.
+
 ## Third-Party Package Boundaries
 
 | Package | Allowed Locations |

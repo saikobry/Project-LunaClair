@@ -59,15 +59,15 @@ const styles = stylex.create({
     gap: 0,
   },
   synced: {
-    color: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    color: 'var(--color-success)',
+    backgroundColor: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
+    borderColor: 'color-mix(in srgb, var(--color-success) 25%, transparent)',
     ':hover': {
-      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)',
     },
   },
   syncing: {
-    color: 'var(--color-accent, #6366f1)',
+    color: 'var(--color-accent)',
     backgroundColor: 'rgba(99, 102, 241, 0.08)',
     borderColor: 'rgba(99, 102, 241, 0.25)',
     ':hover': {
@@ -217,7 +217,7 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
       default:
         return (
           <>
-            <CheckCircle2 size={14} color="#10b981" />
+            <CheckCircle2 size={14} color="var(--color-success)" />
             <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
               Synced
             </span>

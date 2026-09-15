@@ -71,7 +71,7 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     padding: '12px 14px',
-    backgroundColor: 'var(--color-background-muted, #f9fafb)',
+    backgroundColor: 'var(--color-background-muted)',
     borderRadius: 10,
     border: '1px solid var(--color-border)',
     gap: 4,
@@ -114,7 +114,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: 12,
     padding: 16,
-    backgroundColor: 'var(--color-background-muted, #f9fafb)',
+    backgroundColor: 'var(--color-background-muted)',
     borderRadius: 12,
     border: '1px solid var(--color-border)',
   },
@@ -149,7 +149,7 @@ const styles = stylex.create({
     fontFamily: 'inherit',
     transition: 'border-color 0.15s ease',
     ':focus': {
-      borderColor: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
       boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
     },
   },
@@ -185,7 +185,7 @@ const styles = stylex.create({
     },
   },
   btnPrimary: {
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     color: '#ffffff',
     ':hover:not(:disabled)': {
       opacity: 0.9,

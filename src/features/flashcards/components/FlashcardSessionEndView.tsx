@@ -35,8 +35,8 @@ const styles = stylex.create({
         width: 64,
         height: 64,
         borderRadius: 20,
-        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-        color: '#059669',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 12%, transparent)',
+        color: 'var(--color-success)',
     },
     title: {
         fontSize: 24,
@@ -122,14 +122,14 @@ export function FlashcardSessionEndView({
                     </div>
 
                     <div {...stylex.props(styles.statItem)}>
-                        <span {...stylex.props(styles.statCount)} style={{ color: '#2563eb' }}>
+                        <span {...stylex.props(styles.statCount)} style={{ color: 'var(--color-accent)' }}>
                             {summary.goodCount}
                         </span>
                         <span {...stylex.props(styles.statLabel)}>Good</span>
                     </div>
 
                     <div {...stylex.props(styles.statItem)}>
-                        <span {...stylex.props(styles.statCount)} style={{ color: '#059669' }}>
+                        <span {...stylex.props(styles.statCount)} style={{ color: 'var(--color-success)' }}>
                             {summary.easyCount}
                         </span>
                         <span {...stylex.props(styles.statLabel)}>Easy</span>

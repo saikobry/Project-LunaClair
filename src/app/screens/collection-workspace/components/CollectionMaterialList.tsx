@@ -1,12 +1,12 @@
 import * as stylex from '@stylexjs/stylex';
 import { useState } from 'react';
 import { BookOpen, Plus } from 'lucide-react';
-import { Button } from '../../../shared/ui/Button/Button';
-import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import { styles } from './collectionMaterialList.stylex';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import { styles } from '../styles/collectionMaterialList.stylex';
 import { CollectionMaterialRow } from './CollectionMaterialRow';
-import { useCollectionMaterialReorder } from './useCollectionMaterialReorder';
+import { useCollectionMaterialReorder } from '../hooks/useCollectionMaterialReorder';
 
 export interface CollectionMaterialListProps {
   collectionId: string;
@@ -77,7 +77,7 @@ export function CollectionMaterialList({
           cx="28"
           cy="28"
           r="22"
-          fill="rgba(167, 139, 250, 0.16)"
+          fill="color-mix(in srgb, var(--color-accent) 16%, transparent)"
           stroke="rgba(255, 255, 255, 0.15)"
           strokeWidth="2.5"
         />
@@ -87,7 +87,7 @@ export function CollectionMaterialList({
           cy="28"
           r="22"
           fill="none"
-          stroke="var(--color-accent, #a78bfa)"
+          stroke="var(--color-accent)"
           strokeWidth="3"
           strokeDasharray={138.23}
           strokeDashoffset={138.23}

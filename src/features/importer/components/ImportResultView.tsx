@@ -15,9 +15,9 @@ export function ImportResultView({ createdMaterials, onImportAnother, onOpenMate
   return (
     <div {...stylex.props(importerStyles.content)}>
       <div {...stylex.props(importerStyles.resultCard)}>
-        <CheckCircle2 size={48} color='#10b981' />
+        <CheckCircle2 size={48} color='var(--color-success)' />
         <h3 style={{ margin: 0 }}>Import Successful</h3>
-        <p style={{ margin: 0, color: '#4b5563', fontSize: '14px' }}>
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '14px' }}>
           {createdMaterials.length} material{createdMaterials.length === 1 ? '' : 's'} added to your library.
         </p>
 
@@ -33,7 +33,7 @@ export function ImportResultView({ createdMaterials, onImportAnother, onOpenMate
                   padding: '12px 16px',
                   backgroundColor: '#ffffff',
                   borderRadius: '8px',
-                  border: '1px solid #d1fae5',
+                  border: '1px solid var(--color-success-muted)',
                 }}
               >
                 <div style={{ fontWeight: 500, color: '#111827', fontSize: '14px' }}>{mat.title}</div>

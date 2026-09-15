@@ -1,6 +1,4 @@
 import {
-  useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -9,6 +7,7 @@ import {
 } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Plus, X } from 'lucide-react';
+import { useModalDialog } from '../../../shared/hooks/useModalDialog';
 import { styles } from './compactCollectionsPopover.stylex';
 import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
 import type { Collection } from '../../../domain/collections/models/Collection';
@@ -138,26 +137,13 @@ export function CompactCollectionsDockDrawer({
   onCreateNew,
   onClose,
 }: CollectionsPanelProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const touchStartY = useRef<number | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
 
-  useLayoutEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  // Backdrop dismissal: a native modal renders its backdrop as a ::backdrop
-  // pseudo-element, so the click arrives on the <dialog> element itself. Bound
-  // imperatively rather than as a JSX handler on non-interactive markup.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleClick = (event: MouseEvent) => {
-      if (event.target === dialog) onClose();
-    };
-    dialog.addEventListener('click', handleClick);
-    return () => dialog.removeEventListener('click', handleClick);
-  }, [onClose]);
+  // Native modal plumbing: open on mount plus backdrop dismissal (a native
+  // modal delivers the backdrop click on the <dialog> element itself). Body
+  // scroll locking for the dock placement is owned by `CompactCollectionsPopover`.
+  const dialogRef = useModalDialog({ isOpen: true, onBackdropClick: onClose });
 
   const handleTouchStart = (e: TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;

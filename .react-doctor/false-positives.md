@@ -6,7 +6,16 @@ the scope of the suppression that hides it. A suppression is not a fix and not a
 pass: it records why the diagnostic is not actionable, so the code is never
 reshaped to satisfy a pattern matcher.
 
-## `react-doctor/effect-needs-cleanup` — `src/app/screens/collection-workspace/useCollectionMaterialReorder.ts`
+## `react-doctor/effect-needs-cleanup` — `src/app/screens/collection-workspace/hooks/useHoldToDragArming.ts`
+
+> **Relocated (Sep 2026, twice).** The reorder engine was decomposed into
+> `reorderListGeometry` (slot math + commit animation), `useDesktopRowDrag`,
+> `useHoldToDragArming` (this gesture), and a thin `useCollectionMaterialReorder`
+> orchestrator; the screen folder was then reorganized so support modules live in
+> `hooks/`, `components/`, `modals/`, `styles/`, and `utils/` subfolders. The
+> gesture code moved verbatim both times, so the exception moved with it — each
+> previous path no longer contains the effect and its entry was removed from
+> `doctor.config.ts`.
 
 - **Rule predicate used:** `effect-needs-cleanup` → _Validation prompt_ → **SUPPRESS (1)**:
   "the timer/subscription is NOT scheduled synchronously by the effect's own
@@ -37,9 +46,13 @@ reshaped to satisfy a pattern matcher.
   handler is defined inline inside it.
 - **Review condition:** Re-check if this effect becomes able to schedule a timer
   synchronously on mount/re-run, or if `onPointerDown` stops being owned by this
-  effect's lifecycle. Remove the `ignore.overrides` entry together with the code
-  change whenever this file is restructured to define the gesture outside the
-  effect.
+  effect's lifecycle. The Sep 2026 decomposition relocated the gesture but still
+  defines it inside the effect, so the exception stands; remove the
+  `ignore.overrides` entry if the gesture is ever defined outside the effect.
+- **Scan-scope caveat (Sep 2026):** `react-doctor --scope changed` did **not**
+  report this diagnostic while the file was newly added — only `--scope full`
+  surfaced it. Removing or retargeting an override must therefore be verified
+  with a **full** scan; a changed-scope scan can silently pass.
 
 ## `react-doctor/no-static-element-interactions` — `src/features/materials/components/MaterialCard.tsx`
 

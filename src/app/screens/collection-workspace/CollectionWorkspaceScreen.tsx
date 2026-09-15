@@ -13,8 +13,8 @@ import { useUpdateCollection } from '../../../features/collections/hooks/mutatio
 import { useDeleteCollection } from '../../../features/collections/hooks/mutations/useDeleteCollection';
 import { EditCollectionModal } from '../../../features/collections/modals/EditCollectionModal';
 import { CollectionQuizExplorer } from '../../../features/collections/components/CollectionQuizExplorer';
-import { CollectionMaterialList } from './CollectionMaterialList';
-import { CollectionHero } from './CollectionHero';
+import { CollectionMaterialList } from './components/CollectionMaterialList';
+import { CollectionHero } from './components/CollectionHero';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Breadcrumbs } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -23,7 +23,7 @@ import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
 import { TabList, Tab } from '../../../shared/ui/TabList/TabList';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { WorkspaceSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
-import { AddMaterialsDrawer } from './AddMaterialsDrawer';
+import { AddMaterialsDrawer } from './modals/AddMaterialsDrawer';
 
 const styles = stylex.create({
   loadingContainer: {

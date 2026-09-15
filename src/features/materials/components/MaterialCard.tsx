@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, BrainCircuit, ClipboardList, FolderPlus, Plus, X, Check, Folder, SquarePen, Trash2 } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Collection } from '../../../domain/collections/models/Collection';
+import { DEFAULT_COLLECTION_COLOR, type Collection } from '../../../domain/collections/models/Collection';
 import { Card } from '../../../shared/ui/Card/Card';
 import { IconButton } from '../../../shared/ui/IconButton/IconButton';
 import { Chip } from '../../../shared/ui/Chip/Chip';
@@ -137,9 +137,9 @@ function MaterialCollectionsPopover({
                 <div
                   {...stylex.props(cardStyles.popoverIcon)}
                   style={{
-                    backgroundColor: `${collection.color ?? '#a78bfa'}12`,
-                    borderColor: `${collection.color ?? '#a78bfa'}25`,
-                    color: collection.color ?? '#a78bfa',
+                    backgroundColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}12`,
+                    borderColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}25`,
+                    color: collection.color ?? DEFAULT_COLLECTION_COLOR,
                   }}
                 >
                   <Folder size={14} />
@@ -217,9 +217,9 @@ function MaterialCollectionBadges({
               onNavigate ? cardStyles.badgeButtonClickable : cardStyles.badgeButtonStatic,
             )}
             style={{
-              backgroundColor: `${collection.color ?? '#a78bfa'}12`,
-              borderColor: `${collection.color ?? '#a78bfa'}25`,
-              color: collection.color ?? '#a78bfa',
+              backgroundColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}12`,
+              borderColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}25`,
+              color: collection.color ?? DEFAULT_COLLECTION_COLOR,
             }}
           >
             <Folder size={10} />

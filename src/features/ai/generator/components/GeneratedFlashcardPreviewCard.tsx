@@ -17,11 +17,11 @@ const styles = stylex.create({
     transition: 'border-color 0.15s ease',
   },
   cardSelected: {
-    borderColor: 'var(--color-primary, #6366f1)',
+    borderColor: 'var(--color-accent)',
     backgroundColor: 'var(--color-background-surface-hover, #fafafa)',
   },
   cardInvalid: {
-    borderColor: 'var(--color-danger, #ef4444)',
+    borderColor: 'var(--color-error)',
   },
   headerRow: {
     display: 'flex',
@@ -44,7 +44,7 @@ const styles = stylex.create({
     width: 18,
     height: 18,
     cursor: 'pointer',
-    accentColor: 'var(--color-primary, #6366f1)',
+    accentColor: 'var(--color-accent)',
   },
   badge: {
     padding: '2px 8px',
@@ -65,14 +65,14 @@ const styles = stylex.create({
     gap: 4,
     padding: '8px 10px',
     borderRadius: 6,
-    backgroundColor: 'var(--color-background-subtle, #f3f4f6)',
+    backgroundColor: 'var(--color-background-muted)',
   },
   sideLabel: {
     fontSize: 11,
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
   },
   sideText: {
     fontSize: 13,
@@ -93,7 +93,7 @@ const styles = stylex.create({
   },
   explanationRow: {
     fontSize: 12,
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     fontStyle: 'italic',
   },
   iconButton: {
@@ -113,7 +113,7 @@ const styles = stylex.create({
     gap: 4,
     fontSize: 11,
     fontWeight: 600,
-    color: 'var(--color-success, #10b981)',
+    color: 'var(--color-success)',
   },
   statusInvalid: {
     display: 'flex',
@@ -121,7 +121,7 @@ const styles = stylex.create({
     gap: 4,
     fontSize: 11,
     fontWeight: 600,
-    color: 'var(--color-danger, #ef4444)',
+    color: 'var(--color-error)',
   },
 });
 
@@ -203,7 +203,7 @@ const EditFlashcardForm: React.FC<EditFlashcardFormProps> = ({
         <button
           type="button"
           onClick={() => onSave(front.trim() || initialFront, back.trim() || initialBack, explanation.trim() || undefined)}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-primary, #6366f1)', color: '#fff', border: 'none' }}
+          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-accent)', color: '#fff', border: 'none' }}
         >
           Save
         </button>

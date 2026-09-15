@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 
 export interface RecentMaterials {
   /** Most recently opened material — the continue-studying hero. */

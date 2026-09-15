@@ -38,16 +38,16 @@ const styles = stylex.create({
         transition: 'width 0.3s ease',
     },
     masteredSegment: {
-        backgroundColor: '#10B981',
+        backgroundColor: 'var(--color-success)',
     },
     reviewSegment: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: 'var(--color-background-purple)',
     },
     learningSegment: {
-        backgroundColor: '#3B82F6',
+        backgroundColor: 'var(--color-background-blue)',
     },
     newSegment: {
-        backgroundColor: '#94A3B8',
+        backgroundColor: 'var(--color-background-gray)',
     },
     legendGrid: {
         display: 'grid',
@@ -74,16 +74,16 @@ const styles = stylex.create({
         borderRadius: '50%',
     },
     masteredDot: {
-        backgroundColor: '#10B981',
+        backgroundColor: 'var(--color-success)',
     },
     reviewDot: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: 'var(--color-background-purple)',
     },
     learningDot: {
-        backgroundColor: '#3B82F6',
+        backgroundColor: 'var(--color-background-blue)',
     },
     newDot: {
-        backgroundColor: '#94A3B8',
+        backgroundColor: 'var(--color-background-gray)',
     },
     legendValue: {
         fontSize: 15,

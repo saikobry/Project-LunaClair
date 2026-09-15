@@ -23,14 +23,14 @@ const styles = stylex.create({
     fontWeight: 500,
     cursor: 'pointer',
     backgroundColor: 'transparent',
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     transition: 'all 0.15s ease',
     ':hover': {
       color: 'var(--color-text-primary, #111827)',
       backgroundColor: 'rgba(255, 255, 255, 0.5)',
     },
     ':focus-visible': {
-      outline: '2px solid var(--color-primary, #6366f1)',
+      outline: '2px solid var(--color-accent)',
       outlineOffset: '1px',
     },
     ':disabled': {
@@ -57,12 +57,12 @@ const styles = stylex.create({
     padding: '1px 6px',
     borderRadius: '10px',
     backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.08))',
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     fontWeight: 500,
   },
   badgeActive: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    color: 'var(--color-primary, #6366f1)',
+    color: 'var(--color-accent)',
   },
 });
 

@@ -57,7 +57,7 @@ const styles = stylex.create({
     backgroundColor: 'var(--color-success)',
     borderColor: 'var(--color-success)',
     color: 'var(--color-on-success)',
-    boxShadow: '0 1px 3px rgba(16, 185, 129, 0.25)',
+    boxShadow: '0 1px 3px color-mix(in srgb, var(--color-success) 25%, transparent)',
     ':hover': {
       backgroundColor: 'var(--color-success)',
       borderColor: 'var(--color-success)',

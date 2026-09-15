@@ -26,7 +26,7 @@ const styles = stylex.create({
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--color-border, #e5e7eb)',
+    borderColor: 'var(--color-border)',
     backgroundColor: '#0f172a',
     color: '#e2e8f0',
     boxSizing: 'border-box',
@@ -37,7 +37,7 @@ const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: '64px 24px',
-    color: 'var(--color-text-secondary, #6b7280)',
+    color: 'var(--color-text-secondary)',
     fontSize: 14,
   },
 });

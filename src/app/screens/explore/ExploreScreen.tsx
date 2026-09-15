@@ -122,7 +122,7 @@ const localStyles = stylex.create({
     padding: '2px 7px',
     borderRadius: 5,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    color: 'var(--color-primary, #6366f1)',
+    color: 'var(--color-accent)',
     border: '1px solid rgba(99, 102, 241, 0.25)',
   },
   communityBadge: {
@@ -133,9 +133,9 @@ const localStyles = stylex.create({
     fontWeight: 600,
     padding: '2px 7px',
     borderRadius: 5,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    color: 'var(--color-success, #10b981)',
-    border: '1px solid rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
+    color: 'var(--color-success)',
+    border: '1px solid color-mix(in srgb, var(--color-success) 25%, transparent)',
   },
   cardDescription: {
     fontSize: 13,

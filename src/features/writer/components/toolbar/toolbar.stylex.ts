@@ -10,7 +10,7 @@ export const toolbarStyles = stylex.create({
     backgroundColor: 'var(--color-background-surface, #ffffff)',
     borderBottomWidth: 1,
     borderBottomStyle: 'solid',
-    borderBottomColor: 'var(--color-border, #e5e7eb)',
+    borderBottomColor: 'var(--color-border)',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     zIndex: 10,
@@ -23,7 +23,7 @@ export const toolbarStyles = stylex.create({
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: 'var(--color-border, #e5e7eb)',
+    backgroundColor: 'var(--color-border)',
     margin: '0 4px',
   },
   button: {
@@ -35,13 +35,13 @@ export const toolbarStyles = stylex.create({
     borderRadius: 6,
     borderWidth: 0,
     backgroundColor: 'transparent',
-    color: 'var(--color-text-secondary, #4b5563)',
+    color: 'var(--color-text-secondary)',
     cursor: 'pointer',
     outline: 'none',
     transition: 'all 0.15s ease',
     ':hover': {
-      backgroundColor: 'var(--color-background-muted, #f3f4f6)',
-      color: 'var(--color-text-primary, #111827)',
+      backgroundColor: 'var(--color-background-muted)',
+      color: 'var(--color-text-primary)',
     },
     ':disabled': {
       opacity: 0.4,
@@ -49,8 +49,8 @@ export const toolbarStyles = stylex.create({
     },
   },
   buttonActive: {
-    backgroundColor: 'var(--color-accent-muted, #eff6ff)',
-    color: 'var(--color-accent, #2563eb)',
+    backgroundColor: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
     fontWeight: 600,
   },
   select: {
@@ -60,7 +60,7 @@ export const toolbarStyles = stylex.create({
     borderRadius: 6,
     borderWidth: 1,
     borderStyle: 'solid',
-    borderColor: 'var(--color-border, #e5e7eb)',
+    borderColor: 'var(--color-border)',
     backgroundColor: 'var(--color-background-surface, #ffffff)',
     color: 'var(--color-text-primary, #111827)',
     cursor: 'pointer',

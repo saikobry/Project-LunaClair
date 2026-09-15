@@ -22,9 +22,9 @@ import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { CardGridSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
-import { useRecentMaterials } from './useRecentMaterials';
-import { useHomeStats } from './useHomeStats';
-import { styles } from './home.stylex';
+import { useRecentMaterials } from './hooks/useRecentMaterials';
+import { useHomeStats } from './hooks/useHomeStats';
+import { styles } from './styles/home.stylex';
 
 export interface HomeScreenProps {
   onOpenMaterial: (materialId: string) => void;

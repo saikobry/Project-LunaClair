@@ -16,7 +16,7 @@ const styles = stylex.create({
     gap: 7,
     padding: '7px 14px',
     borderRadius: '8px',
-    border: '1px solid var(--color-border, #e5e7eb)',
+    border: '1px solid var(--color-border)',
     backgroundColor: 'var(--color-surface, #ffffff)',
     color: 'var(--color-text-primary, #111827)',
     fontSize: '13px',
@@ -26,14 +26,14 @@ const styles = stylex.create({
     transition: 'all 0.15s ease',
     ':hover': {
       backgroundColor: 'rgba(99, 102, 241, 0.06)',
-      borderColor: 'var(--color-primary, #6366f1)',
-      color: 'var(--color-primary, #6366f1)',
+      borderColor: 'var(--color-accent)',
+      color: 'var(--color-accent)',
     },
   },
   buttonActive: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    borderColor: 'var(--color-primary, #6366f1)',
-    color: 'var(--color-primary, #6366f1)',
+    borderColor: 'var(--color-accent)',
+    color: 'var(--color-accent)',
     fontWeight: 600,
   },
   icon: {
@@ -52,7 +52,7 @@ const styles = stylex.create({
     width: 9,
     height: 9,
     borderRadius: '50%',
-    backgroundColor: 'var(--color-primary, #6366f1)',
+    backgroundColor: 'var(--color-accent)',
     border: '2px solid var(--color-surface, #ffffff)',
   },
   badgeStreaming: {

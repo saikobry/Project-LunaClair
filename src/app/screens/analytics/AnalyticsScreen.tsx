@@ -28,7 +28,7 @@ const styles = stylex.create({
   },
   errorText: {
     fontSize: 14,
-    color: 'var(--color-danger, #EF4444)',
+    color: 'var(--color-error)',
     padding: '32px 0',
     textAlign: 'center',
   },

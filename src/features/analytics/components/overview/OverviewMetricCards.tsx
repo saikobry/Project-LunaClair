@@ -40,20 +40,20 @@ const styles = stylex.create({
         color: 'var(--color-text-secondary)',
     },
     flameBadge: {
-        backgroundColor: 'rgba(249, 115, 22, 0.15)',
-        color: '#EA580C',
+        backgroundColor: 'color-mix(in srgb, var(--color-text-orange) 15%, transparent)',
+        color: 'var(--color-text-orange)',
     },
     targetBadge: {
-        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-        color: '#2563EB',
+        backgroundColor: 'color-mix(in srgb, var(--color-text-blue) 15%, transparent)',
+        color: 'var(--color-text-blue)',
     },
     quizBadge: {
-        backgroundColor: 'rgba(16, 185, 129, 0.15)',
-        color: '#059669',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)',
+        color: 'var(--color-success)',
     },
     cardBadge: {
-        backgroundColor: 'rgba(139, 92, 246, 0.15)',
-        color: '#7C3AED',
+        backgroundColor: 'color-mix(in srgb, var(--color-text-purple) 15%, transparent)',
+        color: 'var(--color-text-purple)',
     },
     value: {
         fontSize: 28,

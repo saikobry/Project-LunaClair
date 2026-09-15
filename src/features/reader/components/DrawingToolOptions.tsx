@@ -77,18 +77,18 @@ const styles = stylex.create({
     borderStyle: 'solid',
     borderColor: 'transparent',
     backgroundColor: 'transparent',
-    color: '#4b5563',
+    color: 'var(--color-text-secondary)',
     cursor: 'pointer',
     padding: 0,
     transition: 'all 0.2s ease',
     ':hover': {
-      backgroundColor: '#f3f4f6',
+      backgroundColor: 'var(--color-background-muted)',
     },
   },
   brushSizeBtnActive: {
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
-    borderColor: '#d1d5db',
+    backgroundColor: 'var(--color-background-muted)',
+    color: 'var(--color-text-primary)',
+    borderColor: 'var(--color-border-emphasized)',
   },
   penIconWithDot: {
     position: 'relative',

@@ -111,8 +111,8 @@ const styles = stylex.create({
         fontWeight: 600,
     },
     difficultyEasy: {
-        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-        color: '#059669',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 12%, transparent)',
+        color: 'var(--color-success)',
     },
     difficultyMedium: {
         backgroundColor: 'rgba(245, 158, 11, 0.12)',
@@ -214,17 +214,17 @@ const styles = stylex.create({
         },
     },
     ratingBtnGood: {
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-        color: '#2563eb',
+        borderColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)',
+        color: 'var(--color-accent)',
         ':hover': {
-            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            backgroundColor: 'color-mix(in srgb, var(--color-accent) 8%, transparent)',
         },
     },
     ratingBtnEasy: {
-        borderColor: 'rgba(16, 185, 129, 0.3)',
-        color: '#059669',
+        borderColor: 'color-mix(in srgb, var(--color-success) 30%, transparent)',
+        color: 'var(--color-success)',
         ':hover': {
-            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            backgroundColor: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
         },
     },
     ratingLabel: {

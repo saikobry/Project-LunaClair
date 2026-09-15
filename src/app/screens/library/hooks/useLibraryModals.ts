@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import { useCreateMaterial } from '../../../features/materials/hooks/mutations/useCreateMaterial';
-import { useDeleteMaterial } from '../../../features/materials/hooks/mutations/useDeleteMaterial';
-import { useEditMaterial } from '../../../features/materials/hooks/mutations/useEditMaterial';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+import { useCreateMaterial } from '../../../../features/materials/hooks/mutations/useCreateMaterial';
+import { useDeleteMaterial } from '../../../../features/materials/hooks/mutations/useDeleteMaterial';
+import { useEditMaterial } from '../../../../features/materials/hooks/mutations/useEditMaterial';
 
 /**
  * Library dialog state: material edit/delete/create plus collection creation.

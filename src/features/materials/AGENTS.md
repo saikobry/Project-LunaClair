@@ -31,7 +31,7 @@ Owns the core study material entity presentation and local library state managem
 
 ## Local Contracts
 
-- **Leaf Bounded Context (ADR-014)**: `features/materials` has 0 cross-feature dependencies. It must never import from `discovery/` or other features.
+- **Cross-feature dependencies (corrected Sep 2026)**: `features/materials` **does** consume `features/collections` — `MaterialCard`'s filing popover is the sole material-to-collection assignment surface and reads `useCollections` / `useMaterialCollections` with `useAddMaterialToCollection` / `useRemoveMaterialFromCollection`. This is the repository's only materials⇄collections edge and it runs **one way** (`collections` imports nothing from `materials`), so the DAG stays acyclic. The previous "0 cross-feature dependencies" claim did not match the code. It must never import from `discovery/`.
 - Mutation hooks delegate exclusively to `src/application/` use cases.
 - Route-level library pages belong to `src/app/screens/library/` (`LibraryScreen.tsx`, `LibraryModals.tsx`); the Home dashboard lives in `src/app/screens/home/`. `LibraryView` is a section, not a page — it must not reintroduce `<Page>` chrome.
 

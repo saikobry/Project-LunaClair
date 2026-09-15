@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useModalDialog } from '../../shared/hooks/useModalDialog';
 import * as stylex from '@stylexjs/stylex';
 import { BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, GraduationCap, Sparkles, X } from 'lucide-react';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
@@ -60,8 +61,6 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
   const show = !suppressed && !done;
   const isLastStep = step === SLIDES.length - 1;
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
   const markDone = useCallback(() => {
     localStorage.setItem(STORAGE_KEYS.settings.onboardingDone, '1');
     setDone(true);
@@ -78,22 +77,9 @@ export function OnboardingTutorial({ suppressed = false }: OnboardingTutorialPro
 
   // Open as a modal when shown — native <dialog> provides focus trapping,
   // Escape (via the `cancel` event), and the backdrop. Escape is handled in
-  // onCancel below (Skip semantics), so no manual keydown listener needed.
-  useEffect(() => {
-    if (show && dialogRef.current && !dialogRef.current.open) {
-      dialogRef.current.showModal();
-    }
-  }, [show]);
-
-  // Lock background scroll while the takeover owns the viewport.
-  useEffect(() => {
-    if (!show) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [show]);
+  // onCancel below (Skip semantics), which is why no Escape fallback is passed
+  // and the background scroll is locked for the takeover.
+  const dialogRef = useModalDialog({ isOpen: show, lockScroll: true });
 
   if (!show) return null;
 
