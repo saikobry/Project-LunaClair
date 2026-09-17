@@ -29,6 +29,26 @@ export default {
         files: ['src/features/materials/components/MaterialCard.tsx'],
         rules: ['react-doctor/no-static-element-interactions'],
       },
+      {
+        // Same proven false positive at the second card that uses the idiom
+        // (Explore's ShareCard): the shell `<div>` carries `onClick` with no
+        // `role` on purpose — the nested `Clone` button makes `role="button"`
+        // the worse violation. Keyboard/AT parity lives in the title
+        // `<button>`, which is the only open control and owns the focus ring.
+        // Evidence: .react-doctor/false-positives.md
+        files: ['src/app/screens/explore/components/ShareCard.tsx'],
+        rules: ['react-doctor/no-static-element-interactions'],
+      },
+      {
+        // Saved third-party design artifact (a Claude artifact page pasted
+        // into docs/prototypes), not application code. Its line-3 frame-runtime
+        // `<script src>` is a remote absolute URL from the artifact host, which
+        // trips the dynamic-import-path heuristic. Static reference file with
+        // no bundler involvement — the rule does not apply to it.
+        // Evidence: .react-doctor/false-positives.md
+        files: ['docs/prototypes/_t.html'],
+        rules: ['react-doctor/no-dynamic-import-path'],
+      },
     ],
   },
   rules: {

@@ -111,7 +111,7 @@ test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
     });
 
     // Import starting material
-    await page.goto('/available');
+    await page.goto('/explore');
     await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
     const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
     if (await importBtn.isVisible({ timeout: 2000 }).catch(() => false)) {

@@ -45,7 +45,7 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     title: 'Explore Content',
     icon: Compass,
     route: { kind: 'explore' },
-    isActive: (active) => active === 'explore' || active === 'available',
+    isActive: (active) => active === 'explore',
   },
   {
     id: 'analytics',

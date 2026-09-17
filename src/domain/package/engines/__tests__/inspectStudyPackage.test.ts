@@ -2,6 +2,66 @@ import { describe, it, expect } from 'vitest';
 import { inspectStudyPackage } from '../inspectStudyPackage';
 import type { StudyPackage } from '../../models/package.types';
 
+describe('inspectStudyPackage — material tags', () => {
+    function pkgWithMaterials(
+        materials: Array<{ id: `pkg_mat_${string}`; tags?: string[] }>,
+        metadataTags?: string[],
+    ): StudyPackage {
+        return {
+            format: 'lcpack',
+            schemaVersion: 1,
+            metadata: {
+                title: 'Tagged',
+                createdAt: '2026-08-27T00:00:00.000Z',
+                tags: metadataTags,
+            },
+            materials: materials.map((m) => ({
+                ...m,
+                title: m.id,
+                documentContent: '# Body',
+            })),
+            questions: [],
+            quizzes: [],
+        };
+    }
+
+    it('unions the materials\' tags in first-seen order, deduped case-insensitively', () => {
+        const summary = inspectStudyPackage(
+            pkgWithMaterials([
+                { id: 'pkg_mat_a', tags: ['biology', 'Cells'] },
+                { id: 'pkg_mat_b', tags: ['cells', 'membrane'] },
+            ]),
+        );
+
+        // 'cells' dedupes against 'Cells' keeping the first casing seen.
+        expect(summary.tags).toEqual(['biology', 'Cells', 'membrane']);
+    });
+
+    it('reports an empty list when nothing is tagged, never an invented one', () => {
+        const summary = inspectStudyPackage(pkgWithMaterials([{ id: 'pkg_mat_a' }]));
+
+        expect(summary.tags).toEqual([]);
+    });
+
+    it('ignores package-level metadata tags, which import never applies', () => {
+        const summary = inspectStudyPackage(
+            pkgWithMaterials([{ id: 'pkg_mat_a', tags: ['cells'] }], ['ignored']),
+        );
+
+        expect(summary.tags).toEqual(['cells']);
+    });
+
+    it('skips blank and non-string tag entries', () => {
+        const summary = inspectStudyPackage(
+            pkgWithMaterials([
+                { id: 'pkg_mat_a', tags: ['cells', '  ', '#'] as string[] },
+            ]),
+        );
+
+        expect(summary.tags).toEqual(['cells']);
+    });
+});
+
 describe('inspectStudyPackage', () => {
     it('summarizes metrics and question type breakdown correctly', () => {
         const pkg: StudyPackage = {

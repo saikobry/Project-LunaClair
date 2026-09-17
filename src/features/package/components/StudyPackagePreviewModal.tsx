@@ -14,6 +14,7 @@ import {
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Chip } from '../../../shared/ui/Chip/Chip';
 
 export interface StudyPackagePreviewModalProps {
   isOpen: boolean;
@@ -50,6 +51,14 @@ const styles = stylex.create({
     fontSize: 12,
     color: 'var(--color-text-secondary)',
     fontWeight: 500,
+  },
+  /** Shared `Chip` pills — the app's one tag vocabulary, wrapping in the modal. */
+  tagRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: -8,
   },
   sectionTitle: {
     fontSize: 13,
@@ -306,6 +315,18 @@ export function StudyPackagePreviewModal({
             </span>
           )}
         </div>
+
+        {/* Material tags travel with the package — show them before importing,
+            not only after the material lands in the library. */}
+        {summary.tags.length > 0 && (
+          <div {...stylex.props(styles.tagRow)}>
+            {summary.tags.map((tag) => (
+              <Chip key={tag} variant="neutral">
+                #{tag}
+              </Chip>
+            ))}
+          </div>
+        )}
 
         {/* Summary Stat Cards */}
         <div>

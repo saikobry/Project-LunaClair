@@ -11,6 +11,46 @@ describe('collection routing', () => {
   });
 });
 
+describe('explore routing', () => {
+  it('serializes the default explore view to a bare /explore', () => {
+    expect(routeToUrl({ kind: 'explore' })).toBe('/explore');
+    expect(routeToUrl({ kind: 'explore', sort: 'popular' })).toBe('/explore');
+    expect(routeToUrl({ kind: 'explore', sort: 'popular', q: '   ' })).toBe('/explore');
+  });
+
+  it('serializes a query and a non-default sort', () => {
+    expect(routeToUrl({ kind: 'explore', q: 'retrosynthesis' })).toBe(
+      '/explore?q=retrosynthesis',
+    );
+    expect(routeToUrl({ kind: 'explore', q: 'biology', sort: 'recent' })).toBe(
+      '/explore?q=biology&sort=recent',
+    );
+  });
+
+  it('parses q and sort from the URL', () => {
+    expect(urlToRoute('/explore', '?q=biology&sort=recent')).toEqual({
+      kind: 'explore',
+      q: 'biology',
+      sort: 'recent',
+    });
+  });
+
+  it('ignores an unknown sort and a blank query', () => {
+    expect(urlToRoute('/explore', '?q=%20&sort=bogus')).toEqual({
+      kind: 'explore',
+      q: undefined,
+      sort: undefined,
+    });
+  });
+
+  it('round-trips an explore route through its URL', () => {
+    const route = { kind: 'explore', q: 'cell biology', sort: 'recent' } as const;
+
+    const url = routeToUrl(route);
+    expect(urlToRoute(url.split('?')[0], `?${url.split('?')[1]}`)).toEqual(route);
+  });
+});
+
 describe('material workspace routing', () => {
   it('serializes the workspace route with its tab', () => {
     expect(
@@ -79,6 +119,74 @@ describe('material workspace routing', () => {
       fromCollectionId: 'c-1',
     } as const;
 
+    const url = routeToUrl(route);
+    expect(urlToRoute(url.split('?')[0], `?${url.split('?')[1]}`)).toEqual(route);
+  });
+});
+
+describe('share routing', () => {
+  it('serializes a bare share route to /share/:shareId', () => {
+    expect(routeToUrl({ kind: 'share', shareId: 's-1' })).toBe('/share/s-1');
+  });
+
+  it('carries the origin route into the URL as ?from=', () => {
+    expect(routeToUrl({ kind: 'share', shareId: 's-1', from: { kind: 'explore' } })).toBe(
+      '/share/s-1?from=%2Fexplore',
+    );
+  });
+
+  it('carries the origin view state, not just its name', () => {
+    // The hub's filters ARE the view, so the origin has to survive with them.
+    expect(
+      routeToUrl({
+        kind: 'share',
+        shareId: 's-1',
+        from: { kind: 'explore', q: 'biology', sort: 'recent' },
+      }),
+    ).toBe('/share/s-1?from=%2Fexplore%3Fq%3Dbiology%26sort%3Drecent');
+  });
+
+  it('parses a share URL without an origin', () => {
+    expect(urlToRoute('/share/s-1', '')).toEqual({ kind: 'share', shareId: 's-1', from: undefined });
+  });
+
+  it('parses the origin route back out of ?from=', () => {
+    expect(urlToRoute('/share/s-1', '?from=%2Fexplore')).toEqual({
+      kind: 'share',
+      shareId: 's-1',
+      from: { kind: 'explore', q: undefined, sort: undefined },
+    });
+  });
+
+  it('parses the origin on the short /s/:code link too', () => {
+    expect(urlToRoute('/s/abc123', '?from=%2Fexplore%3Fq%3Dbiology')).toEqual({
+      kind: 'share',
+      shareId: 'abc123',
+      from: { kind: 'explore', q: 'biology', sort: undefined },
+    });
+  });
+
+  it('ignores an origin that is not the Explore hub', () => {
+    // A deep link must not be able to hand the share landing an arbitrary
+    // "back" destination.
+    expect(urlToRoute('/share/s-1', '?from=%2Flibrary')).toEqual({
+      kind: 'share',
+      shareId: 's-1',
+      from: undefined,
+    });
+    expect(urlToRoute('/share/s-1', '?from=bogus')).toEqual({
+      kind: 'share',
+      shareId: 's-1',
+      from: undefined,
+    });
+  });
+
+  it('round-trips a share route through its URL with its filters intact', () => {
+    const route = {
+      kind: 'share',
+      shareId: 's-1',
+      from: { kind: 'explore', q: 'biology', sort: 'recent' },
+    } as const;
     const url = routeToUrl(route);
     expect(urlToRoute(url.split('?')[0], `?${url.split('?')[1]}`)).toEqual(route);
   });

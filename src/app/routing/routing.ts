@@ -8,8 +8,12 @@ import {
   isMaterialMembershipFilter,
   type MaterialMembershipFilter,
 } from '../../features/materials/types/libraryFilter.types';
+import {
+  isExploreSortOption,
+  type ExploreSortOption,
+} from '../../features/discovery/explore.types';
 
-export type { MaterialMembershipFilter };
+export type { MaterialMembershipFilter, ExploreSortOption };
 
 /**
  * Library view mode — which slice of `/library` is on screen.
@@ -34,11 +38,26 @@ export function isLibraryViewMode(value: unknown): value is LibraryViewMode {
   return value === 'overview' || value === 'collections' || value === 'materials';
 }
 
+/**
+ * Parses a serialized route (`/explore?q=biology`) back into an `AppRoute`.
+ * Returns null for anything that is not a known app route, so an untrusted
+ * value can never navigate somewhere the router does not own.
+ */
+export function routeFromUrl(value: string): AppRoute | null {
+  if (!value.startsWith('/')) return null;
+  const [path, search = ''] = value.split('?');
+  return urlToRoute(path, search ? `?${search}` : '');
+}
+
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'library'; filter?: MaterialMembershipFilter; view?: LibraryViewMode }
-  | { kind: 'explore'; initialFilter?: 'all' | 'official' | 'community' }
-  | { kind: 'available' }
+  /**
+   * Explore hub. `q` and `sort` are URL state, not component state, so a
+   * filtered view can be linked, reloaded into, and restored by Back — the
+   * same contract `/library` uses for `filter`/`view`.
+   */
+  | { kind: 'explore'; q?: string; sort?: ExploreSortOption }
   | { kind: 'analytics' }
   | { kind: 'import' }
   /**
@@ -57,7 +76,15 @@ export type AppRoute =
     }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
   | { kind: 'quiz-session'; quizId: string; materialIds: string[]; quizIds?: string[]; returnTo: AppRoute }
-  | { kind: 'share'; shareId: string }
+  /**
+   * Shared study package landing. `from` is the **route** it was opened from,
+   * not just a surface name, so leaving the package returns to that exact view
+   * — the Explore hub's filters are URL state (`/explore?q=&sort=`) and would
+   * otherwise be dropped by "back". It serializes to `?from=` (the origin's own
+   * URL), so it survives reload and links, and an external deep link simply has
+   * no origin → the Library default.
+   */
+  | { kind: 'share'; shareId: string; from?: AppRoute }
   | { kind: 'collection'; collectionId: string };
 
 /**
@@ -79,16 +106,28 @@ export function routeToUrl(route: AppRoute): string {
       const query = params.toString();
       return query ? `/library?${query}` : '/library';
     }
-    case 'explore':
-      return '/explore';
-    case 'available':
-      return '/explore';
+    case 'explore': {
+      // Defaults (`popular`, no query) are omitted so the canonical bare
+      // `/explore` URL survives a round trip. A blank query is not a filter,
+      // and the query is trimmed so the URL never carries %20 padding.
+      const params = new URLSearchParams();
+      const q = route.q?.trim();
+      if (q) params.set('q', q);
+      if (route.sort && route.sort !== 'popular') params.set('sort', route.sort);
+      const query = params.toString();
+      return query ? `/explore?${query}` : '/explore';
+    }
     case 'analytics':
       return '/analytics';
     case 'import':
       return '/import';
-    case 'share':
-      return `/share/${route.shareId}`;
+    case 'share': {
+      const params = new URLSearchParams();
+      // `URLSearchParams` percent-encodes the nested origin URL for us.
+      if (route.from) params.set('from', routeToUrl(route.from));
+      const query = params.toString();
+      return query ? `/share/${route.shareId}?${query}` : `/share/${route.shareId}`;
+    }
     case 'collection':
       return `/collections/${route.collectionId}`;
     case 'workspace': {
@@ -105,6 +144,36 @@ export function routeToUrl(route: AppRoute): string {
 }
 
 /**
+ * Reads the share's `?from=` origin.
+ *
+ * Explore is the only surface in the app that opens a share, so anything else —
+ * a malformed value, a retired origin, a crafted share-nested-in-share — is
+ * ignored and the package keeps the Library default. Widen this (and the
+ * screen's labels) when a second surface starts opening shares.
+ */
+function shareOriginFromParams(url: URL): AppRoute | undefined {
+  const raw = url.searchParams.get('from');
+  if (!raw) return undefined;
+  const parsed = routeFromUrl(raw);
+  return parsed?.kind === 'explore' ? parsed : undefined;
+}
+
+/**
+ * Builds the Explore route from its query params, ignoring an empty query or
+ * an unknown sort so a malformed link degrades to the default view.
+ */
+function exploreRouteFromParams(url: URL): AppRoute {
+  const q = url.searchParams.get('q');
+  const rawSort = url.searchParams.get('sort');
+
+  return {
+    kind: 'explore',
+    q: q?.trim() ? q.trim() : undefined,
+    sort: isExploreSortOption(rawSort) ? rawSort : undefined,
+  };
+}
+
+/**
  * Attempt to parse a URL path into an AppRoute.
  * Returns null if the path does not match a known route pattern.
  */
@@ -114,12 +183,12 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /share/:shareId or /s/:code — shared study package landing
   const shareMatch = url.pathname.match(/^\/share\/([^/]+)$/);
   if (shareMatch) {
-    return { kind: 'share', shareId: shareMatch[1] };
+    return { kind: 'share', shareId: shareMatch[1], from: shareOriginFromParams(url) };
   }
 
   const shortShareMatch = url.pathname.match(/^\/s\/([^/]+)$/);
   if (shortShareMatch) {
-    return { kind: 'share', shareId: shortShareMatch[1] };
+    return { kind: 'share', shareId: shortShareMatch[1], from: shareOriginFromParams(url) };
   }
 
   // /materials/:materialId/builder[/:quizId] — dedicated quiz canvas route
@@ -165,14 +234,9 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
     };
   }
 
-  // /explore
+  // /explore(?q=&sort=)
   if (url.pathname === '/explore') {
-    return { kind: 'explore' };
-  }
-
-  // /available (legacy alias to explore)
-  if (url.pathname === '/available') {
-    return { kind: 'explore' };
+    return exploreRouteFromParams(url);
   }
 
   // /analytics

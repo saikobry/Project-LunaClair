@@ -5,7 +5,6 @@ export type NavActiveSection =
   | 'home'
   | 'library'
   | 'explore'
-  | 'available'
   | 'import'
   | 'analytics'
   | 'none';

@@ -35,10 +35,7 @@ function getShellRouteContext(currentRoute: AppRoute): {
     active = 'home';
   } else if (currentRoute.kind === 'library') {
     active = 'library';
-  } else if (
-    currentRoute.kind === 'explore' ||
-    currentRoute.kind === 'available'
-  ) {
+  } else if (currentRoute.kind === 'explore') {
     active = 'explore';
   } else if (currentRoute.kind === 'import') {
     active = 'import';

@@ -22,20 +22,30 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
+import { Chip } from '../../../shared/ui/Chip/Chip';
 import { Breadcrumbs, type BreadcrumbItem } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
 import { ApplicationContext } from '../../providers/ApplicationContext';
 import { useContextOrThrow } from '../../../shared/utils/contextGuard';
 import { useToast } from '../../providers/ToastContext';
+import { useLocalOriginMaterials } from '../../../features/discovery/hooks/useLocalOriginMaterials';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import type { StudyPackageSummary } from '../../../domain/package/models/package.types';
 import { serializePackageToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
+import type { AppRoute } from '../../routing/routing';
 import type { PublishedShare } from '../../../domain/sharing/models/sharing.types';
 import type { ImportStudyPackageResult } from '../../../application/use-cases/package/ImportStudyPackageUseCase';
 
 export interface SharedPackageScreenProps {
   shareId: string;
+  /**
+   * Route the package was opened from (`?from=`, parsed). Its crumb and back
+   * controls point there; absent for an external `/s/:code` link, which keeps
+   * the Library default. `onCancel` performs the actual navigation — the screen
+   * only names the destination.
+   */
+  from?: AppRoute;
   onOpenMaterial: (materialId: string) => void;
   onCancel: () => void;
 }
@@ -172,6 +182,13 @@ const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     gap: 14,
+    flexWrap: 'wrap',
+  },
+  /** Material tags — the shared `Chip` vocabulary the library cards use. */
+  tagRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
     flexWrap: 'wrap',
   },
   metaItem: {
@@ -365,21 +382,50 @@ function classifyFetchError(err: unknown): { isPasscode: boolean; message: strin
   return { isPasscode, message };
 }
 
-function renderBreadcrumb(onCancel: () => void) {
+/**
+ * Where the visitor came from, as labels.
+ *
+ * The package is reachable from the Explore hub (in-app) or from a shared
+ * `/s/:code` link (no in-app origin). `Explore` is claimed only when the parsed
+ * origin route says so; a deep link keeps `Library` — which is also where a
+ * cloned package ends up, so it is an honest destination rather than a guess.
+ */
+function shareOriginLabels(from?: AppRoute): { originLabel: string; backLabel: string } {
+  return from?.kind === 'explore'
+    ? { originLabel: 'Explore', backLabel: 'Back to Explore' }
+    : { originLabel: 'Library', backLabel: 'Back to Library' };
+}
+
+/**
+ * Trail for the share landing: origin → package.
+ *
+ * The last crumb is the package's own name once it is known — the same shape
+ * the material workspace uses (`Library / {collection} / {material}`), so a
+ * trail always ends with the thing you are looking at. `currentLabel` defaults
+ * to the surface name for the states that cannot know it yet (loading,
+ * passcode challenge, error) rather than showing an empty or invented title.
+ */
+function renderBreadcrumb(
+  originLabel: string,
+  onCancel: () => void,
+  currentLabel = 'Shared Package',
+) {
   const items: BreadcrumbItem[] = [
-    { label: 'Library', onClick: onCancel },
-    { label: 'Shared Package' },
+    { label: originLabel, onClick: onCancel },
+    { label: currentLabel },
   ];
   return <Breadcrumbs items={items} />;
 }
 
 interface ScreenViewProps {
   onCancel: () => void;
+  /** First crumb / where leaving the package returns to (origin-dependent). */
+  originLabel: string;
 }
 
-function SharedPackageLoadingView({ onCancel }: ScreenViewProps) {
+function SharedPackageLoadingView({ onCancel, originLabel }: ScreenViewProps) {
   return (
-    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(originLabel, onCancel)}>
       <div {...stylex.props(styles.loadingContainer)}>
         <Loader2 size={36} className="lucide-spin" />
         <p {...stylex.props(styles.loadingText)}>Loading shared study package...</p>
@@ -403,9 +449,10 @@ function PasscodeChallenge({
   onPasscodeChange,
   onSubmit,
   onCancel,
+  originLabel,
 }: PasscodeChallengeProps) {
   return (
-    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(originLabel, onCancel)}>
       <div {...stylex.props(styles.challengeCard)}>
         <div {...stylex.props(styles.challengeIconWrapper)}>
           <Lock size={26} />
@@ -454,22 +501,41 @@ function PasscodeChallenge({
 
 interface PackageErrorViewProps extends ScreenViewProps {
   errorMessage: string | null;
+  /** Back-control wording — `Back to Explore` when the hub was the origin. */
+  backLabel: string;
 }
 
-function PackageErrorView({ errorMessage, onCancel }: PackageErrorViewProps) {
+function PackageErrorView({ errorMessage, onCancel, originLabel, backLabel }: PackageErrorViewProps) {
   return (
-    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(onCancel)}>
+    <Page title="Shared Study Package" breadcrumb={renderBreadcrumb(originLabel, onCancel)}>
       <ErrorState
         icon={<AlertCircle size={44} />}
         title="Unable to load study package"
         description={errorMessage || 'This study package could not be loaded.'}
         action={
-          <Button variant="secondary" label="Back to Library" onClick={onCancel}>
-            Back to Library
+          <Button variant="secondary" label={backLabel} onClick={onCancel}>
+            {backLabel}
           </Button>
         }
       />
     </Page>
+  );
+}
+
+/**
+ * Material tags carried by the package, so what you are about to clone is
+ * visible before you clone it (they land on the imported material as-is).
+ */
+function PackageTagRow({ tags }: { tags: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div {...stylex.props(styles.tagRow)}>
+      {tags.map((tag) => (
+        <Chip key={tag} variant="neutral">
+          #{tag}
+        </Chip>
+      ))}
+    </div>
   );
 }
 
@@ -579,25 +645,41 @@ function QuestionTypesCard({
 interface SharedPackageActionsBarProps {
   isCloning: boolean;
   isDownloading: boolean;
-  hasCloned: boolean;
+  /** Back-control wording — `Back to Explore` when the hub was the origin. */
+  backLabel: string;
+  /**
+   * This session cloned the share, so the success banner right above already
+   * carries the open action — the bar stays in its confirmed state instead of
+   * repeating it.
+   */
+  justCloned: boolean;
+  /**
+   * The local material this share already lives in, when known (this session's
+   * clone, or an earlier one recognised through `originShareId`).
+   */
+  libraryMaterialId?: string;
   onCancel: () => void;
   onClone: () => void;
   onDownload: () => void;
+  onOpenMaterial: (materialId: string) => void;
 }
 
 function SharedPackageActionsBar({
   isCloning,
   isDownloading,
-  hasCloned,
+  backLabel,
+  justCloned,
+  libraryMaterialId,
   onCancel,
   onClone,
   onDownload,
+  onOpenMaterial,
 }: SharedPackageActionsBarProps) {
   return (
     <div {...stylex.props(styles.actionsBar)}>
       <Button
         variant="secondary"
-        label="Back to Library"
+        label={backLabel}
         icon={<ArrowLeft size={15} />}
         onClick={onCancel}
         isDisabled={isCloning || isDownloading}
@@ -616,16 +698,41 @@ function SharedPackageActionsBar({
         >
           Download .lcpack
         </Button>
-        <Button
-          variant="primary"
-          label={hasCloned ? 'Cloned to Library' : 'Clone to Library'}
-          icon={hasCloned ? <CheckCircle2 size={15} /> : <Copy size={15} />}
-          onClick={onClone}
-          isLoading={isCloning}
-          isDisabled={isCloning || isDownloading || hasCloned}
-        >
-          {hasCloned ? 'Cloned to Library' : 'Clone to Library'}
-        </Button>
+        {justCloned ? (
+          <Button
+            variant="primary"
+            label="Cloned to Library"
+            icon={<CheckCircle2 size={15} />}
+            onClick={onClone}
+            isDisabled
+          >
+            Cloned to Library
+          </Button>
+        ) : libraryMaterialId ? (
+          // Already in the library (this visit or an earlier one): cloning again
+          // would import a duplicate copy, so the primary action leads to the
+          // local material instead.
+          <Button
+            variant="primary"
+            label="Open in library"
+            icon={<BookOpen size={15} />}
+            onClick={() => onOpenMaterial(libraryMaterialId)}
+            isDisabled={isCloning || isDownloading}
+          >
+            Open in library
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            label="Clone to Library"
+            icon={<Copy size={15} />}
+            onClick={onClone}
+            isLoading={isCloning}
+            isDisabled={isCloning || isDownloading}
+          >
+            Clone to Library
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -737,8 +844,13 @@ function useSharedPackageActions(
     if (!share?.package || isCloning) return;
     setIsCloning(true);
     try {
+      // `originShareId` is what makes this clone identifiable afterwards: it
+      // records exact clone identity on the imported materials, so this screen
+      // (and the Explore hub) can tell that the share is already in the library
+      // instead of offering a second, duplicate clone.
       const result = await context.useCases.package.importStudyPackage.execute({
         package: share.package,
+        originShareId: shareId,
       });
 
       // Strict requirement: ONLY after Dexie transaction succeeds, call trackShareDownload
@@ -809,9 +921,11 @@ function useSharedPackageActions(
 
 export function SharedPackageScreen({
   shareId,
+  from,
   onOpenMaterial,
   onCancel,
 }: SharedPackageScreenProps) {
+  const { originLabel, backLabel } = shareOriginLabels(from);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -839,9 +953,18 @@ export function SharedPackageScreen({
     handleDownload,
   } = useSharedPackageActions(shareId, share, queryClient, showToast);
 
+  /**
+   * Membership outlives the session: this screen local state only knows about
+   * a clone it performed itself, so a share cloned earlier (here or on the
+   * Explore hub) used to look un-cloned on every fresh visit — and cloning it
+   * again imported a duplicate. `originShareId` answers it persistently.
+   */
+  const localMaterialsByOrigin = useLocalOriginMaterials();
+  const knownLibraryMaterialId = localMaterialsByOrigin.get(shareId);
+
   // 1. Loading State
   if (status === 'loading') {
-    return <SharedPackageLoadingView onCancel={onCancel} />;
+    return <SharedPackageLoadingView onCancel={onCancel} originLabel={originLabel} />;
   }
 
   // 2. Locked (Passcode Challenge) State
@@ -854,13 +977,21 @@ export function SharedPackageScreen({
         onPasscodeChange={setPasscode}
         onSubmit={handleUnlock}
         onCancel={onCancel}
+        originLabel={originLabel}
       />
     );
   }
 
   // 3. Error State (404 / 410 / Network / Malformed payload)
   if (status === 'error' || !share || !summary) {
-    return <PackageErrorView errorMessage={errorMessage} onCancel={onCancel} />;
+    return (
+      <PackageErrorView
+        errorMessage={errorMessage}
+        onCancel={onCancel}
+        originLabel={originLabel}
+        backLabel={backLabel}
+      />
+    );
   }
 
   // 4. Ready / Unlocked State
@@ -870,16 +1001,23 @@ export function SharedPackageScreen({
     (share.package.materials[0]?.id
       ? clonedResult?.idMap.get(share.package.materials[0].id)
       : undefined) ||
+    knownLibraryMaterialId ||
     '';
+
+  // Resolved once and used twice (page heading + trail), so the two can never
+  // disagree about what this package is called.
+  const packageTitle = summary.title || share.title || 'Shared Study Package';
 
   return (
     <Page
-      title={summary.title || share.title || 'Shared Study Package'}
+      title={packageTitle}
       description={summary.description || share.description}
-      breadcrumb={renderBreadcrumb(onCancel)}
+      breadcrumb={renderBreadcrumb(originLabel, onCancel, packageTitle)}
     >
       <div {...stylex.props(styles.container)}>
         <PackageMetaRow summary={summary} isProtected={share.accessType === 'passcode'} />
+
+        <PackageTagRow tags={summary.tags} />
 
         {clonedResult && (
           <CloneSuccessBanner
@@ -901,10 +1039,15 @@ export function SharedPackageScreen({
         <SharedPackageActionsBar
           isCloning={isCloning}
           isDownloading={isDownloading}
-          hasCloned={!!clonedResult}
+          backLabel={backLabel}
+          justCloned={!!clonedResult}
+          // This session's clone wins (it is guaranteed to name the copy the
+          // banner just opened); otherwise the persistent identity decides.
+          libraryMaterialId={firstMaterialId || undefined}
           onCancel={onCancel}
           onClone={handleClone}
           onDownload={handleDownload}
+          onOpenMaterial={onOpenMaterial}
         />
       </div>
     </Page>

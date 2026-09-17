@@ -31,8 +31,8 @@ export interface MaterialCardProps {
   selectedTags?: string[];
 }
 
-/** Compact "last opened" label for the card footer (prototype mental model:
- * clock + relative time, no `Last opened:` prefix). */
+/** Compact "last opened" label for the card footer:
+ * clock + relative time, no `Last opened:` prefix. */
 function formatDate(iso: string | undefined): string {
   if (!iso) return 'Never opened';
   const date = new Date(iso);
@@ -522,7 +522,7 @@ interface MaterialCardFooterProps {
   onStartQuiz?: (material: StudyMaterial) => void;
 }
 
-/** Bordered-top footer (prototype direction): recency left, Quiz action right. */
+/** Bordered-top footer: recency left, Quiz action right. */
 function MaterialCardFooter({ material, onStartQuiz }: MaterialCardFooterProps) {
   return (
     <div {...stylex.props(cardStyles.footer)}>
@@ -816,7 +816,7 @@ export function MaterialCard({
   );
 
   /**
-   * Whole-card pointer affordance (prototype direction): body clicks open the
+   * Whole-card pointer affordance: body clicks open the
    * material. Inner controls are all real `<button>`/`<input>` elements that
    * stop propagation themselves — the `closest` guard below is the backstop so
    * a missed stop can never double-fire. Deliberately no `role="button"` on
@@ -969,7 +969,7 @@ export function MaterialCard({
           onClose={closeAll}
         />
 
-        {/* Footer (prototype direction): recency left, Quiz action right */}
+        {/* Footer: recency left, Quiz action right */}
         <MaterialCardFooter material={material} onStartQuiz={onStartQuiz} />
       </div>
     </Card>

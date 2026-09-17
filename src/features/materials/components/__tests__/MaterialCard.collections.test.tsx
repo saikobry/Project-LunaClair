@@ -142,7 +142,7 @@ describe('MaterialCard collection popover', () => {
 });
 
 /**
- * Whole-card pointer affordance (prototype direction): body clicks open the
+ * Whole-card pointer affordance: body clicks open the
  * material, while badges, the filing trigger, and menu items keep their own
  * actions without double-firing into `onOpen`.
  */

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SharedPackageScreen } from '../SharedPackageScreen';
 import { ApplicationContext, type ApplicationContextValue } from '../../../providers/ApplicationContext';
 import { ToastProvider } from '../../../providers/ToastContext';
+import type { AppRoute } from '../../../routing/routing';
 import type { StudyPackage } from '../../../../domain/package/models/package.types';
 import type { PublishedShare } from '../../../../domain/sharing/models/sharing.types';
 import * as fileDownloadModule from '../../../../shared/utils/fileDownload';
@@ -109,6 +110,8 @@ describe('SharedPackageScreen', () => {
   let mockFetchPublishedShare: ReturnType<typeof vi.fn>;
   let mockTrackShareDownload: ReturnType<typeof vi.fn>;
   let mockImportStudyPackage: ReturnType<typeof vi.fn>;
+  /** Local library behind `originShareId` membership (exact clone identity). */
+  let mockGetMaterials: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -130,10 +133,12 @@ describe('SharedPackageScreen', () => {
       assetIds: ['local_asset_101'],
       idMap: new Map([['pkg_mat_1', 'local_mat_101']]),
     });
+    mockGetMaterials = vi.fn().mockResolvedValue([]);
   });
 
   function renderScreen(props: {
     shareId?: string;
+    from?: AppRoute;
     onOpenMaterial?: (materialId: string) => void;
     onCancel?: () => void;
   } = {}) {
@@ -142,6 +147,11 @@ describe('SharedPackageScreen', () => {
     const shareId = props.shareId ?? 'share_public_123';
 
     const mockContextValue = {
+      repositories: {
+        library: {
+          getMaterials: mockGetMaterials,
+        },
+      },
       useCases: {
         sharing: {
           fetchPublishedShare: { execute: mockFetchPublishedShare },
@@ -159,6 +169,7 @@ describe('SharedPackageScreen', () => {
           <ApplicationContext.Provider value={mockContextValue}>
             <SharedPackageScreen
               shareId={shareId}
+              from={props.from}
               onOpenMaterial={onOpenMaterial}
               onCancel={onCancel}
             />
@@ -247,7 +258,7 @@ describe('SharedPackageScreen', () => {
         shareId: 'share_locked',
         passcode: 'secret123',
       });
-      expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
     });
   });
 
@@ -277,7 +288,7 @@ describe('SharedPackageScreen', () => {
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
       expect(screen.getByText('Metabolic pathways and enzyme kinetics.')).toBeInTheDocument();
       expect(screen.getByText(/Prof\. Krebs/)).toBeInTheDocument();
     });
@@ -304,16 +315,18 @@ describe('SharedPackageScreen', () => {
     const { onOpenMaterial } = renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
     });
 
     const cloneButton = screen.getByRole('button', { name: /Clone to Library/i });
     fireEvent.click(cloneButton);
 
     await waitFor(() => {
-      // 1. Verify importStudyPackage was called
+      // 1. Verify importStudyPackage was called — WITH exact clone identity, so
+      // the share stays recognisable after this screen unmounts.
       expect(mockImportStudyPackage).toHaveBeenCalledWith({
         package: mockPackage,
+        originShareId: 'share_public_123',
       });
 
       // 2. Strict Requirement: trackShareDownload called ONLY after import succeeds
@@ -327,18 +340,147 @@ describe('SharedPackageScreen', () => {
       ).toBeInTheDocument();
     });
 
-    // 4. Click Open Cloned Material
+    // 4. No clone control remains on offer once cloned — a second one would
+    // import a duplicate copy of the same package.
+    expect(screen.queryByRole('button', { name: /Clone to Library/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cloned to Library/i })).toBeDisabled();
+
+    // 5. Click Open Cloned Material
     const openButton = screen.getByRole('button', { name: /Open Cloned Material/i });
     fireEvent.click(openButton);
 
     expect(onOpenMaterial).toHaveBeenCalledWith('local_mat_101');
   });
 
+  it('recognises an already-cloned share on a fresh visit instead of offering a duplicate clone', async () => {
+    // The share was cloned by an earlier session (or by the Explore hub): the
+    // only evidence is `originShareId` on the local material.
+    mockGetMaterials.mockResolvedValue([
+      { id: 'local_mat_earlier', title: 'Glycolysis Pathway', originShareId: 'share_public_123' },
+    ]);
+
+    const { onOpenMaterial } = renderScreen();
+
+    const openInLibrary = await screen.findByRole('button', { name: /Open in library/i });
+
+    // No second clone is on offer, and nothing was imported on arrival.
+    expect(screen.queryByRole('button', { name: /Clone to Library/i })).not.toBeInTheDocument();
+    expect(mockImportStudyPackage).not.toHaveBeenCalled();
+
+    fireEvent.click(openInLibrary);
+
+    expect(onOpenMaterial).toHaveBeenCalledWith('local_mat_earlier');
+  });
+
+  it('does not treat a material cloned from a different share as this one', async () => {
+    mockGetMaterials.mockResolvedValue([
+      { id: 'local_mat_other', title: 'Cellular Biochemistry', originShareId: 'share_other_456' },
+    ]);
+
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    // Title collision alone must never mark a share as cloned.
+    expect(screen.getByRole('button', { name: /Clone to Library/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /Open in library/i })).not.toBeInTheDocument();
+  });
+
+  it('points its breadcrumb at the Library when there is no in-app origin', async () => {
+    const { onCancel } = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    // An external /s/:code link has no origin: Library is the honest default.
+    expect(screen.getByRole('button', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Explore' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Library' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Library' }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('points its breadcrumb and back control at Explore when opened from the hub', async () => {
+    // The hub's filters are URL state, so "back" must mean back to that view —
+    // not to the library, which would drop them.
+    renderScreen({ from: { kind: 'explore', q: 'biology', sort: 'recent' } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    const crumbs = within(screen.getByLabelText('Breadcrumb'));
+
+    expect(crumbs.getByRole('button', { name: 'Explore' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Explore' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Library' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back to Library' })).not.toBeInTheDocument();
+  });
+
+  it('ends the trail with the package name, like the material workspace trail does', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    const crumbs = within(screen.getByLabelText('Breadcrumb'));
+
+    // Trail ends with the thing you are looking at; the generic surface name is
+    // only a placeholder for the states that cannot know the title yet.
+    expect(crumbs.getByText('Cellular Biochemistry')).toBeInTheDocument();
+    expect(crumbs.queryByText('Shared Package')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the surface name in the trail while the package is still unknown', () => {
+    // Unresolved fetch → the loading state, where no title exists to show.
+    mockFetchPublishedShare.mockReturnValue(new Promise(() => {}));
+
+    renderScreen();
+
+    expect(within(screen.getByLabelText('Breadcrumb')).getByText('Shared Package')).toBeInTheDocument();
+  });
+
+  it('shows the tags the clone will carry, on the share surface', async () => {
+    mockFetchPublishedShare.mockResolvedValue({
+      ...mockPublicShare,
+      package: {
+        ...mockPackage,
+        materials: [{ ...mockPackage.materials[0], tags: ['glycolysis', 'atp'] }],
+      },
+    });
+
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    // Material tags are portable package data — visible before cloning, in the
+    // same pill vocabulary the library card uses.
+    expect(screen.getByText('#glycolysis')).toBeInTheDocument();
+    expect(screen.getByText('#atp')).toBeInTheDocument();
+  });
+
+  it('shows no tag pills for an untagged package', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/^#/)).not.toBeInTheDocument();
+  });
+
   it('serializes package to blob, triggers file download, and tracks download metric', async () => {
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
     });
 
     const downloadButton = screen.getByRole('button', { name: /Download \.lcpack/i });
@@ -361,7 +503,7 @@ describe('SharedPackageScreen', () => {
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('Cellular Biochemistry')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
     });
 
     const cloneButton = screen.getByRole('button', { name: /Clone to Library/i });

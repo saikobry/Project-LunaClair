@@ -127,6 +127,13 @@ export interface StudyPackageSummary {
     description?: string;
     author?: string;
     createdAt: string;
+    /**
+     * Tags carried by the package's materials (deduped, first-seen order).
+     * Material tags are portable package data, so a preview can show what a
+     * package is about *before* it is imported. Empty when no material is
+     * tagged — never invented from other fields.
+     */
+    tags: string[];
     materialCount: number;
     questionCount: number;
     quizCount: number;

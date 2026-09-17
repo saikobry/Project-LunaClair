@@ -4,7 +4,7 @@ import HomeScreen from '../screens/home/HomeScreen';
 import LibraryScreen from '../screens/library/LibraryScreen';
 import { useTouchMaterial } from '../../features/materials/hooks/mutations/useTouchMaterial';
 import { WorkspaceSkeleton } from '../../shared/ui/Skeleton/Skeleton';
-import type { AppRoute } from './routing';
+import type { AppRoute, ExploreSortOption } from './routing';
 import MaterialWorkspaceScreen from '../screens/material-workspace/MaterialWorkspaceScreen';
 
 // Route-level code-splitting for screen compositions
@@ -21,6 +21,58 @@ const ImporterScreen = lazy(() => import('../screens/importer/ImporterScreen'));
 const CollectionWorkspaceScreen = lazy(
   () => import('../screens/collection-workspace/CollectionWorkspaceScreen'),
 );
+
+/**
+ * The hub's filters are URL state, so the shell keeps `/explore` canonical by
+ * normalizing defaults (`popular`, blank query) back to undefined — the same
+ * treatment `/library` gets for `all` / `overview`.
+ */
+function canonicalExploreRoute(next: { q?: string; sort?: 'popular' | 'recent' }): AppRoute {
+  const q = next.q?.trim();
+  return {
+    kind: 'explore',
+    q: q ? q : undefined,
+    sort: !next.sort || next.sort === 'popular' ? undefined : next.sort,
+  };
+}
+
+/**
+ * The Explore route's wiring, split out of the route table so the shell's own
+ * branch count stays flat as screens gain filter state. It owns the filter
+ * commit callback because only this route has URL-backed filters today.
+ */
+function ExploreRoute({
+  route,
+  navigate,
+  onOpenMaterial,
+}: {
+  route: Extract<AppRoute, { kind: 'explore' }>;
+  navigate: (route: AppRoute) => void;
+  onOpenMaterial: (materialId: string) => void;
+}) {
+  const handleFiltersChange = useCallback(
+    (next: { q?: string; sort?: ExploreSortOption }) => navigate(canonicalExploreRoute(next)),
+    [navigate],
+  );
+
+  const q = route.q;
+  const sort = route.sort;
+
+  return (
+    <ExploreScreen
+      q={q}
+      sort={sort}
+      onFiltersChange={handleFiltersChange}
+      onOpenMaterial={onOpenMaterial}
+      // The hub is the only in-app entry to a share, so it stamps its own route
+      // as the origin: leaving the package then returns to this exact view —
+      // filters included — instead of an unfiltered `/explore`.
+      onOpenShare={(shareId) =>
+        navigate({ kind: 'share', shareId, from: { kind: 'explore', q, sort } })
+      }
+    />
+  );
+}
 
 interface ShellRoutesProps {
   currentRoute: AppRoute;
@@ -125,11 +177,12 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
           onBrowseAvailable={() => navigate({ kind: 'explore' })}
         />
       )}
-      {(currentRoute.kind === 'explore' || currentRoute.kind === 'available') && (
+      {currentRoute.kind === 'explore' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <ExploreScreen
+          <ExploreRoute
+            route={currentRoute}
+            navigate={navigate}
             onOpenMaterial={handleOpenMaterial}
-            onOpenShare={(shareId) => navigate({ kind: 'share', shareId })}
           />
         </Suspense>
       )}
@@ -150,8 +203,12 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
         <Suspense fallback={<WorkspaceSkeleton />}>
           <SharedPackageScreen
             shareId={currentRoute.shareId}
+            from={currentRoute.from}
             onOpenMaterial={handleOpenMaterial}
-            onCancel={() => navigate({ kind: 'library' })}
+            // Leave to the route the package was opened from; an external
+            // `/s/:code` link has none, and the library is the honest landing
+            // place when nothing preceded the package.
+            onCancel={() => navigate(currentRoute.from ?? { kind: 'library' })}
           />
         </Suspense>
       )}

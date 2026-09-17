@@ -136,6 +136,30 @@ function getSeedToken(customToken) {
   );
 }
 
+/**
+ * Normalizes a tag list the way the app does (`src/domain/quiz/utils/tags.ts`,
+ * mirrored here because this script is plain ESM and cannot import app TS):
+ * trims, strips a leading '#', drops empties, and dedupes case-insensitively
+ * while keeping the first casing seen.
+ *
+ * Import writes package tags onto the local material verbatim, so the package is
+ * where normalization has to have already happened.
+ */
+function normalizeTagList(tags) {
+  const seen = new Set();
+  const out = [];
+  for (const tag of tags) {
+    if (typeof tag !== 'string') continue;
+    const cleaned = tag.trim().replace(/^#/, '');
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cleaned);
+  }
+  return out;
+}
+
 function slugify(value) {
   const slug = String(value)
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
@@ -243,6 +267,16 @@ function selfValidatePackage(payload) {
     }
     if (typeof mat.documentContent !== 'string') {
       errors.push(`Material "${String(mat.id)}" must have a documentContent string.`);
+    }
+    // Mirrors the client validator (validateStudyPackage) so a bad tag list
+    // fails the seed run here rather than at import time on a user's device.
+    if (
+      mat.tags !== undefined &&
+      (!Array.isArray(mat.tags) ||
+        mat.tags.length === 0 ||
+        mat.tags.some((t) => typeof t !== 'string' || t.trim().length === 0))
+    ) {
+      errors.push(`Material "${String(mat.id)}" tags must be a non-empty array of non-empty strings.`);
     }
   }
 
@@ -437,13 +471,26 @@ function buildPackageForMaterial(entry, allQuestions, allQuizzes) {
     })),
   }));
 
-  // 5. Assemble the StudyPackage payload.
+  // 5. Material tags. An explicit catalog `tags` list wins; otherwise the
+  // material ships untagged rather than borrowing its questions' topic index
+  // (one course's published questions carry 60+ distinct tags — a question
+  // index, not a material's tag set). Untagged is warned about below so the gap
+  // is visible instead of silent.
+  const materialTags = normalizeTagList(Array.isArray(entry.tags) ? entry.tags : []);
+  if (materialTags.length === 0) {
+    warnings.push(
+      `Material "${entry.id}" has no tags: add a "tags" array to its content/catalog/materials.json entry.`,
+    );
+  }
+
+  // 6. Assemble the StudyPackage payload.
   const pkgMaterial = {
     id: materialId,
     title: entry.title ?? dirName,
     ...(entry.description ? { description: entry.description } : {}),
     documentContent,
     ...(typeof entry.order === 'number' ? { order: entry.order } : {}),
+    ...(materialTags.length > 0 ? { tags: materialTags } : {}),
   };
 
   const metadata = {
@@ -465,7 +512,7 @@ function buildPackageForMaterial(entry, allQuestions, allQuizzes) {
     ...(assets.length > 0 ? { assets } : {}),
   };
 
-  // 6. Structural validation + payload size guard (after base64 encoding).
+  // 7. Structural validation + payload size guard (after base64 encoding).
   errors.push(...selfValidatePackage(payload));
 
   const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');

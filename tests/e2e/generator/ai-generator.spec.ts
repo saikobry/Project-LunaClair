@@ -78,7 +78,7 @@ test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
     });
 
     // Import cell-structure into library
-    await page.goto('/available');
+    await page.goto('/explore');
     await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
     const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
     if (await importBtn.isVisible({ timeout: 1500 }).catch(() => false)) {

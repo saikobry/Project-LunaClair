@@ -138,6 +138,26 @@ describe('StudyPackagePreviewModal', () => {
     expect(screen.getByText(/Dr\. Santiago/)).toBeInTheDocument();
   });
 
+  it('shows the material tags the package will import, before importing', () => {
+    renderModal({
+      packageData: {
+        ...mockPackage,
+        materials: [
+          { ...mockPackage.materials[0], tags: ['neuroscience', 'synapses'] },
+        ],
+      },
+    });
+
+    expect(screen.getByText('#neuroscience')).toBeInTheDocument();
+    expect(screen.getByText('#synapses')).toBeInTheDocument();
+  });
+
+  it('shows no tag pills for an untagged package', () => {
+    renderModal();
+
+    expect(screen.queryByText(/^#/)).not.toBeInTheDocument();
+  });
+
   it('renders summary stat cards and metrics computed purely via inspectStudyPackage', () => {
     renderModal();
 

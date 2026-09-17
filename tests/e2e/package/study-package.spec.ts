@@ -8,7 +8,7 @@ test.describe('Study Package (.lcpack) Export & Import E2E', () => {
     await setupApiMocks(page);
 
     // Import a starting material into the library for testing
-    await page.goto('/available');
+    await page.goto('/explore');
     await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
     const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
     if (await importBtn.isVisible({ timeout: 2000 }).catch(() => false)) {

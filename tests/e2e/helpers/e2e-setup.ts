@@ -190,8 +190,8 @@ export async function setupImportedMaterial(
 
   await setupApiMocks(page, options);
 
-  // Navigate directly to available materials to perform deterministic imports
-  await page.goto('/available');
+  // Navigate directly to the Explore hub to perform deterministic imports
+  await page.goto('/explore');
   await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
 
   // Import cell-structure if not already in library

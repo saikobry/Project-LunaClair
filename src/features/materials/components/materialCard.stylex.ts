@@ -169,7 +169,7 @@ export const cardStyles = stylex.create({
     borderColor: 'var(--color-accent)',
     color: 'var(--color-text-accent)',
   },
-  /** Bordered-top footer (prototype direction): recency left, Quiz action right. */
+  /** Bordered-top footer: recency left, Quiz action right. */
   footer: {
     display: 'flex',
     alignItems: 'center',
