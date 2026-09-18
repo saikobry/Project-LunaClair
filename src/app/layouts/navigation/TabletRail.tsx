@@ -84,8 +84,8 @@ export function TabletRail({
         },
       }, 0);
 
-      // Step 2: Animate button down to bottom edge alongside rail collapse
-      tl.to(focusBtn, { bottom: -2, duration: 0.24, ease: 'power2.out' }, 0.08);
+      // Step 2: Settle the button onto the bottom edge alongside rail collapse
+      tl.to(focusBtn, { bottom: 0, duration: 0.24, ease: 'power2.out' }, 0.08);
 
       // Step 3: Shrink the rail smoothly down to the Focus icon position
       tl.to(rail, {
@@ -302,7 +302,7 @@ const styles = stylex.create({
   },
   focusButton: {
     position: 'absolute',
-    bottom: -2,
+    bottom: 0,
     left: '50%',
     transform: 'translateX(-50%)',
     zIndex: 2,

@@ -300,9 +300,4 @@ export const styles = stylex.create({
     color: 'inherit',
     flexShrink: 0,
   },
-  iconCentered: {
-    position: 'static',
-    transform: 'none',
-    margin: 'auto',
-  },
 });

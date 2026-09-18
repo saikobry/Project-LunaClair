@@ -11,7 +11,7 @@ export interface DesktopTrapezoidButtonProps {
 
 // Top corners rounded (~12px radius feel), bottom edges 100% straight and sharp
 const SHARP_BOTTOM_TRAPEZOID = 'M 24 0 L 216 0 C 224 0 234 16 240 58 L 0 58 C 6 16 16 0 24 0 Z';
-const SHARP_BOTTOM_SQUARE    = 'M 14 0 L 226 0 C 234 0 240 6 240 58 L 0 58 C 0 6 6 0 14 0 Z';
+const SHARP_BOTTOM_SQUARE = 'M 14 0 L 226 0 C 234 0 240 6 240 58 L 0 58 C 0 6 6 0 14 0 Z';
 
 export function DesktopTrapezoidButton({
   isFocusMode,
@@ -58,7 +58,7 @@ export function DesktopTrapezoidButton({
       borderColor: 'var(--color-border)',
     };
 
-    const iconCollapsedPos = { x: 11.3, y: 1 };
+    const iconCollapsedPos = { x: 5.8, y: 0 };
     const iconExpandedPos = { x: 0, y: 0 };
 
     if (!didInitialMorph.current) {
