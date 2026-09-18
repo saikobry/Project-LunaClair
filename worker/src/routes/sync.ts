@@ -8,6 +8,7 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
+import { pruneSyncIdempotency } from '../core/retention';
 import type { Env, RouteContext } from '../core/types';
 import {
   syncChanges,
@@ -605,6 +606,24 @@ export async function handleSyncPush(
     rejected,
     serverCursor,
   };
+
+  // Retention for the idempotency ledger rides the push path, because a push is the only traffic that
+  // can add ledger rows — with no pushes there is nothing new to expire. Bounded to one batch per
+  // push and skipped when this request processed nothing, so an empty-array push loop cannot turn
+  // every request into a write. Best-effort: the mutations above are already committed, so a
+  // retention failure must not become a client-visible error on an otherwise successful push.
+  if (body.mutations.length > 0) {
+    try {
+      const pruned = await pruneSyncIdempotency(env.DB);
+      // Only when it did something: a working retention policy should be visible in logs without
+      // logging every push that found nothing to retire.
+      if (pruned > 0) {
+        console.log(`sync_idempotency pruned ${pruned} expired entries`);
+      }
+    } catch (error) {
+      console.error('sync_idempotency prune failed:', error);
+    }
+  }
 
   return json(responseBody, 200, corsHeaders);
 }

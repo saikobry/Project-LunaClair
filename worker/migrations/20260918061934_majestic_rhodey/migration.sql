@@ -1,0 +1,1 @@
+CREATE INDEX `idx_sync_idempotency_processed_at` ON `sync_idempotency` (`processed_at`);

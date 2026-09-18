@@ -15,7 +15,8 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
 
         // Fetch all raw datasets concurrently
         const [sessions, reviews, questions] = await Promise.all([
-            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
+            // Index lookup rather than a full-store scan with a JS predicate (v15 added `status`).
+            db.quizSessions.where('status').equals('completed').toArray(),
             db.flashcardReviews.toArray(),
             db.questions.filter((q) => q.status !== 'archived').toArray(),
         ]);
@@ -45,7 +46,7 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
         const [questions, reviews, sessions] = await Promise.all([
             db.questions.where('materialId').equals(materialId).toArray(),
             db.flashcardReviews.where('materialId').equals(materialId).toArray(),
-            db.quizSessions.filter((s) => s.status === 'completed').toArray(),
+            db.quizSessions.where('status').equals('completed').toArray(),
         ]);
 
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');

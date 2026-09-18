@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRepository';
 import type {
   AiMessageRecord,
@@ -25,17 +26,22 @@ export class DexieAiChatRepository implements AiChatRepository {
   }
 
   async listThreads(materialId?: string): Promise<AiThread[]> {
-    let threads: AiThread[];
     if (materialId !== undefined) {
-      threads = await this.database.aiThreads
-        .where('materialId')
-        .equals(materialId)
-        .toArray();
-    } else {
-      threads = await this.database.aiThreads
-        .filter((t) => t.materialId === undefined)
+      // `[materialId+updatedAt]` reversed is exactly the order the previous in-memory sort
+      // produced, without materialising the whole set first.
+      return this.database.aiThreads
+        .where('[materialId+updatedAt]')
+        .between([materialId, Dexie.minKey], [materialId, Dexie.maxKey])
+        .reverse()
         .toArray();
     }
+
+    // Global threads carry no `materialId`, and a Dexie index skips records whose key is
+    // `undefined` — so they are unreachable through the compound and stay a scan plus in-memory
+    // order. They are also few by construction (one per tutor mode at most).
+    const threads = await this.database.aiThreads
+      .filter((t) => t.materialId === undefined)
+      .toArray();
 
     return threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
@@ -74,7 +80,13 @@ export class DexieAiChatRepository implements AiChatRepository {
   }
 
   async getMessages(threadId: string): Promise<AiMessageRecord[]> {
-    return this.database.aiMessages.where('threadId').equals(threadId).sortBy('createdAt');
+    // Same order as `where('threadId').equals(id).sortBy('createdAt')`, without the in-memory sort.
+    // The whole thread is still returned — the port's contract is an array, so this is not
+    // virtualized streaming; a paged/cursor read would be a port change, not an index change.
+    return this.database.aiMessages
+      .where('[threadId+createdAt]')
+      .between([threadId, Dexie.minKey], [threadId, Dexie.maxKey])
+      .toArray();
   }
 
   async saveMessage(message: AiMessageRecord): Promise<void> {

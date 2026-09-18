@@ -89,7 +89,9 @@ describe('Dexie Schema v14 — local binary asset rekey', () => {
         const v14Db = new LunaClairDatabase();
         await v14Db.open();
 
-        expect(v14Db.verno).toBe(14);
+        // "At least" rather than a pinned number: this test is about the v14 rekey, and later
+        // index-only versions (v15) must not have to edit it.
+        expect(v14Db.verno).toBeGreaterThanOrEqual(14);
 
         // The store is replaced, not mutated: the legacy name is gone and the new one exists.
         const tableNames = v14Db.tables.map((table) => table.name);
@@ -139,7 +141,9 @@ describe('Dexie Schema v14 — local binary asset rekey', () => {
         const v14Db = new LunaClairDatabase();
         await v14Db.open();
 
-        expect(v14Db.verno).toBe(14);
+        // "At least" rather than a pinned number: this test is about the v14 rekey, and later
+        // index-only versions (v15) must not have to edit it.
+        expect(v14Db.verno).toBeGreaterThanOrEqual(14);
         expect(v14Db.tables.map((table) => table.name)).not.toContain('importAssets');
         expect(await v14Db.localAssets.count()).toBe(0);
 

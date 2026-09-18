@@ -106,6 +106,47 @@ describe('DexieAiChatRepository & Schema v9', () => {
     expect(updatedThread?.updatedAt).toBe('2026-08-25T01:05:00.000Z');
   });
 
+  it('returns one thread in createdAt order and does not leak another thread (v15 compound read)', async () => {
+    await repo.saveThread({
+      id: 'thread-order',
+      materialId: 'doc-1',
+      title: 'Order',
+      mode: 'assistant',
+      createdAt: '2026-08-25T02:00:00.000Z',
+      updatedAt: '2026-08-25T02:00:00.000Z',
+    });
+
+    // Inserted newest-first: the order must come from the `[threadId+createdAt]` index, not from
+    // insertion order.
+    await repo.saveMessage({
+      id: 'm-late',
+      threadId: 'thread-order',
+      role: 'assistant',
+      content: 'Second',
+      status: 'complete',
+      createdAt: '2026-08-25T02:02:00.000Z',
+    });
+    await repo.saveMessage({
+      id: 'm-early',
+      threadId: 'thread-order',
+      role: 'user',
+      content: 'First',
+      status: 'complete',
+      createdAt: '2026-08-25T02:01:00.000Z',
+    });
+    await repo.saveMessage({
+      id: 'm-other-thread',
+      threadId: 'thread-elsewhere',
+      role: 'user',
+      content: 'Other',
+      status: 'complete',
+      createdAt: '2026-08-25T02:00:30.000Z',
+    });
+
+    const messages = await repo.getMessages('thread-order');
+    expect(messages.map((message) => message.id)).toEqual(['m-early', 'm-late']);
+  });
+
   it('cascades deletion of messages when a thread is deleted', async () => {
     const thread: AiThread = {
       id: 'thread-delete',

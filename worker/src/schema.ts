@@ -72,14 +72,25 @@ export const syncChanges = sqliteTable(
   ],
 );
 
-export const syncIdempotency = sqliteTable('sync_idempotency', {
-  clientMutationId: text('client_mutation_id').primaryKey(),
-  userId: text('user_id').notNull(),
-  deviceId: text('device_id').notNull(),
-  entityType: text('entity_type').notNull(),
-  entityId: text('entity_id').notNull(),
-  processedAt: text('processed_at').notNull(),
-});
+/**
+ * Client mutation deduplication ledger.
+ *
+ * `processed_at` is indexed for **retention** only — nothing reads the ledger by time. The prune in
+ * `core/retention.ts` deletes entries older than the replay-retention window in bounded batches, and
+ * without the index that delete scans the one table here whose size grows with traffic.
+ */
+export const syncIdempotency = sqliteTable(
+  'sync_idempotency',
+  {
+    clientMutationId: text('client_mutation_id').primaryKey(),
+    userId: text('user_id').notNull(),
+    deviceId: text('device_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    processedAt: text('processed_at').notNull(),
+  },
+  (table) => [index('idx_sync_idempotency_processed_at').on(table.processedAt)],
+);
 
 /**
  * Published StudyPackage Shares (Phase 11C).

@@ -12,7 +12,8 @@ import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sy
 import type { Collection } from '../../../domain/collections/models/Collection';
 import type { CollectionMaterial } from '../../../domain/collections/models/CollectionMaterial';
 import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14 } from './schema';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14, SCHEMA_V15 } from './schema';
+import type { DatabaseReloadListener, DatabaseReloadReason } from './databaseLifecycle';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -64,6 +65,11 @@ export interface MetadataRecord {
  *            `materialId`). The upgrade copies legacy rows across, keeping
  *            `assetId === materialId` so old `lc-asset://{materialId}` references
  *            still resolve.
+ * Version 15: Index-only pass — retires 37 secondary indexes nothing queries (led by
+ *            `materials`, which now keeps its primary key alone) and adds the four that make the
+ *            hot paths bounded: `[status+createdAt]` on syncQueue, `[threadId+createdAt]` on
+ *            aiMessages, `[materialId+updatedAt]` on aiThreads, and `status` on quizSessions.
+ *            No upgrade callback: index changes rewrite no records.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -85,6 +91,8 @@ export class LunaClairDatabase extends Dexie {
     conflictDrafts!: Table<ConflictDraft, string>;
     collections!: Table<Collection, string>;
     collectionMaterials!: Table<CollectionMaterial, number>;
+
+    private readonly reloadListeners = new Set<DatabaseReloadListener>();
 
     constructor(databaseName = DB_NAME) {
         super(databaseName);
@@ -166,6 +174,58 @@ export class LunaClairDatabase extends Dexie {
 
             await tx.table('localAssets').bulkPut(migratedAssets);
         });
+        // Version 15 changes only index declarations (see SCHEMA_V15). Dexie builds the new indexes
+        // and drops the retired ones inside its own upgrade transaction without a callback, because
+        // no record changes shape — this is why no `upgrade` is chained here.
+        this.version(15).stores(SCHEMA_V15);
+
+        // ── Lifecycle: another context wants a different version of this database ──
+        //
+        // Startup covers the mirror case — a stored database *newer* than this bundle — before opening
+        // at all (`DatabaseInitializer`, which refuses rather than letting Dexie patch the schema down
+        // to this declaration). These handlers are for a connection lost while the app is running.
+        //
+        // `versionchange` fires on THIS connection when another tab/context asks for a different
+        // version: a newer build upgrading (`newVersion > 0`) or a delete request (`newVersion === 0`,
+        // which is what `indexedDB.deleteDatabase` — i.e. the e2e setup and DevTools — sends). Dexie's
+        // own default handler already closes this connection, but with auto-open left ENABLED
+        // (`close({ disableAutoOpen: false })` in dexie.js), so the next query would silently re-open
+        // it and — against a newer stored schema — patch this stale declaration back in, undoing the
+        // refusal the initializer just made. The hard `close()` here disables auto-open: this tab's
+        // queries fail loudly instead of limping along on a schema it must not rewrite.
+        //
+        // `blocked` is the other side of the same upgrade: this build asked for a newer schema and an
+        // older connection is holding it, so IndexedDB leaves `open()` pending forever. A pending open
+        // is exactly the blank screen this reporting exists to replace. Nothing to close — the
+        // connection never opened.
+        this.on('versionchange', (event: IDBVersionChangeEvent) => {
+            // `newVersion` is null when the database is being deleted rather than upgraded.
+            this.notifyReloadRequired((event.newVersion ?? 0) > 0 ? 'app-updated' : 'database-reset');
+            this.close();
+        });
+        this.on('blocked', () => {
+            this.notifyReloadRequired('upgrade-blocked');
+        });
+    }
+
+    /**
+     * Subscribes to database states that need a reload. Returns an unsubscribe function.
+     *
+     * Only ever called with a reason the tab cannot recover from in place: the connection is closed
+     * (`versionchange`) or the open request is stuck behind another connection (`blocked`). Callers
+     * must surface a reload affordance — never recover by deleting or recreating the database.
+     */
+    onReloadRequired(listener: DatabaseReloadListener): () => void {
+        this.reloadListeners.add(listener);
+        return () => {
+            this.reloadListeners.delete(listener);
+        };
+    }
+
+    private notifyReloadRequired(reason: DatabaseReloadReason): void {
+        for (const listener of this.reloadListeners) {
+            listener(reason);
+        }
     }
 }
 

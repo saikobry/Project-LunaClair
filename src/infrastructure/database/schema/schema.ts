@@ -163,3 +163,44 @@ export const SCHEMA_V14 = {
     importAssets: null,
     localAssets: 'assetId, materialId',
 } as const;
+
+/**
+ * Version 15: Retires 37 secondary indexes that no code path names, and adds four that make the
+ * hot paths bounded — `[status+createdAt]` on syncQueue, `[threadId+createdAt]` on aiMessages,
+ * `[materialId+updatedAt]` on aiThreads, plus `status` on quizSessions.
+ *
+ * Index-only change: Dexie drops and creates indexes without touching records, so there is no
+ * `upgrade` callback and no row rewrite. The evidence for each removal is that the index has zero
+ * `.where()` / `.orderBy()` call sites anywhere in the application (inventory and per-store
+ * reasoning: `docs/reviews/schema-review-verification.md`, "Complete dead-index inventory").
+ *
+ * Two Dexie rules shape the result, and both are why the visible index count stays high:
+ *
+ * 1. A compound index is a **separate index name** — `[status+createdAt]` is not addressable as
+ *    `status`. Dexie raises `SchemaError` rather than falling back to a scan, so every
+ *    single-column index a call site still names is kept (`status`, `threadId`, `materialId`, …).
+ * 2. Indexes whose key is `undefined` on a record skip that record entirely, so a compound read is
+ *    only safe where the fields are required by the domain model and set by every writer.
+ *
+ * `materials` keeps its primary key only: its every production read is `toArray()` or `get(id)`,
+ * and the resolvers that look like index users (`originShareId`, `lastOpenedAt`, `*tags`, `order`)
+ * build one `Map` or sort in memory by design.
+ */
+export const SCHEMA_V15 = {
+    ...SCHEMA_V14,
+    materials: 'id',
+    questions: 'id, materialId',
+    quizzes: 'id, materialId',
+    quizSessions: 'id, quizId, status',
+    highlights: 'id, documentId',
+    drawings: 'id, documentId',
+    quizEditingDrafts: 'draftId, quizId, materialId',
+    flashcardReviews: 'key, materialId',
+    aiThreads: 'id, materialId, [materialId+updatedAt]',
+    aiMessages: 'id, threadId, status, [threadId+createdAt]',
+    syncQueue: 'id, entityType, status, clientMutationId, [status+createdAt]',
+    syncState: 'key',
+    conflictDrafts: 'id, documentId',
+    collections: 'id, order',
+    collectionMaterials: '++id, [collectionId+materialId], collectionId, materialId',
+} as const;

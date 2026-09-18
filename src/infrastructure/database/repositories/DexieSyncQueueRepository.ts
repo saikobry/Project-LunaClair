@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import type { SyncQueueRepository } from '../../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncQueueItem, SyncStatus } from '../../../domain/sync/models/sync.types';
 import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
@@ -21,12 +22,19 @@ export class DexieSyncQueueRepository implements SyncQueueRepository {
             return [];
         }
 
-        const pending = await this.db.syncQueue
-            .where('status')
-            .equals('pending')
-            .sortBy('createdAt');
-
-        return pending.slice(0, limit);
+        // Index-ordered and bounded: `[status+createdAt]` yields pending items oldest-first, so
+        // `.limit()` stops the cursor at the batch size instead of materialising the entire backlog
+        // and sorting it in memory — the outbox is the one store that grows without bound during a
+        // long offline stretch, so draining it is the worst case worth capping. A compound range
+        // must be bounded on its leading half, hence the minKey/maxKey pair: it is Dexie's idiom for
+        // "every `createdAt` under this status", and it preserves `sortBy`'s ascending order.
+        // Rows missing either half are absent from the index, which the domain model precludes — a
+        // `SyncQueueItem` requires both `status` and `createdAt`, and every writer sets them.
+        return this.db.syncQueue
+            .where('[status+createdAt]')
+            .between(['pending', Dexie.minKey], ['pending', Dexie.maxKey])
+            .limit(limit)
+            .toArray();
     }
 
     async updateStatus(
