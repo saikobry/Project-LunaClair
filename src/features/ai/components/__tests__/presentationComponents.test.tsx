@@ -62,42 +62,47 @@ describe('AI Presentation Components', () => {
   });
 
   describe('AiChatInput', () => {
+    const typeMessage = (box: HTMLElement, text: string) => {
+      box.textContent = text;
+      fireEvent.input(box);
+    };
+
     it('sends message on click and clears input', () => {
       const onSend = vi.fn();
 
       render(<AiChatInput onSendMessage={onSend} />);
-      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
-      const sendButton = screen.getByRole('button', { name: /Send message/i });
+      const textbox = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      const sendButton = screen.getByRole('button', { name: 'Send' });
 
       expect(sendButton).toBeDisabled();
 
-      fireEvent.change(textarea, { target: { value: 'Explain mitosis in detail' } });
+      typeMessage(textbox, 'Explain mitosis in detail');
       expect(sendButton).toBeEnabled();
 
       fireEvent.click(sendButton);
       expect(onSend).toHaveBeenCalledWith('Explain mitosis in detail');
-      expect(textarea).toHaveValue('');
+      expect(textbox).toHaveTextContent('');
     });
 
     it('sends message on Enter key without shift', async () => {
       const onSend = vi.fn();
       render(<AiChatInput onSendMessage={onSend} />);
-      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      const textbox = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
 
-      fireEvent.change(textarea, { target: { value: 'What is ATP?' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      typeMessage(textbox, 'What is ATP?');
+      fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: false });
 
       expect(onSend).toHaveBeenCalledWith('What is ATP?');
-      expect(textarea).toHaveValue('');
+      expect(textbox).toHaveTextContent('');
     });
 
     it('does NOT send message on Shift+Enter (allows multi-line)', async () => {
       const onSend = vi.fn();
       render(<AiChatInput onSendMessage={onSend} />);
-      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      const textbox = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
 
-      fireEvent.change(textarea, { target: { value: 'Line 1' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+      typeMessage(textbox, 'Line 1');
+      fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: true });
 
       expect(onSend).not.toHaveBeenCalled();
     });
@@ -105,10 +110,10 @@ describe('AI Presentation Components', () => {
     it('does NOT send message when IME is composing', () => {
       const onSend = vi.fn();
       render(<AiChatInput onSendMessage={onSend} />);
-      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      const textbox = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
 
-      fireEvent.change(textarea, { target: { value: 'nihon' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false, isComposing: true, keyCode: 229 });
+      typeMessage(textbox, 'nihon');
+      fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: false, isComposing: true, keyCode: 229 });
 
       expect(onSend).not.toHaveBeenCalled();
     });
@@ -117,7 +122,7 @@ describe('AI Presentation Components', () => {
       const onStop = vi.fn();
       render(<AiChatInput onSendMessage={vi.fn()} onStopGeneration={onStop} isStreaming={true} />);
 
-      const stopButton = screen.getByRole('button', { name: /Stop generating response/i });
+      const stopButton = screen.getByRole('button', { name: 'Stop' });
       expect(stopButton).toBeInTheDocument();
 
       fireEvent.click(stopButton);

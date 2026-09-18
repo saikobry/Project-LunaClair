@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { ArrowDown, Bot, Sparkles, HelpCircle, BookOpen, Lightbulb } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { AiChatMessage } from './AiChatMessage';
+import { Button } from '../../../shared/ui/Button/Button';
 import { useAiAutoScroll } from '../hooks/useAiAutoScroll';
 
 const styles = stylex.create({
@@ -29,7 +30,7 @@ const styles = stylex.create({
     width: 48,
     height: 48,
     borderRadius: '12px',
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
     color: 'var(--color-accent)',
     display: 'flex',
     alignItems: 'center',
@@ -39,7 +40,7 @@ const styles = stylex.create({
   emptyTitle: {
     fontSize: '16px',
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: '0 0 6px 0',
   },
   emptySubtitle: {
@@ -52,57 +53,54 @@ const styles = stylex.create({
   starterGrid: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
+    gap: 10,
     width: '100%',
     maxWidth: 320,
   },
+  // Replicates the collection playlist row card: bordered surface (radius
+  // 12), icon tile, title row. Hover carries the row's accent-border +
+  // muted-wash treatment so the prompts read as the same component family.
   starterButton: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface, #ffffff)',
-    color: 'var(--color-text-primary, #111827)',
-    fontSize: '13px',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--color-border)',
+    backgroundColor: 'var(--color-background-surface)',
+    color: 'var(--color-text-primary)',
+    fontSize: 14,
+    fontWeight: 500,
     textAlign: 'left',
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
+    transition: 'border-color 0.16s ease, background-color 0.16s ease',
     ':hover': {
       borderColor: 'var(--color-accent)',
-      backgroundColor: 'rgba(99, 102, 241, 0.04)',
-      transform: 'translateY(-1px)',
+      backgroundColor: 'var(--color-background-muted)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
     },
   },
-  starterIcon: {
-    width: 16,
-    height: 16,
+  starterIconMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'var(--color-overlay-hover)',
     color: 'var(--color-accent)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
-  scrollToBottomBtn: {
+  scrollToBottomWrap: {
     position: 'sticky',
     bottom: 12,
     alignSelf: 'center',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '6px 14px',
-    borderRadius: '20px',
-    backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
-    border: 'none',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-    fontSize: '12px',
-    fontWeight: 500,
-    cursor: 'pointer',
     zIndex: 10,
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: 'color-mix(in srgb, var(--color-accent) 85%, black)',
-      transform: 'scale(1.03)',
-    },
   },
 });
 
@@ -188,7 +186,9 @@ export function AiChatMessageList({
                     onClick={() => onSendMessage(item.prompt)}
                     {...stylex.props(styles.starterButton)}
                   >
-                    <Icon {...stylex.props(styles.starterIcon)} aria-hidden="true" />
+                    <span {...stylex.props(styles.starterIconMark)} aria-hidden="true">
+                      <Icon size={16} />
+                    </span>
                     <span>{item.label}</span>
                   </button>
                 );
@@ -207,15 +207,16 @@ export function AiChatMessageList({
       ))}
 
       {!isNearBottom && (
-        <button
-          type="button"
-          onClick={() => scrollToBottom(true)}
-          {...stylex.props(styles.scrollToBottomBtn)}
-          aria-label="Scroll to latest messages"
-        >
-          <ArrowDown style={{ width: 13, height: 13 }} />
-          <span>Latest messages</span>
-        </button>
+        <div {...stylex.props(styles.scrollToBottomWrap)}>
+          <Button
+            label="Scroll to latest messages"
+            variant="primary"
+            icon={<ArrowDown size={13} />}
+            onClick={() => scrollToBottom(true)}
+          >
+            Latest messages
+          </Button>
+        </div>
       )}
     </div>
   );

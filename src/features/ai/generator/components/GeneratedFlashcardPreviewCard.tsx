@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, Edit2, AlertCircle, Layers } from 'lucide-react';
 import type { GeneratedFlashcardDraft } from '../../../../domain/generator/models/generator.types';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { Input } from '../../../../shared/ui/Input/Input';
 
 const styles = stylex.create({
   card: {
@@ -13,12 +15,12 @@ const styles = stylex.create({
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
+    backgroundColor: 'var(--color-background-surface)',
     transition: 'border-color 0.15s ease',
   },
   cardSelected: {
     borderColor: 'var(--color-accent)',
-    backgroundColor: 'var(--color-background-surface-hover, #fafafa)',
+    backgroundColor: 'var(--color-background-muted)',
   },
   cardInvalid: {
     borderColor: 'var(--color-error)',
@@ -51,8 +53,8 @@ const styles = stylex.create({
     borderRadius: 999,
     fontSize: 11,
     fontWeight: 600,
-    backgroundColor: '#ede9fe',
-    color: '#6d28d9',
+    backgroundColor: 'var(--color-accent-muted)',
+    color: 'var(--color-accent)',
   },
   sidesContainer: {
     display: 'grid',
@@ -77,19 +79,9 @@ const styles = stylex.create({
   sideText: {
     fontSize: 13,
     fontWeight: 500,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: 0,
     lineHeight: 1.4,
-  },
-  input: {
-    width: '100%',
-    padding: '6px 8px',
-    fontSize: 13,
-    borderRadius: 6,
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background)',
-    color: 'var(--color-text-primary)',
-    boxSizing: 'border-box',
   },
   explanationRow: {
     fontSize: 12,
@@ -153,60 +145,35 @@ const EditFlashcardForm: React.FC<EditFlashcardFormProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div>
-        <label htmlFor="edit-flashcard-front" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-          FRONT
-        </label>
-        <input
-          id="edit-flashcard-front"
-          type="text"
-          value={front}
-          onChange={(e) => setFront(e.target.value)}
-          placeholder="Card front / prompt..."
-          {...stylex.props(styles.input)}
-        />
-      </div>
-      <div>
-        <label htmlFor="edit-flashcard-back" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-          BACK
-        </label>
-        <input
-          id="edit-flashcard-back"
-          type="text"
-          value={back}
-          onChange={(e) => setBack(e.target.value)}
-          placeholder="Card back / answer..."
-          {...stylex.props(styles.input)}
-        />
-      </div>
-      <div>
-        <label htmlFor="edit-flashcard-explanation" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-          EXPLANATION (OPTIONAL)
-        </label>
-        <input
-          id="edit-flashcard-explanation"
-          type="text"
-          value={explanation}
-          onChange={(e) => setExplanation(e.target.value)}
-          placeholder="Context / mnemonic..."
-          {...stylex.props(styles.input)}
-        />
-      </div>
+      <Input
+        label="Front"
+        value={front}
+        onChange={setFront}
+        placeholder="Card front / prompt..."
+      />
+      <Input
+        label="Back"
+        value={back}
+        onChange={setBack}
+        placeholder="Card back / answer..."
+      />
+      <Input
+        label="Explanation (optional)"
+        value={explanation}
+        onChange={setExplanation}
+        placeholder="Context / mnemonic..."
+      />
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, border: '1px solid var(--color-border)' }}
-        >
+        <Button label="Cancel" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          label="Save"
+          variant="primary"
           onClick={() => onSave(front.trim() || initialFront, back.trim() || initialBack, explanation.trim() || undefined)}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-accent)', color: '#fff', border: 'none' }}
         >
           Save
-        </button>
+        </Button>
       </div>
     </div>
   );

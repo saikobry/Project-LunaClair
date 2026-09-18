@@ -3,6 +3,8 @@ import * as stylex from '@stylexjs/stylex';
 import { Check, Edit2, AlertCircle } from 'lucide-react';
 import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
 import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
+import { Button } from '../../../../shared/ui/Button/Button';
+import { Input } from '../../../../shared/ui/Input/Input';
 import {
   DIFFICULTY_APPEARANCE,
   QUESTION_TYPE_APPEARANCE,
@@ -18,12 +20,12 @@ const styles = stylex.create({
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
+    backgroundColor: 'var(--color-background-surface)',
     transition: 'border-color 0.15s ease',
   },
   cardSelected: {
     borderColor: 'var(--color-accent)',
-    backgroundColor: 'var(--color-background-surface-hover, #fafafa)',
+    backgroundColor: 'var(--color-background-muted)',
   },
   cardInvalid: {
     borderColor: 'var(--color-error)',
@@ -61,19 +63,9 @@ const styles = stylex.create({
   promptText: {
     fontSize: 14,
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: 0,
     lineHeight: 1.4,
-  },
-  promptInput: {
-    width: '100%',
-    padding: '6px 8px',
-    fontSize: 13,
-    borderRadius: 6,
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background)',
-    color: 'var(--color-text-primary)',
-    boxSizing: 'border-box',
   },
   payloadSection: {
     display: 'flex',
@@ -162,43 +154,29 @@ const EditQuestionForm: React.FC<EditQuestionFormProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label htmlFor="edit-question-prompt" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-        QUESTION PROMPT
-      </label>
-      <input
-        id="edit-question-prompt"
-        type="text"
+      <Input
+        label="Question prompt"
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={setPrompt}
         placeholder="Edit prompt text..."
-        {...stylex.props(styles.promptInput)}
       />
-      <label htmlFor="edit-question-explanation" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-        EXPLANATION (OPTIONAL)
-      </label>
-      <input
-        id="edit-question-explanation"
-        type="text"
+      <Input
+        label="Explanation (optional)"
         value={explanation}
-        onChange={(e) => setExplanation(e.target.value)}
+        onChange={setExplanation}
         placeholder="Edit explanation (optional)..."
-        {...stylex.props(styles.promptInput)}
       />
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, border: '1px solid var(--color-border)' }}
-        >
+        <Button label="Cancel" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          label="Save"
+          variant="primary"
           onClick={() => onSave(prompt.trim() || initialPrompt, explanation.trim() || undefined)}
-          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 4, backgroundColor: 'var(--color-accent)', color: '#fff', border: 'none' }}
         >
           Save
-        </button>
+        </Button>
       </div>
     </div>
   );

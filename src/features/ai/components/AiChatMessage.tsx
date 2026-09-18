@@ -8,6 +8,7 @@ import type { Components } from 'react-markdown';
 import { Bot, User, AlertCircle, RotateCcw } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { aiSanitizeSchema } from '../utils/aiMarkdown';
+import { Button } from '../../../shared/ui/Button/Button';
 import { AiStreamingIndicator } from './AiStreamingIndicator';
 
 const styles = stylex.create({
@@ -35,11 +36,11 @@ const styles = stylex.create({
     marginTop: 2,
   },
   userAvatar: {
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.06))',
+    backgroundColor: 'var(--color-neutral)',
     color: 'var(--color-text-secondary)',
   },
   assistantAvatar: {
-    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)',
     color: 'var(--color-accent)',
   },
   avatarIcon: {
@@ -57,12 +58,12 @@ const styles = stylex.create({
   },
   userBubble: {
     backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
+    color: 'var(--color-on-accent)',
     borderBottomRightRadius: '3px',
   },
   assistantBubble: {
-    backgroundColor: 'var(--color-surface, #ffffff)',
-    color: 'var(--color-text-primary, #111827)',
+    backgroundColor: 'var(--color-background-surface)',
+    color: 'var(--color-text-primary)',
     border: '1px solid var(--color-border)',
     borderBottomLeftRadius: '3px',
     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
@@ -70,19 +71,19 @@ const styles = stylex.create({
   h1: {
     fontSize: '16px',
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: '12px 0 6px 0',
   },
   h2: {
     fontSize: '15px',
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: '10px 0 6px 0',
   },
   h3: {
     fontSize: '14px',
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: '8px 0 4px 0',
   },
   paragraph: {
@@ -100,7 +101,7 @@ const styles = stylex.create({
     fontSize: '12px',
     padding: '2px 5px',
     borderRadius: '4px',
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.05))',
+    backgroundColor: 'var(--color-neutral)',
     color: 'var(--color-accent)',
   },
   pre: {
@@ -129,7 +130,7 @@ const styles = stylex.create({
     border: '1px solid var(--color-border)',
     padding: '6px 10px',
     textAlign: 'left',
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.04))',
+    backgroundColor: 'var(--color-background-muted)',
     fontWeight: 600,
   },
   td: {
@@ -141,8 +142,8 @@ const styles = stylex.create({
     marginTop: 8,
     padding: '8px 12px',
     borderRadius: '8px',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    border: '1px solid rgba(239, 68, 68, 0.2)',
+    backgroundColor: 'var(--color-error-muted)',
+    border: '1px solid color-mix(in srgb, var(--color-error) 20%, transparent)',
     color: 'var(--color-error)',
     fontSize: '13px',
     display: 'flex',
@@ -155,22 +156,6 @@ const styles = stylex.create({
     alignItems: 'center',
     gap: 6,
   },
-  retryButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    border: 'none',
-    borderRadius: '6px',
-    backgroundColor: 'var(--color-error)',
-    color: '#ffffff',
-    fontSize: '12px',
-    fontWeight: 500,
-    padding: '4px 8px',
-    cursor: 'pointer',
-    ':hover': {
-      backgroundColor: '#dc2626',
-    },
-  },
   interruptedBadge: {
     fontSize: '11px',
     fontWeight: 600,
@@ -178,7 +163,7 @@ const styles = stylex.create({
     letterSpacing: '0.5px',
     padding: '2px 6px',
     borderRadius: '4px',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)',
     color: 'var(--color-error)',
     marginBottom: 6,
     display: 'inline-block',
@@ -278,15 +263,15 @@ export const AiChatMessage = memo(function AiChatMessage({
               </span>
             </div>
             {onRetry && (
-              <button
-                type="button"
+              <Button
+                label="Retry generating response"
+                variant="danger"
+                icon={<RotateCcw size={12} />}
                 onClick={() => onRetry(message.id)}
-                {...stylex.props(styles.retryButton)}
-                aria-label="Retry generating response"
+                style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }}
               >
-                <RotateCcw style={{ width: 12, height: 12 }} />
-                <span>Retry</span>
-              </button>
+                Retry
+              </Button>
             )}
           </div>
         )}

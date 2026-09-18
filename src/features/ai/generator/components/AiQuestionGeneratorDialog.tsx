@@ -5,6 +5,7 @@ import type { QuestionType } from '../../../../domain/quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../../../domain/quiz/models/Question';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
+import { Input } from '../../../../shared/ui/Input/Input';
 import { GeneratedQuestionPreviewCard } from './GeneratedQuestionPreviewCard';
 import { useAiQuestionGenerator } from '../hooks/useAiQuestionGenerator';
 
@@ -37,26 +38,26 @@ const styles = stylex.create({
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
-    backgroundColor: 'var(--color-background)',
+    backgroundColor: 'var(--color-background-surface)',
     color: 'var(--color-text-secondary)',
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
+    transitionProperty: 'color, background-color, border-color',
+    transitionDuration: '0.15s',
+    transitionTimingFunction: 'ease',
+    ':hover': {
+      backgroundColor: 'var(--color-overlay-hover)',
+      color: 'var(--color-text-primary)',
+    },
+    ':focus-visible': {
+      outline: '2px solid var(--color-accent)',
+      outlineOffset: '2px',
+    },
   },
   pillActive: {
     borderColor: 'var(--color-accent)',
     backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
+    color: 'var(--color-on-accent)',
     fontWeight: 600,
-  },
-  input: {
-    width: '100%',
-    padding: '8px 12px',
-    fontSize: 13,
-    borderRadius: 6,
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background)',
-    color: 'var(--color-text-primary)',
-    boxSizing: 'border-box',
   },
   loadingContainer: {
     display: 'flex',
@@ -93,8 +94,8 @@ const styles = stylex.create({
     gap: 8,
     padding: '10px 14px',
     borderRadius: 6,
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
+    backgroundColor: 'var(--color-error-muted)',
+    color: 'var(--color-error)',
     fontSize: 13,
   },
   successContainer: {
@@ -318,13 +319,11 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
 
             {/* Optional focus topic */}
             <div {...stylex.props(styles.formSection)}>
-              <label {...stylex.props(styles.label)}>Topic Focus (Optional)</label>
-              <input
-                type="text"
+              <Input
+                label="Topic Focus (Optional)"
                 value={focusTopic}
-                onChange={(e) => setFocusTopic(e.target.value)}
+                onChange={setFocusTopic}
                 placeholder="e.g. Focus specifically on action potentials..."
-                {...stylex.props(styles.input)}
               />
             </div>
           </>

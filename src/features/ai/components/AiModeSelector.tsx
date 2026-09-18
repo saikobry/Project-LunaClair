@@ -2,36 +2,35 @@ import * as stylex from '@stylexjs/stylex';
 import { Bot, GraduationCap } from 'lucide-react';
 
 const styles = stylex.create({
+  // Replicates the workspace Study/Manage switch: muted track (radius 10),
+  // borderless buttons (13px/600), surface thumb for the active tab. Kept
+  // custom for the tablist semantics + count badges; focus ring and badges
+  // are the only additions over the source.
   container: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '3px',
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.05))',
-    borderRadius: '10px',
-    gap: 4,
+    display: 'inline-flex',
+    gap: 2,
+    padding: 3,
+    backgroundColor: 'var(--color-background-muted)',
+    borderRadius: 10,
   },
   button: {
     flex: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    padding: '6px 12px',
-    border: 'none',
-    borderRadius: '7px',
-    fontSize: '13px',
-    fontWeight: 500,
-    cursor: 'pointer',
+    gap: 7,
+    padding: '7px 16px',
+    borderRadius: 8,
+    borderWidth: 0,
+    borderStyle: 'none',
     backgroundColor: 'transparent',
+    fontSize: 13,
+    fontWeight: 600,
     color: 'var(--color-text-secondary)',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      color: 'var(--color-text-primary, #111827)',
-      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    },
+    cursor: 'pointer',
     ':focus-visible': {
       outline: '2px solid var(--color-accent)',
-      outlineOffset: '1px',
+      outlineOffset: '2px',
     },
     ':disabled': {
       opacity: 0.5,
@@ -39,13 +38,9 @@ const styles = stylex.create({
     },
   },
   buttonActive: {
-    backgroundColor: 'var(--color-surface, #ffffff)',
-    color: 'var(--color-text-primary, #111827)',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
-    fontWeight: 600,
-    ':hover': {
-      backgroundColor: 'var(--color-surface, #ffffff)',
-    },
+    backgroundColor: 'var(--color-background-surface)',
+    color: 'var(--color-text-primary)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
   },
   icon: {
     width: 14,
@@ -56,12 +51,12 @@ const styles = stylex.create({
     fontSize: '11px',
     padding: '1px 6px',
     borderRadius: '10px',
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.08))',
+    backgroundColor: 'var(--color-neutral)',
     color: 'var(--color-text-secondary)',
     fontWeight: 500,
   },
   badgeActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    backgroundColor: 'var(--color-accent-muted)',
     color: 'var(--color-accent)',
   },
 });

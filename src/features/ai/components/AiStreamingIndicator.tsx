@@ -14,7 +14,7 @@ const styles = stylex.create({
     gap: 8,
     padding: '6px 12px',
     borderRadius: '16px',
-    backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.04))',
+    backgroundColor: 'var(--color-neutral)',
     color: 'var(--color-text-secondary)',
     fontSize: '13px',
     fontWeight: 500,

@@ -71,7 +71,7 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       const onToggle = vi.fn();
       render(<AiDrawerToggleButton isOpen={false} onToggle={onToggle} />);
 
-      const btn = screen.getByRole('button', { name: /Toggle AI Study Assistant/i });
+      const btn = screen.getByRole('button', { name: /AI Assistant/i });
       expect(btn).toHaveAttribute('aria-expanded', 'false');
       fireEvent.click(btn);
       expect(onToggle).toHaveBeenCalledTimes(1);
@@ -113,16 +113,18 @@ describe('AI Chat Drawer & Workspace Integration', () => {
         { wrapper: harness.wrapper },
       );
 
-      // Wait for thread to finish initial load and textarea to be enabled
-      await waitFor(() => {
-        const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
-        expect(textarea).not.toBeDisabled();
-      });
+      // Wait for thread history to finish loading: the empty state only
+      // renders once isLoading is false. (The composer is contentEditable,
+      // which has no native disabled state for toBeDisabled to observe.)
+      await screen.findByText(/Ask anything about your study notes/i);
+      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      expect(textarea).toHaveAttribute('contenteditable', 'true');
 
       // Type and send a prompt
-      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
-      fireEvent.change(textarea, { target: { value: 'What does the heart do?' } });
-      const sendBtn = screen.getByRole('button', { name: /Send message/i });
+      textarea.textContent = 'What does the heart do?';
+      fireEvent.input(textarea);
+      const sendBtn = screen.getByRole('button', { name: 'Send' });
+      expect(sendBtn).toBeEnabled();
       fireEvent.click(sendBtn);
 
       // Verify user message appeared immediately

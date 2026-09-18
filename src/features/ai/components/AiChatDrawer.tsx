@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { X, Trash2, Sparkles } from 'lucide-react';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
+import { IconButton } from '../../../shared/ui/IconButton/IconButton';
 import { useAiChatThread } from '../hooks/useAiChatThread';
 import { AiModeSelector } from './AiModeSelector';
 import { AiChatMessageList } from './AiChatMessageList';
@@ -16,7 +18,11 @@ const styles = stylex.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    zIndex: 90,
+    // Same stacking band as the AddMaterialsDrawer slide-over: above app
+    // chrome (header 110, rails 150, collections popover 180) so the panel
+    // reads as one top-level surface, below system overlays (OfflineBanner
+    // 200, InstallPrompt 300). Dialogs (native top layer) always win.
+    zIndex: 185,
     display: 'none',
     [mobile]: {
       display: 'block',
@@ -29,12 +35,13 @@ const styles = stylex.create({
     bottom: 0,
     width: 400,
     maxWidth: '100vw',
-    backgroundColor: 'var(--color-surface, #ffffff)',
+    backgroundColor: 'var(--color-background-surface)',
     borderLeft: '1px solid var(--color-border)',
     boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.08)',
     display: 'flex',
     flexDirection: 'column',
-    zIndex: 100,
+    // See backdrop note above — panel sits one step above its backdrop.
+    zIndex: 190,
     transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
     [mobile]: {
       top: 'auto',
@@ -68,16 +75,17 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: '14px 16px',
+    padding: 20,
     borderBottom: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface, #ffffff)',
+    backgroundColor: 'var(--color-background-surface)',
     borderTopLeftRadius: 'inherit',
     borderTopRightRadius: 'inherit',
   },
   headerTopRow: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 8,
   },
   titleGroup: {
     display: 'flex',
@@ -90,32 +98,20 @@ const styles = stylex.create({
     color: 'var(--color-accent)',
   },
   title: {
-    fontSize: '15px',
+    fontSize: '18px',
     fontWeight: 600,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
     margin: 0,
+  },
+  subtitle: {
+    fontSize: '13px',
+    color: 'var(--color-text-secondary)',
+    margin: '4px 0 0 0',
   },
   headerActions: {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-  },
-  iconBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 28,
-    height: 28,
-    borderRadius: '6px',
-    border: 'none',
-    background: 'transparent',
-    color: 'var(--color-text-secondary)',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    ':hover': {
-      backgroundColor: 'var(--color-surface-hover, rgba(0, 0, 0, 0.05))',
-      color: 'var(--color-text-primary, #111827)',
-    },
   },
   body: {
     flex: 1,
@@ -150,6 +146,7 @@ export function AiChatDrawer({
   onClearSelectionContext,
 }: AiChatDrawerProps) {
   const [mode, setMode] = useState<'assistant' | 'socratic'>('assistant');
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
   // Active chat thread for the current mode
   const {
@@ -219,13 +216,15 @@ export function AiChatDrawer({
     [sendMessage, documentContext, materialId, selectionContext, onClearSelectionContext],
   );
 
-  const handleClearHistory = useCallback(async () => {
+  const handleClearHistory = useCallback(() => {
     if (messages.length === 0) return;
-    const confirmed = window.confirm('Are you sure you want to clear this conversation history?');
-    if (confirmed) {
-      await clearHistory();
-    }
-  }, [messages.length, clearHistory]);
+    setIsConfirmingClear(true);
+  }, [messages.length]);
+
+  const handleConfirmClearHistory = useCallback(async () => {
+    setIsConfirmingClear(false);
+    await clearHistory();
+  }, [clearHistory]);
 
   return (
     <>
@@ -247,31 +246,32 @@ export function AiChatDrawer({
       >
         <div {...stylex.props(styles.header)}>
           <div {...stylex.props(styles.headerTopRow)}>
-            <div {...stylex.props(styles.titleGroup)}>
-              <Sparkles {...stylex.props(styles.titleIcon)} aria-hidden="true" />
-              <h2 {...stylex.props(styles.title)}>AI Study Assistant</h2>
+            <div>
+              <div {...stylex.props(styles.titleGroup)}>
+                <Sparkles {...stylex.props(styles.titleIcon)} aria-hidden="true" />
+                <h2 {...stylex.props(styles.title)}>AI Study Assistant</h2>
+              </div>
+              <p {...stylex.props(styles.subtitle)}>
+                Study help, grounded in your material.
+              </p>
             </div>
             <div {...stylex.props(styles.headerActions)}>
               {messages.length > 0 && (
-                <button
-                  type="button"
+                <IconButton
+                  label="Clear chat history"
+                  icon={<Trash2 size={15} />}
+                  variant="ghost"
+                  size="sm"
                   onClick={handleClearHistory}
-                  title="Clear chat history"
-                  aria-label="Clear chat history"
-                  {...stylex.props(styles.iconBtn)}
-                >
-                  <Trash2 style={{ width: 15, height: 15 }} />
-                </button>
+                />
               )}
-              <button
-                type="button"
+              <IconButton
+                label="Close AI Assistant"
+                icon={<X size={18} />}
+                variant="ghost"
+                size="sm"
                 onClick={onClose}
-                title="Close AI Assistant"
-                aria-label="Close AI Assistant"
-                {...stylex.props(styles.iconBtn)}
-              >
-                <X style={{ width: 18, height: 18 }} />
-              </button>
+              />
             </div>
           </div>
 
@@ -304,6 +304,16 @@ export function AiChatDrawer({
           />
         </div>
       </aside>
+
+      <ConfirmationDialog
+        isOpen={isConfirmingClear}
+        title="Clear conversation?"
+        message="Messages in this mode will be removed from this device. This cannot be undone."
+        confirmLabel="Clear"
+        intent="danger"
+        onConfirm={handleConfirmClearHistory}
+        onCancel={() => setIsConfirmingClear(false)}
+      />
     </>
   );
 }
