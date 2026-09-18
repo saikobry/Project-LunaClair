@@ -118,19 +118,8 @@ export default function ReaderView({
         />
         <div {...stylex.props(styles.viewer)}>
           <TocMobile content={content} />
-          <div style={{ position: 'relative' }} ref={containerRef}>
-            <MarkdownViewer text={content} assetUrls={assetUrls} />
-            <DrawingCanvas
-              paths={paths}
-              onPathsChange={onPathsChange}
-              active={mode === 'draw'}
-              currentColor={brushColor}
-              brushThickness={brushThickness}
-              isEraser={drawingTool === 'eraser'}
-            />
+          <div style={{ position: 'relative' }}>
             <SelectionPopover
-              x={popover.x}
-              y={popover.y}
               visible={popover.visible}
               onSelectColor={onCreateHighlight}
               onDelete={popover.targetHighlightId ? onDeleteHighlight : undefined}
@@ -145,6 +134,24 @@ export default function ReaderView({
                     }
                   : undefined
               }
+            />
+            {/*
+              `containerRef` scopes the highlight character offsets: it wraps the
+              rendered markdown ONLY, never the annotation chrome around it. The
+              rail carries hidden Astryx tooltip text inside the DOM, which the
+              offset walkers would count — shifting every highlight by the chrome's
+              text length whenever the rail appeared or disappeared.
+            */}
+            <div ref={containerRef}>
+              <MarkdownViewer text={content} assetUrls={assetUrls} />
+            </div>
+            <DrawingCanvas
+              paths={paths}
+              onPathsChange={onPathsChange}
+              active={mode === 'draw'}
+              currentColor={brushColor}
+              brushThickness={brushThickness}
+              isEraser={drawingTool === 'eraser'}
             />
           </div>
         </div>
