@@ -141,3 +141,21 @@ export const SCHEMA_V13 = {
     collectionMaterials: '++id, [collectionId+materialId], collectionId, materialId, order',
     materials: 'id, documentId, order, createdAt, updatedAt, lastOpenedAt, originShareId, *tags',
 } as const;
+
+/**
+ * Version 14: Rekeys locally stored binary assets from `importAssets` (keyed by
+ * `materialId` — at most one blob per material) to `localAssets` (keyed by `assetId`,
+ * indexed by `materialId`), so N assets per material can coexist and an
+ * `lc-asset://{assetId}` document reference resolves to its own blob.
+ *
+ * IndexedDB cannot change an object store's primary key in place — Dexie throws
+ * "Not yet support for changing primary key" — so this version deletes the old store
+ * (`null`) and declares the new one. The v14 upgrade copies every legacy row across,
+ * preserving `materialId` as the new `assetId`, which is exactly what the legacy
+ * `lc-asset://{materialId}` references point at: old markdown needs no rewrite.
+ */
+export const SCHEMA_V14 = {
+    ...SCHEMA_V13,
+    importAssets: null,
+    localAssets: 'assetId, materialId',
+} as const;

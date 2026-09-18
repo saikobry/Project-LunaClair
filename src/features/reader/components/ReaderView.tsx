@@ -41,6 +41,8 @@ const styles = stylex.create({
 
 interface ReaderViewProps {
   content: string;
+  /** Object URLs for this document's stored assets, keyed by asset id (see `useMaterialAssets`). */
+  assetUrls?: Map<string, string>;
   containerRef: RefObject<HTMLDivElement | null>;
   // Annotation toolbar props
   mode: AnnotationMode;
@@ -69,6 +71,7 @@ interface ReaderViewProps {
 
 export default function ReaderView({
   content,
+  assetUrls,
   containerRef,
   mode,
   onModeChange,
@@ -112,7 +115,7 @@ export default function ReaderView({
         <div {...stylex.props(styles.viewer)}>
           <TocMobile content={content} />
           <div style={{ position: 'relative' }} ref={containerRef}>
-            <MarkdownViewer text={content} />
+            <MarkdownViewer text={content} assetUrls={assetUrls} />
             <DrawingCanvas
               paths={paths}
               onPathsChange={onPathsChange}

@@ -2,7 +2,7 @@ import type { LibraryRepository } from '../../../domain/library/repositories/Lib
 import type { DocumentContentRepository } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { QuestionRepository } from '../../../domain/quiz/repositories/QuestionRepository';
 import type { QuizRepository } from '../../../domain/quiz/repositories/QuizRepository';
-import type { ImportAssetRepository } from '../../../domain/importer/repositories/ImportAssetRepository';
+import type { AssetRepository } from '../../../domain/assets/repositories/AssetRepository';
 import type {
   PackageAsset,
   PackageFlashcard,
@@ -30,26 +30,29 @@ export interface MaterializeStudyPackageInput {
  * - Local Dexie IDs are stripped and rewritten to package-scoped `pkg_*` identifiers.
  * - Private learning history (quiz attempts, SM-2 flashcard intervals/repetition counts, streak data, sync mutations) is excluded.
  * - All internal relationships and markdown `lc-asset://` URIs are rewired into package scope.
+ * - Every stored asset of the material becomes `pkg_asset_N` (deterministic order: filename, then
+ *   asset id), and each document reference is rewired by asset identity — so N figures stay
+ *   paired with their own payload through clone → export → clone.
  */
 export class MaterializeStudyPackageUseCase {
   private readonly libraryRepository: LibraryRepository;
   private readonly documentContentRepository: DocumentContentRepository;
   private readonly questionRepository: QuestionRepository;
   private readonly quizRepository: QuizRepository;
-  private readonly importAssetRepository: ImportAssetRepository;
+  private readonly assetRepository: AssetRepository;
 
   constructor(
     libraryRepository: LibraryRepository,
     documentContentRepository: DocumentContentRepository,
     questionRepository: QuestionRepository,
     quizRepository: QuizRepository,
-    importAssetRepository: ImportAssetRepository,
+    assetRepository: AssetRepository,
   ) {
     this.libraryRepository = libraryRepository;
     this.documentContentRepository = documentContentRepository;
     this.questionRepository = questionRepository;
     this.quizRepository = quizRepository;
-    this.importAssetRepository = importAssetRepository;
+    this.assetRepository = assetRepository;
   }
 
   async execute(input: MaterializeStudyPackageInput): Promise<StudyPackage> {
@@ -65,17 +68,16 @@ export class MaterializeStudyPackageUseCase {
     const docContent = await this.documentContentRepository.getByDocumentId(material.documentId);
     const rawMarkdown = docContent?.content || '';
 
-    // 3-4. Fetch related data in parallel (questions, quizzes, and asset are independent)
-    const [questions, quizzes, importedAsset] = await Promise.all([
+    // 3-4. Fetch related data in parallel (questions, quizzes, and assets are independent)
+    const [questions, quizzes, assets] = await Promise.all([
       this.questionRepository.getQuestions(materialId),
       this.quizRepository.getQuizzes(materialId),
-      this.importAssetRepository.get(materialId),
+      this.assetRepository.getByMaterialId(materialId),
     ]);
 
     // 5. Establish ID translation map (local -> pkg_*)
     const pkgMatId = 'pkg_mat_1' as const;
     const qIdMap = new Map<string, `pkg_q_${string}`>();
-    const assetIdMap = new Map<string, `pkg_asset_${string}`>();
 
     const packageQuestions: PackageQuestion[] = questions.map((q, idx) => {
       const pkgQId = `pkg_q_${idx + 1}` as const;
@@ -115,26 +117,40 @@ export class MaterializeStudyPackageUseCase {
       };
     });
 
-    const packageAssets: PackageAsset[] = [];
-    let rewrittenMarkdown = rawMarkdown;
+    // Deterministic numbering: filename first, asset identity as the tie-breaker, so two assets
+    // sharing a filename still get a stable `pkg_asset_N` across repeated exports.
+    const orderedAssets = [...assets].sort(
+      (a, b) => a.filename.localeCompare(b.filename) || a.assetId.localeCompare(b.assetId),
+    );
 
-    if (importedAsset) {
-      const pkgAssetId = 'pkg_asset_1' as const;
-      assetIdMap.set(importedAsset.materialId, pkgAssetId);
-      const dataBase64 = await blobToBase64(importedAsset.blob);
+    const pkgAssetByAssetId = new Map<string, `pkg_asset_${string}`>();
+    const packageAssets: PackageAsset[] = [];
+
+    for (const [index, asset] of orderedAssets.entries()) {
+      const pkgAssetId = `pkg_asset_${index + 1}` as const;
+      pkgAssetByAssetId.set(asset.assetId, pkgAssetId);
 
       packageAssets.push({
         id: pkgAssetId,
         materialId: pkgMatId,
-        filename: importedAsset.filename,
-        mimeType: importedAsset.mimeType,
-        dataBase64,
+        filename: asset.filename,
+        mimeType: asset.mimeType,
+        dataBase64: await blobToBase64(asset.blob),
       });
-
-      // Rewrite markdown asset references: lc-asset://${materialId} -> lc-asset://${pkgAssetId}
-      const regex = new RegExp(`lc-asset://${importedAsset.materialId}`, 'g');
-      rewrittenMarkdown = rewrittenMarkdown.replace(regex, `lc-asset://${pkgAssetId}`);
     }
+
+    // Single-pass rewrite of every `lc-asset://` reference, mirroring `remapStudyPackage`'s rule:
+    // same id character class, references with no matching asset left untouched. Rewriting by
+    // asset identity (not by material) is what keeps an N-figure document's references paired with
+    // the right payload; legacy rows migrated to v14 carry `assetId === materialId`, so old
+    // `lc-asset://{materialId}` references match the same way with no extra rule.
+    const rewrittenMarkdown = rawMarkdown.replace(
+      /lc-asset:\/\/([a-zA-Z0-9_-]+)/g,
+      (match, assetId: string) => {
+        const pkgAssetId = pkgAssetByAssetId.get(assetId);
+        return pkgAssetId ? `lc-asset://${pkgAssetId}` : match;
+      },
+    );
 
     const packageMaterials: PackageMaterial[] = [
       {

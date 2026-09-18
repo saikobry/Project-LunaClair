@@ -4,6 +4,9 @@ import type { Quiz } from '../../quiz/models/Quiz';
 import type { ImportedDocumentContent } from '../../reader/repositories/DocumentContentRepository';
 
 export interface ImportStudyPackageAsset {
+  /** Remapped local asset identity — the value `lc-asset://{assetId}` in documentContent points at. */
+  assetId: string;
+  /** Grouping index: the material this asset belongs to. */
   materialId: string;
   filename: string;
   mimeType: string;

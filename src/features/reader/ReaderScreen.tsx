@@ -9,6 +9,7 @@ import { Button } from '../../shared/ui/Button/Button';
 import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { useDocument } from './hooks/useDocument';
+import { useMaterialAssets } from './hooks/useMaterialAssets';
 import { useHighlights } from './hooks/useHighlights';
 import { useDrawings } from './hooks/useDrawings';
 import { useTextSelection } from './hooks/useTextSelection';
@@ -86,6 +87,7 @@ export default function ReaderScreen({
   const { material, isLoading: materialLoading } = useMaterial(materialId);
   const { showToast } = useToast();
   const { data: document, isLoading: docLoading, error } = useDocument(material ?? null);
+  const assetUrls = useMaterialAssets(materialId);
   const content = document?.content ?? '';
   const documentId = materialId;
 
@@ -216,6 +218,7 @@ export default function ReaderScreen({
     <>
       <ReaderView
         content={content}
+        assetUrls={assetUrls}
         containerRef={containerRef}
         mode={mode}
         onModeChange={setMode}

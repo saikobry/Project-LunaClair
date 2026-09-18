@@ -9,13 +9,14 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `database/` — Dexie / IndexedDB persistence engine:
   - `schema/` — Database engine definition, schema history, lifecycle, and migrations:
     - `LunaClairDatabase.ts` → `LunaClairDatabase` (Dexie subclass with typed `Table` properties, singleton `db`)
-    - `schema.ts` → Version 1 through 13 schema definitions
+    - `schema.ts` → Version 1 through 14 schema definitions
     - `DatabaseInitializer.ts` → Startup orchestrator (`db.open()` → `migrateIfNeeded()`, deliberately no seeding)
     - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
   - `repositories/` — Concrete Dexie persistence adapters implementing domain repository ports:
     - `DexieAiChatRepository.ts` → `AiChatRepository`
     - `DexieAnalyticsRepository.ts` → `AnalyticsRepository`
     - `DexieAnnotationRepository.ts` → `AnnotationRepository`
+    - `DexieAssetRepository.ts` → `AssetRepository` (read-only: `get(assetId)`, `getByMaterialId(materialId)`)
     - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository`
     - `DexieDocumentContentRepository.ts` → `DocumentContentRepository`
     - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
@@ -72,6 +73,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
 - **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
 - **Atomic Dexie Transactions**: Multi-table operations (`DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
+- **Local binary assets live in one store**: `localAssets` (Dexie v14) is keyed by `assetId` — the identity `lc-asset://{assetId}` document references resolve against — with a `materialId` index for "every asset belonging to this material". PDF/image import writes exactly one row per material as `assetId = materialId` (the importer's 1:1 contract); study package import writes N rows per material. The v14 upgrade migrated the legacy `importAssets` store; IndexedDB cannot change a primary key in place, so the old store is dropped and recreated under the new name, with every legacy row carried across.
 - **No Auto-Hydration**: The app boots with an empty local library; courses are discovered via StudyPackage shares or imported as `.lcpack` bundles and explicitly cloned/imported by user action.
 
 ## Work Guidance
@@ -86,6 +88,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `npm run build` — Full TypeScript (`tsc -b`) and Vite production bundling.
 - `npm run test:run` — Complete Vitest test suite.
 - `npm run test:e2e` — Playwright acceptance tests.
+- **Blob byte assertions require the `node` environment.** Under the default `jsdom` environment a stored `Blob` does not survive `fake-indexeddb`'s structured clone (it reads back as a plain object with no bytes, re-encoding as `[object Object]`), so a byte comparison there is vacuous. A suite that compares stored bytes declares `// @vitest-environment node` and asserts its own environment, so it fails loudly instead of passing silently. Record, filename, index, and reference assertions are fine under `jsdom`.
 
 ## Child DOX Index
 

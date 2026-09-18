@@ -8,7 +8,7 @@ Pure domain contracts, types, and algorithms for importing external study materi
 
 - `ContentImporter.ts` — `ContentImporter` port, `ImporterRegistry` port, `ExtractionOptions` interface.
 - `importer.types.ts` — Domain types (`ExtractionResult`, `PageExtraction`, `ExtractionStats`, `ExtractionProgress`, `ImportMetadata`, `ImportCandidate`, `ImportSession`, `ImportError`, `ImportErrorCode`).
-- `ImportAssetRepository.ts` — `ImportAssetRepository` port and `ImportedAsset` contract for preserving original imported binary files (PDF/images).
+- `ImportAssetRepository.ts` — `ImportAssetRepository` port and `ImportedAsset` contract for preserving original imported binary files (PDF/images). Stays deliberately single-asset-per-material (an import owns exactly one original file), so on this write path `materialId` IS the asset identity; `DexieImportAssetRepository` writes `assetId = materialId` into the shared `localAssets` store. Multi-asset material reads are the generic `AssetRepository` port's job (`domain/assets`), not this one's.
 - `markdownConverter/` — Multi-pass Markdown conversion pipeline:
   - `normalizationPass.ts`: Line ending normalization, Unicode space cleaning, page break artifact removal.
   - `structurePass.ts`: Heading detection (ALL CAPS, numbered sections, chapters).

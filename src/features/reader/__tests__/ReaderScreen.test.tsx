@@ -57,6 +57,9 @@ describe('ReaderScreen', () => {
         document: {
           getDocumentByMaterial: vi.fn().mockResolvedValue(mockDocument),
         },
+        asset: {
+          getByMaterialId: vi.fn().mockResolvedValue([]),
+        },
         annotation: {
           getHighlights: vi.fn().mockResolvedValue([]),
           getDrawings: vi.fn().mockResolvedValue([]),

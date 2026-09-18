@@ -1,15 +1,31 @@
-import { memo } from 'react';
+import { createContext, memo, useContext } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
-import type { Components } from 'react-markdown';
+import type { Components, UrlTransform } from 'react-markdown';
+import { parseAssetReference } from '../../../domain/reader/utils/assetReference';
 
 interface MarkdownViewerProps {
   text: string;
+  /**
+   * Object URLs for this document's stored assets, keyed by asset id (`useMaterialAssets`).
+   * Omit it and `lc-asset://` references render as a labelled placeholder rather than a broken
+   * image — an unresolved figure is visible, never silent.
+   */
+  assetUrls?: Map<string, string>;
 }
+
+/**
+ * Asset map for the rendered subtree, supplied by `MarkdownViewer`'s `assetUrls` prop.
+ *
+ * Context rather than rebuilding the `components` map per render: the element map stays
+ * module-level and stable, so only the resolved URLs travel.
+ */
+const AssetUrlsContext = createContext<Map<string, string> | undefined>(undefined);
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -20,7 +36,35 @@ const sanitizeSchema = {
     figure: [...(defaultSchema.attributes?.['*'] || [])],
     figcaption: [...(defaultSchema.attributes?.['*'] || [])],
   },
+  // `defaultSchema` permits only http/https for `src`, so it would strip a local
+  // `lc-asset://{assetId}` reference before the `img` renderer could read it. `lc-asset` is inert
+  // outside this viewer — nothing but a stored-asset lookup resolves it.
+  protocols: {
+    ...defaultSchema.protocols,
+    src: [...(defaultSchema.protocols?.src ?? []), 'lc-asset'],
+  },
 };
+
+/**
+ * URL protocols this viewer consumes for local figures. Document markdown carries
+ * `lc-asset://{assetId}` references for stored assets, and nothing else: resolved object URLs are
+ * minted at render time and never written back into markdown, so they are deliberately not
+ * allowed through here.
+ */
+const ASSET_URL_PROTOCOLS = ['lc-asset:'];
+
+/**
+ * URL transform that keeps local asset references alive.
+ *
+ * react-markdown blanks any URL whose protocol is outside its built-in allow list
+ * (http/https/irc/mailto/xmpp) via `defaultUrlTransform`, which would erase the reference before
+ * the `img` renderer runs — the sanitize schema alone is not enough. Every other URL keeps the
+ * default policy.
+ */
+const urlTransform: UrlTransform = (url) =>
+  ASSET_URL_PROTOCOLS.some((protocol) => url.startsWith(protocol))
+    ? url
+    : defaultUrlTransform(url);
 
 /** Minimal structural type for the hast nodes the figure plugin walks. */
 interface HastNode {
@@ -208,6 +252,22 @@ const styles = stylex.create({
     margin: '8px auto',
     maxWidth: '100%',
   },
+  // Stands in for an `lc-asset://` reference that could not be resolved (asset missing, or no
+  // resolution map supplied).
+  assetPlaceholder: {
+    display: 'block',
+    margin: '8px auto',
+    maxWidth: '100%',
+    padding: '24px 16px',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'var(--color-border)',
+    borderRadius: 8,
+    backgroundColor: 'var(--color-background-muted)',
+    color: 'var(--color-text-disabled)',
+    fontSize: '0.9em',
+    textAlign: 'center',
+  },
   figure: {
     margin: '8px 0 16px 0',
     textAlign: 'center',
@@ -230,6 +290,35 @@ const styles = stylex.create({
     fontStyle: 'italic',
   },
 });
+
+interface AssetImageProps extends Omit<ComponentPropsWithoutRef<'img'>, 'src' | 'alt'> {
+  src?: string;
+  alt?: string;
+}
+
+/**
+ * `<img>` renderer that resolves local document asset references.
+ *
+ * A non-asset `src` (absolute URL, relative path) passes through untouched. An `lc-asset://`
+ * reference resolves through the surrounding document's asset map; when it cannot — the asset is
+ * missing, or no map was supplied — it renders as a labelled placeholder instead of a broken
+ * image.
+ */
+function AssetImage({ src, alt, ...props }: AssetImageProps) {
+  const assetUrls = useContext(AssetUrlsContext);
+  const assetId = parseAssetReference(src);
+  const resolvedSrc = assetId ? assetUrls?.get(assetId) : src;
+
+  if (assetId && !resolvedSrc) {
+    return (
+      <span {...stylex.props(styles.assetPlaceholder)}>
+        {alt || 'Figure unavailable'}
+      </span>
+    );
+  }
+
+  return <img {...props} src={resolvedSrc} alt={alt ?? ''} {...stylex.props(styles.img)} />;
+}
 
 /**
  * Maps markdown elements to StyleX-styled DOM nodes.
@@ -293,8 +382,8 @@ const components: Components = {
   hr: ({ node: _node, ...props }) => (
     <hr {...props} {...stylex.props(styles.hr)} />
   ),
-  img: ({ node: _node, ...props }) => (
-    <img {...props} {...stylex.props(styles.img)} alt={props.alt ?? ''} />
+  img: ({ node: _node, src, alt, ...props }) => (
+    <AssetImage src={src} alt={alt} {...props} />
   ),
   figure: ({ node: _node, ...props }) => (
     <figure {...props} {...stylex.props(styles.figure)} />
@@ -320,16 +409,19 @@ const components: Components = {
   ),
 };
 
-const MarkdownViewer = memo(function MarkdownViewer({ text }: MarkdownViewerProps) {
+const MarkdownViewer = memo(function MarkdownViewer({ text, assetUrls }: MarkdownViewerProps) {
   return (
     <div className="markdown-viewer" {...stylex.props(styles.root)}>
-      <ReactMarkdown
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeSlug, rehypeFigure]}
-        remarkPlugins={[remarkGfm]}
-        components={components}
-      >
-        {text}
-      </ReactMarkdown>
+      <AssetUrlsContext.Provider value={assetUrls}>
+        <ReactMarkdown
+          rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeSlug, rehypeFigure]}
+          remarkPlugins={[remarkGfm]}
+          urlTransform={urlTransform}
+          components={components}
+        >
+          {text}
+        </ReactMarkdown>
+      </AssetUrlsContext.Provider>
     </div>
   );
 });

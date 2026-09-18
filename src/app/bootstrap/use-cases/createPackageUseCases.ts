@@ -16,7 +16,7 @@ export function createPackageUseCases(infrastructure: Infrastructure) {
         repositories.documentContent,
         repositories.question,
         repositories.quiz,
-        repositories.importAsset,
+        repositories.asset,
     );
 
     const importStudyPackage = new ImportStudyPackageUseCase(services.studyPackageImport);

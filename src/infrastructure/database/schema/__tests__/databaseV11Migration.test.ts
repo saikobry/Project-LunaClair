@@ -21,7 +21,6 @@ import {
     type DrawingRecord,
     type PreferenceRecord,
     type MetadataRecord,
-    type ImportAssetRecord,
 } from '../LunaClairDatabase';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Question } from '../../../../domain/quiz/models/Question';
@@ -32,6 +31,15 @@ import type { ReviewState } from '../../../../domain/flashcards/engines/schedule
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import type { AiThread, AiMessageRecord } from '../../../../domain/ai/models/ai.types';
 import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../../domain/sync/models/sync.types';
+
+/** Row shape of the v10–v13 `importAssets` store (one blob per `materialId`). */
+type LegacyImportAssetRecord = {
+    materialId: string;
+    blob: Blob;
+    mimeType: string;
+    filename: string;
+    importedAt: string;
+};
 
 describe('Dexie Schema v11 & Non-Destructive Migration', () => {
     beforeEach(async () => {
@@ -207,7 +215,7 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         };
 
         const testBlob = new Blob(['Sample binary content from imported PDF notes.'], { type: 'text/plain' });
-        const testImportAsset: ImportAssetRecord = {
+        const testImportAsset: LegacyImportAssetRecord = {
             materialId: 'mat-cardio-1',
             blob: testBlob,
             mimeType: 'text/plain',
@@ -249,9 +257,10 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
 
         // v12 (originShareId index) is a non-destructive additive upgrade;
         // v13 adds collections + `*tags` and sunsets the obsolete subjects,
-        // terms, and subjectTerms tables — so LunaClairDatabase opens at the
+        // terms, and subjectTerms tables; v14 rekeys local binary assets from
+        // `importAssets` to `localAssets` — so LunaClairDatabase opens at the
         // latest schema version with those tables dropped.
-        expect(v11Db.verno).toBe(13);
+        expect(v11Db.verno).toBe(14);
 
         // 4. Verify all seeded v10 records are preserved untouched
         const preservedMaterial = await v11Db.materials.get('mat-cardio-1');
@@ -293,8 +302,12 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
         const preservedAiMessage = await v11Db.aiMessages.get('msg-ai-1');
         expect(preservedAiMessage).toEqual(testAiMessage);
 
-        const preservedImportAsset = await v11Db.importAssets.get('mat-cardio-1');
+        // v14 rekey: the legacy row is still found by its legacy `materialId`, because the
+        // migration preserves it as the new `assetId` — the exact value legacy
+        // `lc-asset://{materialId}` document references point at.
+        const preservedImportAsset = await v11Db.localAssets.get('mat-cardio-1');
         expect(preservedImportAsset).toBeDefined();
+        expect(preservedImportAsset?.assetId).toBe(testImportAsset.materialId);
         expect(preservedImportAsset?.materialId).toBe(testImportAsset.materialId);
         expect(preservedImportAsset?.filename).toBe(testImportAsset.filename);
         expect(preservedImportAsset?.mimeType).toBe(testImportAsset.mimeType);

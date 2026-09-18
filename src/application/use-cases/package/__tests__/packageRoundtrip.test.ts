@@ -5,7 +5,7 @@ import { DexieLibraryRepository } from '../../../../infrastructure/database/repo
 import { DexieDocumentContentRepository } from '../../../../infrastructure/database/repositories/DexieDocumentContentRepository';
 import { DexieQuestionRepository } from '../../../../infrastructure/database/repositories/DexieQuestionRepository';
 import { DexieQuizRepository } from '../../../../infrastructure/database/repositories/DexieQuizRepository';
-import { DexieImportAssetRepository } from '../../../../infrastructure/database/repositories/DexieImportAssetRepository';
+import { DexieAssetRepository } from '../../../../infrastructure/database/repositories/DexieAssetRepository';
 import { DexieStudyPackageImportService } from '../../../../infrastructure/database/services/DexieStudyPackageImportService';
 import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCase';
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
@@ -15,7 +15,7 @@ import type { StudyMaterial } from '../../../../domain/library/models/StudyMater
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
-import type { ImportAssetRecord } from '../../../../infrastructure/database/schema/LunaClairDatabase';
+import type { ImportedAsset } from '../../../../domain/importer/repositories/ImportAssetRepository';
 import type { QuizSession } from '../../../../domain/quiz/models/QuizSession';
 import type { ReviewState } from '../../../../domain/flashcards/engines/scheduler';
 import type { SyncQueueItem } from '../../../../domain/sync/models/sync.types';
@@ -25,7 +25,7 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
   let docContentRepo: DexieDocumentContentRepository;
   let questionRepo: DexieQuestionRepository;
   let quizRepo: DexieQuizRepository;
-  let assetRepo: DexieImportAssetRepository;
+  let assetRepo: DexieAssetRepository;
   let materializeUseCase: MaterializeStudyPackageUseCase;
   let importUseCase: ImportStudyPackageUseCase;
 
@@ -41,7 +41,7 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
       db.documentContents.clear(),
       db.questions.clear(),
       db.quizzes.clear(),
-      db.importAssets.clear(),
+      db.localAssets.clear(),
       db.quizSessions.clear(),
       db.flashcardReviews.clear(),
       db.syncQueue.clear(),
@@ -55,7 +55,7 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     docContentRepo = new DexieDocumentContentRepository();
     questionRepo = new DexieQuestionRepository();
     quizRepo = new DexieQuizRepository();
-    assetRepo = new DexieImportAssetRepository();
+    assetRepo = new DexieAssetRepository();
 
     materializeUseCase = new MaterializeStudyPackageUseCase(
       libraryRepo,
@@ -145,7 +145,9 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     };
 
     const dummyBlob = new Blob(['PNG_FAKE_IMAGE_BYTES'], { type: 'image/png' });
-    const asset: ImportAssetRecord = {
+    // Seeded through the importer's 1:1 contract: one asset per material, written as
+    // `assetId = materialId` in the shared localAssets store.
+    const asset: ImportedAsset = {
       materialId: originalMatId,
       blob: dummyBlob,
       filename: 'glycolysis_pathway.png',
@@ -202,7 +204,14 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
       db.documentContents.put(docContent),
       db.questions.bulkPut([question1, question2]),
       db.quizzes.put(quiz),
-      db.importAssets.put(asset),
+      db.localAssets.put({
+        assetId: asset.materialId,
+        materialId: asset.materialId,
+        blob: asset.blob,
+        mimeType: asset.mimeType,
+        filename: asset.filename,
+        importedAt: asset.importedAt,
+      }),
       db.quizSessions.put(session),
       db.flashcardReviews.put(review),
       db.syncQueue.put(syncItem),
@@ -289,9 +298,11 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     expect(importedQuiz.questionIds).toHaveLength(2);
     expect(new Set(importedQuiz.questionIds)).toEqual(new Set(importedQuestions.map((q) => q.id)));
 
-    // Verify imported asset in Dexie
-    const importedAsset = await db.importAssets.get(importedMatId);
+    // Verify imported asset in Dexie — stored under the remapped asset identity the
+    // documentContent reference points at, with materialId only grouping it.
+    const importedAsset = await db.localAssets.get(importResult.assetIds[0]);
     expect(importedAsset).toBeDefined();
+    expect(importedAsset?.materialId).toBe(importedMatId);
     expect(importedAsset?.filename).toBe('glycolysis_pathway.png');
     expect(importedAsset?.mimeType).toBe('image/png');
 
@@ -348,5 +359,89 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     expect(await db.questions.count()).toBe(countBeforeQ);
     expect(await db.quizzes.count()).toBe(countBeforeQuiz);
     expect(await db.documentContents.count()).toBe(countBeforeDoc);
+  });
+
+  it('round-trips a multi-figure material, keeping each reference bound to its own asset', async () => {
+    const now = '2026-08-27T10:00:00.000Z';
+    const multiMatId = 'mat_multi_777';
+    const multiDocId = 'doc_multi_888';
+
+    await db.materials.put({
+      id: multiMatId,
+      title: 'Anatomy Figures',
+      description: 'Three labelled figures.',
+      documentId: multiDocId,
+      order: 2,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Document order deliberately differs from the export sort order (a → b → c), so a mis-paired
+    // rewrite cannot pass by accident.
+    await db.documentContents.put({
+      documentId: multiDocId,
+      title: 'Anatomy Figures',
+      content: [
+        '# Figures',
+        '![C](lc-asset://asset-c)',
+        '![A](lc-asset://asset-a)',
+        '![B](lc-asset://asset-b)',
+      ].join('\n'),
+      updatedAt: now,
+    });
+
+    for (const [assetId, filename] of [
+      ['asset-a', 'figure-a.png'],
+      ['asset-b', 'figure-b.png'],
+      ['asset-c', 'figure-c.png'],
+    ] as const) {
+      await db.localAssets.put({
+        assetId,
+        materialId: multiMatId,
+        blob: new Blob([`bytes:${assetId}`], { type: 'image/png' }),
+        mimeType: 'image/png',
+        filename,
+        importedAt: now,
+      });
+    }
+
+    // 1. Export packages every figure, numbered deterministically by filename.
+    const pkg = await materializeUseCase.execute({ materialId: multiMatId });
+    expect(pkg.assets?.map((asset) => [asset.id, asset.filename])).toEqual([
+      ['pkg_asset_1', 'figure-a.png'],
+      ['pkg_asset_2', 'figure-b.png'],
+      ['pkg_asset_3', 'figure-c.png'],
+    ]);
+
+    // 2. References are rewired to those package ids with document order preserved.
+    expect(pkg.materials[0].documentContent).toContain('![C](lc-asset://pkg_asset_3)');
+    expect(pkg.materials[0].documentContent).toContain('![A](lc-asset://pkg_asset_1)');
+    expect(pkg.materials[0].documentContent).toContain('![B](lc-asset://pkg_asset_2)');
+
+    // 3. Re-import into a fresh local graph.
+    const parsed = parsePackageFromJson(serializePackageToJson(pkg));
+    const imported = await importUseCase.execute({ package: parsed });
+    expect(imported.assetIds).toHaveLength(3);
+
+    const importedMaterial = await db.materials.get(imported.materialIds[0]);
+    const importedDoc = await db.documentContents.get(importedMaterial!.documentId);
+    const referencedIds = [...(importedDoc?.content ?? '').matchAll(/lc-asset:\/\/([a-zA-Z0-9_-]+)/g)].map(
+      (match) => match[1],
+    );
+
+    expect(referencedIds).toHaveLength(3);
+    expect(referencedIds.some((id) => id.startsWith('pkg_'))).toBe(false);
+
+    // 4. Every reference resolves to its own stored row — same filename, same order as the source
+    //    document. Filenames survive IndexedDB intact (unlike Blob bytes under fake-indexeddb), so
+    //    this is what shows the asset graph is still correctly paired after two hops.
+    const resolvedFilenames: string[] = [];
+    for (const assetId of referencedIds) {
+      const row = await db.localAssets.get(assetId);
+      expect(row).toBeDefined();
+      expect(row?.materialId).toBe(imported.materialIds[0]);
+      resolvedFilenames.push(row!.filename);
+    }
+    expect(resolvedFilenames).toEqual(['figure-c.png', 'figure-a.png', 'figure-b.png']);
   });
 });

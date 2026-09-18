@@ -10,6 +10,7 @@ import type { FlashcardReviewRepository } from '../../domain/flashcards/reposito
 import type { AnalyticsRepository } from '../../domain/analytics/repositories/AnalyticsRepository';
 import type { AiChatRepository } from '../../domain/ai/repositories/AiChatRepository';
 import type { ImportAssetRepository } from '../../domain/importer/repositories/ImportAssetRepository';
+import type { AssetRepository } from '../../domain/assets/repositories/AssetRepository';
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
@@ -30,6 +31,7 @@ import { dexieAiChatRepository } from '../../infrastructure/database/repositorie
 import { WorkerAiAdapter } from '../../infrastructure/ai/adapters/WorkerAiAdapter';
 import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
+import { dexieAssetRepository } from '../../infrastructure/database/repositories/DexieAssetRepository';
 import { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/registry/createExtractors';
@@ -67,6 +69,7 @@ export interface Repositories {
     analytics: AnalyticsRepository;
     aiChat: AiChatRepository;
     importAsset: ImportAssetRepository;
+    asset: AssetRepository;
     syncQueue: SyncQueueRepository;
     syncState: SyncStateRepository;
     conflictDraft: ConflictDraftRepository;
@@ -121,6 +124,7 @@ export function createInfrastructure(): Infrastructure {
         analytics: dexieAnalyticsRepository,
         aiChat: dexieAiChatRepository,
         importAsset: dexieImportAssetRepository,
+        asset: dexieAssetRepository,
         syncQueue: dexieSyncQueueRepository,
         syncState: dexieSyncStateRepository,
         conflictDraft: dexieConflictDraftRepository,

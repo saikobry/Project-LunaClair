@@ -35,6 +35,12 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    {
+      "files": ["src/features/reader/hooks/useMaterialAssets.ts"],
+      "rules": {
+        "react/set-state-in-effect": "off"
+      }
     }
   ]
 }

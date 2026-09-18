@@ -4,7 +4,7 @@ import type { LibraryRepository } from '../../../../domain/library/repositories/
 import type { DocumentContentRepository } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
 import type { QuizRepository } from '../../../../domain/quiz/repositories/QuizRepository';
-import type { ImportAssetRepository } from '../../../../domain/importer/repositories/ImportAssetRepository';
+import type { AssetRepository, StoredAsset } from '../../../../domain/assets/repositories/AssetRepository';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
@@ -97,10 +97,9 @@ describe('MaterializeStudyPackageUseCase', () => {
             deleteQuiz: vi.fn(),
         };
 
-        const mockAssets: ImportAssetRepository = {
+        const mockAssets: AssetRepository = {
             get: vi.fn().mockResolvedValue(undefined),
-            put: vi.fn(),
-            delete: vi.fn(),
+            getByMaterialId: vi.fn().mockResolvedValue([]),
         };
 
         const useCase = new MaterializeStudyPackageUseCase(
@@ -151,5 +150,145 @@ describe('MaterializeStudyPackageUseCase', () => {
         await expect(useCase.execute({ materialId: 'nonexistent' })).rejects.toThrow(
             'Material with ID "nonexistent" not found.',
         );
+    });
+
+    function storedAsset(assetId: string, filename: string): StoredAsset {
+        return {
+            assetId,
+            materialId: 'mat-local-1',
+            blob: new Blob([`bytes:${assetId}`], { type: 'image/png' }),
+            mimeType: 'image/png',
+            filename,
+            importedAt: '2026-09-01T00:00:00.000Z',
+        };
+    }
+
+    function createUseCase(options: { content?: string; assets?: StoredAsset[] } = {}) {
+        const mockLibrary: LibraryRepository = {
+            getMaterialById: vi.fn().mockResolvedValue(mockMaterial),
+            getMaterials: vi.fn(),
+            createMaterial: vi.fn(),
+            updateMaterial: vi.fn(),
+            deleteMaterial: vi.fn(),
+        };
+
+        const mockDocContent: DocumentContentRepository = {
+            getByDocumentId: vi.fn().mockResolvedValue({
+                documentId: 'doc-local-1',
+                title: 'Cell Biology Notes',
+                content: options.content ?? '# Chapter 1\nCells are life.',
+                updatedAt: '2026-09-01T00:00:00.000Z',
+            }),
+            put: vi.fn(),
+            deleteByDocumentId: vi.fn(),
+        };
+
+        const mockQuestions: QuestionRepository = {
+            getQuestions: vi.fn().mockResolvedValue([mockQuestion]),
+            getQuestionById: vi.fn(),
+            getQuestionsByIds: vi.fn(),
+            createQuestion: vi.fn(),
+            createQuestionsBatch: vi.fn(),
+            updateQuestion: vi.fn(),
+            deleteQuestion: vi.fn(),
+        };
+
+        const mockQuizzes: QuizRepository = {
+            getQuizzes: vi.fn().mockResolvedValue([mockQuiz]),
+            getQuizById: vi.fn(),
+            getQuizzesForMaterials: vi.fn(),
+            getQuizzesByIds: vi.fn(),
+            createQuiz: vi.fn(),
+            updateQuiz: vi.fn(),
+            deleteQuiz: vi.fn(),
+        };
+
+        const mockAssets: AssetRepository = {
+            get: vi.fn().mockResolvedValue(undefined),
+            getByMaterialId: vi.fn().mockResolvedValue(options.assets ?? []),
+        };
+
+        return new MaterializeStudyPackageUseCase(
+            mockLibrary,
+            mockDocContent,
+            mockQuestions,
+            mockQuizzes,
+            mockAssets,
+        );
+    }
+
+    it('materializes every stored asset as pkg_asset_N in deterministic order', async () => {
+        const useCase = createUseCase({
+            assets: [
+                storedAsset('asset-z', 'figure-b.png'),
+                storedAsset('asset-m', 'figure-a.png'),
+                storedAsset('asset-a', 'figure-a.png'),
+            ],
+        });
+
+        const pkg = await useCase.execute({ materialId: 'mat-local-1' });
+
+        // filename asc, then asset id as the tie-breaker for the two identical filenames.
+        expect(pkg.assets?.map((asset) => [asset.id, asset.filename])).toEqual([
+            ['pkg_asset_1', 'figure-a.png'],
+            ['pkg_asset_2', 'figure-a.png'],
+            ['pkg_asset_3', 'figure-b.png'],
+        ]);
+    });
+
+    it('pairs each document reference with its own asset payload', async () => {
+        const useCase = createUseCase({
+            content: '# Figures\n\n![A](lc-asset://asset-z)\n\n![B](lc-asset://asset-a)',
+            assets: [storedAsset('asset-a', 'a.png'), storedAsset('asset-z', 'z.png')],
+        });
+
+        const pkg = await useCase.execute({ materialId: 'mat-local-1' });
+        const content = pkg.materials[0].documentContent;
+
+        // asset-a sorts first (a.png) → pkg_asset_1; asset-z (z.png) → pkg_asset_2.
+        expect(pkg.assets?.map((asset) => [asset.id, asset.filename])).toEqual([
+            ['pkg_asset_1', 'a.png'],
+            ['pkg_asset_2', 'z.png'],
+        ]);
+        expect(content).toContain('![A](lc-asset://pkg_asset_2)');
+        expect(content).toContain('![B](lc-asset://pkg_asset_1)');
+
+        // The payload under each package id is that asset's own bytes. The blobs here are created
+        // in-process (no fake-indexeddb round trip), so this is a real byte comparison — the
+        // assertion that catches "right URI, wrong payload".
+        expect(pkg.assets?.find((a) => a.id === 'pkg_asset_1')?.dataBase64).toBe(btoa('bytes:asset-a'));
+        expect(pkg.assets?.find((a) => a.id === 'pkg_asset_2')?.dataBase64).toBe(btoa('bytes:asset-z'));
+    });
+
+    it('leaves references with no matching asset untouched', async () => {
+        const useCase = createUseCase({
+            content: '![Missing](lc-asset://not-a-stored-asset)',
+            assets: [storedAsset('asset-a', 'a.png')],
+        });
+
+        const pkg = await useCase.execute({ materialId: 'mat-local-1' });
+
+        expect(pkg.materials[0].documentContent).toContain('lc-asset://not-a-stored-asset');
+    });
+
+    it('rewires a legacy reference whose asset id equals its material id', async () => {
+        const useCase = createUseCase({
+            content: '![Legacy](lc-asset://mat-local-1)',
+            // A v13 row migrated by v14: identity is the material id.
+            assets: [storedAsset('mat-local-1', 'legacy.pdf')],
+        });
+
+        const pkg = await useCase.execute({ materialId: 'mat-local-1' });
+
+        expect(pkg.materials[0].documentContent).toContain('lc-asset://pkg_asset_1');
+    });
+
+    it('omits the assets array when the material stores none', async () => {
+        const useCase = createUseCase({ assets: [] });
+
+        const pkg = await useCase.execute({ materialId: 'mat-local-1' });
+
+        expect(pkg.assets).toBeUndefined();
+        expect(pkg.materials[0].documentContent).toBe('# Chapter 1\nCells are life.');
     });
 });

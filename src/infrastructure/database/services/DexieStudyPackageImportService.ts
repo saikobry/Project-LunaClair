@@ -3,13 +3,14 @@ import type {
   ImportStudyPackageRecords,
 } from '../../../domain/package/services/StudyPackageImportService';
 import { base64ToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
-import { db as defaultDb, type LunaClairDatabase, type ImportAssetRecord } from '../schema/LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
 
 /**
  * Dexie implementation of `StudyPackageImportService`.
  *
  * Coordinates atomic multi-table commit across `materials`, `documentContents`,
- * `questions`, `quizzes`, and `importAssets` inside a single Dexie transaction.
+ * `questions`, `quizzes`, and `localAssets` inside a single Dexie transaction.
  */
 export class DexieStudyPackageImportService implements StudyPackageImportService {
   private readonly db: LunaClairDatabase;
@@ -19,7 +20,10 @@ export class DexieStudyPackageImportService implements StudyPackageImportService
   }
 
   async importStudyPackage(records: ImportStudyPackageRecords): Promise<void> {
-    const assetRecords: ImportAssetRecord[] = records.assets.map((asset) => ({
+    const assetRecords: StoredAsset[] = records.assets.map((asset) => ({
+      // `assetId` is the identity the imported documentContent references; `materialId` only
+      // groups the asset under the material it was packaged with.
+      assetId: asset.assetId,
       materialId: asset.materialId,
       blob: base64ToBlob(asset.dataBase64, asset.mimeType),
       mimeType: asset.mimeType,
@@ -34,7 +38,7 @@ export class DexieStudyPackageImportService implements StudyPackageImportService
         this.db.documentContents,
         this.db.questions,
         this.db.quizzes,
-        this.db.importAssets,
+        this.db.localAssets,
       ],
       async () => {
         if (records.materials.length > 0) {
@@ -50,7 +54,7 @@ export class DexieStudyPackageImportService implements StudyPackageImportService
           await this.db.quizzes.bulkPut(records.quizzes);
         }
         if (assetRecords.length > 0) {
-          await this.db.importAssets.bulkPut(assetRecords);
+          await this.db.localAssets.bulkPut(assetRecords);
         }
       },
     );

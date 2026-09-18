@@ -73,6 +73,9 @@ export class ImportStudyPackageUseCase {
     }));
 
     const assetRecords: ImportStudyPackageAsset[] = remapped.assets.map((asset) => ({
+      // `asset.id` is the remapped local UUID the documentContent URIs were already rewritten
+      // to (remapStudyPackage step 2), so it is the asset's identity — never materialId.
+      assetId: asset.id,
       materialId: asset.materialId || (remapped.materials[0]?.id ?? ''),
       filename: asset.filename,
       mimeType: asset.mimeType,

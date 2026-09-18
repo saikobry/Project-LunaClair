@@ -11,7 +11,8 @@ import type { AiThread, AiMessageRecord } from '../../../domain/ai/models/ai.typ
 import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sync/models/sync.types';
 import type { Collection } from '../../../domain/collections/models/Collection';
 import type { CollectionMaterial } from '../../../domain/collections/models/CollectionMaterial';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13 } from './schema';
+import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14 } from './schema';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -37,15 +38,6 @@ export interface MetadataRecord {
     value: unknown;
 }
 
-/** Row shape for the importAssets store. */
-export interface ImportAssetRecord {
-    materialId: string;
-    blob: Blob;
-    mimeType: string;
-    filename: string;
-    importedAt: string;
-}
-
 /**
  * Dexie subclass defining the LunaClair IndexedDB database.
  * Version 1: Phase 5 stores.
@@ -66,6 +58,11 @@ export interface ImportAssetRecord {
  *            `*tags` multi-entry index on materials. Sunset: drops the
  *            obsolete `subjects`, `terms`, and `subjectTerms` tables and the
  *            `subjectId`/`termId` materials indexes.
+ * Version 14: Rekeys local binary assets from `importAssets` (one blob per
+ *            `materialId`) to `localAssets` (keyed by `assetId`, indexed by
+ *            `materialId`). The upgrade copies legacy rows across, keeping
+ *            `assetId === materialId` so old `lc-asset://{materialId}` references
+ *            still resolve.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -81,7 +78,7 @@ export class LunaClairDatabase extends Dexie {
     documentContents!: Table<ImportedDocumentContent, string>;
     aiThreads!: Table<AiThread, string>;
     aiMessages!: Table<AiMessageRecord, string>;
-    importAssets!: Table<ImportAssetRecord, string>;
+    localAssets!: Table<StoredAsset, string>;
     syncQueue!: Table<SyncQueueItem, string>;
     syncState!: Table<SyncState, string>;
     conflictDrafts!: Table<ConflictDraft, string>;
@@ -152,6 +149,34 @@ export class LunaClairDatabase extends Dexie {
         this.version(11).stores(SCHEMA_V11);
         this.version(12).stores(SCHEMA_V12);
         this.version(13).stores(SCHEMA_V13);
+        this.version(14).stores(SCHEMA_V14).upgrade(async (tx) => {
+            // v13 held imported binaries in `importAssets`, keyed by `materialId` — at most
+            // one blob per material, because the importer's single-file write path is what
+            // populated it. IndexedDB cannot change a store's primary key in place (Dexie
+            // throws "Not yet support for changing primary key"), so SCHEMA_V14 drops that
+            // store and declares `localAssets`; this upgrade carries every row across before
+            // the drop happens, in the same version.
+            //
+            // Each legacy row keeps its `materialId` as the new `assetId`. That value is
+            // exactly what the legacy `lc-asset://{materialId}` document references point at,
+            // so old markdown resolves with no rewrite. `materialId` is preserved from the
+            // record rather than derived, so `assetId === materialId` holds for every migrated
+            // row (asserted in __tests__/databaseV14Migration.test.ts).
+            const legacyTable = tx.table('importAssets');
+            const legacyRecords = (await legacyTable.toArray()) as Array<Omit<StoredAsset, 'assetId'>>;
+            if (legacyRecords.length === 0) return;
+
+            const migratedAssets: StoredAsset[] = legacyRecords.map((record) => ({
+                assetId: record.materialId,
+                materialId: record.materialId,
+                blob: record.blob,
+                mimeType: record.mimeType,
+                filename: record.filename,
+                importedAt: record.importedAt,
+            }));
+
+            await tx.table('localAssets').bulkPut(migratedAssets);
+        });
     }
 }
 
