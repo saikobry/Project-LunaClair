@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeToUrl, urlToRoute } from '../routing';
+import { routeToUrl, urlToRoute, workspaceModeOfTab } from '../routing';
 
 describe('collection routing', () => {
   it('serializes a collection route to /collections/:collectionId', () => {
@@ -110,6 +110,26 @@ describe('material workspace routing', () => {
     });
   });
 
+  it('falls back to read for an unknown tab value', () => {
+    expect(urlToRoute('/materials/m-1', '?tab=bogus')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'read',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('falls back to read when tab is missing entirely', () => {
+    expect(urlToRoute('/materials/m-1', '')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'read',
+      fromCollectionId: undefined,
+    });
+  });
+
   it('round-trips a workspace route through its URL', () => {
     const route = {
       kind: 'workspace',
@@ -121,6 +141,69 @@ describe('material workspace routing', () => {
 
     const url = routeToUrl(route);
     expect(urlToRoute(url.split('?')[0], `?${url.split('?')[1]}`)).toEqual(route);
+  });
+
+  it('omits nothing for the authoring tabs — every tab is a top-level key', () => {
+    expect(
+      routeToUrl({ kind: 'workspace', workspace: 'material', materialId: 'm-1', activeTab: 'questions' }),
+    ).toBe('/materials/m-1?tab=questions');
+    expect(
+      routeToUrl({ kind: 'workspace', workspace: 'material', materialId: 'm-1', activeTab: 'attachments' }),
+    ).toBe('/materials/m-1?tab=attachments');
+  });
+
+  it('parses the two-tier tab keys', () => {
+    expect(urlToRoute('/materials/m-1', '?tab=questions')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'questions',
+      fromCollectionId: undefined,
+    });
+    expect(urlToRoute('/materials/m-1', '?tab=attachments')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'attachments',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('maps the retired manage tab onto the Question Bank', () => {
+    expect(urlToRoute('/materials/m-1', '?tab=manage')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'questions',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('honors a legacy section on a retired manage link', () => {
+    expect(urlToRoute('/materials/m-1', '?tab=manage&section=quizzes')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'quizzes',
+      fromCollectionId: undefined,
+    });
+    expect(urlToRoute('/materials/m-1', '?tab=manage&section=bogus')).toEqual({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId: 'm-1',
+      activeTab: 'questions',
+      fromCollectionId: undefined,
+    });
+  });
+
+  it('derives the navigation mode from the tab', () => {
+    expect(workspaceModeOfTab('read')).toBe('study');
+    expect(workspaceModeOfTab('quiz')).toBe('study');
+    expect(workspaceModeOfTab('flashcards')).toBe('study');
+    expect(workspaceModeOfTab('write')).toBe('manage');
+    expect(workspaceModeOfTab('questions')).toBe('manage');
+    expect(workspaceModeOfTab('quizzes')).toBe('manage');
+    expect(workspaceModeOfTab('attachments')).toBe('manage');
   });
 });
 

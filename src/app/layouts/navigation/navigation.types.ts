@@ -1,5 +1,8 @@
-import type { AppRoute } from '../../routing/routing';
+import type { AppRoute, MaterialWorkspaceTab } from '../../routing/routing';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+
+/** Workspace tabs a material can be open on (`/materials/:id?tab=...`). Canonical union lives in `routing.ts`; re-exported here for nav consumers. */
+export type { MaterialWorkspaceTab };
 
 export type NavActiveSection =
   | 'home'
@@ -8,9 +11,6 @@ export type NavActiveSection =
   | 'import'
   | 'analytics'
   | 'none';
-
-/** Workspace tabs a material can be open on (`/materials/:id?tab=...`). */
-export type MaterialWorkspaceTab = 'read' | 'write' | 'quiz' | 'flashcards' | 'manage';
 
 export interface ViewportNavProps {
   active: NavActiveSection;

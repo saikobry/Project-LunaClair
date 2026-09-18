@@ -77,12 +77,20 @@ interface ReaderScreenProps {
   materialId: string;
   onNavigateToWrite?: () => void;
   onAskAiSelection?: (selection: ReaderSelectionEvent) => void;
+  /**
+   * Whether the Read tab is showing. The workspace sets it false off-Read:
+   * the portaled toolbar hides, draw-mode body scroll-lock releases, and the
+   * selection listener stops opening popovers — while persisted annotation
+   * state stays mounted. Defaults true (standalone reader behavior).
+   */
+  isActive?: boolean;
 }
 
 export default function ReaderScreen({
   materialId,
   onNavigateToWrite,
   onAskAiSelection,
+  isActive = true,
 }: ReaderScreenProps) {
   const { material, isLoading: materialLoading } = useMaterial(materialId);
   const { showToast } = useToast();
@@ -104,9 +112,9 @@ export default function ReaderScreen({
   const [brushColor, setBrushColor] = useState<string>('#ef4444');
   const [brushThickness, setBrushThickness] = useState<number>(4);
 
-  const { paths, handlePathsChange, handleUndo, clearDrawings } = useDrawings(documentId, mode === 'draw');
+  const { paths, handlePathsChange, handleUndo, clearDrawings } = useDrawings(documentId, mode === 'draw' && isActive);
 
-  const { popover, setPopover } = useTextSelection(mode, highlights, containerRef);
+  const { popover, setPopover } = useTextSelection(mode, highlights, containerRef, isActive);
 
   // Clear UI selection when a highlight is created
   const handleCreateHighlight = useCallback(
@@ -222,6 +230,7 @@ export default function ReaderScreen({
         containerRef={containerRef}
         mode={mode}
         onModeChange={setMode}
+        toolbarHidden={!isActive}
         drawingTool={drawingTool}
         onToolChange={setDrawingTool}
         brushColor={brushColor}

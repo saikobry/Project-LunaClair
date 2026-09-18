@@ -17,8 +17,6 @@ import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
 import { FlashcardPlayerView } from './components/FlashcardPlayerView';
 import { FlashcardSessionEndView } from './components/FlashcardSessionEndView';
 import { AiFlashcardGeneratorDialog } from '../ai/generator/components/AiFlashcardGeneratorDialog';
-import { useExportStudyPackage } from '../package/hooks/useExportStudyPackage';
-import { ShareStudyPackageModal } from '../package/components/ShareStudyPackageModal';
 
 const styles = stylex.create({
     container: {
@@ -58,11 +56,9 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
     const { recordRating } = useFlashcardRating(materialId);
     const { material, isLoading: loadingMaterial } = useMaterial(materialId);
     const { data: doc, isLoading: loadingDoc } = useDocument(material);
-    const { exportPackage, isExporting } = useExportStudyPackage();
 
     const [step, setStep] = useState<FlashcardViewStep>('setup');
     const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
-    const [isShareOpen, setIsShareOpen] = useState(false);
     const [deck, setDeck] = useState<Flashcard[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [summary, setSummary] = useState<FlashcardSessionSummary>(INITIAL_SUMMARY);
@@ -140,9 +136,6 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     reviews={reviews}
                     onStartSession={handleStartSession}
                     onGenerateAi={() => setAiGeneratorOpen(true)}
-                    onExport={() => exportPackage(materialId)}
-                    isExporting={isExporting}
-                    onShare={() => setIsShareOpen(true)}
                 />
             )}
 
@@ -176,13 +169,6 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     }}
                 />
             )}
-
-            <ShareStudyPackageModal
-                isOpen={isShareOpen}
-                onClose={() => setIsShareOpen(false)}
-                materialId={materialId}
-                materialTitle={material?.title || 'Flashcards'}
-            />
         </div>
     );
 }

@@ -1,33 +1,31 @@
-import { useCallback, useMemo, useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { BookOpen, PenTool, BrainCircuit, Layers, ClipboardList, FileQuestion, Package, Share2 } from 'lucide-react';
+import { BookOpen, BrainCircuit, Layers, PenTool, Library, ListChecks, Paperclip } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
+import { isMaterialWorkspaceTab, workspaceModeOfTab, type MaterialWorkspaceTab, type WorkspaceMode } from '../../routing/routing';
 import { useMaterial } from '../../../features/materials/hooks/queries/useMaterial';
 import { useCollection } from '../../../features/collections/hooks/queries/useCollection';
 import { useDocument } from '../../../features/reader/hooks/useDocument';
-import { useExportStudyPackage } from '../../../features/package/hooks/useExportStudyPackage';
+import { useMaterialAssets } from '../../../features/reader/hooks/useMaterialAssets';
+import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
 import { Page } from '../../../shared/ui/Page/Page';
-import { Button } from '../../../shared/ui/Button/Button';
 import { Breadcrumbs, type BreadcrumbItem } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../../shared/ui/TabList/TabList';
-import { AnimatedTabPanel } from '../../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
-import { ErrorState } from '../../../shared/ui/ErrorState/ErrorState';
-import ReaderScreen from '../../../features/reader/ReaderScreen';
-import { AiDrawerToggleButton } from '../../../features/ai/components/AiDrawerToggleButton';
+import type { ReaderSelectionEvent } from '../../../features/reader/ReaderScreen';
 import { extractSectionContext } from '../../../domain/ai/context/extractSectionContext';
 import type { SelectionContext } from '../../../features/ai/components/AiChatDrawer';
 import { workspaceBreadcrumbs } from './utils/workspaceBreadcrumbs';
+import { useVisitedTabs } from './hooks/useVisitedTabs';
+import { useWorkspaceAssets } from './hooks/useWorkspaceAssets';
+import { WorkspaceActions } from './components/WorkspaceActions';
+import { WorkspaceMetaTags } from './components/WorkspaceMetaTags';
+import { WorkspaceModeSwitch } from './components/WorkspaceModeSwitch';
+import { WorkspaceNotFound } from './components/WorkspaceNotFound';
+import { WorkspaceSourceDialog } from './components/WorkspaceSourceDialog';
+import { WorkspaceTabPanels } from './components/WorkspaceTabPanels';
+import { workspaceStyles } from './styles/materialWorkspace.stylex';
 
-// Lazy load secondary workspace tabs and modals
-const MaterialWriterTab = lazy(() =>
-  import('../../../features/writer/components/MaterialWriterTab').then((m) => ({ default: m.MaterialWriterTab })),
-);
-const QuizScreen = lazy(() => import('../../../features/quiz/QuizScreen'));
-const QuizManagementScreen = lazy(() => import('../../../features/quiz-management/QuizManagementScreen'));
-const FlashcardScreen = lazy(() =>
-  import('../../../features/flashcards/FlashcardScreen').then((m) => ({ default: m.FlashcardScreen })),
-);
 const AiChatDrawer = lazy(() =>
   import('../../../features/ai/components/AiChatDrawer').then((m) => ({ default: m.AiChatDrawer })),
 );
@@ -35,31 +33,35 @@ const ShareStudyPackageModal = lazy(() =>
   import('../../../features/package/components/ShareStudyPackageModal').then((m) => ({ default: m.ShareStudyPackageModal })),
 );
 
-const styles = stylex.create({
-  loading: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '64px 24px',
-    color: 'var(--color-text-secondary)',
-    fontSize: 14,
-  },
-});
+interface WorkspaceTabDef {
+  key: MaterialWorkspaceTab;
+  label: string;
+  icon: typeof BookOpen;
+}
 
-export type MaterialTab = 'read' | 'write' | 'quiz' | 'flashcards' | 'manage';
-
-// Hoisted to module scope for a stable reference across renders
-const MATERIAL_TABS: { key: MaterialTab; label: string; icon: typeof BookOpen }[] = [
+// Hoisted to module scope for a stable reference across renders.
+// Keys are URL state (`?tab=`); labels are presentation and can change freely.
+// Two tiers: Study is the everyday surface, Manage the back office. Labels
+// stay distinct from their mode and sibling icons stay distinct on screen.
+const STUDY_TABS: WorkspaceTabDef[] = [
   { key: 'read', label: 'Read', icon: BookOpen },
-  { key: 'write', label: 'Write', icon: PenTool },
   { key: 'quiz', label: 'Quiz', icon: BrainCircuit },
   { key: 'flashcards', label: 'Flashcards', icon: Layers },
-  { key: 'manage', label: 'Manage', icon: ClipboardList },
 ];
+
+const MANAGE_TABS: WorkspaceTabDef[] = [
+  { key: 'write', label: 'Document', icon: PenTool },
+  { key: 'questions', label: 'Question Bank', icon: Library },
+  { key: 'quizzes', label: 'Quiz Catalog', icon: ListChecks },
+  { key: 'attachments', label: 'Attachments', icon: Paperclip },
+];
+
+/** Backwards-compatible alias — the canonical union lives in `routing.ts`. */
+export type MaterialTab = MaterialWorkspaceTab;
 
 export interface MaterialWorkspaceScreenProps {
   materialId: string;
-  activeTab: MaterialTab;
+  activeTab: MaterialWorkspaceTab;
   /** Collection the user opened this material from, when there was one (`?from=`). */
   fromCollectionId?: string;
   onNavigate: (route: AppRoute) => void;
@@ -71,11 +73,43 @@ export function MaterialWorkspaceScreen({
   fromCollectionId,
   onNavigate,
 }: MaterialWorkspaceScreenProps) {
+  // A stale or crafted ?tab= degrades to 'read' (the parser already
+  // normalizes, but this guards direct prop use) so the screen never renders
+  // a tab strip with no matching panel.
+  const safeTab: MaterialWorkspaceTab = isMaterialWorkspaceTab(activeTab) ? activeTab : 'read';
+  const mode: WorkspaceMode = workspaceModeOfTab(safeTab);
   const { material, isLoading } = useMaterial(materialId);
-  const { data: doc, isLoading: isDocLoading } = useDocument(material ?? null);
+  const { data: doc } = useDocument(material ?? null);
+  const assetUrls = useMaterialAssets(materialId);
+  const { assets } = useWorkspaceAssets(materialId);
   // Origin, not membership: only the collection the user actually came from
   // earns a breadcrumb. A deleted origin resolves to null and the crumb drops.
   const { collection: originCollection } = useCollection(fromCollectionId);
+
+  // Mount-once tab memory: visited tabs stay mounted and hide when inactive,
+  // so switching tabs preserves writer drafts, live quiz answers, and
+  // flashcard sessions instead of discarding them on unmount — including
+  // switches across modes.
+  const visitedTabs = useVisitedTabs(safeTab);
+
+  // Last-visited tab per mode: the mode switch returns to where the mode was
+  // left. Re-synced during render (guarded adjustment, so Back/Forward and
+  // deep links correct it) and recorded on every tab change.
+  const [lastInMode, setLastInMode] = useState<Record<WorkspaceMode, MaterialWorkspaceTab>>({
+    study: 'read',
+    manage: 'write',
+  });
+  if (lastInMode[mode] !== safeTab) {
+    setLastInMode({ ...lastInMode, [mode]: safeTab });
+  }
+
+  // Remount key for the embedded quiz runner: exiting a finished quiz resets
+  // to the quiz overview *inside* the workspace instead of leaving for the
+  // library and losing the study context.
+  const [quizRunId, setQuizRunId] = useState(0);
+  const handleQuizExit = useCallback(() => {
+    setQuizRunId((id) => id + 1);
+  }, []);
 
   // AI Chat Drawer workspace state
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -99,7 +133,7 @@ export function MaterialWorkspaceScreen({
 
   // Handle contextual "Ask AI" actions from Reader text selection
   const handleReaderAskAi = useCallback(
-    (selection: { text: string; action: 'explain' | 'simplify' | 'example' }) => {
+    (selection: ReaderSelectionEvent) => {
       const { sectionHeading } = extractSectionContext(doc?.content, selection.text);
       setSelectionContext({
         text: selection.text,
@@ -111,29 +145,32 @@ export function MaterialWorkspaceScreen({
     [doc?.content],
   );
 
-  const { exportPackage, isExporting } = useExportStudyPackage();
   const [isShareOpen, setIsShareOpen] = useState(false);
+
+  // Preserved-original viewer: the Source action (header) and attachment
+  // Preview buttons converge on one dialog over the screen-owned URL map.
+  const [sourceAsset, setSourceAsset] = useState<StoredAsset | null>(null);
+  const sourceUrl = sourceAsset ? assetUrls?.get(sourceAsset.assetId) : undefined;
+  const originalAsset = assets.find((asset) => asset.assetId === asset.materialId);
 
   // Every route the workspace re-emits preserves `fromCollectionId`: the tab is
   // the only thing changing, so dropping the origin here would silently erase
   // the collection breadcrumb on the first tab click.
   const handleTabChange = useCallback((tab: string) => {
-    const materialTab = tab as MaterialTab;
-    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: materialTab, fromCollectionId });
+    if (!isMaterialWorkspaceTab(tab)) return;
+    setLastInMode((prev) => ({ ...prev, [workspaceModeOfTab(tab)]: tab }));
+    onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: tab, fromCollectionId });
   }, [onNavigate, materialId, fromCollectionId]);
 
-  // If a brand-new material has empty content and user navigated via default route (activeTab === 'read'),
-  // automatically route to 'write' on first load
-  const hasAutoRoutedRef = useRef(false);
-  useEffect(() => {
-    if (!hasAutoRoutedRef.current && !isDocLoading && doc !== undefined) {
-      hasAutoRoutedRef.current = true;
-      const isContentEmpty = !doc?.content || doc.content.trim().length === 0;
-      if (activeTab === 'read' && isContentEmpty) {
-        onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'write', fromCollectionId });
-      }
-    }
-  }, [isDocLoading, doc, activeTab, materialId, fromCollectionId, onNavigate]);
+  const handleModeChange = useCallback((nextMode: WorkspaceMode) => {
+    onNavigate({
+      kind: 'workspace',
+      workspace: 'material',
+      materialId,
+      activeTab: lastInMode[nextMode],
+      fromCollectionId,
+    });
+  }, [onNavigate, materialId, fromCollectionId, lastInMode]);
 
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     if (!material) return [];
@@ -145,8 +182,8 @@ export function MaterialWorkspaceScreen({
 
   if (isLoading) {
     return (
-      <Page title="Material">
-        <div {...stylex.props(styles.loading)}>
+      <Page title="Material" headerHidden>
+        <div {...stylex.props(workspaceStyles.loading)}>
           <WorkspaceSkeleton />
         </div>
       </Page>
@@ -156,103 +193,53 @@ export function MaterialWorkspaceScreen({
   if (!material) {
     return (
       <Page title="Material not found">
-        <ErrorState
-          icon={<FileQuestion size={28} />}
-          title="Material could not be found"
-          description="This material does not exist or may have been removed from your library."
-          action={
-            <Button
-              label="Back to Library"
-              variant="primary"
-              onClick={() => onNavigate({ kind: 'library' })}
-            >
-              Back to Library
-            </Button>
-          }
-        />
+        <WorkspaceNotFound fromCollectionId={fromCollectionId} onNavigate={onNavigate} />
       </Page>
     );
   }
 
+  const modeTabs = mode === 'study' ? STUDY_TABS : MANAGE_TABS;
+
   return (
     <Page
       title={material.title}
+      description={material.description}
       breadcrumb={<Breadcrumbs items={breadcrumbItems} />}
       actions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            label="Share"
-            variant="secondary"
-            icon={<Share2 size={15} />}
-            onClick={() => setIsShareOpen(true)}
-          >
-            Share
-          </Button>
-          <Button
-            label="Export as .lcpack"
-            variant="secondary"
-            icon={<Package size={15} />}
-            onClick={() => exportPackage(materialId)}
-            isLoading={isExporting}
-            isDisabled={isExporting}
-          >
-            Export as .lcpack
-          </Button>
-          <AiDrawerToggleButton
-            isOpen={isAiOpen}
-            onToggle={handleToggleAi}
-          />
-        </div>
+        <WorkspaceActions
+          materialId={materialId}
+          isAiOpen={isAiOpen}
+          onToggleAi={handleToggleAi}
+          onShare={() => setIsShareOpen(true)}
+          hasSource={originalAsset !== undefined}
+          onOpenSource={() => originalAsset && setSourceAsset(originalAsset)}
+        />
       }
     >
-      <TabList value={activeTab} onChange={handleTabChange} layout="fill" hasDivider aria-label="Material tabs">
-        {MATERIAL_TABS.map(({ key, label, icon: Icon }) => (
-          <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
-        ))}
-      </TabList>
+      <WorkspaceMetaTags tags={material.tags} />
 
-      <AnimatedTabPanel activeKey={activeTab}>
-        {activeTab === 'read' && (
-          <ReaderScreen
-            materialId={materialId}
-            onNavigateToWrite={() => handleTabChange('write')}
-            onAskAiSelection={handleReaderAskAi}
-          />
-        )}
-        {activeTab === 'write' && (
-          <Suspense fallback={<WorkspaceSkeleton />}>
-            <MaterialWriterTab
-              materialId={materialId}
-            />
-          </Suspense>
-        )}
-        {activeTab === 'quiz' && (
-          <Suspense fallback={<WorkspaceSkeleton />}>
-            <QuizScreen
-              quizId=""
-              materialIds={[materialId]}
-              onExit={() => onNavigate({ kind: 'library' })}
-              onOpenManagement={() => handleTabChange('manage')}
-              embedded
-            />
-          </Suspense>
-        )}
-        {activeTab === 'flashcards' && (
-          <Suspense fallback={<WorkspaceSkeleton />}>
-            <FlashcardScreen
-              materialId={materialId}
-            />
-          </Suspense>
-        )}
-        {activeTab === 'manage' && (
-          <Suspense fallback={<WorkspaceSkeleton />}>
-            <QuizManagementScreen
-              materialId={materialId}
-              onNavigate={onNavigate}
-            />
-          </Suspense>
-        )}
-      </AnimatedTabPanel>
+      <WorkspaceModeSwitch mode={mode} onModeChange={handleModeChange} />
+      <div {...stylex.props(workspaceStyles.tabBar)}>
+        <TabList value={safeTab} onChange={handleTabChange} layout="hug" hasDivider aria-label="Material tabs">
+          {modeTabs.map(({ key, label, icon: Icon }) => (
+            <Tab key={key} value={key} label={label} icon={<Icon size={15} />} />
+          ))}
+        </TabList>
+      </div>
+
+      <WorkspaceTabPanels
+        activeTab={safeTab}
+        visitedTabs={visitedTabs}
+        materialId={materialId}
+        quizRunId={quizRunId}
+        documentContent={doc?.content}
+        assetUrls={assetUrls}
+        onTabChange={handleTabChange}
+        onAskAiSelection={handleReaderAskAi}
+        onQuizExit={handleQuizExit}
+        onPreviewFile={setSourceAsset}
+        onNavigate={onNavigate}
+      />
 
       {isAiOpen && (
         <Suspense fallback={null}>
@@ -274,6 +261,16 @@ export function MaterialWorkspaceScreen({
             onClose={() => setIsShareOpen(false)}
             materialId={materialId}
             materialTitle={material.title}
+          />
+        </Suspense>
+      )}
+
+      {sourceAsset && sourceUrl && (
+        <Suspense fallback={null}>
+          <WorkspaceSourceDialog
+            asset={sourceAsset}
+            objectUrl={sourceUrl}
+            onClose={() => setSourceAsset(null)}
           />
         </Suspense>
       )}

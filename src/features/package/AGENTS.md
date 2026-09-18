@@ -11,6 +11,7 @@ Feature-level presentation, reactive hooks, and interactive modal dialogs for po
 - `SharedPackageScreen.tsx` — Feature-root screen for shared study packages (`/share/:shareId`, `/s/:code`), managing loading, passcode challenge unlock, error states, package inspection metrics, atomic "Clone to Library" with subsequent download telemetry tracking, and ".lcpack" file download.
 - `hooks/useImportStudyPackage.ts` — Hook coordinating file drop/selection, parsing, pure schema & relational validation, pre-import staging, query cache invalidation, and atomic Dexie commit via `context.useCases.package.importStudyPackage`.
 - `hooks/useExportStudyPackage.ts` — Hook coordinating study package extraction and materialization via `context.useCases.package.materializeStudyPackage`, `.lcpack` serialization, and browser file download.
+- `hooks/useStudyPackageSize.ts` — Hook measuring the serialized `.lcpack` byte budget for a material (`SHARE_PACKAGE_SIZE_LIMIT_BYTES`, kept beside the worker's `MAX_SHARE_PAYLOAD_BYTES` by convention) without downloading: materialize → serialize → read blob size → discard. Offline-safe; intentionally never invalidated on edits (re-measure on mount is enough for a budget indicator).
 - `hooks/usePublishStudyPackage.ts` — Hook coordinating study package publication to cloud with access type and expiration options via `context.useCases.sharing.publishStudyPackage`.
 
 ## Local Contracts

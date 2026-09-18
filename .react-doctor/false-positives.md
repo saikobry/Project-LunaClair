@@ -159,29 +159,3 @@ and cannot hold the rationale). Those entries say so explicitly.
   (e.g. the resolver is redesigned to pre-resolve sources at the repository
   layer), if StrictMode is ever removed, or if a React-provided primitive for
   object-URL lifetime lands — then the effect can go and this entry with it.
-
-## `react-doctor/no-dynamic-import-path` — `docs/prototypes/_t.html`
-
-- **Rule predicate used:** `no-dynamic-import-path` → non-static (runtime-
-  computed) module import path, aimed at bundler-resolved `import()` / dynamic
-  `src` in application code.
-- **Observed evidence:**
-  - `_t.html` is a **saved third-party design artifact** — a Claude artifact
-    page ("saved from …claudeusercontent.com/_f/…") pasted into
-    `docs/prototypes/` as a ShareCard byline-layout reference. It is not
-    application code, is never imported or bundled, and contains no app
-    imports at all.
-  - The flagged line 3 is the artifact host's own `frame-runtime` bootstrap
-    (`<script>window.__FRAME_PREAMBLE=…</script>` plus an inline loader that
-    references remote `/_runtime/*.js` capability scripts). That script is
-    part of the saved page's original environment, not something LunaClair
-    ships or executes in the app.
-- **Outcome:** Rejected — reference file outside the bundler's graph; the
-  rule does not apply to it.
-- **Suppression:** `doctor.config.ts` → `ignore.overrides` scoped to this one
-  file and this one rule (the rule stays active for all application code).
-- **Review condition:** Re-check if this file is ever promoted into the app
-  build (then the exception must be removed and the markup canonicalized), or
-  if it is deleted. If the prototype is superseded by
-  `docs/prototypes/canonical-cards.html` and removed, delete this entry and
-  the override with it.

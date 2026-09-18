@@ -58,6 +58,8 @@ interface ReaderViewProps {
   onClearHighlights: () => void;
   hasDrawings: boolean;
   hasHighlights: boolean;
+  /** Hides the portaled annotation toolbar (workspace sets it off-Read). */
+  toolbarHidden?: boolean;
   // Drawing canvas props
   paths: DrawingPath[];
   onPathsChange: (paths: DrawingPath[]) => void;
@@ -93,6 +95,7 @@ export default function ReaderView({
   onDeleteHighlight,
   onClosePopover,
   onAskAiSelection,
+  toolbarHidden,
 }: ReaderViewProps) {
   return (
     <div {...stylex.props(styles.layout)}>
@@ -100,6 +103,7 @@ export default function ReaderView({
         <AnnotationToolbar
           mode={mode}
           onModeChange={onModeChange}
+          hidden={toolbarHidden}
           tool={drawingTool}
           onToolChange={onToolChange}
           currentColor={brushColor}

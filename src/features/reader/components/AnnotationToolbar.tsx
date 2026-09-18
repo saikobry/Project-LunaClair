@@ -188,6 +188,14 @@ interface AnnotationToolbarProps {
   hasHighlights: boolean;
   /** Overrides the Focus Mode state from context when provided. */
   isFocusMode?: boolean;
+  /**
+   * Hides the toolbar via CSS (`display: none`) instead of unmounting it.
+   * The toolbar portals to `document.body`, so an ancestor `hidden` panel
+   * cannot reach it — the workspace sets this when the Read tab is inactive
+   * so the dock never leaks onto Write/Quiz/Flashcards/Manage. Internal
+   * state (open, drag position) is preserved across hide/show.
+   */
+  hidden?: boolean;
 }
 
 function useMediaQuery(query: string) {
@@ -365,6 +373,7 @@ export default function AnnotationToolbar({
   hasDrawings,
   hasHighlights,
   isFocusMode,
+  hidden,
 }: AnnotationToolbarProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const isMobileOrTablet = useMediaQuery('(max-width: 1023px)');
@@ -447,7 +456,7 @@ export default function AnnotationToolbar({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      style={getPositionStyles()}
+      style={{ ...getPositionStyles(), ...(hidden ? { display: 'none' as const } : null) }}
       {...stylex.props(
         styles.toolbar,
         !isOpen && styles.toolbarCollapsed,

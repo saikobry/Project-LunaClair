@@ -147,4 +147,69 @@ describe('useTextSelection', () => {
       expect.any(Function),
     );
   });
+
+  it('never opens a popover from another tab when inactive', () => {
+    vi.spyOn(selectionUtils, 'getOffsetsOfRange').mockReturnValue({
+      start: 20,
+      end: 35,
+    });
+
+    const mockRange = {
+      getBoundingClientRect: vi.fn().mockReturnValue({ left: 150, top: 100, width: 80, height: 20 }),
+    };
+
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      toString: () => 'important concept',
+      rangeCount: 1,
+      getRangeAt: () => mockRange as any,
+    } as any);
+
+    const { result } = renderHook(() =>
+      useTextSelection('select', mockHighlights, containerRef, false),
+    );
+
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    expect(result.current.popover.visible).toBe(false);
+    expect(result.current.popover.pendingSelection).toBeUndefined();
+  });
+
+  it('dismisses a stale popover on outside clicks while inactive', () => {
+    vi.spyOn(selectionUtils, 'getOffsetsOfRange').mockReturnValue({
+      start: 20,
+      end: 35,
+    });
+
+    const mockRange = {
+      getBoundingClientRect: vi.fn().mockReturnValue({ left: 150, top: 100, width: 80, height: 20 }),
+    };
+
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      toString: () => 'important concept',
+      rangeCount: 1,
+      getRangeAt: () => mockRange as any,
+    } as any);
+
+    const { result, rerender } = renderHook(
+      ({ isActive }: { isActive: boolean }) =>
+        useTextSelection('select', mockHighlights, containerRef, isActive),
+      { initialProps: { isActive: true } },
+    );
+
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    expect(result.current.popover.visible).toBe(true);
+
+    rerender({ isActive: false });
+
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    expect(result.current.popover.visible).toBe(false);
+  });
 });

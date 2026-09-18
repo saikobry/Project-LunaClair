@@ -33,6 +33,72 @@ export const LIBRARY_VIEW_MODES: readonly LibraryViewMode[] = [
   'materials',
 ];
 
+/**
+ * Material workspace tabs (`/materials/:id?tab=...`).
+ *
+ * Two-tier navigation: the `study` tabs are the everyday surface (Read, Quiz,
+ * Flashcards) while the `manage` tabs are the back office (Document,
+ * Question Bank, Quiz Catalog, Attachments). The union is the single source
+ * of truth for every consumer: the route parser below,
+ * `navigation.types.ts` (sidebar active-material state), and
+ * `MaterialWorkspaceScreen` (mode switch + tab strips). Tab keys are URL
+ * state — renaming a key breaks bookmarked and shared links, so relabel in
+ * the screen's tab config instead.
+ */
+export type MaterialWorkspaceTab =
+  | 'read'
+  | 'quiz'
+  | 'flashcards'
+  | 'write'
+  | 'questions'
+  | 'quizzes'
+  | 'attachments';
+
+export const MATERIAL_WORKSPACE_TABS: readonly MaterialWorkspaceTab[] = [
+  'read',
+  'quiz',
+  'flashcards',
+  'write',
+  'questions',
+  'quizzes',
+  'attachments',
+];
+
+/** Narrows an untrusted query-string value to a valid workspace tab. */
+export function isMaterialWorkspaceTab(value: unknown): value is MaterialWorkspaceTab {
+  return (
+    value === 'read' ||
+    value === 'quiz' ||
+    value === 'flashcards' ||
+    value === 'write' ||
+    value === 'questions' ||
+    value === 'quizzes' ||
+    value === 'attachments'
+  );
+}
+
+/**
+ * Workspace mode — which tier of the two-tier navigation a tab belongs to.
+ * Derived from the tab (never URL state of its own): `study` is the everyday
+ * surface, `manage` the back office. Retired tab keys map into the mode of
+ * their replacement (see the `manage` handling in `urlToRoute`).
+ */
+export type WorkspaceMode = 'study' | 'manage';
+
+const STUDY_TABS: readonly MaterialWorkspaceTab[] = ['read', 'quiz', 'flashcards'];
+
+/** Derives the navigation tier for a workspace tab. */
+export function workspaceModeOfTab(tab: MaterialWorkspaceTab): WorkspaceMode {
+  return (STUDY_TABS as readonly string[]).includes(tab) ? 'study' : 'manage';
+}
+
+/**
+ * Authoring-section vocabulary shared by the workspace Manage strip and the
+ * question-management feature (top-level `?tab=questions` | `?tab=quizzes`
+ * keys since the two-tier navigation).
+ */
+export type ManageSection = 'questions' | 'quizzes';
+
 /** Narrows an untrusted query-string value to a valid view mode. */
 export function isLibraryViewMode(value: unknown): value is LibraryViewMode {
   return value === 'overview' || value === 'collections' || value === 'materials';
@@ -71,7 +137,7 @@ export type AppRoute =
       kind: 'workspace';
       workspace: 'material';
       materialId: string;
-      activeTab: 'read' | 'write' | 'quiz' | 'flashcards' | 'manage';
+      activeTab: MaterialWorkspaceTab;
       fromCollectionId?: string;
     }
   | { kind: 'quiz-canvas'; materialId: string; quizId?: string }
@@ -200,7 +266,19 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /materials/:materialId(?tab=&from=)
   const materialMatch = url.pathname.match(/^\/materials\/([^/]+)$/);
   if (materialMatch) {
-    const tab = (url.searchParams.get('tab') as 'read' | 'write' | 'quiz' | 'flashcards' | 'manage') ?? 'read';
+    const rawTab = url.searchParams.get('tab');
+    // Retired `?tab=manage` (two-tier navigation split it into top-level
+    // Question Bank / Quiz Catalog tabs): maps to `questions`, honoring a
+    // legacy `?section=quizzes` so old links land on the right surface.
+    // Any other unknown ?tab= degrades to 'read' (the same treatment
+    // /library gives unknown filter/view values) so a stale link never
+    // renders an empty panel.
+    let tab: MaterialWorkspaceTab;
+    if (rawTab === 'manage') {
+      tab = url.searchParams.get('section') === 'quizzes' ? 'quizzes' : 'questions';
+    } else {
+      tab = isMaterialWorkspaceTab(rawTab) ? rawTab : 'read';
+    }
     const from = url.searchParams.get('from');
     return {
       kind: 'workspace',

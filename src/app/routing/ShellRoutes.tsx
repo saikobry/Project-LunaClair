@@ -135,7 +135,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
 
   const handleManageQuiz = useCallback(
     (materialId: string) => {
-      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'manage' });
+      navigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: 'questions' });
     },
     [navigate],
   );
@@ -232,7 +232,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
                 kind: 'workspace',
                 workspace: 'material',
                 materialId: currentRoute.materialId,
-                activeTab: 'manage',
+                activeTab: 'questions',
               })
             }
           />

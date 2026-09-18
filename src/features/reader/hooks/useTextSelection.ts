@@ -6,11 +6,17 @@ import type { PopoverState } from '../types/reader.types';
 /**
  * Listens to selectionchange events on the document and manages
  * the SelectionPopover position, visibility, and pending selection data.
+ *
+ * `isActive` gates popovers on workspace tab visibility: off-Read the hook
+ * never opens from another tab's selection, but still dismisses a stale
+ * popover on outside clicks (bailing out via the updater when already
+ * hidden, so no extra renders). Defaults true (standalone reader behavior).
  */
 export function useTextSelection(
   mode: AnnotationMode,
   highlights: HighlightItem[],
   containerRef: RefObject<HTMLDivElement | null>,
+  isActive: boolean = true,
 ) {
   const [popover, setPopover] = useState<PopoverState>({
     x: 0,
@@ -19,6 +25,13 @@ export function useTextSelection(
   });
 
   const handleTextSelection = useCallback(() => {
+    if (!isActive) {
+      // Another workspace tab is showing: never open from its selection, but
+      // still dismiss a stale popover on outside clicks. Returning `prev`
+      // when already hidden bails out with no render.
+      setPopover((prev) => (prev.visible ? { x: 0, y: 0, visible: false } : prev));
+      return;
+    }
     if (mode !== 'select') return;
     const container = containerRef.current;
     if (!container) return;
@@ -76,7 +89,7 @@ export function useTextSelection(
         text: selection.toString(),
       },
     });
-  }, [mode, highlights, containerRef]);
+  }, [mode, highlights, containerRef, isActive]);
 
   // Register selection listener
   useEffect(() => {
