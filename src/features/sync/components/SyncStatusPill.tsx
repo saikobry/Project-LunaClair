@@ -22,6 +22,9 @@ const spin = stylex.keyframes({
   '100%': { transform: 'rotate(360deg)' },
 });
 
+// Tablet range, shared by the pill padding and the label visibility below.
+const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
+
 const styles = stylex.create({
   pill: {
     display: 'inline-flex',
@@ -46,7 +49,7 @@ const styles = stylex.create({
     ':focus-visible': {
       boxShadow: '0 0 0 2px var(--color-accent)',
     },
-    '@media (min-width: 769px) and (max-width: 1023px)': {
+    [tablet]: {
       paddingLeft: 6,
       paddingRight: 6,
       justifyContent: 'center',
@@ -108,7 +111,7 @@ const styles = stylex.create({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    '@media (min-width: 769px) and (max-width: 1023px)': {
+    [tablet]: {
       display: 'none',
     },
   },

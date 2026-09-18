@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
+import { captureBrandFlip } from './useFocusBrandFlip';
 
 /**
  * Shell-owned Focus Mode state (extracted from `AppShell`): initialized from
@@ -13,8 +14,10 @@ export function useShellFocusMode() {
 
   // Toggle Focus Mode. Persistence happens in the effect below so the
   // updater stays pure (StrictMode-safe) and rapid toggles never read
-  // stale state.
+  // stale state. The brand FLIP captures pre-toggle logo rects first so the
+  // handoff flight measures from the layout being left behind.
   const toggleFocusMode = useCallback(() => {
+    captureBrandFlip();
     setIsFocusMode((prev) => !prev);
   }, []);
 

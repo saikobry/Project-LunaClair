@@ -6,6 +6,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { styles } from './desktopSidebar.stylex';
+import { styles as appHeaderStyles } from '../appHeader.stylex';
+import logoSvg from '../../../assets/logo.svg';
 import { DesktopTrapezoidButton } from './DesktopTrapezoidButton';
 import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
 import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
@@ -13,6 +15,7 @@ import { useCreateCollection } from '../../../features/collections/hooks/mutatio
 import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
 import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
 import { Button } from '../../../shared/ui/Button/Button';
+import { APP_VERSION } from '../../../shared/constants/appInfo';
 import { VIRTUALIZE_AFTER_ITEM_COUNT } from '../../../shared/constants/listRendering';
 import type { CreateCollectionInput } from '../../../domain/collections/models/Collection';
 import type { Collection } from '../../../domain/collections/models/Collection';
@@ -257,6 +260,13 @@ export function DesktopSidebar({
       aria-label="Desktop Navigation"
     >
       <div ref={linksRef} {...stylex.props(styles.linksWrapper)}>
+        {/* Brand lockup: the desktop home for the header's logo + name +
+            version (the header keeps them on mobile only). Static mark. */}
+        <div data-brand-source="sidebar" {...stylex.props(styles.brandButton)}>
+          <img src={logoSvg} alt="" aria-hidden="true" data-brand-logo="sidebar" {...stylex.props(appHeaderStyles.logo, styles.brandImg, isFocusMode && styles.brandImgHidden)} />
+          <span {...stylex.props(appHeaderStyles.title)}>Project LunaClair</span>
+          <span {...stylex.props(appHeaderStyles.versionBadge)}>{APP_VERSION}</span>
+        </div>
         <div {...stylex.props(styles.navSection)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
             const isActive = item.isActive(active);

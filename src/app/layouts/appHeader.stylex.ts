@@ -1,6 +1,9 @@
 import * as stylex from '@stylexjs/stylex';
 
 const mobile = '@media (max-width: 768px)';
+const nonMobile = '@media (min-width: 769px)';
+const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
+const desktop = '@media (min-width: 1024px)';
 
 export const styles = stylex.create({
   header: {
@@ -11,9 +14,6 @@ export const styles = stylex.create({
     height: 52,
     zIndex: 110,
     backgroundColor: 'var(--color-background-surface)',
-    borderBottomWidth: 1,
-    borderBottomStyle: 'solid',
-    borderBottomColor: 'var(--color-border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -22,16 +22,38 @@ export const styles = stylex.create({
     boxSizing: 'border-box',
     pointerEvents: 'auto',
     transition:
-      'background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), padding 0.24s cubic-bezier(0.4, 0, 0.2, 1)',
+      'background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), padding 0.24s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s ease',
+    // Desktop/tablet: the brand island is hidden (brand lives in the nav
+    // chrome), leaving the actions island as the only child — pin it right,
+    // since space-between with a single child would park it left.
+    [nonMobile]: {
+      justifyContent: 'flex-end',
+    },
+    // Desktop/tablet: the bar spans the screens column only — it starts
+    // after the navigation rail instead of covering the full viewport width.
+    // Mobile keeps the full-width bar (the rail slot is 0 there).
+    [tablet]: {
+      left: 64,
+    },
+    [desktop]: {
+      left: 240,
+    },
     [mobile]: {
       height: 48,
       paddingLeft: 12,
       paddingRight: 12,
     },
   },
+  /**
+   * Focus Mode owns the full viewport width again: the rail collapses to 0,
+   * so there is no screens-column inset left to honor. The `left` transition
+   * on the header glides it outward alongside the rail animation.
+   */
+  headerFullWidth: {
+    left: 0,
+  },
   headerCompact: {
     backgroundColor: 'transparent',
-    borderBottomColor: 'transparent',
     pointerEvents: 'none',
     alignItems: 'flex-start',
     height: 'auto',
@@ -57,6 +79,11 @@ export const styles = stylex.create({
     boxSizing: 'border-box',
     transition:
       'background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1), padding 0.24s cubic-bezier(0.4, 0, 0.2, 1)',
+    // Desktop/tablet brand lives in the navigation chrome (sidebar lockup /
+    // rail logo), so the header keeps it on mobile only.
+    [nonMobile]: {
+      display: 'none',
+    },
   },
   brandIslandCompact: {
     backgroundColor: 'var(--color-background-surface)',

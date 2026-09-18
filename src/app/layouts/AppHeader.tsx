@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { Download } from 'lucide-react';
 import logoSvg from '../../assets/logo.svg';
+import { APP_VERSION } from '../../shared/constants/appInfo';
 import { SyncStatusPill } from '../../features/sync/components/SyncStatusPill';
 import { isIOS, isStandalone } from '../overlays/installDetection';
 import { useFocusMode } from '../providers/FocusModeContext';
@@ -19,6 +20,10 @@ export interface AppHeaderProps {
  * Appears as a horizontal top bar at the top, and morphs into floating
  * compact glass islands with a vertically stacked action capsule on scroll
  * or when Focus Mode is active.
+ *
+ * On desktop/tablet the bar spans the screens column only (it starts after
+ * the navigation rail); in Focus Mode the rail collapses, so the bar takes
+ * the full viewport width back.
  */
 export function AppHeader({ onOpenInstallInfo }: AppHeaderProps) {
   const { isFocusMode } = useFocusMode();
@@ -29,13 +34,13 @@ export function AppHeader({ onOpenInstallInfo }: AppHeaderProps) {
   const installLabel = isIOS() ? 'Add to Home Screen' : 'Install app';
 
   return (
-    <header {...stylex.props(styles.header, isCompact && styles.headerCompact)}>
+    <header {...stylex.props(styles.header, isCompact && styles.headerCompact, isFocusMode && styles.headerFullWidth)}>
       {/* Brand Identity / Left Island */}
       <div {...stylex.props(styles.brandIsland, isCompact && styles.brandIslandCompact)}>
         <img src={logoSvg} alt="LunaClair" {...stylex.props(styles.logo)} />
         <div {...stylex.props(styles.brandTextWrapper, isCompact && styles.brandTextWrapperCompact)}>
           <span {...stylex.props(styles.title)}>Project LunaClair</span>
-          <span {...stylex.props(styles.versionBadge)}>v0.2.0</span>
+          <span {...stylex.props(styles.versionBadge)}>{APP_VERSION}</span>
         </div>
       </div>
 

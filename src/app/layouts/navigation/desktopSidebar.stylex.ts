@@ -5,7 +5,9 @@ const nonDesktop = '@media (max-width: 1023px)';
 export const styles = stylex.create({
   desktopNav: {
     position: 'fixed',
-    top: 52,
+    // Full-height rail: the header spans the screens column only, so the
+    // sidebar owns the top-left corner instead of hanging below the bar.
+    top: 0,
     left: 0,
     bottom: 0,
     width: 240,
@@ -35,6 +37,39 @@ export const styles = stylex.create({
     minHeight: 0,
     // Clips the scroll pane below; the collections list owns its own scrolling.
     overflow: 'hidden',
+  },
+  /**
+   * Sidebar brand lockup (logo + name + version): the desktop home for the
+   * identity the header shows on mobile. Static mark, not a link — the Focus
+   * Mode capsule owns the home action. Lives inside the fading links
+   * wrapper so Focus Mode takes it with the rest of the rail chrome, and
+   * reuses the header's brand visuals as the single source of truth.
+   */
+  brandButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 12,
+    paddingRight: 12,
+    marginBottom: 8,
+    boxSizing: 'border-box',
+    flexShrink: 0,
+  },
+  /**
+   * Brand image: restores with the rail chrome, but snaps out fast on Focus
+   * entry so the FLIP capsule reads as the same logo traveling — not a
+   * duplicate fading beside it. Composes with the wrapper's GSAP fade
+   * (opacities multiply).
+   */
+  brandImg: {
+    transition: 'opacity 0.2s ease',
+  },
+  brandImgHidden: {
+    opacity: 0,
+    transition: 'opacity 0.08s ease-in',
   },
   activePill: {
     position: 'absolute',

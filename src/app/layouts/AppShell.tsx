@@ -6,6 +6,7 @@ import { ApplicationContext, type ApplicationContextValue } from '../providers/A
 import type { AppRoute } from '../routing/routing';
 import type { NavActiveSection } from './navigation/navigation.types';
 import { AppHeader } from './AppHeader';
+import { FocusModeBrand } from './FocusModeBrand';
 import { AppSidebar } from './AppSidebar';
 import OfflineBanner from '../overlays/OfflineBanner';
 import { InstallPrompt, InstallInstructionsDialog } from '../overlays/InstallPrompt';
@@ -306,6 +307,9 @@ export default function AppShell() {
             onOpenInstallInfo={canOfferInstall ? () => setInstallInfoOpen(true) : undefined}
           />
         </div>
+
+        {/* Focus Mode brand capsule (desktop/tablet home affordance) */}
+        <FocusModeBrand onNavigate={navigate} />
 
         {/* Navigation Rail */}
         <div ref={railRef} {...stylex.props(styles.rail, isFocusMode && styles.railFocus)}>

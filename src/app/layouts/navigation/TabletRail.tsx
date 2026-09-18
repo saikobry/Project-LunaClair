@@ -5,8 +5,12 @@ import gsap from 'gsap';
 import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { CompactCollectionsPopover } from './CompactCollectionsPopover';
+import logoSvg from '../../../assets/logo.svg';
 
 const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
+
+/** Combined top + bottom dock insets: the full-height rail fills everything between. */
+const RAIL_VERTICAL_INSETS_PX = 32;
 
 export function TabletRail({
   active,
@@ -30,7 +34,9 @@ export function TabletRail({
     if (!isTabletViewport) return;
 
     // Fixed dimensions to prevent layout recalculation during interpolation
-    const expandedHeight = window.innerHeight - 84; // 100vh - (68px top + 16px bottom)
+    // Full-height rail: 16px top + 16px bottom insets (bottom-anchored, so no
+    // `top` is needed — the height alone lands the top edge at 16px).
+    const expandedHeight = window.innerHeight - RAIL_VERTICAL_INSETS_PX;
     const collapsedHeight = 44;
 
     const expandedState = {
@@ -120,7 +126,7 @@ export function TabletRail({
     if (!rail || !navGroup || !focusBtn) return;
 
     const handleResize = () => {
-      const expandedHeight = window.innerHeight - 84;
+      const expandedHeight = window.innerHeight - RAIL_VERTICAL_INSETS_PX;
       if (isFocusMode) {
         gsap.set(rail, {
           height: 44,
@@ -155,6 +161,12 @@ export function TabletRail({
       aria-label="Tablet Navigation"
     >
       <div ref={navGroupRef} {...stylex.props(styles.navGroup)}>
+        {/* Rail logo: the tablet home for the brand (logo-only; the header
+            keeps the full lockup on mobile only). Inside the fading group so
+            Focus Mode collapse takes it with the nav icons. Static mark. */}
+        <div data-brand-source="rail" {...stylex.props(styles.logoButton)}>
+          <img src={logoSvg} alt="" aria-hidden="true" data-brand-logo="rail" {...stylex.props(styles.logo, isFocusMode && styles.logoHidden)} />
+        </div>
         {PRIMARY_NAV_ITEMS.map((item) => {
           const isActive = item.isActive(active);
           const isExplore = item.id === 'explore';
@@ -236,6 +248,29 @@ const styles = stylex.create({
     gap: 8,
     width: '100%',
     flexShrink: 0,
+  },
+  /** Rail logo mark: same 44px footprint as the nav icons. Static, not a link. */
+  logoButton: {
+    width: 44,
+    height: 44,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginBottom: 4,
+  },
+  logo: {
+    width: 24,
+    height: 24,
+    objectFit: 'contain',
+    display: 'block',
+    // Same quick-hide contract as the sidebar brand image: snap out on Focus
+    // entry for the FLIP illusion, restore with the chrome on exit.
+    transition: 'opacity 0.2s ease',
+  },
+  logoHidden: {
+    opacity: 0,
+    transition: 'opacity 0.08s ease-in',
   },
   iconButton: {
     width: 44,
