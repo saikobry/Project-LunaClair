@@ -31,7 +31,7 @@ describe('TagInput', () => {
         expect(screen.getByText('#biology')).toBeInTheDocument();
     });
 
-    it('adds a tag on Enter / form submit, trimming and stripping leading hash', () => {
+    it('adds a tag on Enter key press, trimming and stripping leading hash', () => {
         const onChange = vi.fn();
         render(
             <TagInput
@@ -42,10 +42,58 @@ describe('TagInput', () => {
 
         const input = screen.getByPlaceholderText('Type a tag and press Enter…');
         fireEvent.change(input, { target: { value: '  #physics  ' } });
-        fireEvent.submit(input.closest('form')!);
+        fireEvent.keyDown(input, { key: 'Enter' });
 
         expect(onChange).toHaveBeenCalledWith(['math', 'physics']);
         expect(input).toHaveValue('');
+    });
+
+    it('adds a tag via the Add button', () => {
+        const onChange = vi.fn();
+        render(
+            <TagInput
+                tags={['math']}
+                onChange={onChange}
+            />
+        );
+
+        const input = screen.getByPlaceholderText('Type a tag and press Enter…');
+        fireEvent.change(input, { target: { value: 'chemistry' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add tag' }));
+
+        expect(onChange).toHaveBeenCalledWith(['math', 'chemistry']);
+        expect(input).toHaveValue('');
+    });
+
+    it('disables the Add button while the input is empty', () => {
+        render(
+            <TagInput
+                tags={[]}
+                onChange={vi.fn()}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: 'Add tag' })).toBeDisabled();
+    });
+
+    it('does not submit an outer form when Enter adds a tag (nested-form regression)', () => {
+        const onChange = vi.fn();
+        const onOuterSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+        render(
+            <form onSubmit={onOuterSubmit}>
+                <TagInput
+                    tags={['math']}
+                    onChange={onChange}
+                />
+            </form>
+        );
+
+        const input = screen.getByPlaceholderText('Type a tag and press Enter…');
+        fireEvent.change(input, { target: { value: 'physics' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        expect(onChange).toHaveBeenCalledWith(['math', 'physics']);
+        expect(onOuterSubmit).not.toHaveBeenCalled();
     });
 
     it('adds a tag on comma key press', () => {
@@ -76,7 +124,7 @@ describe('TagInput', () => {
 
         const input = screen.getByPlaceholderText('Type a tag and press Enter…');
         fireEvent.change(input, { target: { value: 'genetics' } });
-        fireEvent.submit(input.closest('form')!);
+        fireEvent.keyDown(input, { key: 'Enter' });
 
         // Existing 'Genetics' is preserved, lowercase duplicate not added
         expect(onChange).toHaveBeenCalledWith(['Genetics']);
@@ -145,7 +193,7 @@ describe('TagInput', () => {
 
         const input = screen.getByPlaceholderText('Type a tag and press Enter…');
         fireEvent.change(input, { target: { value: '   ' } });
-        fireEvent.submit(input.closest('form')!);
+        fireEvent.keyDown(input, { key: 'Enter' });
 
         expect(onChange).not.toHaveBeenCalled();
     });

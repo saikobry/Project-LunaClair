@@ -110,6 +110,17 @@ nav[aria-label='Breadcrumb'] button {
   background-color: rgba(191, 219, 254, 0.55);
 }
 
+/* === Touch tap highlight === */
+/* Mobile browsers paint a semi-transparent blue-grey flash
+   (`-webkit-tap-highlight-color`) over tappable elements on touchstart —
+   visible on card shells (div + click handler, deliberately role-less) and
+   buttons alike. Suppress the UA default app-wide: every interactive surface
+   already carries deliberate feedback (`:hover` lift, `:focus-visible`
+   accent outline), so the flash adds noise, not information. */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* === Reader fenced-block reset === */
 /* Reset inline-code chrome for fenced blocks so the code sits flush inside
    the dark <pre> shell (descendant selector — not expressible in StyleX).
