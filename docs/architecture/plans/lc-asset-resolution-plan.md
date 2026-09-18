@@ -357,10 +357,10 @@ and tolerates both environments.
 
 **8.3 — Removal now deletes a material's assets (leak closed in Rev 8).** The gap this finding
 originally recorded — `ImportAssetRepository.delete` clearing every row of a material by the
-`materialId` index, but with no caller, because `RemoveImportedMaterialUseCase` did not touch
+`materialId` index, but with no caller, because `RemoveMaterialUseCase` did not touch
 assets — mattered more after Phase 1: the leak had been capped at one blob per removal, and the
 rekey raised it to N (a cloned 21-figure material stranded all 21 in IndexedDB, unreachable by
-any surface). **Fix:** `DexieLibraryImportService.removeImportedMaterial` now deletes that
+any surface). **Fix:** `DexieLibraryImportService.removeMaterial` now deletes that
 material's `localAssets` rows **inside the same transaction** as the material/questions/quizzes/
 documentContent deletes, so removal stays atomic (an off-transaction delete could fail after the
 material was already gone). The importer port shrank to its actual contract — write-only `put` —

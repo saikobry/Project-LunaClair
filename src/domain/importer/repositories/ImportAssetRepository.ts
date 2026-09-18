@@ -18,7 +18,7 @@ export interface ImportedAsset {
  *
  * Reads are deliberately absent: multi-asset material reads belong to the generic
  * `AssetRepository` port (`domain/assets`), and asset removal inside a material's delete
- * transaction belongs to `DexieLibraryImportService.removeImportedMaterial`, which needs it
+ * transaction belongs to `DexieLibraryImportService.removeMaterial`, which needs it
  * to commit atomically with the rest of the removal. Keeping writes here means this port can
  * never become a second, divergent read or delete path over the same store.
  */

@@ -85,7 +85,7 @@ describe('DexieLibraryImportService', () => {
     const input = createSampleInput('mat-del');
     await service.importMaterial(input);
 
-    await service.removeImportedMaterial('mat-del');
+    await service.removeMaterial('mat-del');
 
     // Material and associated learning content removed
     expect(await db.materials.get('mat-del')).toBeUndefined();
@@ -97,20 +97,35 @@ describe('DexieLibraryImportService', () => {
   it('rolls back asset removal when the removal transaction fails', async () => {
     await service.importMaterial(createSampleInput('mat-rollback'));
     await seedAssets('mat-rollback', 1);
+    await db.collections.put({
+      id: 'col-rollback',
+      title: 'Rollback',
+      order: 0,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    await db.collectionMaterials.add({
+      collectionId: 'col-rollback',
+      materialId: 'mat-rollback',
+      order: 0,
+      addedAt: '2026-08-01T00:00:00.000Z',
+    });
 
     // Fail the asset delete, which runs last inside the transaction.
     vi.spyOn(db.localAssets, 'where').mockImplementationOnce(() => {
       throw new Error('Simulated asset delete failure');
     });
 
-    await expect(service.removeImportedMaterial('mat-rollback')).rejects.toThrow(
+    await expect(service.removeMaterial('mat-rollback')).rejects.toThrow(
       'Simulated asset delete failure',
     );
 
-    // Nothing was removed: the whole removal is one atomic unit.
+    // Nothing was removed: the whole removal is one atomic unit — including the collection
+    // membership cleared earlier in the same transaction, which the failure must roll back too.
     expect(await db.materials.get('mat-rollback')).toBeDefined();
     expect(await db.questions.get('q-mat-rollback')).toBeDefined();
     expect(await db.localAssets.where('materialId').equals('mat-rollback').toArray()).toHaveLength(2);
+    expect(await db.collectionMaterials.where('materialId').equals('mat-rollback').toArray()).toHaveLength(1);
   });
 
   /**
@@ -145,12 +160,42 @@ describe('DexieLibraryImportService', () => {
     await seedAssets('mat-owned', 3);
     await seedAssets('mat-other', 2);
 
-    await service.removeImportedMaterial('mat-owned');
+    await service.removeMaterial('mat-owned');
 
     // The removed material owns no orphaned blobs...
     expect(await db.localAssets.where('materialId').equals('mat-owned').toArray()).toHaveLength(0);
     // ...and the untouched material keeps every one of its own.
     expect(await db.localAssets.where('materialId').equals('mat-other').toArray()).toHaveLength(3);
+  });
+
+  /**
+   * Collection membership is part of the material's cascade. A stale `collectionMaterials` row would
+   * keep the material counted as assigned (inflating the collection's count and hiding it from the
+   * Library's `uncollected` lens) while the material itself no longer exists.
+   */
+  it('removes the material from every collection it was filed into', async () => {
+    await service.importMaterial(createSampleInput('mat-filed'));
+    await service.importMaterial(createSampleInput('mat-unfiled'));
+
+    await db.collections.put({
+      id: 'col-1',
+      title: 'Biology',
+      order: 0,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    await db.collectionMaterials.bulkAdd([
+      { collectionId: 'col-1', materialId: 'mat-filed', order: 0, addedAt: '2026-08-01T00:00:00.000Z' },
+      { collectionId: 'col-1', materialId: 'mat-unfiled', order: 1, addedAt: '2026-08-01T00:00:00.000Z' },
+    ]);
+
+    await service.removeMaterial('mat-filed');
+
+    // The removed material's membership is gone...
+    expect(await db.collectionMaterials.where('materialId').equals('mat-filed').toArray()).toHaveLength(0);
+    // ...the collection itself survives, and the other material stays filed.
+    expect(await db.collections.get('col-1')).toBeDefined();
+    expect(await db.collectionMaterials.where('materialId').equals('mat-unfiled').toArray()).toHaveLength(1);
   });
 
   it('imports material batch atomically', async () => {

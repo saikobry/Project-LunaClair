@@ -4,13 +4,13 @@ import type { LibraryImportService } from '../../../domain/library/services/Libr
  * Removes one material from the local library.
  *
  * Deletes the material row, its questions/quizzes, its locally imported
- * document content, and its stored binary assets (the imported original file
- * plus any package figures) from Dexie, atomically.
+ * document content, its collection membership, and its stored binary assets
+ * (the imported original file plus any package figures) from Dexie, atomically.
  *
  * Strictly a local operation: published shares stay on the server, so the
  * material can be cloned again from the Explore hub.
  */
-export class RemoveImportedMaterialUseCase {
+export class RemoveMaterialUseCase {
     private readonly libraryImport: LibraryImportService;
 
     constructor(libraryImport: LibraryImportService) {
@@ -18,6 +18,6 @@ export class RemoveImportedMaterialUseCase {
     }
 
     execute(materialId: string): Promise<void> {
-        return this.libraryImport.removeImportedMaterial(materialId);
+        return this.libraryImport.removeMaterial(materialId);
     }
 }

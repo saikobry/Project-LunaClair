@@ -181,7 +181,7 @@ export interface LibraryViewProps {
   onMembershipFilterChange: (filter: MaterialMembershipFilter) => void;
   onOpen: (material: StudyMaterial) => void;
   onEdit: (material: StudyMaterial) => void;
-  onDelete: (material: StudyMaterial) => void;
+  onRemove: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
   /** Navigates to a collection (material-card membership badges). */
@@ -436,7 +436,7 @@ export default function LibraryView({
   onMembershipFilterChange,
   onOpen,
   onEdit,
-  onDelete,
+  onRemove,
   onStartQuiz,
   onManage,
   onNavigate,
@@ -479,7 +479,7 @@ export default function LibraryView({
           materials={limit === undefined ? materials : materials.slice(0, limit)}
           onOpen={onOpen}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onRemove={onRemove}
           onStartQuiz={onStartQuiz}
           onManage={onManage}
           onNavigate={onNavigate}

@@ -15,13 +15,19 @@ import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairData
  * `importMaterialBatch` accepts multiple materials and commits everything in
  * one single atomic transaction.
  *
- * `removeImportedMaterial` deletes the material row, its questions/quizzes, its
- * document content, and every stored binary asset of the material
- * (`localAssets` — the imported original file plus any package-imported figures)
- * in one transaction. Asset removal lives here rather than on the importer's
- * write port so it commits atomically with the rest of the removal; a
- * non-atomic delete would leave orphaned blobs behind if the material delete
- * succeeded and it failed.
+ * `removeMaterial` deletes the material row, its questions/quizzes, its
+ * document content, its `collectionMaterials` junction rows, and every stored
+ * binary asset of the material (`localAssets` — the imported original file plus
+ * any package-imported figures) in one transaction. Asset removal lives here
+ * rather than on the importer's write port so it commits atomically with the rest
+ * of the removal; a non-atomic delete would leave orphaned blobs behind if the
+ * material delete succeeded and it failed. Collection membership is cleared here
+ * for the same reason: a stale junction row keeps inflating a collection's count
+ * and keeps the material out of the Library's `uncollected` lens even though it no
+ * longer exists.
+ *
+ * This is the single removal contract — `LibraryRepository` has no delete method,
+ * so nothing can remove a material row without its dependents.
  */
 export class DexieLibraryImportService implements LibraryImportService {
     private readonly db: LunaClairDatabase;
@@ -79,7 +85,7 @@ export class DexieLibraryImportService implements LibraryImportService {
         );
     }
 
-    async removeImportedMaterial(materialId: string): Promise<void> {
+    async removeMaterial(materialId: string): Promise<void> {
         await this.db.transaction(
             'rw',
             [
@@ -88,6 +94,7 @@ export class DexieLibraryImportService implements LibraryImportService {
                 this.db.quizzes,
                 this.db.documentContents,
                 this.db.localAssets,
+                this.db.collectionMaterials,
             ],
             async () => {
                 const material = await this.db.materials.get(materialId);
@@ -100,6 +107,11 @@ export class DexieLibraryImportService implements LibraryImportService {
                 if (quizzes.length > 0) await this.db.quizzes.bulkDelete(quizzes.map((z) => z.id));
 
                 if (material?.documentId) await this.db.documentContents.delete(material.documentId);
+
+                // Collection membership goes with the material — its junction rows are keyed by the
+                // `materialId` index, so every collection it was filed into is cleared. Leaving them
+                // would keep the material counted as assigned while it no longer exists.
+                await this.db.collectionMaterials.where('materialId').equals(materialId).delete();
 
                 // Binary assets go with the material — keyed by the `materialId` index, so a
                 // cloned material's N package figures are removed alongside its imported file.

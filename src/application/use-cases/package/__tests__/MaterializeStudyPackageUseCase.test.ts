@@ -63,7 +63,6 @@ describe('MaterializeStudyPackageUseCase', () => {
             getMaterials: vi.fn(),
             createMaterial: vi.fn(),
             updateMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         const mockDocContent: DocumentContentRepository = {
@@ -136,7 +135,6 @@ describe('MaterializeStudyPackageUseCase', () => {
             getMaterials: vi.fn(),
             createMaterial: vi.fn(),
             updateMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         const useCase = new MaterializeStudyPackageUseCase(
@@ -169,7 +167,6 @@ describe('MaterializeStudyPackageUseCase', () => {
             getMaterials: vi.fn(),
             createMaterial: vi.fn(),
             updateMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         const mockDocContent: DocumentContentRepository = {

@@ -12,7 +12,7 @@ interface MaterialGridProps {
   materials: StudyMaterial[];
   onOpen: (material: StudyMaterial) => void;
   onEdit: (material: StudyMaterial) => void;
-  onDelete: (material: StudyMaterial) => void;
+  onRemove: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
   onNavigate?: (collectionId: string) => void;
@@ -20,7 +20,7 @@ interface MaterialGridProps {
   selectedTags?: string[];
 }
 
-export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onStartQuiz, onManage, onNavigate, onToggleTag, selectedTags }: MaterialGridProps) {
+export default function MaterialGrid({ materials, onOpen, onEdit, onRemove, onStartQuiz, onManage, onNavigate, onToggleTag, selectedTags }: MaterialGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   // Past the threshold the grid virtualizes — recycled rows and the
   // enter-animation fight each other, so the animation stays on the plain path.
@@ -46,7 +46,7 @@ export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onSt
         materials={materials}
         onOpen={onOpen}
         onEdit={onEdit}
-        onDelete={onDelete}
+        onRemove={onRemove}
         onStartQuiz={onStartQuiz}
         onManage={onManage}
         onNavigate={onNavigate}
@@ -64,7 +64,7 @@ export default function MaterialGrid({ materials, onOpen, onEdit, onDelete, onSt
           material={material}
           onOpen={onOpen}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onRemove={onRemove}
           onStartQuiz={onStartQuiz}
           onManage={onManage}
           onNavigate={onNavigate}

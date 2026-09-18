@@ -51,7 +51,7 @@ describe('MaterialGrid virtualization', () => {
               materials={makeMaterials(count)}
               onOpen={vi.fn()}
               onEdit={vi.fn()}
-              onDelete={vi.fn()}
+              onRemove={vi.fn()}
               onStartQuiz={vi.fn()}
               onManage={vi.fn()}
             />

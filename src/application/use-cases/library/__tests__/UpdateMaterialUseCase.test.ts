@@ -25,7 +25,6 @@ describe('UpdateMaterialUseCase', () => {
             ),
             getMaterials: vi.fn(),
             createMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         return { library };

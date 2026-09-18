@@ -57,7 +57,7 @@ export function LibraryScreen({
 
   const {
     editTarget,
-    deleteTarget,
+    removeTarget,
     showCreateMaterial,
     showCreateCollection,
     handleNewMaterial,
@@ -66,9 +66,9 @@ export function LibraryScreen({
     handleEditClose,
     handleCreateMaterialSave,
     handleCreateMaterialClose,
-    handleDeleteTrigger,
-    handleDeleteConfirm,
-    handleDeleteClose,
+    handleRemoveTrigger,
+    handleRemoveConfirm,
+    handleRemoveClose,
     openCreateCollection,
     handleCreateCollectionSave,
     handleCreateCollectionClose,
@@ -211,7 +211,7 @@ export function LibraryScreen({
           onMembershipFilterChange={onFilterChange}
           onOpen={handleOpen}
           onEdit={handleEditTrigger}
-          onDelete={handleDeleteTrigger}
+          onRemove={handleRemoveTrigger}
           onStartQuiz={handleStartQuiz}
           onManage={onManage}
           onOpenCollection={onOpenCollection}
@@ -224,15 +224,15 @@ export function LibraryScreen({
 
       <LibraryModals
         editTarget={editTarget}
-        deleteTarget={deleteTarget}
+        removeTarget={removeTarget}
         showCreateMaterial={showCreateMaterial}
         showCreateCollection={showCreateCollection}
         onEditSave={handleEditSave}
         onEditClose={handleEditClose}
         onCreateMaterialSave={handleCreateMaterialSave}
         onCreateMaterialClose={handleCreateMaterialClose}
-        onDeleteConfirm={handleDeleteConfirm}
-        onDeleteClose={handleDeleteClose}
+        onRemoveConfirm={handleRemoveConfirm}
+        onRemoveClose={handleRemoveClose}
         onCreateCollectionSave={handleCreateCollectionSave}
         onCreateCollectionClose={handleCreateCollectionClose}
       />

@@ -23,7 +23,7 @@ export interface LibraryMaterialsSectionProps {
   onMembershipFilterChange: (filter: MaterialMembershipFilter) => void;
   onOpen: (material: StudyMaterial) => void;
   onEdit: (material: StudyMaterial) => void;
-  onDelete: (material: StudyMaterial) => void;
+  onRemove: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (materialId: string) => void;
   onOpenCollection: (collectionId: string) => void;
@@ -54,7 +54,7 @@ export function LibraryMaterialsSection({
   onMembershipFilterChange,
   onOpen,
   onEdit,
-  onDelete,
+  onRemove,
   onStartQuiz,
   onManage,
   onOpenCollection,
@@ -81,7 +81,7 @@ export function LibraryMaterialsSection({
         onMembershipFilterChange={onMembershipFilterChange}
         onOpen={onOpen}
         onEdit={onEdit}
-        onDelete={onDelete}
+        onRemove={onRemove}
         onStartQuiz={onStartQuiz}
         onManage={(m) => onManage(m.id)}
         onNavigate={onOpenCollection}

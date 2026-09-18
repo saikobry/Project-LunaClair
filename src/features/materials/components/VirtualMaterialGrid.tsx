@@ -14,7 +14,7 @@ export interface VirtualMaterialGridProps {
   materials: StudyMaterial[];
   onOpen: (material: StudyMaterial) => void;
   onEdit: (material: StudyMaterial) => void;
-  onDelete: (material: StudyMaterial) => void;
+  onRemove: (material: StudyMaterial) => void;
   onStartQuiz: (material: StudyMaterial) => void;
   onManage: (material: StudyMaterial) => void;
   onNavigate?: (collectionId: string) => void;
@@ -37,7 +37,7 @@ export function VirtualMaterialGrid({
   materials,
   onOpen,
   onEdit,
-  onDelete,
+  onRemove,
   onStartQuiz,
   onManage,
   onNavigate,
@@ -115,7 +115,7 @@ export function VirtualMaterialGrid({
                     material={material}
                     onOpen={onOpen}
                     onEdit={onEdit}
-                    onDelete={onDelete}
+                    onRemove={onRemove}
                     onStartQuiz={onStartQuiz}
                     onManage={onManage}
                     onNavigate={onNavigate}

@@ -21,7 +21,7 @@ export interface MaterialCardProps {
   material: StudyMaterial;
   onOpen: (material: StudyMaterial) => void;
   onEdit?: (material: StudyMaterial) => void;
-  onDelete?: (material: StudyMaterial) => void;
+  onRemove?: (material: StudyMaterial) => void;
   onStartQuiz?: (material: StudyMaterial) => void;
   onManage?: (material: StudyMaterial) => void;
   onNavigate?: (collectionId: string) => void;
@@ -748,7 +748,7 @@ export function MaterialCard({
   material,
   onOpen,
   onEdit,
-  onDelete,
+  onRemove,
   onStartQuiz,
   onManage,
   onNavigate,
@@ -858,7 +858,7 @@ export function MaterialCard({
             </h3>
           </div>
           <div {...stylex.props(cardStyles.headerActions)}>
-            {(onEdit || onDelete) && (
+            {(onEdit || onRemove) && (
               <ActionMenu>
                 <ActionMenuItem
                   icon={<BookOpen size={14} />}
@@ -896,12 +896,16 @@ export function MaterialCard({
                     onClick={() => onEdit(material)}
                   />
                 )}
-                {onDelete && (
+                {onRemove && (
                   <ActionMenuItem
                     icon={<Trash2 size={14} />}
-                    label="Delete"
-                    description="This action cannot be undone"
-                    onClick={() => onDelete(material)}
+                    label="Remove"
+                    description={
+                      material.originShareId
+                        ? 'Re-clone from Explore later'
+                        : 'Permanently deletes its content'
+                    }
+                    onClick={() => onRemove(material)}
                   />
                 )}
               </ActionMenu>

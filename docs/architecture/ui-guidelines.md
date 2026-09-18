@@ -94,6 +94,16 @@ Features own their specific page content (search, filtering, breadcrumbs) — do
 - **Multi-hue differentiation uses the theme's hue families, not literals.** The theme declares `--color-{text,background,border}-{blue,cyan,gray,green,orange,pink,purple,red,teal,yellow}` (values live in `@astryxdesign/theme-neutral/dist/theme.css`). Distinct-category chips — e.g. `CollectionQuizExplorer`'s Foundations/Apply difficulty chips — differentiate through a family triplet (`teal` / `orange`) instead of inventing per-chip hex values.
 - **`collection.color` values are persisted user data**, so Collection/annotation colour derivation (swatches, `tint()`, `heroBackground()`) legitimately stays dynamic and literal-adjacent; it is not a token violation.
 
+### Removal vs Delete Vocabulary
+
+**The verb must match what actually survives the action**, because in LunaClair that is not the same thing for every object.
+
+- **Material removal is `Remove from Library`, never `Delete`.** The cascade is irreversible locally (document, questions and quizzes, stored files, collection membership), but a cloned material's published share is untouched — the Explore hub keeps offering it, so "Delete" would promise something the app cannot deliver. Code matches the copy: `RemoveMaterialUseCase`, `LibraryImportService.removeMaterial`, `useRemoveMaterial`, `RemoveMaterialModal`.
+- **Collections are still `Delete`d.** A collection exists only on this device; there is nothing to re-add.
+- **Removal from a container is `Remove from {container}`** — `Remove from Collection` drops the membership and says the material stays in the Library.
+
+**A destructive confirmation must name what is deleted and what can be recovered.** `RemoveMaterialModal` is the reference implementation: it enumerates the cascade's scope and then branches on provenance (`originShareId`) — re-cloning from Explore for a cloned material, with the caveat that local edits are not part of the share, and an explicit "cannot be restored" for a material created here. A bare "This action cannot be undone" is not acceptable copy: it was false for the cloned case (Sep 2026) and silent about scope in every case.
+
 ## Third-Party Package Boundaries
 
 | Package | Allowed Locations |

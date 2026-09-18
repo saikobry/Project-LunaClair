@@ -24,7 +24,6 @@ describe('TouchMaterialUseCase', () => {
             getMaterials: vi.fn(),
             getMaterialById: vi.fn(),
             createMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         const useCase = new TouchMaterialUseCase(mockLibrary);
@@ -53,7 +52,6 @@ describe('TouchMaterialUseCase', () => {
             getMaterials: vi.fn(),
             getMaterialById: vi.fn(),
             createMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         const useCase = new TouchMaterialUseCase(mockLibrary);

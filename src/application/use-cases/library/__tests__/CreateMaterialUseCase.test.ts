@@ -18,7 +18,6 @@ describe('CreateMaterialUseCase', () => {
             getMaterials: vi.fn(),
             getMaterialById: vi.fn(),
             updateMaterial: vi.fn(),
-            deleteMaterial: vi.fn(),
         };
 
         return { library };

@@ -10,7 +10,7 @@ import { db } from '../schema/LunaClairDatabase';
  * (which are keyed by their own asset ids and grouped by the `materialId` index).
  *
  * Write-only by contract: reads go through `AssetRepository` (`domain/assets`), and asset
- * removal happens inside `DexieLibraryImportService.removeImportedMaterial`'s transaction so it
+ * removal happens inside `DexieLibraryImportService.removeMaterial`'s transaction so it
  * commits atomically with the material delete.
  */
 export class DexieImportAssetRepository implements ImportAssetRepository {

@@ -7,7 +7,7 @@ import { useContextOrThrow } from '../../../../shared/utils/contextGuard';
 /**
  * Pure query hook for fetching the study materials list.
  * Does **not** include mutation functions — use dedicated mutation hooks
- * (useCreateMaterial, useDeleteMaterial, useEditMaterial, useTouchMaterial)
+ * (useCreateMaterial, useRemoveMaterial, useEditMaterial, useTouchMaterial)
  * for all data mutations.
  *
  * Library-owned so other features consume the material capability through

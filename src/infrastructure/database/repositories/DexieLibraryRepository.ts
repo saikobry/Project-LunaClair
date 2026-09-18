@@ -54,9 +54,6 @@ export class DexieLibraryRepository implements LibraryRepository {
         return updated;
     }
 
-    async deleteMaterial(id: string): Promise<void> {
-        await db.materials.delete(id);
-    }
 }
 
 export const dexieLibraryRepository = new DexieLibraryRepository();

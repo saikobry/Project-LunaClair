@@ -13,7 +13,12 @@ export interface ImportMaterialInput {
 /**
  * Domain application service contract for the material import/removal
  * workflows that write across multiple Dexie stores and must commit
- * atomically (materials, questions, quizzes, documentContents, localAssets).
+ * atomically (materials, questions, quizzes, documentContents, localAssets,
+ * collectionMaterials).
+ *
+ * `removeMaterial` is the **single removal contract** for a material.
+ * `LibraryRepository` deliberately exposes no delete, so no caller can remove a
+ * material row without its dependents.
  *
  * Implementations live in the infrastructure layer (e.g.
  * `DexieLibraryImportService`) and are supplied to feature hooks through the
@@ -34,11 +39,12 @@ export interface LibraryImportService {
   importMaterialBatch(inputs: ImportMaterialInput[]): Promise<void>;
 
   /**
-   * Removes one imported material from the local library: the material row,
-   * its questions and quizzes, its locally imported document content, and its
-   * stored binary assets (imported original file plus any package figures).
-   * Local-only: the published share stays on the server and can be cloned
-   * again from Explore.
+   * Removes one material from the local library, and everything that belongs to
+   * it: the material row, its questions and quizzes, its locally imported
+   * document content, its `collectionMaterials` junction rows, and its stored
+   * binary assets (imported original file plus any package figures) — in one
+   * transaction. Local-only: the published share stays on the server and can be
+   * cloned again from Explore.
    */
-  removeImportedMaterial(materialId: string): Promise<void>;
+  removeMaterial(materialId: string): Promise<void>;
 }
