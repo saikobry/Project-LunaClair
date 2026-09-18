@@ -20,7 +20,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieConflictDraftRepository.ts` → `ConflictDraftRepository`
     - `DexieDocumentContentRepository.ts` → `DocumentContentRepository`
     - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
-    - `DexieImportAssetRepository.ts` → `ImportAssetRepository`
+    - `DexieImportAssetRepository.ts` → `ImportAssetRepository` (write-only: `put`)
     - `DexieLibraryRepository.ts` → `LibraryRepository` (normalizes material `tags` through the domain `normalizeTags` helper at both write boundaries — `undefined` leaves tags unchanged, empty array clears)
     - `DexieQuestionRepository.ts` → `QuestionRepository`
     - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`
@@ -73,7 +73,8 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
 - **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
 - **Atomic Dexie Transactions**: Multi-table operations (`DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
-- **Local binary assets live in one store**: `localAssets` (Dexie v14) is keyed by `assetId` — the identity `lc-asset://{assetId}` document references resolve against — with a `materialId` index for "every asset belonging to this material". PDF/image import writes exactly one row per material as `assetId = materialId` (the importer's 1:1 contract); study package import writes N rows per material. The v14 upgrade migrated the legacy `importAssets` store; IndexedDB cannot change a primary key in place, so the old store is dropped and recreated under the new name, with every legacy row carried across.
+- **Local binary assets live in one store**: `localAssets` (Dexie v14) is keyed by `assetId` — the identity `lc-asset://{assetId}` document references resolve against — with a `materialId` index for "every asset belonging to this material". PDF/image import writes exactly one row per material as `assetId = materialId` (the importer's 1:1 contract); study package import writes N rows per material. Material removal deletes that material's `localAssets` rows inside the same `removeImportedMaterial` transaction (`DexieLibraryImportService`) — an off-transaction delete would strand blobs whenever the material delete succeeded first.
+- **A primary-key rekey cannot migrate rows.** IndexedDB has no operation to change an object store's primary key, and Dexie diffs schemas before running any `upgrade` callback — so the v14 rekey is implemented by dropping the old store (`importAssets: null`) and declaring a new one (`localAssets`), copying rows inside the same version's upgrade. The v8 `documentContents` rekey (`sourceId` → `documentId`) is therefore **declared only, with no upgrade callback**: one there would be unreachable, since a pre-v8 database fails to open before the callback could run. Rows written after v8 simply use `documentId`.
 - **No Auto-Hydration**: The app boots with an empty local library; courses are discovered via StudyPackage shares or imported as `.lcpack` bundles and explicitly cloned/imported by user action.
 
 ## Work Guidance

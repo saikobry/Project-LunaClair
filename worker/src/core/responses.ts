@@ -16,21 +16,6 @@ export function json(
   });
 }
 
-export function binary(
-  data: BodyInit | null,
-  contentType: string,
-  headers: Record<string, string> = {},
-  status = 200,
-): Response {
-  return new Response(data, {
-    status,
-    headers: {
-      'content-type': contentType,
-      ...headers,
-    },
-  });
-}
-
 export function badRequest(
   message = 'Bad request',
   corsHeaders: Record<string, string> = {},

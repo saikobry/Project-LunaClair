@@ -5,8 +5,6 @@
     "description": "Cell theory, organelles, and membrane transport.",
     "documentId": "cell-structure",
     "tags": ["cell-biology", "organelles", "membrane", "transport"],
-    "subjectId": "subject-bio-101",
-    "termId": "term-prelim",
     "order": 1
   },
   {
@@ -15,8 +13,6 @@
     "description": "Glycolysis, Krebs cycle, electron transport chain.",
     "documentId": "cellular-respiration",
     "tags": ["metabolism", "glycolysis", "atp", "respiration"],
-    "subjectId": "subject-bio-101",
-    "termId": "term-midterm",
     "order": 1
   },
   {
@@ -25,8 +21,6 @@
     "description": "Light-dependent reactions, Calvin cycle, photorespiration.",
     "documentId": "photosynthesis",
     "tags": ["plants", "energy", "chloroplast"],
-    "subjectId": "subject-bio-101",
-    "termId": "term-midterm",
     "order": 2
   },
   {
@@ -35,8 +29,6 @@
     "description": "Mendelian genetics, DNA replication, protein synthesis, mutations.",
     "documentId": "genetics",
     "tags": ["heredity", "dna", "inheritance"],
-    "subjectId": "subject-bio-101",
-    "termId": "term-finals",
     "order": 1
   },
   {
@@ -45,8 +37,6 @@
     "description": "Mesopotamia, Egypt, Indus Valley, and early Chinese dynasties.",
     "documentId": "ancient-civilizations",
     "tags": ["history", "civilizations"],
-    "subjectId": "subject-world-history",
-    "termId": "term-prelim",
     "order": 1
   },
   {

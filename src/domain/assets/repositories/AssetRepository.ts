@@ -29,7 +29,15 @@ export interface StoredAsset {
  * imported (no `.lcpack`, remapping, or import-session concepts belong here).
  */
 export interface AssetRepository {
-  /** Resolve one asset by the identity its document reference carries. */
+  /**
+   * Resolve one asset by the identity its document reference carries.
+   *
+   * The reader does not call this — it builds a whole-material resolution map from
+   * `getByMaterialId` in one read — but it is kept as the port's identity primitive: it is what
+   * directly asserts the v14 invariant (exactly one blob per `assetId`, a multi-asset material
+   * never collapsing into one row) and what any single-reference resolver would use. Deleting it
+   * would leave that invariant assertable only by reaching through the port.
+   */
   get(assetId: string): Promise<StoredAsset | undefined>;
   /** Every asset grouped under one material — one read for building a resolution map. */
   getByMaterialId(materialId: string): Promise<StoredAsset[]>;

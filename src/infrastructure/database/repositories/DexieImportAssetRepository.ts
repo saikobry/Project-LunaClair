@@ -2,30 +2,18 @@ import type { ImportedAsset, ImportAssetRepository } from '../../../domain/impor
 import { db } from '../schema/LunaClairDatabase';
 
 /**
- * Dexie-backed `ImportAssetRepository` — local storage for imported raw assets
- * like PDFs and images.
+ * Dexie-backed `ImportAssetRepository` — writes the original file of a PDF/image import.
  *
- * This port stays deliberately single-asset-per-material: an import owns exactly one original
- * file, so on this write path `materialId` IS the asset identity. Rows land in the shared
- * `localAssets` store as `assetId = materialId`, and reads go through the `materialId` index —
- * a shape that tolerates multi-asset materials written by study package import, which is why
- * `get` takes the material's first row and `delete` clears every row of the material rather
- * than one key.
+ * Deliberately single-asset-per-material: an import owns exactly one original file, so on this
+ * write path `materialId` IS the asset identity. The row lands in the shared `localAssets`
+ * store as `assetId = materialId`, alongside any package-imported figures of the same material
+ * (which are keyed by their own asset ids and grouped by the `materialId` index).
+ *
+ * Write-only by contract: reads go through `AssetRepository` (`domain/assets`), and asset
+ * removal happens inside `DexieLibraryImportService.removeImportedMaterial`'s transaction so it
+ * commits atomically with the material delete.
  */
 export class DexieImportAssetRepository implements ImportAssetRepository {
-    async get(materialId: string): Promise<ImportedAsset | undefined> {
-        const stored = await db.localAssets.where('materialId').equals(materialId).first();
-        if (!stored) return undefined;
-
-        return {
-            materialId: stored.materialId,
-            blob: stored.blob,
-            mimeType: stored.mimeType,
-            filename: stored.filename,
-            importedAt: stored.importedAt,
-        };
-    }
-
     async put(record: ImportedAsset): Promise<void> {
         await db.localAssets.put({
             assetId: record.materialId,
@@ -35,10 +23,6 @@ export class DexieImportAssetRepository implements ImportAssetRepository {
             filename: record.filename,
             importedAt: record.importedAt,
         });
-    }
-
-    async delete(materialId: string): Promise<void> {
-        await db.localAssets.where('materialId').equals(materialId).delete();
     }
 }
 

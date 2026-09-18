@@ -4,7 +4,7 @@ import { setupImportedMaterial, resetDatabase } from '../helpers/e2e-setup';
 test.describe('Spaced Repetition Flashcard Study E2E', () => {
   test.beforeEach(async ({ page }) => {
     await resetDatabase(page);
-    await setupImportedMaterial(page, 'cell-structure', { seedQuiz: true });
+    await setupImportedMaterial(page, 'cell-structure');
   });
 
   test('reviews flashcard deck with 3D flip card, rates retention, and persists review state across reload', async ({

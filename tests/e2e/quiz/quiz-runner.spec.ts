@@ -4,7 +4,7 @@ import { setupImportedMaterial, resetDatabase } from '../helpers/e2e-setup';
 test.describe('Assessment Engine & Live Quiz Runner E2E', () => {
   test.beforeEach(async ({ page }) => {
     await resetDatabase(page);
-    await setupImportedMaterial(page, 'cell-structure', { seedQuiz: true });
+    await setupImportedMaterial(page, 'cell-structure');
   });
 
   test('completes a quiz with all correct answers and displays a 100% passing result', async ({

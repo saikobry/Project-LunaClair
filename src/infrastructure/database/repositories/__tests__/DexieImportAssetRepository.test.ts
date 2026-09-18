@@ -8,6 +8,10 @@ import type { ImportedAsset } from '../../../../domain/importer/repositories/Imp
  * Blob payload columns are asserted as present, not byte-compared: under jsdom +
  * fake-indexeddb a stored Blob reads back as a plain object with its bytes dropped (a
  * test-environment limit — browsers store Blobs natively).
+ *
+ * Removal and multi-asset reads are covered elsewhere: removal by
+ * `DexieLibraryImportService.test.ts` (it owns that transaction), reads by
+ * `DexieAssetRepository.test.ts`.
  */
 describe('DexieImportAssetRepository', () => {
     let repo: DexieImportAssetRepository;
@@ -31,18 +35,6 @@ describe('DexieImportAssetRepository', () => {
         };
     }
 
-    it('round-trips the original imported file by material id', async () => {
-        const imported = seedImported('mat-1', 'lecture.pdf');
-        await repo.put(imported);
-
-        const found = await repo.get('mat-1');
-        expect(found?.materialId).toBe('mat-1');
-        expect(found?.filename).toBe('lecture.pdf');
-        expect(found?.mimeType).toBe('application/pdf');
-        expect(found?.importedAt).toBe(imported.importedAt);
-        expect(found?.blob).toBeDefined();
-    });
-
     it('writes the row under assetId === materialId (importer stays 1:1)', async () => {
         await repo.put(seedImported('mat-1', 'lecture.pdf'));
 
@@ -50,24 +42,20 @@ describe('DexieImportAssetRepository', () => {
         expect(raw?.assetId).toBe('mat-1');
         expect(raw?.materialId).toBe('mat-1');
         expect(raw?.filename).toBe('lecture.pdf');
-    });
-
-    it('returns undefined when the material has no imported asset', async () => {
-        expect(await repo.get('mat-missing')).toBeUndefined();
+        expect(raw?.mimeType).toBe('application/pdf');
+        expect(raw?.blob).toBeDefined();
     });
 
     it('keeps imports of different materials independent', async () => {
         await repo.put(seedImported('mat-1', 'lecture.pdf'));
         await repo.put(seedImported('mat-2', 'handout.pdf'));
 
-        expect((await repo.get('mat-1'))?.filename).toBe('lecture.pdf');
-        expect((await repo.get('mat-2'))?.filename).toBe('handout.pdf');
+        expect((await db.localAssets.get('mat-1'))?.filename).toBe('lecture.pdf');
+        expect((await db.localAssets.get('mat-2'))?.filename).toBe('handout.pdf');
         expect(await db.localAssets.count()).toBe(2);
     });
 
-    it('deletes every stored asset row of the material', async () => {
-        await repo.put(seedImported('mat-1', 'lecture.pdf'));
-        // A material can also carry package-imported figures alongside its imported file.
+    it('does not disturb package-imported figures already stored for the material', async () => {
         await db.localAssets.put({
             assetId: 'asset-figure-1',
             materialId: 'mat-1',
@@ -76,11 +64,9 @@ describe('DexieImportAssetRepository', () => {
             filename: 'figure41a.png',
             importedAt: '2026-09-02T00:00:00.000Z',
         });
-        await repo.put(seedImported('mat-2', 'handout.pdf'));
 
-        await repo.delete('mat-1');
+        await repo.put(seedImported('mat-1', 'lecture.pdf'));
 
-        expect(await db.localAssets.where('materialId').equals('mat-1').toArray()).toHaveLength(0);
-        expect(await db.localAssets.where('materialId').equals('mat-2').toArray()).toHaveLength(1);
+        expect(await db.localAssets.where('materialId').equals('mat-1').toArray()).toHaveLength(2);
     });
 });

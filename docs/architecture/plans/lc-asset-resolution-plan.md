@@ -12,6 +12,8 @@ Rev 6 — Phase 3 implemented (multi-asset export + deterministic package number
 renamed to the house `*Repository` convention (§8.7–8.8).
 Rev 7 — §8.2 corrected: Blob bytes *do* survive IndexedDB, the old limitation was jsdom-specific,
 so byte identity is asserted in Vitest under the `node` environment and the Phase 3 gate closes.
+Rev 8 — follow-up sweep: closes the asset-removal leak §8.3 had recorded (§8.3) and removes the
+dead code the phases left behind (§8.9).
 
 ## 1. Problem
 
@@ -353,11 +355,18 @@ jsdom deliberately.
 `blobToBase64` in `domain/package/engines/StudyPackageSerializer.ts` remains the product's encoder
 and tolerates both environments.
 
-**8.3 — `ImportAssetRepository.delete` now clears all rows of a material.** It deletes by the
-`materialId` index rather than one primary key, so a material's package-imported figures are
-removed alongside its imported PDF. That is the correct semantic for "remove this material's
-assets"; the method currently has no callers (`RemoveImportedMaterialUseCase` does not touch
-assets — a separate, pre-existing gap).
+**8.3 — Removal now deletes a material's assets (leak closed in Rev 8).** The gap this finding
+originally recorded — `ImportAssetRepository.delete` clearing every row of a material by the
+`materialId` index, but with no caller, because `RemoveImportedMaterialUseCase` did not touch
+assets — mattered more after Phase 1: the leak had been capped at one blob per removal, and the
+rekey raised it to N (a cloned 21-figure material stranded all 21 in IndexedDB, unreachable by
+any surface). **Fix:** `DexieLibraryImportService.removeImportedMaterial` now deletes that
+material's `localAssets` rows **inside the same transaction** as the material/questions/quizzes/
+documentContent deletes, so removal stays atomic (an off-transaction delete could fail after the
+material was already gone). The importer port shrank to its actual contract — write-only `put` —
+and its now-redundant `get`/`delete` were removed with it (§8.9). Coverage:
+`DexieLibraryImportService.test.ts` asserts a material's imported file *and* N figures are gone
+while another material's assets survive, plus rollback when the removal transaction fails.
 
 **8.4 — Phase 2 needed two URL gates, not one (§5.4).** Recorded there in full. Worth stating as a
 finding because the failure mode is invisible: with either gate rejecting `lc-asset`, the `<img>`
@@ -399,6 +408,37 @@ identity rewrite matches the old `lc-asset://{materialId}` form by construction.
   `node` environment, where stored `Blob`s keep their payload (§8.2). This closes the criterion: the
   bytes read back out of storage are compared against the seeded bytes, and the reference order
   they resolve in matches the source document.
+
+**8.9 — Dead code swept after the implementation (Rev 8).** Leftovers the three phases created or
+rendered obsolete, all removed:
+
+- **`worker/src/core/responses.ts` → `binary()`** — zero production callers once the binary figure
+  route retired; only its own test kept it alive. Removed with that test case.
+- **The Dexie v8 `upgrade` callback** — unreachable by construction (see §5.1's correction). Its
+  removal also killed the last production reference to `sourceId` as a material field, and the
+  `SCHEMA_V8` comment now states the rekey is declared-only instead of claiming a rewrite that
+  cannot happen.
+- **`DatabaseMigrator.migrateV2IfNeeded()`** — provably a no-op (its own comment called it a
+  "legacy metadata checkpoint that performed no data rewrite"); it wrote three `metadata` keys on
+  every boot until its localStorage flag was set.
+- **`ImportAssetRepository.get` / `.delete`** — `get` became dead when Phase 3 moved materialization
+  to `AssetRepository.getByMaterialId` (and its `.first()` semantics would have returned an
+  *arbitrary* figure of a multi-asset material, a trap worth deleting); `delete` was superseded by
+  the in-transaction delete in §8.3.
+- **Retired-taxonomy payload weight** — `scripts/seed-shares.mjs` emitted `subjectId`/`termId` into
+  share `metadata` from `content/catalog/materials.json`; `StudyMaterial` has carried no such fields
+  since Dexie v13 dropped `subjects`/`terms`/`subjectTerms`, and nothing in `src/` read them. The
+  emission and the catalog fields are gone, along with the three now-unread catalog JSON files
+  (`subjects.json`, `terms.json`, `subjectTerms.json`).
+- **Retired-backend E2E mocks** — `tests/e2e/helpers/e2e-setup.ts` stubbed `/api/catalog`,
+  `/api/catalog/materials/:id`, `/api/documents/:id`, and `/api/quiz`, none of which exist on the
+  Worker (routes: `ai`, `health`, `shares`, `sync`). It now mocks only `GET /api/shares`, and the
+  `seedQuiz` plumbing went with it.
+
+**Deliberately kept:** `AssetRepository.get(assetId)` has no product caller — the reader builds a
+whole-material map from `getByMaterialId` — but it is the port's identity primitive and the only
+direct assertion surface for the v14 invariant (exactly one blob per `assetId`, a multi-asset
+material never collapsing to one row). It is documented as such on the port rather than deleted.
 
 **8.8 — Read port renamed `AssetReader` → `AssetRepository`.** The original name broke the
 repo-wide persistence-port convention: every other port ends in `*Repository` with a

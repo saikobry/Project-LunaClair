@@ -49,7 +49,8 @@ export interface MetadataRecord {
  * Version 5: Adds flashcardReviews — spaced-repetition review states per card.
  * Version 6: Adds documentContents — locally imported document markdown.
  * Version 7: Drops the legacy `sourceType` index from materials.
- * Version 8: Rekeys documentContents from `sourceId` to `documentId`.
+ * Version 8: Rekeys documentContents from `sourceId` to `documentId`. Declared only — see the
+ *            `version(8)` note: no data migration can run for a primary-key change.
  * Version 9: Adds aiThreads and aiMessages for local-first AI chat persistence.
  * Version 10: Adds importAssets table for raw uploaded files.
  * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10 Cloud Synchronization.
@@ -122,28 +123,16 @@ export class LunaClairDatabase extends Dexie {
         this.version(5).stores(SCHEMA_V5);
         this.version(6).stores(SCHEMA_V6);
         this.version(7).stores(SCHEMA_V7);
-        this.version(8).stores(SCHEMA_V8).upgrade(async (tx) => {
-            // v7 stored imported content keyed by `sourceId`; v8 rekeys to `documentId`.
-            // Rewrite existing records so locally imported content survives the rename.
-            const table = tx.table('documentContents');
-            const records = (await table.toArray()) as Array<{
-                sourceId?: string;
-                title: string;
-                content: string;
-                updatedAt: string;
-            }>;
-            if (records.length > 0) {
-                await table.clear();
-                await table.bulkPut(
-                    records.map((r) => ({
-                        documentId: r.sourceId ?? '',
-                        title: r.title,
-                        content: r.content,
-                        updatedAt: r.updatedAt,
-                    })),
-                );
-            }
-        });
+        // No upgrade callback here, deliberately: v8 changes `documentContents`' primary key
+        // (`sourceId` → `documentId`), and IndexedDB cannot change a primary key in place — Dexie
+        // throws "Not yet support for changing primary key" while diffing the schema, before any
+        // `upgrade` callback runs. The callback that used to sit here (rewriting `sourceId` to
+        // `documentId`) was therefore unreachable on every path: a fresh install never runs
+        // old-version callbacks, and an existing v7 database fails to open before reaching it.
+        // v14 is the first rekey in this chain that actually migrates rows, because it drops the
+        // old store and declares a new one instead of changing the primary key in place
+        // (see SCHEMA_V14 and __tests__/databaseV14Migration.test.ts).
+        this.version(8).stores(SCHEMA_V8);
         this.version(9).stores(SCHEMA_V9);
         this.version(10).stores(SCHEMA_V10);
         this.version(11).stores(SCHEMA_V11);

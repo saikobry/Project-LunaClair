@@ -1,6 +1,4 @@
 import { type Page, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
 
 /**
  * Locators for the Writer workspace, centralized to avoid CSS selector duplication.
@@ -59,77 +57,17 @@ export async function switchToVisualMode(page: Page) {
 }
 
 /**
- * Mocks Cloudflare Worker /api routes in Playwright so tests run reliably
- * offline without needing a remote D1 database connection.
+ * Mocks the Worker API surface the app actually calls, so tests run offline without a
+ * remote D1 connection. Only `GET /api/shares` — the Explore hub's feed — is stubbed
+ * here, with an empty list; specs that need content route `/api/shares` themselves with
+ * a package payload.
+ *
+ * Retired endpoints are deliberately not mocked: `/api/catalog`, `/api/catalog/materials/:id`,
+ * `/api/documents/:id`, and `/api/quiz` no longer exist on the Worker (its routes are `ai`,
+ * `health`, `shares`, `sync`). The official catalog and its document/quiz feeds were replaced
+ * by `.lcpack` shares, so stubbing them only kept a deleted backend alive in test fixtures.
  */
-export async function setupApiMocks(page: Page, options?: { seedQuiz?: boolean }) {
-  const catalogDir = path.resolve(process.cwd(), 'content/catalog');
-  const materialsDir = path.resolve(process.cwd(), 'content/materials');
-  const quizDir = path.resolve(process.cwd(), 'content/quiz');
-
-  const materials = JSON.parse(fs.readFileSync(path.join(catalogDir, 'materials.json'), 'utf-8'));
-  const subjects = JSON.parse(fs.readFileSync(path.join(catalogDir, 'subjects.json'), 'utf-8'));
-  const terms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'terms.json'), 'utf-8'));
-  const subjectTerms = JSON.parse(fs.readFileSync(path.join(catalogDir, 'subjectTerms.json'), 'utf-8'));
-
-  let quizData = { questions: [], quizzes: [] };
-  if (options?.seedQuiz) {
-    const questions = JSON.parse(fs.readFileSync(path.join(quizDir, 'questions.json'), 'utf-8'));
-    const quizzes = JSON.parse(fs.readFileSync(path.join(quizDir, 'quizzes.json'), 'utf-8'));
-    quizData = { questions, quizzes };
-  }
-
-  await page.route(/\/api\/catalog(\?.*)?$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ subjects, terms, subjectTerms, materials }),
-    });
-  });
-
-  await page.route(/\/api\/catalog\/materials\/([^/?]+)/, async (route) => {
-    const url = route.request().url();
-    const id = url.split('/api/catalog/materials/')[1]?.split('?')[0];
-    const material = materials.find((m: { id: string }) => m.id === id);
-    if (!material) {
-      return route.fulfill({ status: 404, body: JSON.stringify({ error: 'Material not found' }) });
-    }
-    const subject = subjects.find((s: { id: string }) => s.id === material.subjectId);
-    const term = terms.find((t: { id: string }) => t.id === material.termId);
-    const subjectTerm = subjectTerms.find(
-      (st: { subjectId: string; termId: string }) =>
-        st.subjectId === material.subjectId && st.termId === material.termId,
-    );
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ material, subject, term, subjectTerm }),
-    });
-  });
-
-  await page.route(/\/api\/documents\/([^/?]+)/, async (route) => {
-    const url = route.request().url();
-    const id = url.split('/api/documents/')[1]?.split('?')[0];
-    const docPath = path.join(materialsDir, id ?? '', 'index.md');
-    let content = `# Default Document for ${id}`;
-    if (fs.existsSync(docPath)) {
-      content = fs.readFileSync(docPath, 'utf-8');
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ id, title: id, content }),
-    });
-  });
-
-  await page.route(/\/api\/quiz/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify(quizData),
-    });
-  });
-
+export async function setupApiMocks(page: Page) {
   await page.route(/\/api\/shares(?:\?.*)?$/, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
@@ -171,14 +109,15 @@ export async function resetDatabase(page: Page) {
 }
 
 /**
- * Shared helper to dismiss first-run onboarding and ensure a catalog material
- * is imported into the local Dexie library before testing.
+ * Seeds an imported material for the specs written against the retired official-catalog flow.
+ *
+ * ⚠️ Stale by design: it expects catalog material titles in Explore and clicks "Add
+ * {catalog title}", which the shares-only Explore hub does not render — the specs using this
+ * helper need re-seeding from a cloned `.lcpack` share before their results mean anything
+ * (root AGENTS.md, "E2E suite status"). Kept so those specs keep a single entry point while
+ * that re-seed happens.
  */
-export async function setupImportedMaterial(
-  page: Page,
-  materialId = 'cell-structure',
-  options?: { seedQuiz?: boolean },
-) {
+export async function setupImportedMaterial(page: Page, materialId = 'cell-structure') {
   // Pre-seed onboarding completion in localStorage so tutorial overlay never blocks interactions
   await page.addInitScript(() => {
     try {
@@ -188,7 +127,7 @@ export async function setupImportedMaterial(
     }
   });
 
-  await setupApiMocks(page, options);
+  await setupApiMocks(page);
 
   // Navigate directly to the Explore hub to perform deterministic imports
   await page.goto('/explore');

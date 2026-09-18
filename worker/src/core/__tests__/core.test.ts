@@ -3,7 +3,6 @@ import { computeCorsHeaders, handleCorsPreflight } from '../cors';
 import { decodeSegment, toUint8Array } from '../path';
 import {
   badRequest,
-  binary,
   conflict,
   forbidden,
   json,
@@ -32,7 +31,7 @@ describe('Worker Core Primitives', () => {
 
   describe('CORS Primitives', () => {
     it('computes CORS headers for allowed origin', () => {
-      const req = new Request('https://api.test/api/catalog', {
+      const req = new Request('https://api.test/api/shares', {
         headers: { Origin: 'https://lunaclair.app' },
       });
       const headers = computeCorsHeaders(req, dummyEnv);
@@ -42,7 +41,7 @@ describe('Worker Core Primitives', () => {
     });
 
     it('falls back to wildcard when origin is not in allowlist', () => {
-      const req = new Request('https://api.test/api/catalog', {
+      const req = new Request('https://api.test/api/shares', {
         headers: { Origin: 'https://malicious.com' },
       });
       const headers = computeCorsHeaders(req, dummyEnv);
@@ -50,7 +49,7 @@ describe('Worker Core Primitives', () => {
     });
 
     it('handles CORS OPTIONS preflight request', () => {
-      const req = new Request('https://api.test/api/catalog', {
+      const req = new Request('https://api.test/api/shares', {
         method: 'OPTIONS',
         headers: { Origin: 'https://lunaclair.app' },
       });
@@ -61,7 +60,7 @@ describe('Worker Core Primitives', () => {
     });
 
     it('returns null for non-OPTIONS requests', () => {
-      const req = new Request('https://api.test/api/catalog', { method: 'GET' });
+      const req = new Request('https://api.test/api/shares', { method: 'GET' });
       expect(handleCorsPreflight(req, dummyEnv)).toBeNull();
     });
   });
@@ -73,16 +72,6 @@ describe('Worker Core Primitives', () => {
       expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8');
       expect(res.headers.get('x-custom')).toBe('header');
       expect(await res.json()).toEqual({ hello: 'world' });
-    });
-
-    it('constructs binary responses', async () => {
-      const data = new Uint8Array([1, 2, 3, 4]);
-      const res = binary(data, 'image/png', { 'cache-control': 'public' });
-      expect(res.status).toBe(200);
-      expect(res.headers.get('content-type')).toBe('image/png');
-      expect(res.headers.get('cache-control')).toBe('public');
-      const buf = await res.arrayBuffer();
-      expect(new Uint8Array(buf)).toEqual(data);
     });
 
     it('constructs standard error responses', async () => {

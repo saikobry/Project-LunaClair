@@ -94,6 +94,65 @@ describe('DexieLibraryImportService', () => {
     expect(await db.documentContents.get('doc-mat-del')).toBeUndefined();
   });
 
+  it('rolls back asset removal when the removal transaction fails', async () => {
+    await service.importMaterial(createSampleInput('mat-rollback'));
+    await seedAssets('mat-rollback', 1);
+
+    // Fail the asset delete, which runs last inside the transaction.
+    vi.spyOn(db.localAssets, 'where').mockImplementationOnce(() => {
+      throw new Error('Simulated asset delete failure');
+    });
+
+    await expect(service.removeImportedMaterial('mat-rollback')).rejects.toThrow(
+      'Simulated asset delete failure',
+    );
+
+    // Nothing was removed: the whole removal is one atomic unit.
+    expect(await db.materials.get('mat-rollback')).toBeDefined();
+    expect(await db.questions.get('q-mat-rollback')).toBeDefined();
+    expect(await db.localAssets.where('materialId').equals('mat-rollback').toArray()).toHaveLength(2);
+  });
+
+  /**
+   * Binary assets of the material — the importer's single original file (`assetId = materialId`)
+   * plus any package-imported figures. Removal must not strand them in IndexedDB, and it must not
+   * touch another material's assets.
+   */
+  async function seedAssets(materialId: string, figureCount: number) {
+    await db.localAssets.put({
+      assetId: materialId,
+      materialId,
+      blob: new Blob(['PDF BYTES'], { type: 'application/pdf' }),
+      mimeType: 'application/pdf',
+      filename: 'lecture.pdf',
+      importedAt: '2026-08-01T00:00:00.000Z',
+    });
+    for (let i = 0; i < figureCount; i += 1) {
+      await db.localAssets.put({
+        assetId: `asset-figure-${materialId}-${i}`,
+        materialId,
+        blob: new Blob([`PNG BYTES ${i}`], { type: 'image/png' }),
+        mimeType: 'image/png',
+        filename: `figure-${i}.png`,
+        importedAt: '2026-08-01T00:00:00.000Z',
+      });
+    }
+  }
+
+  it('removes every stored binary asset of the material, including N package figures', async () => {
+    await service.importMaterial(createSampleInput('mat-owned'));
+    await service.importMaterial(createSampleInput('mat-other'));
+    await seedAssets('mat-owned', 3);
+    await seedAssets('mat-other', 2);
+
+    await service.removeImportedMaterial('mat-owned');
+
+    // The removed material owns no orphaned blobs...
+    expect(await db.localAssets.where('materialId').equals('mat-owned').toArray()).toHaveLength(0);
+    // ...and the untouched material keeps every one of its own.
+    expect(await db.localAssets.where('materialId').equals('mat-other').toArray()).toHaveLength(3);
+  });
+
   it('imports material batch atomically', async () => {
     const input1 = createSampleInput('mat-batch-1');
     const input2 = createSampleInput('mat-batch-2');

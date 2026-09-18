@@ -15,8 +15,13 @@ import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairData
  * `importMaterialBatch` accepts multiple materials and commits everything in
  * one single atomic transaction.
  *
- * `removeImportedMaterial` deletes the material row, its questions/quizzes,
- * and its document content in one transaction.
+ * `removeImportedMaterial` deletes the material row, its questions/quizzes, its
+ * document content, and every stored binary asset of the material
+ * (`localAssets` — the imported original file plus any package-imported figures)
+ * in one transaction. Asset removal lives here rather than on the importer's
+ * write port so it commits atomically with the rest of the removal; a
+ * non-atomic delete would leave orphaned blobs behind if the material delete
+ * succeeded and it failed.
  */
 export class DexieLibraryImportService implements LibraryImportService {
     private readonly db: LunaClairDatabase;
@@ -77,7 +82,13 @@ export class DexieLibraryImportService implements LibraryImportService {
     async removeImportedMaterial(materialId: string): Promise<void> {
         await this.db.transaction(
             'rw',
-            [this.db.materials, this.db.questions, this.db.quizzes, this.db.documentContents],
+            [
+                this.db.materials,
+                this.db.questions,
+                this.db.quizzes,
+                this.db.documentContents,
+                this.db.localAssets,
+            ],
             async () => {
                 const material = await this.db.materials.get(materialId);
                 await this.db.materials.delete(materialId);
@@ -89,6 +100,11 @@ export class DexieLibraryImportService implements LibraryImportService {
                 if (quizzes.length > 0) await this.db.quizzes.bulkDelete(quizzes.map((z) => z.id));
 
                 if (material?.documentId) await this.db.documentContents.delete(material.documentId);
+
+                // Binary assets go with the material — keyed by the `materialId` index, so a
+                // cloned material's N package figures are removed alongside its imported file.
+                // Leaving them would strand blobs in IndexedDB that nothing references.
+                await this.db.localAssets.where('materialId').equals(materialId).delete();
             },
         );
     }

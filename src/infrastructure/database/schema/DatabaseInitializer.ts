@@ -5,10 +5,10 @@ import { DatabaseMigrator } from './DatabaseMigrator';
  * Application startup orchestrator for the database layer.
  *
  * Opens the database and runs legacy localStorage migrations. Deliberately
- * does **not** seed anything: the canonical catalog lives in D1 and is
- * surfaced through the API as "Available Materials"; the user explicitly
- * imports materials into their local library. A fresh installation boots
- * with an empty library.
+ * does **not** seed anything: a fresh installation boots with an empty
+ * library, and content arrives only when the user clones a `.lcpack` share
+ * from the Explore hub (shares are the exclusive content distribution
+ * mechanism — the official catalog was retired).
  */
 export class DatabaseInitializer {
     private static initialized = false;

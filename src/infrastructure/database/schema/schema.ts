@@ -79,7 +79,11 @@ export const SCHEMA_V7 = {
 /**
  * Version 8: Rekeys `documentContents` from `sourceId` to `documentId` — the
  * vocabulary rename (the field is the document's key, not a generic "source").
- * The v8 upgrade rewrites existing records so locally imported content survives.
+ *
+ * Declared only: IndexedDB cannot change an object store's primary key, so Dexie
+ * throws before any upgrade callback runs and **no** data migration happens. Rows
+ * written after v8 simply use `documentId`; see the `version(8)` note in
+ * `LunaClairDatabase.ts`.
  */
 export const SCHEMA_V8 = {
     ...SCHEMA_V7,

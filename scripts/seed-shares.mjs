@@ -8,7 +8,7 @@
  * as public shares via `POST /api/shares`.
  *
  * Sources (read-only, canonical):
- *   - content/catalog/materials.json            (metadata: title, description, subjectId, termId)
+ *   - content/catalog/materials.json            (metadata: title, description, tags)
  *   - content/materials/{id}/index.md           (markdown document content)
  *   - content/materials/{id}/images/*           (figure assets: png, jpg, svg, webp)
  *   - content/quiz/questions.json, quizzes.json (questions & quizzes per material)
@@ -497,8 +497,6 @@ function buildPackageForMaterial(entry, allQuestions, allQuizzes) {
     title: entry.title ?? dirName,
     ...(entry.description ? { description: entry.description } : {}),
     author: PUBLISHER_AUTHOR,
-    ...(entry.subjectId ? { subjectId: entry.subjectId } : {}),
-    ...(entry.termId ? { termId: entry.termId } : {}),
     createdAt: new Date().toISOString(),
   };
 

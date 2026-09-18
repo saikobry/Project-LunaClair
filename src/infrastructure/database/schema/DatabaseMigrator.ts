@@ -6,16 +6,17 @@ import { normalizeTags } from '../../../domain/quiz/utils/tags';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
 
 const MIGRATION_KEY = 'lunaclair.migration.v1.complete';
-const V2_MIGRATION_KEY = 'lunaclair.migration.v2.complete';
 const V3_MIGRATION_KEY = 'lunaclair.migration.v3.complete';
 
 /**
  * Handles one-time migration of legacy localStorage data into IndexedDB.
  * v1: Migrates materials, highlights, drawings from localStorage.
- * v2: Legacy metadata checkpoint (historical; performed no data rewrite).
  * v3: Normalizes stored question tags (strip '#', dedup case-insensitively,
  *     preserve first-seen casing) — the write-boundary normalization that now
  *     guards every new tag write cannot repair tags created before it existed.
+ *
+ * These version numbers are this migrator's own, independent of the Dexie schema
+ * versions declared in `LunaClairDatabase` (which now own structural migrations).
  */
 export class DatabaseMigrator {
     private readonly database: LunaClairDatabase;
@@ -26,11 +27,8 @@ export class DatabaseMigrator {
 
     async migrateIfNeeded(): Promise<void> {
         await this.migrateV1IfNeeded();
-        await this.migrateV2IfNeeded();
         await this.migrateV3IfNeeded();
     }
-
-    // ── Version 1 ──────────────────────────────────────────────
 
     private async migrateV1IfNeeded(): Promise<void> {
         if (localStorage.getItem(MIGRATION_KEY)) return;
@@ -118,26 +116,6 @@ export class DatabaseMigrator {
             { key: 'createdAt', value: now },
         ]);
     }
-
-    // ── Version 2 — Legacy metadata checkpoint ───────────────────────
-
-    private async migrateV2IfNeeded(): Promise<void> {
-        const flag = localStorage.getItem(V2_MIGRATION_KEY);
-        if (flag) return;
-
-        await this.database.transaction(
-            'rw',
-            [this.database.materials, this.database.metadata],
-            async () => {
-                await this.database.metadata.put({ key: 'databaseVersion', value: 2 });
-                await this.database.metadata.put({ key: 'v2Migration', value: new Date().toISOString() });
-            },
-        );
-
-        localStorage.setItem(V2_MIGRATION_KEY, new Date().toISOString());
-    }
-
-    // ── Version 3 — Question tag normalization ───────────────────
 
     private async migrateV3IfNeeded(): Promise<void> {
         const flag = localStorage.getItem(V3_MIGRATION_KEY);

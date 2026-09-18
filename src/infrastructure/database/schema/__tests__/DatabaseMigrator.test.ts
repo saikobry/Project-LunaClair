@@ -12,7 +12,6 @@ describe('DatabaseMigrator', () => {
   let migrator: DatabaseMigrator;
 
   const V1_KEY = 'lunaclair.migration.v1.complete';
-  const V2_KEY = 'lunaclair.migration.v2.complete';
   const V3_KEY = 'lunaclair.migration.v3.complete';
 
   beforeEach(async () => {
@@ -37,7 +36,6 @@ describe('DatabaseMigrator', () => {
 
     // Migration completion flags are set
     expect(localStorage.getItem(V1_KEY)).not.toBeNull();
-    expect(localStorage.getItem(V2_KEY)).not.toBeNull();
     expect(localStorage.getItem(V3_KEY)).not.toBeNull();
 
     // Final metadata recorded databaseVersion 3
@@ -122,7 +120,6 @@ describe('DatabaseMigrator', () => {
 
   it('skips migration when completion flags are already set in localStorage', async () => {
     localStorage.setItem(V1_KEY, '2026-01-01T00:00:00.000Z');
-    localStorage.setItem(V2_KEY, '2026-01-01T00:00:00.000Z');
     localStorage.setItem(V3_KEY, '2026-01-01T00:00:00.000Z');
 
     const legacyMaterial: StudyMaterial = {
@@ -159,9 +156,8 @@ describe('DatabaseMigrator', () => {
     };
     await db.questions.put(q);
 
-    // Ensure V1 and V2 are marked complete so only V3 runs
+    // Ensure V1 is marked complete so only V3 runs
     localStorage.setItem(V1_KEY, 'done');
-    localStorage.setItem(V2_KEY, 'done');
 
     await migrator.migrateIfNeeded();
 

@@ -7,8 +7,9 @@ import type { StoredAsset } from '../../../../domain/assets/repositories/AssetRe
 /**
  * Note on the payload column: this suite asserts identity, grouping, and record fidelity, not
  * Blob bytes. Under jsdom + fake-indexeddb a stored Blob reads back as a plain object with its
- * bytes dropped — a test-environment limit, not product behavior. Blob payload fidelity is
- * covered by the browser E2E suite, where IndexedDB stores Blobs natively.
+ * bytes dropped — a test-environment limit, not product behavior. Byte-level fidelity is covered
+ * by `src/application/use-cases/package/__tests__/packageRoundtripBytes.test.ts`, which runs
+ * under Vitest's `node` environment where the real Blob survives IndexedDB intact.
  */
 describe('DexieAssetRepository', () => {
     let reader: DexieAssetRepository;
