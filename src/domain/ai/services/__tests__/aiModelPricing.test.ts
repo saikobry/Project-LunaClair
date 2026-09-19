@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AI_MODEL_PRICING, estimateAiCostUsd } from '../aiModelPricing';
+import { estimateAiCostUsd } from '../aiModelPricing';
+import {
+  DEFAULT_AI_MODEL_CATALOG,
+  findAiModelDescriptor,
+} from '../aiModelCatalog';
 
 const PRIMARY_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const PRIMARY_CATALOG_ID = 'cf-llama-3.3-70b';
 
 describe('estimateAiCostUsd', () => {
   it('prices the input and output halves at their own rates', () => {
@@ -26,8 +31,22 @@ describe('estimateAiCostUsd', () => {
   });
 
   it('returns null when the model is unknown', () => {
-    // The Worker's deprecated fallback is intentionally unpriced: unknown beats a wrong number.
+    // Unknown beats a wrong number: an unregistered model is unpriced by design.
     expect(estimateAiCostUsd({ promptTokens: 100, completionTokens: 50 }, 'some-other-model')).toBeNull();
+  });
+
+  it('prices a turn by catalog id as well as by the provider id older turns recorded', () => {
+    const usage = { promptTokens: 1_000, completionTokens: 100 };
+
+    expect(estimateAiCostUsd(usage, PRIMARY_CATALOG_ID)).toBe(
+      estimateAiCostUsd(usage, PRIMARY_MODEL),
+    );
+  });
+
+  it('returns null for a free model rather than charging zero', () => {
+    expect(
+      estimateAiCostUsd({ promptTokens: 1_000, completionTokens: 100 }, 'ukisai-swift-max'),
+    ).toBeNull();
   });
 
   it('returns null without a model, since the rate cannot be chosen', () => {
@@ -49,15 +68,16 @@ describe('estimateAiCostUsd', () => {
   });
 });
 
-describe('AI_MODEL_PRICING', () => {
-  it('is frozen so a rate cannot be mutated at runtime', () => {
-    expect(Object.isFrozen(AI_MODEL_PRICING)).toBe(true);
+describe('catalog rates', () => {
+  it('prices every priced model with positive rates', () => {
+    for (const model of DEFAULT_AI_MODEL_CATALOG.models) {
+      if (!model.pricing) continue;
+      expect(model.pricing.inputPerMillionUsd, model.id).toBeGreaterThan(0);
+      expect(model.pricing.outputPerMillionUsd, model.id).toBeGreaterThan(0);
+    }
   });
 
-  it('prices every model with a positive rate', () => {
-    for (const [model, pricing] of Object.entries(AI_MODEL_PRICING)) {
-      expect(pricing.inputPerMillionUsd, model).toBeGreaterThan(0);
-      expect(pricing.outputPerMillionUsd, model).toBeGreaterThan(0);
-    }
+  it('records the default model as priced and a provider id back to its descriptor', () => {
+    expect(findAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, PRIMARY_MODEL)?.pricing).not.toBeNull();
   });
 });

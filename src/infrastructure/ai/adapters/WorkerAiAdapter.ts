@@ -57,6 +57,8 @@ export class WorkerAiAdapter implements AiService {
               }
             : undefined,
           mode: request.mode,
+          // Omitted when the caller names no model, which lets the Worker resolve its default.
+          model: request.model,
         }),
         signal: request.signal,
       });
@@ -72,15 +74,34 @@ export class WorkerAiAdapter implements AiService {
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status} ${response.statusText}`;
+      // The Worker answers failures with a normalized code (`MODEL_UNAVAILABLE`, `RATE_LIMITED`,
+      // `CONTEXT_LIMIT`, …). Surfacing it lets the UI act on the cause instead of the status number.
+      let errorCode = `HTTP_${response.status}`;
+      let retryAfterSeconds: number | undefined;
       try {
-        const errorJson = (await response.json()) as { error?: string };
+        const errorJson = (await response.json()) as {
+          error?: string;
+          code?: string;
+          retryAfterSeconds?: number;
+        };
         if (errorJson.error) {
           errorMessage = errorJson.error;
+        }
+        if (typeof errorJson.code === 'string' && errorJson.code) {
+          errorCode = errorJson.code;
+        }
+        if (typeof errorJson.retryAfterSeconds === 'number') {
+          retryAfterSeconds = errorJson.retryAfterSeconds;
         }
       } catch {
         // Fallback to HTTP status text
       }
-      yield { type: 'error', code: `HTTP_${response.status}`, message: errorMessage };
+      yield {
+        type: 'error',
+        code: errorCode,
+        message: errorMessage,
+        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+      };
       return;
     }
 
@@ -180,6 +201,7 @@ export class WorkerAiAdapter implements AiService {
       documentContext: request.documentContext,
       selection: request.selection,
       mode: 'assistant',
+      model: request.model,
       signal: request.signal,
     });
 

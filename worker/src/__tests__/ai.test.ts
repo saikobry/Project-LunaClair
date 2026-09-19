@@ -36,8 +36,10 @@ describe('Worker /api/ai/chat Endpoint', () => {
     const res = await worker.fetch(req, baseEnv);
 
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({
+    // Failures carry a normalized code so the client can act on the cause, not the status number.
+    expect(await res.json()).toMatchObject({
       error: 'Cloudflare Workers AI binding not configured on Worker',
+      code: 'PROVIDER_UNAVAILABLE',
     });
   });
 
@@ -139,7 +141,10 @@ describe('Worker /api/ai/chat Endpoint', () => {
       expect(text).toContain(
         '"usage":{"promptTokens":4820,"completionTokens":312,"totalTokens":5132}',
       );
-      expect(text).toContain('"model":"@cf/meta/llama-3.3-70b-instruct-fp8-fast"');
+      // The app-facing catalog id, not the provider's own model id: the client selects and prices
+      // by the catalog, so the terminal event must name that id.
+      expect(text).toContain('"model":"cf-llama-3.3-70b"');
+      expect(text).not.toContain('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
     });
 
     it('omits usage rather than reporting a fabricated zero', async () => {
@@ -152,7 +157,7 @@ describe('Worker /api/ai/chat Endpoint', () => {
       const text = await res.text();
 
       expect(text).not.toContain('"usage"');
-      expect(text).toContain('"model":"@cf/meta/llama-3.3-70b-instruct-fp8-fast"');
+      expect(text).toContain('"model":"cf-llama-3.3-70b"');
     });
 
     it('logs what the provider sent when a stream produces no tokens', async () => {
@@ -167,8 +172,13 @@ describe('Worker /api/ai/chat Endpoint', () => {
       const text = await res.text();
 
       expect(text).toContain('"type":"done"');
+      // The route knows nothing was produced; the provider knows which payload was unreadable.
       expect(warn).toHaveBeenCalledWith(
-        'Workers AI stream completed without producing any tokens',
+        'AI stream completed without producing any tokens',
+        expect.objectContaining({ model: 'cf-llama-3.3-70b', provider: 'workers-ai' }),
+      );
+      expect(warn).toHaveBeenCalledWith(
+        'Workers AI sent a payload this endpoint does not understand',
         expect.objectContaining({ sample: '{"error":"model is not available"}' }),
       );
     });
@@ -186,8 +196,8 @@ describe('Worker /api/ai/chat Endpoint', () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it('names the fallback model when the primary model fails', async () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('fails visibly instead of substituting another model', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
 
       let calls = 0;
       const envWithAi: Env = {
@@ -195,18 +205,18 @@ describe('Worker /api/ai/chat Endpoint', () => {
         AI: {
           run: async () => {
             calls += 1;
-            if (calls === 1) throw new Error('primary unavailable');
-            return mockAiStream(['data: {"response": "Hi"}']);
+            throw new Error('primary unavailable');
           },
         },
       };
 
       const res = await worker.fetch(chatRequest(), envWithAi);
-      const text = await res.text();
 
-      // Cost is keyed by the serving model, so a fallback turn must not be priced as the primary.
-      expect(text).toContain('"model":"@cf/meta/llama-3.1-8b-instruct"');
-      expect(calls).toBe(2);
+      // The old silent retry named a model Cloudflare deprecated on 2026-05-30, so a failure could
+      // surface as an unrelated second failure. One call, and an answer the user can act on.
+      expect(calls).toBe(1);
+      expect(res.status).toBe(502);
+      expect(await res.json()).toMatchObject({ code: 'UPSTREAM_ERROR' });
     });
   });
 });

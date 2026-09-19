@@ -5,6 +5,7 @@ import { RenameAiThreadUseCase } from '../../../application/use-cases/ai/RenameA
 import { GetAiThreadMessagesUseCase } from '../../../application/use-cases/ai/GetAiThreadMessagesUseCase';
 import { DeleteAiThreadUseCase } from '../../../application/use-cases/ai/DeleteAiThreadUseCase';
 import { ClearChatHistoryUseCase } from '../../../application/use-cases/ai/ClearChatHistoryUseCase';
+import { GetAiModelCatalogUseCase } from '../../../application/use-cases/ai/GetAiModelCatalogUseCase';
 import { GenerateQuestionsUseCase } from '../../../application/use-cases/generator/GenerateQuestionsUseCase';
 import { BatchCreateQuestionsUseCase } from '../../../application/use-cases/generator/BatchCreateQuestionsUseCase';
 import { GenerateFlashcardsUseCase } from '../../../application/use-cases/generator/GenerateFlashcardsUseCase';
@@ -23,6 +24,7 @@ export function createAiUseCases(infrastructure: Infrastructure) {
             getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChat),
             deleteThread: new DeleteAiThreadUseCase(repositories.aiChat),
             clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChat),
+            getModelCatalog: new GetAiModelCatalogUseCase(repositories.aiModelCatalog),
         },
         generator: {
             generateQuestions: new GenerateQuestionsUseCase(services.ai),

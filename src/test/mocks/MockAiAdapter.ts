@@ -15,6 +15,8 @@ export interface MockAiAdapterOptions {
   shouldFail?: boolean;
   errorCode?: string;
   errorMessage?: string;
+  /** The wait a provider states on a refusal, so cooldown behavior can be exercised. */
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -27,6 +29,7 @@ export class MockAiAdapter implements AiService {
   private readonly shouldFail: boolean;
   private readonly errorCode: string;
   private readonly errorMessage: string;
+  private readonly retryAfterSeconds?: number;
 
   constructor(options: MockAiAdapterOptions = {}) {
     this.tokens = options.tokens ?? [
@@ -44,6 +47,7 @@ export class MockAiAdapter implements AiService {
     this.shouldFail = options.shouldFail ?? false;
     this.errorCode = options.errorCode ?? 'MOCK_ERROR';
     this.errorMessage = options.errorMessage ?? 'Simulated AI failure';
+    this.retryAfterSeconds = options.retryAfterSeconds;
   }
 
   async *streamChat(request: AiChatRequest): AsyncIterable<AiStreamEvent> {
@@ -53,7 +57,14 @@ export class MockAiAdapter implements AiService {
     }
 
     if (this.shouldFail) {
-      yield { type: 'error', code: this.errorCode, message: this.errorMessage };
+      yield {
+        type: 'error',
+        code: this.errorCode,
+        message: this.errorMessage,
+        ...(this.retryAfterSeconds !== undefined
+          ? { retryAfterSeconds: this.retryAfterSeconds }
+          : {}),
+      };
       return;
     }
 

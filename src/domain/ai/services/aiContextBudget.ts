@@ -1,33 +1,37 @@
 /**
- * Provider facts and pure estimators for "how full is the context window?".
+ * Pure estimators for "how full is the context window?".
  *
- * The window and reserved output are properties of the model, not of a conversation, so they live
- * beside the rate card (`aiModelPricing.ts`) as the other half of what the app knows about Workers AI.
+ * The window and reserved output are properties of a **model**, so they come from the model catalog
+ * (`aiModelCatalog.ts`) rather than from constants on this module. The exported constants below are
+ * the default model's facts, kept for callers that have no model in hand.
  *
- * Two constants here are mirrored from the Worker and must move in step with it:
- * `AI_RESERVED_OUTPUT_TOKENS` is the `max_tokens` `/api/ai/chat` requests, and the window is a
- * property of the primary model it names. The client cannot import from `worker/`, so the coupling is
- * documented rather than enforced.
- */
-
-/** Primary model's context window, in tokens — prompt **and** response combined. */
-export const AI_CONTEXT_WINDOW_TOKENS = 24_000;
-
-/**
- * Output tokens each request reserves (the Worker's `max_tokens`).
- *
- * Verified against a real rejection rather than assumed: Cloudflare refuses a request when
- * **estimated input plus this reservation** exceeds the window —
+ * `AI_RESERVED_OUTPUT_TOKENS` must equal the `max_tokens` the Worker sends: Cloudflare validates a
+ * request against estimated input **plus that reservation**, verified against a real rejection —
  * `5021: The estimated number of input and maximum output tokens (8810) exceeded this model context
  * window limit (8192)` — so subtracting it is exactly how much of the window the prompt may use.
  */
-export const AI_RESERVED_OUTPUT_TOKENS = 4_096;
+
+import { DEFAULT_AI_MODEL_CATALOG, getAiModelDescriptor } from './aiModelCatalog';
+
+/** The facts a budget estimate needs; any catalog descriptor satisfies this. */
+export interface AiModelBudgetFacts {
+  contextWindowTokens: number;
+  maxOutputTokens: number;
+}
+
+const DEFAULT_MODEL = getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG);
+
+/** Default model's context window, in tokens — prompt **and** response combined. */
+export const AI_CONTEXT_WINDOW_TOKENS = DEFAULT_MODEL.contextWindowTokens;
+
+/** Output tokens each request reserves (the Worker's `max_tokens`) for the default model. */
+export const AI_RESERVED_OUTPUT_TOKENS = DEFAULT_MODEL.maxOutputTokens;
 
 /**
  * Tokens the prompt may consume before the request is rejected.
  *
- * This is the provider's own boundary, not a safety margin: Cloudflare computes it as window minus
- * the request's `max_tokens`, so exceeding it produces error 5021 rather than a degraded answer.
+ * This is the provider's own boundary, not a safety margin: it computes it as window minus the
+ * request's `max_tokens`, so exceeding it produces a provider rejection rather than a degraded answer.
  */
 export const AI_PROMPT_BUDGET_TOKENS = AI_CONTEXT_WINDOW_TOKENS - AI_RESERVED_OUTPUT_TOKENS;
 
@@ -79,8 +83,14 @@ export interface AiContextUsageEstimate {
  * Deliberately a plain ratio plus per-message framing: a real tokenizer would add a large dependency
  * (and still disagree with the model's own tokenizer), while this is enough to warn that a long
  * conversation is approaching the ceiling.
+ *
+ * Pass the served model's facts; omitting them meters against the default model, which is what a
+ * request that names no model uses.
  */
-export function estimateContextUsage(counts: AiPromptCharCounts): AiContextUsageEstimate {
+export function estimateContextUsage(
+  counts: AiPromptCharCounts,
+  model: AiModelBudgetFacts = DEFAULT_MODEL,
+): AiContextUsageEstimate {
   const characters =
     AI_PROMPT_SCAFFOLDING_CHARS +
     Math.max(0, counts.documentChars) +
@@ -91,11 +101,13 @@ export function estimateContextUsage(counts: AiPromptCharCounts): AiContextUsage
     Math.ceil(characters / AI_CHARS_PER_TOKEN) +
     Math.max(0, counts.messageCount) * AI_MESSAGE_OVERHEAD_TOKENS;
 
+  const promptBudgetTokens = model.contextWindowTokens - model.maxOutputTokens;
+
   return {
     estimatedPromptTokens,
-    promptBudgetTokens: AI_PROMPT_BUDGET_TOKENS,
-    windowTokens: AI_CONTEXT_WINDOW_TOKENS,
-    utilization: estimatedPromptTokens / AI_PROMPT_BUDGET_TOKENS,
-    isOverBudget: estimatedPromptTokens > AI_PROMPT_BUDGET_TOKENS,
+    promptBudgetTokens,
+    windowTokens: model.contextWindowTokens,
+    utilization: estimatedPromptTokens / promptBudgetTokens,
+    isOverBudget: estimatedPromptTokens > promptBudgetTokens,
   };
 }

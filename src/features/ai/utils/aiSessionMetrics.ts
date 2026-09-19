@@ -5,6 +5,10 @@ import {
   estimateContextUsage,
   type AiContextUsageEstimate,
 } from '../../../domain/ai/services/aiContextBudget';
+import {
+  DEFAULT_AI_MODEL_CATALOG,
+  getAiModelDescriptor,
+} from '../../../domain/ai/services/aiModelCatalog';
 import { formatTokenCount, formatUsdCost } from './formatAiUsage';
 
 /** Exact, provider-reported totals across a conversation. */
@@ -86,6 +90,13 @@ export interface SessionContextInput {
   messages: AiMessageRecord[];
   documentMarkdown?: string;
   selectionText?: string;
+  /**
+   * The model the next request will use. Omitted = the catalog default.
+   *
+   * It matters because the document cap and the window are per-model: metering a MAX request with
+   * the default model's 16k cap would understate the material by an order of magnitude.
+   */
+  modelId?: string;
 }
 
 /**
@@ -96,22 +107,27 @@ export interface SessionContextInput {
  * is exactly how an estimate goes quietly wrong.
  */
 export function estimateSessionContext(input: SessionContextInput): SessionContextEstimate {
+  const model = getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, input.modelId);
   const documentChars =
     AiContextBuilder.buildDocumentContext({
       id: 'context-estimate',
       markdown: input.documentMarkdown,
+      maxCharacters: model.maxDocumentContextChars,
     })?.markdown.length ?? 0;
   const selectionChars =
     AiContextBuilder.buildSelectionContext({ text: input.selectionText })?.text.length ?? 0;
   const conversationChars = input.messages.reduce((sum, message) => sum + message.content.length, 0);
 
-  const estimate = estimateContextUsage({
-    documentChars,
-    selectionChars,
-    conversationChars,
-    // The transcript as it stands, plus the prompt that is about to be appended to it.
-    messageCount: input.messages.length + 1,
-  });
+  const estimate = estimateContextUsage(
+    {
+      documentChars,
+      selectionChars,
+      conversationChars,
+      // The transcript as it stands, plus the prompt that is about to be appended to it.
+      messageCount: input.messages.length + 1,
+    },
+    model,
+  );
 
   let lastMeasuredPromptTokens: number | null = null;
   for (let index = input.messages.length - 1; index >= 0; index -= 1) {

@@ -88,6 +88,13 @@ export interface AiSessionMetricsProps {
   documentMarkdown?: string;
   /** Text selection currently attached to the composer. */
   selectionText?: string;
+  /**
+   * Model the next request will use. Omitted = the catalog default.
+   *
+   * The window and the document cap are per-model, so the meter must follow the selection —
+   * otherwise switching to a 256k-window model would keep reporting against the default model.
+   */
+  modelId?: string;
 }
 
 /**
@@ -102,11 +109,12 @@ export const AiSessionMetrics = memo(function AiSessionMetrics({
   messages,
   documentMarkdown,
   selectionText,
+  modelId,
 }: AiSessionMetricsProps) {
   const totals = useMemo(() => summarizeSessionUsage(messages), [messages]);
   const context = useMemo(
-    () => estimateSessionContext({ messages, documentMarkdown, selectionText }),
-    [messages, documentMarkdown, selectionText],
+    () => estimateSessionContext({ messages, documentMarkdown, selectionText, modelId }),
+    [messages, documentMarkdown, selectionText, modelId],
   );
 
   // Nothing measured and nothing to ground means nothing worth the chrome.

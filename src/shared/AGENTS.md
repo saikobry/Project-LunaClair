@@ -8,7 +8,7 @@ Truly shared code: reusable domain-agnostic UI primitives, composite components,
 
 | Module | Contents |
 |---|---|
-| `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) |
+| `constants/storageKeys.ts` | `STORAGE_KEYS` nested storage namespace (`lunaclair.*`) — library/reader/settings/session keys incl. `settings.onboardingDone` (first-run tutorial gate) and `ai.modelId` (preferred AI model; a per-request, device-local choice, never a conversation property) |
 | `constants/listRendering.ts` | `VIRTUALIZE_AFTER_ITEM_COUNT` (25) — lists at/below render fully; larger lists virtualize (shelf, materials grid, sidebar nav) |
 | `constants/appInfo.ts` | `APP_VERSION` (`v0.2.0`) — display version badge, mirrors `package.json` (bump together) |
 | `ui/` | Design system primitive adapters and low-level container primitives — includes `Dialog` (native `<dialog>` wrapper over `@astryxdesign/core` with header/content/footer slots), `Card` (surface container; forwards `xstyle` for surface-level overrides such as a hover border — the border lives on the card element, so a child cannot express it), `TagInput` (chip entry with explicit Add button; renders NO inner `<form>` so it stays nest-safe inside outer modal forms — Enter commits via keydown with `preventDefault` + `stopPropagation`, never via submit), `ChatComposer` (grounded-chat input over Astryx `ChatComposer`: IME-guarded Enter-to-submit, history, send/stop toggle; long pastes stay plain text), `EmptyState` (zero-data / filter empty), `ErrorState` (404 / missing entity / offline error), `Skeleton` (`CardGridSkeleton`, `WorkspaceSkeleton`, `QuestionSkeleton`) |

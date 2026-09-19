@@ -15,6 +15,8 @@ export interface Env {
   SEED_TOKEN?: string;
   /** Cloudflare Workers AI binding for serverless edge inference. */
   AI?: AiBinding;
+  /** Override for the UkisAI (Swift) base URL — local dev and tests; unset = hosted endpoint. */
+  UKISAI_BASE_URL?: string;
 }
 
 export interface RouteContext {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { useAiChatThread } from '../useAiChatThread';
@@ -315,5 +315,94 @@ describe('useAiChatThread', () => {
     expect(result.current.isStreaming).toBe(false);
     expect(result.current.activity).toBeNull();
     expect(result.current.retryLastPrompt).toBeTypeOf('function');
+  });
+
+  it('sends the selected model and leaves it unset when none is chosen', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const received: Array<string | undefined> = [];
+    const original = mockAi.streamChat.bind(mockAi);
+    mockAi.streamChat = (request) => {
+      received.push(request.model);
+      return original(request);
+    };
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(
+      () => useAiChatThread({ materialId: 'doc-cardio', model: 'ukisai-swift-max' }),
+      { wrapper: harness.wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('Explain the SA node.');
+    });
+
+    expect(received).toEqual(['ukisai-swift-max']);
+  });
+
+  it('holds off sending during a rate-limit cooldown and says how long', async () => {
+    // A shared-capacity model refuses on its own schedule; spending the next request on a second
+    // refusal helps nobody.
+    const mockAi = new MockAiAdapter({
+      shouldFail: true,
+      errorCode: 'RATE_LIMITED',
+      errorMessage: 'Rate limit: 5 prompts per minute per IP. Try again in 6s.',
+      retryAfterSeconds: 6,
+    });
+    const streamChat = vi.spyOn(mockAi, 'streamChat');
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('First try.');
+    });
+
+    // The wait the provider named is honored, not the fallback.
+    expect(result.current.cooldownSeconds).toBeGreaterThan(0);
+    expect(result.current.cooldownSeconds).toBeLessThanOrEqual(6);
+    // The refusal is persisted as its own turn, so the transcript carries it rather than the banner.
+    expect(
+      result.current.messages.some((message) => message.metadata?.errorCode === 'RATE_LIMITED'),
+    ).toBe(true);
+
+    const attemptsAfterFirst = streamChat.mock.calls.length;
+
+    await act(async () => {
+      await result.current.sendMessage('Second try.');
+    });
+
+    // The retry never reached the service, and the user was told why.
+    expect(streamChat.mock.calls.length).toBe(attemptsAfterFirst);
+    expect(result.current.error?.code).toBe('RATE_LIMITED');
+    expect(result.current.error?.message).toMatch(/Shared capacity is busy/);
+  });
+
+  it('reports no cooldown when a turn succeeds', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('A question.');
+    });
+
+    expect(result.current.cooldownSeconds).toBe(0);
   });
 });

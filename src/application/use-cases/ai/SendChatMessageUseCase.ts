@@ -8,6 +8,10 @@ import type {
   AiUsage,
 } from '../../../domain/ai/models/ai.types';
 import { AiContextBuilder } from '../../../domain/ai/context/AiContextBuilder';
+import {
+  DEFAULT_AI_MODEL_CATALOG,
+  getAiModelDescriptor,
+} from '../../../domain/ai/services/aiModelCatalog';
 
 export interface SendChatMessageInput {
   /** Optional ID of the thread to auto-persist user and assistant message turns. */
@@ -24,6 +28,8 @@ export interface SendChatMessageInput {
     source?: string;
   };
   mode?: AiTutorMode;
+  /** App-facing model id; omitted = the Worker's catalog default. */
+  model?: string;
   signal?: AbortSignal;
 }
 
@@ -57,7 +63,13 @@ export class SendChatMessageUseCase {
       return;
     }
 
-    const documentContext = AiContextBuilder.buildDocumentContext(input.document);
+    // The document budget is a property of the served model, so it is applied here rather than left
+    // to the builder's default — a model with a larger window must not be fed the default model's cap.
+    const modelDescriptor = getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, input.model);
+    const documentContext = AiContextBuilder.buildDocumentContext({
+      ...input.document,
+      maxCharacters: modelDescriptor.maxDocumentContextChars,
+    });
     const selection = AiContextBuilder.buildSelectionContext(input.selection);
     const mode: AiTutorMode = input.mode ?? 'assistant';
     const threadId = input.threadId;
@@ -94,6 +106,7 @@ export class SendChatMessageUseCase {
         documentContext,
         selection,
         mode,
+        model: input.model,
         signal: input.signal,
       });
 

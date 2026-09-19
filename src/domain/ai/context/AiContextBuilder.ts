@@ -1,4 +1,5 @@
 import type { AiDocumentContext, AiSelectionContext } from '../models/ai.types';
+import { DEFAULT_AI_MODEL_CATALOG, getAiModelDescriptor } from '../services/aiModelCatalog';
 
 export interface BuildDocumentContextOptions {
   id?: string;
@@ -19,7 +20,12 @@ export interface BuildSelectionContextOptions {
  * Enforces character limits and sanitization to prevent context window overflow.
  */
 export class AiContextBuilder {
-  private static readonly DEFAULT_MAX_DOC_CHARS = 16000;
+  /**
+   * The served document budget is a model fact, not a literal: the default model's cap comes from the
+   * catalog, and callers serving another model pass `maxCharacters` explicitly.
+   */
+  private static readonly DEFAULT_MAX_DOC_CHARS =
+    getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG).maxDocumentContextChars;
   private static readonly DEFAULT_MAX_SELECTION_CHARS = 4000;
 
   /**

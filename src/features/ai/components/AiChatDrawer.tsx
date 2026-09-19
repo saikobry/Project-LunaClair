@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
@@ -8,7 +8,10 @@ import { AiChatMessageList } from './AiChatMessageList';
 import { AiChatHistoryPanel } from './AiChatHistoryPanel';
 import { AiChatErrorBanner } from './AiChatErrorBanner';
 import { AiSessionMetrics } from './AiSessionMetrics';
+import { AiModelPicker } from './AiModelPicker';
 import { AiChatInput } from './AiChatInput';
+import { useAiModelSelection } from '../hooks/useAiModelSelection';
+import { estimateSessionContext } from '../utils/aiSessionMetrics';
 import { type AiSelectionAction } from '../utils/selectionActionPrompt';
 import { useAiSessionDeletion } from '../hooks/useAiSessionDeletion';
 import { useAiSelectionAction } from '../hooks/useAiSelectionAction';
@@ -113,6 +116,10 @@ export function AiChatDrawer({
   // non-modal overlay with its own backdrop, so nothing else locks the page.
   useBodyScrollLock(isOpen);
 
+  // Which model the next message asks for. Per request, not per conversation: the thread stores no
+  // model, so switching here changes the next turn and never the one already streaming.
+  const { catalog, selectedModel, selectModel } = useAiModelSelection();
+
   const {
     thread,
     sessions,
@@ -131,7 +138,8 @@ export function AiChatDrawer({
     selectSession,
     deleteSession,
     error,
-  } = useAiChatThread({ materialId });
+    cooldownSeconds,
+  } = useAiChatThread({ materialId, model: selectedModel.id });
 
   const closeHistory = useCallback(() => setIsHistoryOpen(false), []);
   const toggleHistory = useCallback(() => setIsHistoryOpen((open) => !open), []);
@@ -149,6 +157,21 @@ export function AiChatDrawer({
     clearHistory,
     onCleared: closeHistory,
   });
+
+  // The guard the picker explains and the composer enforces. Derived from the same estimator the
+  // metric strip shows, against the selected model rather than the default one, and only an
+  // overshoot blocks sending — the request has not been refused until it is sent.
+  const isOverBudget = useMemo(
+    () =>
+      estimateSessionContext({
+        messages,
+        documentMarkdown: documentContext,
+        selectionText: selectionContext?.text,
+        modelId: selectedModel.id,
+      }).estimate.isOverBudget,
+    [messages, documentContext, selectionContext?.text, selectedModel.id],
+  );
+  const isSendBlocked = isOverBudget || cooldownSeconds > 0;
 
   // A turn in flight belongs on the transcript, so the history panel yields the
   // moment one starts. This also covers the reader's contextual Explain /
@@ -270,11 +293,21 @@ export function AiChatDrawer({
           {/* Conversation totals and the context estimate describe the transcript on screen, so
               they step aside with it while the history panel is showing. */}
           {!isHistoryOpen && (
-            <AiSessionMetrics
-              messages={messages}
-              documentMarkdown={documentContext}
-              selectionText={selectionContext?.text}
-            />
+            <>
+              <AiSessionMetrics
+                messages={messages}
+                documentMarkdown={documentContext}
+                selectionText={selectionContext?.text}
+                modelId={selectedModel.id}
+              />
+              <AiModelPicker
+                models={catalog.models}
+                selectedModelId={selectedModel.id}
+                onSelectModel={selectModel}
+                isOverBudget={isOverBudget}
+                cooldownSeconds={cooldownSeconds}
+              />
+            </>
           )}
 
           <AiChatInput
@@ -282,6 +315,7 @@ export function AiChatDrawer({
             onStopGeneration={stopStreaming}
             isStreaming={isStreaming}
             disabled={isLoading}
+            isSendBlocked={isSendBlocked}
             selectionExcerpt={selectionContext?.text}
             onClearSelection={onClearSelectionContext}
           />

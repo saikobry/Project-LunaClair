@@ -168,4 +168,85 @@ describe('SendChatMessageUseCase', () => {
       message: 'At least one message is required to send a chat request.',
     });
   });
+
+  it('forwards the requested model to the AI service', async () => {
+    const mockAi = new MockAiAdapter();
+    const received: Array<string | undefined> = [];
+    const original = mockAi.streamChat.bind(mockAi);
+    mockAi.streamChat = (request) => {
+      received.push(request.model);
+      return original(request);
+    };
+    const useCase = new SendChatMessageUseCase(mockAi);
+
+    const stream = useCase.execute({
+      messages: [
+        { id: 'm1', role: 'user', content: 'Explain the SA node.', createdAt: new Date().toISOString() },
+      ],
+      model: 'ukisai-swift-max',
+      mode: 'assistant',
+    });
+    const events: AiStreamEvent[] = [];
+    for await (const event of stream) {
+      events.push(event);
+    }
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(received).toEqual(['ukisai-swift-max']);
+  });
+
+  it('sends no model when none is requested, leaving the Worker to resolve its default', async () => {
+    const mockAi = new MockAiAdapter();
+    const received: Array<string | undefined> = [];
+    const original = mockAi.streamChat.bind(mockAi);
+    mockAi.streamChat = (request) => {
+      received.push(request.model);
+      return original(request);
+    };
+    const useCase = new SendChatMessageUseCase(mockAi);
+
+    const stream = useCase.execute({
+      messages: [
+        { id: 'm1', role: 'user', content: 'Explain the SA node.', createdAt: new Date().toISOString() },
+      ],
+      mode: 'assistant',
+    });
+    const events: AiStreamEvent[] = [];
+    for await (const event of stream) {
+      events.push(event);
+    }
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(received).toEqual([undefined]);
+  });
+
+  it('applies the selected model document budget to the context it sends', async () => {
+    // MAX accepts an order of magnitude more material than the default model; capping at the default
+    // would silently send a fraction of the material the user asked about.
+    const mockAi = new MockAiAdapter();
+    let documentChars = 0;
+    const original = mockAi.streamChat.bind(mockAi);
+    mockAi.streamChat = (request) => {
+      documentChars = request.documentContext?.markdown.length ?? 0;
+      return original(request);
+    };
+    const useCase = new SendChatMessageUseCase(mockAi);
+
+    const stream = useCase.execute({
+      messages: [
+        { id: 'm1', role: 'user', content: 'Summarize this chapter.', createdAt: new Date().toISOString() },
+      ],
+      document: { id: 'doc-1', title: 'Long Chapter', markdown: 'x'.repeat(100_000) },
+      model: 'ukisai-swift-max',
+      mode: 'assistant',
+    });
+    const events: AiStreamEvent[] = [];
+    for await (const event of stream) {
+      events.push(event);
+    }
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(documentChars).toBeGreaterThan(16_000);
+    expect(documentChars).toBeLessThan(170_000);
+  });
 });

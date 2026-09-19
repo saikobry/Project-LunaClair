@@ -59,7 +59,9 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `TesseractExtractor.ts` → OCR worker pool management via `tesseract.js`
 - `ai/` — Worker AI gateway:
   - `adapters/` — Model gateway implementations:
-    - `WorkerAiAdapter.ts` → `AiService` (streaming SSE client for `/api/ai/chat`)
+    - `WorkerAiAdapter.ts` → `AiService` (streaming SSE client for `/api/ai/chat`; forwards the request's optional catalog model id and surfaces the Worker's failure `code` and `retryAfterSeconds` verbatim instead of flattening every failure to `HTTP_<status>` — the cooldown depends on the provider's own wait)
+  - `catalog/` — Model catalog resolution:
+    - `WorkerAiModelCatalogRepository.ts` → `AiModelCatalogRepository` (fetch `/api/ai/models`, cache the last-good catalog in versioned `localStorage`, and merge fetch/cache/bundled-mirror by version so the app prices turns and meters requests offline; bounded by a fetch timeout and never throws)
   - `parsing/` — SSE stream parsing and structured output extraction:
     - `parseStructuredAiResponse.ts` → Stream parser and structured validator
 - `storage/` — Composite multi-tier storage repositories:
@@ -72,6 +74,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - **Zero Barrels (ADR-010)**: Internal `index.ts` barrels are prohibited; consumers import directly from concrete paths.
 - **Architectural Boundary Guardrails**: Features are statically prohibited by Oxlint from importing `src/infrastructure/**`. All feature writes route through application use cases. Composition roots (`createInfrastructure.ts`, `bootstrap.ts`) and test suites are the sole authorized consumers.
 - **1:1 Primary Unit Test Colocation (ADR-012)**: Every production file has a corresponding test in a colocated `__tests__/` directory within its responsibility folder. Consolidated multi-unit test files are prohibited.
+- **DI types domain ports, not adapters.** `Infrastructure.services.ai` is typed `AiService` (the domain port), not `WorkerAiAdapter`: composition roots wire concretes, but the graph's declared types must not let consumers depend on a gateway implementation.
 - **Dependency Injection**: Atomic database services standardize on explicit constructor injection with default singleton fallback (`constructor(db: LunaClairDatabase = defaultDb)`), adhering to TypeScript `erasableSyntaxOnly`.
 - **Atomic Dexie Transactions**: Multi-table operations (`DexieQuizEditorService.saveQuiz`, `DexieLibraryImportService`, `runSyncableTransaction`) execute within a single atomic `db.transaction('rw', ...)` scope.
 - **Local binary assets live in one store**: `localAssets` (Dexie v14) is keyed by `assetId` — the identity `lc-asset://{assetId}` document references resolve against — with a `materialId` index for "every asset belonging to this material". PDF/image import writes exactly one row per material as `assetId = materialId` (the importer's 1:1 contract); study package import writes N rows per material. Material removal deletes that material's `localAssets` rows inside the same `removeMaterial` transaction (`DexieLibraryImportService`) — an off-transaction delete would strand blobs whenever the material delete succeeded first. The same transaction also clears the material's `collectionMaterials` junction rows: a stale membership row keeps a deleted material counted as assigned, inflating a collection's count and holding the material out of the Library's `uncollected` lens.

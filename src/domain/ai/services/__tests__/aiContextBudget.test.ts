@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_AI_MODEL_CATALOG,
+  getAiModelDescriptor,
+} from '../aiModelCatalog';
+import {
   AI_CHARS_PER_TOKEN,
   AI_CONTEXT_WINDOW_TOKENS,
   AI_MESSAGE_OVERHEAD_TOKENS,
@@ -12,6 +16,16 @@ import {
 const empty = { documentChars: 0, selectionChars: 0, conversationChars: 0, messageCount: 0 };
 
 describe('context budget constants', () => {
+  it('derives the defaults from the catalog default model', () => {
+    // The window is a model fact now; these constants are only the default model's copy of it.
+    expect(AI_CONTEXT_WINDOW_TOKENS).toBe(
+      getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG).contextWindowTokens,
+    );
+    expect(AI_RESERVED_OUTPUT_TOKENS).toBe(
+      getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG).maxOutputTokens,
+    );
+  });
+
   it('reserves output out of the window rather than adding to it', () => {
     // The window is prompt + response combined, so the budget must be the remainder.
     expect(AI_PROMPT_BUDGET_TOKENS).toBe(AI_CONTEXT_WINDOW_TOKENS - AI_RESERVED_OUTPUT_TOKENS);
@@ -86,5 +100,28 @@ describe('estimateContextUsage', () => {
     expect(estimateContextUsage({ ...empty, documentChars: -5_000, messageCount: -3 })).toEqual(
       estimateContextUsage(empty),
     );
+  });
+});
+
+describe('estimateContextUsage with another model', () => {
+  it('meters against the supplied model rather than the default', () => {
+    const big = estimateContextUsage(empty, {
+      contextWindowTokens: 262_144,
+      maxOutputTokens: 4_096,
+    });
+
+    expect(big.windowTokens).toBe(262_144);
+    expect(big.promptBudgetTokens).toBe(262_144 - 4_096);
+  });
+
+  it('keeps a document that would overflow the default model well inside a larger window', () => {
+    // 100k characters is ~25k tokens: over the default budget, comfortable against a 256k window.
+    const counts = { ...empty, documentChars: 100_000 };
+
+    expect(estimateContextUsage(counts).isOverBudget).toBe(true);
+    expect(
+      estimateContextUsage(counts, { contextWindowTokens: 262_144, maxOutputTokens: 4_096 })
+        .isOverBudget,
+    ).toBe(false);
   });
 });

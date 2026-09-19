@@ -14,6 +14,10 @@ export const STORAGE_KEYS = {
     installDismissed: 'lunaclair.settings.install_prompt_dismissed',
     onboardingDone: 'lunaclair.settings.onboarding_done',
   },
+  ai: {
+    /** Preferred AI model id — a per-request choice, device-local, never a conversation property. */
+    modelId: 'lunaclair.ai.model_id',
+  },
   sync: {
     deviceId: 'lunaclair.device_id',
     sessionCredentials: 'lunaclair.session_credentials',

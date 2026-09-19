@@ -165,6 +165,28 @@ describe('estimateSessionContext', () => {
     expect(context.percent).toBeGreaterThan(100);
   });
 
+  it('meters a MAX request against MAX, not the default model', () => {
+    // The document cap and the window are both per-model, so the model choice is what the readout
+    // must reflect: MAX sends an order of magnitude more material, metered against a far larger window.
+    const documentMarkdown = 'x'.repeat(200_000);
+
+    const standard = estimateSessionContext({ messages: [], documentMarkdown });
+    const max = estimateSessionContext({ messages: [], documentMarkdown, modelId: 'ukisai-swift-max' });
+
+    expect(standard.documentChars).toBeGreaterThanOrEqual(16_000);
+    expect(standard.documentChars).toBeLessThan(17_000);
+    expect(max.documentChars).toBeGreaterThan(150_000);
+    expect(max.documentChars).toBeLessThan(161_000);
+    expect(max.estimate.windowTokens).toBeGreaterThan(standard.estimate.windowTokens);
+    expect(max.estimate.isOverBudget).toBe(false);
+  });
+
+  it('falls back to the default model for an unknown model id', () => {
+    expect(estimateSessionContext({ messages: [], modelId: 'unknown-model' }).estimate).toEqual(
+      estimateSessionContext({ messages: [] }).estimate,
+    );
+  });
+
   it('reports the most recent measured prompt to calibrate the estimate', () => {
     const context = estimateSessionContext({
       messages: [

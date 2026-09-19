@@ -93,6 +93,66 @@ describe('WorkerAiAdapter', () => {
     });
   });
 
+  it('surfaces the Worker failure code and the wait it stated', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      json: async () => ({
+        error: 'Rate limit: 5 prompts per minute per IP. Try again in 7s.',
+        code: 'RATE_LIMITED',
+        retryAfterSeconds: 7,
+      }),
+    } as unknown as Response);
+
+    const adapter = new WorkerAiAdapter();
+    const events: AiStreamEvent[] = [];
+    for await (const event of adapter.streamChat({
+      messages: [{ id: '1', role: 'user', content: 'hi', createdAt: new Date().toISOString() }],
+      mode: 'assistant',
+      model: 'ukisai-swift-max',
+    })) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      {
+        type: 'error',
+        code: 'RATE_LIMITED',
+        message: 'Rate limit: 5 prompts per minute per IP. Try again in 7s.',
+        retryAfterSeconds: 7,
+      },
+    ]);
+  });
+
+  it('forwards the requested model to the gateway', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.close();
+        },
+      }),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock;
+
+    const adapter = new WorkerAiAdapter({ baseUrl: 'https://api.test' });
+    const events: AiStreamEvent[] = [];
+    for await (const event of adapter.streamChat({
+      messages: [{ id: '1', role: 'user', content: 'hi', createdAt: new Date().toISOString() }],
+      mode: 'assistant',
+      model: 'ukisai-swift-max',
+    })) {
+      events.push(event);
+    }
+
+    // An empty stream body yields nothing; the request body is what this test is about.
+    expect(events).toEqual([]);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(JSON.parse(init.body)).toMatchObject({ model: 'ukisai-swift-max' });
+  });
+
   it('handles client abort signal gracefully', async () => {
     const controller = new AbortController();
     const adapter = new WorkerAiAdapter();

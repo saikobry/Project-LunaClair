@@ -1,6 +1,6 @@
 import { methodNotAllowed, notFound } from './core/responses';
 import type { Env, RouteContext, RouteHandler } from './core/types';
-import { handleAiChat } from './routes/ai';
+import { handleAiChat, handleAiModels } from './routes/ai';
 import { handleHealth } from './routes/health';
 import {
   handleCreateShare,
@@ -156,7 +156,8 @@ export function createRouter(): Router {
   // Health check
   router.register(['GET', 'HEAD'], '/health', handleHealth);
 
-  // AI Streaming completions
+  // AI model catalog + streaming completions
+  router.register(['GET', 'HEAD'], '/api/ai/models', handleAiModels);
   router.register('POST', '/api/ai/chat', handleAiChat);
 
   // Sync protocol

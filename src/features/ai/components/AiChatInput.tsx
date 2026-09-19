@@ -52,6 +52,12 @@ export interface AiChatInputProps {
   onStopGeneration?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
+  /**
+   * Blocks submission while leaving the field editable — for guards the user can resolve
+   * (a conversation too large for the selected model, a rate-limit cooldown). The reason is
+   * rendered beside the model control, so this only has to prevent the request.
+   */
+  isSendBlocked?: boolean;
   placeholder?: string;
   selectionExcerpt?: string;
   onClearSelection?: () => void;
@@ -62,6 +68,7 @@ export function AiChatInput({
   onStopGeneration,
   isStreaming = false,
   disabled = false,
+  isSendBlocked = false,
   placeholder = 'Ask a question about this material…',
   selectionExcerpt,
   onClearSelection,
@@ -70,7 +77,7 @@ export function AiChatInput({
 
   const handleSubmit = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed || isStreaming || disabled) return;
+    if (!trimmed || isStreaming || disabled || isSendBlocked) return;
     onSendMessage(trimmed);
   };
 

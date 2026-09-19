@@ -14,6 +14,7 @@ import {
   type AiActivityState,
 } from '../utils/aiActivity';
 import { deriveSessionTitle } from '../utils/deriveSessionTitle';
+import { resolveCooldownSeconds } from '../utils/aiRateLimit';
 
 export interface UseAiChatThreadOptions {
   /** Optional study material ID. If undefined, operates on the global assistant. */
@@ -35,11 +36,20 @@ export interface UseAiChatThreadOptions {
    * is abandoned. Defaults to {@link AI_FIRST_TOKEN_TIMEOUT_MS}.
    */
   firstTokenTimeoutMs?: number;
+  /**
+   * App-facing model id for the next request. Omitted = the Worker's catalog default.
+   *
+   * Read at send time, so switching models affects the next message and never the turn already
+   * streaming; retries reuse it because they go through the same options.
+   */
+  model?: string;
 }
 
 export interface AiChatError {
   code: string;
   message: string;
+  /** Present when the provider named a wait — a rate limit, typically. */
+  retryAfterSeconds?: number;
 }
 
 export interface UseAiChatThreadResult {
@@ -65,6 +75,13 @@ export interface UseAiChatThreadResult {
   retryMessage: (messageId: string) => Promise<void>;
   /** Re-sends the most recent user prompt (used when a request failed before a turn was persisted). */
   retryLastPrompt: () => Promise<void>;
+  /**
+   * Seconds until sending is allowed after a rate limit; 0 when ready.
+   *
+   * A shared-capacity model refuses on its own schedule, so the composer holds off until the wait
+   * the provider named has passed instead of spending a request on a refusal.
+   */
+  cooldownSeconds: number;
   /** Clears the current request-level error without retrying. */
   dismissError: () => void;
   /** Deletes every session in scope. */
@@ -130,6 +147,10 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
   const [streamingText, setStreamingText] = useState('');
   const [activity, setActivity] = useState<AiActivityState | null>(null);
   const [error, setError] = useState<AiChatError | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  /** Mirrors `cooldownUntil` for `sendMessage`, which must not close over stale state. */
+  const cooldownUntilRef = useRef<number | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   /** Identifies the in-flight turn so a superseded stream cannot clobber newer state. */
@@ -137,6 +158,37 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
   const streamStartedAtRef = useRef(0);
   const firstTokenRef = useRef(false);
   const previousMaterialIdRef = useRef(materialId);
+
+  /**
+   * Starts a cooldown from the wait a provider named.
+   *
+   * Both the displayed seconds and the absolute deadline are set here, in the caller's event
+   * handler, rather than derived inside an effect — the countdown is computed from the deadline so a
+   * backgrounded tab that misses ticks still resumes at the right remaining time instead of drifting.
+   */
+  const startCooldown = useCallback((retryAfterSeconds?: number) => {
+    const seconds = resolveCooldownSeconds(retryAfterSeconds);
+    const until = Date.now() + seconds * 1_000;
+    cooldownUntilRef.current = until;
+    setCooldownUntil(until);
+    setCooldownSeconds(seconds);
+  }, []);
+
+  useEffect(() => {
+    if (cooldownUntil === null) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setCooldownSeconds(remaining);
+      if (remaining === 0) {
+        cooldownUntilRef.current = null;
+        setCooldownUntil(null);
+      }
+    };
+
+    const interval = window.setInterval(tick, 1_000);
+    return () => window.clearInterval(interval);
+  }, [cooldownUntil]);
 
   const abort = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -332,6 +384,18 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
       const trimmed = content.trim();
       if (!trimmed) return;
 
+      // A shared-capacity model refuses on its own schedule; retrying before the wait it named has
+      // passed would spend the request on another refusal. Retries route through here too, so the
+      // guard also covers "Retry" on the error banner.
+      const remainingCooldown = cooldownUntilRef.current;
+      if (remainingCooldown !== null && Date.now() < remainingCooldown) {
+        setError({
+          code: 'RATE_LIMITED',
+          message: `Shared capacity is busy. Try again in ${Math.ceil((remainingCooldown - Date.now()) / 1000)}s.`,
+        });
+        return;
+      }
+
       abort();
 
       const controller = new AbortController();
@@ -389,6 +453,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
 
       const mergedDocContext = overrideOptions.documentContext ?? options.documentContext;
       const mergedSelection = overrideOptions.selection ?? options.selection;
+      const mergedModel = overrideOptions.model ?? options.model;
 
       const chatMessagesPayload = [
         ...messages.map((m) => ({
@@ -414,6 +479,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
           messages: chatMessagesPayload,
           document: mergedDocContext,
           selection: mergedSelection,
+          model: mergedModel,
           signal: controller.signal,
         });
 
@@ -436,7 +502,16 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
               break;
             case 'error':
               hadStreamErrorEvent = true;
-              setError({ code: event.code, message: event.message });
+              setError({
+                code: event.code,
+                message: event.message,
+                ...(event.retryAfterSeconds !== undefined
+                  ? { retryAfterSeconds: event.retryAfterSeconds }
+                  : {}),
+              });
+              if (event.code === 'RATE_LIMITED') {
+                startCooldown(event.retryAfterSeconds);
+              }
               break;
           }
         }
@@ -488,7 +563,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
         }
       }
     },
-    [context, thread, materialId, options, messages, abort, refreshSessions],
+    [context, thread, materialId, options, messages, abort, refreshSessions, startCooldown],
   );
 
   const retryMessage = useCallback(
@@ -523,6 +598,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     streamingText,
     streamingMessageId,
     error,
+    cooldownSeconds,
     sendMessage,
     abort,
     stopStreaming: abort,

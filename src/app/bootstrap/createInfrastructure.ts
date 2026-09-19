@@ -9,6 +9,7 @@ import type { QuizDraftRepository } from '../../application/quiz-management/draf
 import type { FlashcardReviewRepository } from '../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { AnalyticsRepository } from '../../domain/analytics/repositories/AnalyticsRepository';
 import type { AiChatRepository } from '../../domain/ai/repositories/AiChatRepository';
+import type { AiModelCatalogRepository } from '../../domain/ai/repositories/AiModelCatalogRepository';
 import type { ImportAssetRepository } from '../../domain/importer/repositories/ImportAssetRepository';
 import type { AssetRepository } from '../../domain/assets/repositories/AssetRepository';
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
@@ -29,6 +30,7 @@ import { dexieAnalyticsRepository } from '../../infrastructure/database/reposito
 import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/adapters/WorkerAiAdapter';
+import { WorkerAiModelCatalogRepository } from '../../infrastructure/ai/catalog/WorkerAiModelCatalogRepository';
 import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
 import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
 import { dexieAssetRepository } from '../../infrastructure/database/repositories/DexieAssetRepository';
@@ -48,6 +50,7 @@ import { db, type LunaClairDatabase } from '../../infrastructure/database/schema
 import type { WorkerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import type { WorkerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import type { LocalStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
+import type { AiService } from '../../domain/ai/services/AiService';
 import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 
@@ -68,6 +71,7 @@ export interface Repositories {
     flashcardReview: FlashcardReviewRepository;
     analytics: AnalyticsRepository;
     aiChat: AiChatRepository;
+    aiModelCatalog: AiModelCatalogRepository;
     importAsset: ImportAssetRepository;
     asset: AssetRepository;
     syncQueue: SyncQueueRepository;
@@ -88,7 +92,8 @@ export interface Infrastructure {
         quizEditor: DexieQuizEditorService;
         libraryImport: DexieLibraryImportService;
         studyPackageImport: DexieStudyPackageImportService;
-        ai: WorkerAiAdapter;
+        /** Typed as the domain port: features/use cases must not depend on the concrete gateway. */
+        ai: AiService;
     };
     transports: {
         sync: WorkerSyncTransport;
@@ -110,6 +115,7 @@ export function createInfrastructure(): Infrastructure {
     );
 
     const aiService = new WorkerAiAdapter();
+    const aiModelCatalogRepository = new WorkerAiModelCatalogRepository();
 
     const repositories: Repositories = {
         document: documentRepository,
@@ -123,6 +129,7 @@ export function createInfrastructure(): Infrastructure {
         flashcardReview: dexieFlashcardReviewRepository,
         analytics: dexieAnalyticsRepository,
         aiChat: dexieAiChatRepository,
+        aiModelCatalog: aiModelCatalogRepository,
         importAsset: dexieImportAssetRepository,
         asset: dexieAssetRepository,
         syncQueue: dexieSyncQueueRepository,

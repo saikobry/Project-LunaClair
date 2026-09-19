@@ -49,6 +49,11 @@ export interface AiChatRequest {
   documentContext?: AiDocumentContext;
   selection?: AiSelectionContext;
   mode: AiTutorMode;
+  /**
+   * App-facing model id from the model catalog (`GET /api/ai/models`). Omitted = the catalog default.
+   * The client names a model, never a provider; the Worker resolves it server-side.
+   */
+  model?: string;
   signal?: AbortSignal;
 }
 
@@ -68,7 +73,16 @@ export type AiStreamEvent =
   | { type: 'start'; messageId: string }
   | { type: 'token'; text: string }
   | { type: 'done'; usage?: AiUsage; model?: string }
-  | { type: 'error'; code: string; message: string };
+  | {
+      type: 'error';
+      code: string;
+      message: string;
+      /**
+       * Seconds the provider asked the caller to wait, when it stated one (a rate limit does).
+       * A shared-capacity model depends on this to avoid spending the next request on a refusal.
+       */
+      retryAfterSeconds?: number;
+    };
 
 /**
  * Status of an individual message in persistence.
@@ -121,6 +135,8 @@ export interface AiGenerationRequest {
   selection?: AiSelectionContext;
   temperature?: number;
   maxTokens?: number;
+  /** App-facing model id from the model catalog. Omitted = the catalog default. */
+  model?: string;
   signal?: AbortSignal;
 }
 
