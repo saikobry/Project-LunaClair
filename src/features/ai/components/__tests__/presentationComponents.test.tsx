@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AiStreamingIndicator } from '../AiStreamingIndicator';
-import { AiModeSelector } from '../AiModeSelector';
+import { AiChatErrorBanner } from '../AiChatErrorBanner';
 import { AiChatInput } from '../AiChatInput';
 
 describe('AI Presentation Components', () => {
@@ -14,50 +14,31 @@ describe('AI Presentation Components', () => {
     });
 
     it('renders custom label when provided', () => {
-      render(<AiStreamingIndicator label="Generating socratic prompt…" />);
-      expect(screen.getByText('Generating socratic prompt…')).toBeInTheDocument();
+      render(<AiStreamingIndicator label="Still working… 12s" />);
+      expect(screen.getByText('Still working… 12s')).toBeInTheDocument();
     });
   });
 
-  describe('AiModeSelector', () => {
-    it('renders tabs with active state and message counts', () => {
-      const onModeChange = vi.fn();
+  describe('AiChatErrorBanner', () => {
+    it('surfaces the failure and offers retry and dismiss', () => {
+      const onRetry = vi.fn();
+      const onDismiss = vi.fn();
+
       render(
-        <AiModeSelector
-          currentMode="assistant"
-          onModeChange={onModeChange}
-          assistantMessageCount={4}
-          socraticMessageCount={2}
+        <AiChatErrorBanner
+          message="The assistant did not start responding in time. Please try again."
+          onRetry={onRetry}
+          onDismiss={onDismiss}
         />,
       );
 
-      const assistantTab = screen.getByRole('tab', { name: /Study Assistant mode/i });
-      const socraticTab = screen.getByRole('tab', { name: /Socratic Tutor mode/i });
+      expect(screen.getByRole('alert')).toHaveTextContent(/did not start responding in time/i);
 
-      expect(assistantTab).toHaveAttribute('aria-selected', 'true');
-      expect(socraticTab).toHaveAttribute('aria-selected', 'false');
+      fireEvent.click(screen.getByRole('button', { name: /Retry the request/i }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
 
-      expect(screen.getByText('4')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-
-      fireEvent.click(socraticTab);
-      expect(onModeChange).toHaveBeenCalledWith('socratic');
-    });
-
-    it('disables mode switching when disabled prop is true', () => {
-      const onModeChange = vi.fn();
-      render(
-        <AiModeSelector
-          currentMode="assistant"
-          onModeChange={onModeChange}
-          disabled={true}
-        />,
-      );
-
-      const socraticTab = screen.getByRole('tab', { name: /Socratic Tutor mode/i });
-      expect(socraticTab).toBeDisabled();
-      fireEvent.click(socraticTab);
-      expect(onModeChange).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Dismiss this error/i }));
+      expect(onDismiss).toHaveBeenCalledTimes(1);
     });
   });
 

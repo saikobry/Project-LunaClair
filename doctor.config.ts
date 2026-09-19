@@ -39,6 +39,18 @@ export default {
         files: ['src/app/screens/explore/components/ShareCard.tsx'],
         rules: ['react-doctor/no-static-element-interactions'],
       },
+      {
+        // The loading-flag reset IS inside a `finally` block — the rule's own
+        // "Candidate corrected pattern" — so the diagnostic's premise ("resets
+        // only on the success path") is falsified. The reset additionally sits in
+        // a locally-defined async closure invoked with `void load()`, which the
+        // detector does not see through. The `if (!cancelled)` guard cannot be
+        // dropped to satisfy the matcher: the effect re-runs on session switch
+        // and material change, and an unconditional reset would clear the newer
+        // load's spinner. Evidence: .react-doctor/false-positives.md
+        files: ['src/features/ai/hooks/useAiChatThread.ts'],
+        rules: ['react-doctor/no-loading-flag-reset-outside-finally'],
+      },
   ],
   },
   rules: {

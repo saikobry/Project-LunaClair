@@ -94,6 +94,80 @@ describe('AI Message Rendering & Message List', () => {
       expect(screen.getByText('Interrupted')).toBeInTheDocument();
       expect(screen.getByText('Generation was interrupted.')).toBeInTheDocument();
     });
+
+    it('shows the token count and cost of a settled assistant turn', () => {
+      const meteredMessage: AiMessageRecord = {
+        id: 'msg-a5',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'The sinoatrial node is the natural pacemaker.',
+        status: 'complete',
+        createdAt: '2026-08-25T01:00:06.000Z',
+        metadata: {
+          usage: { promptTokens: 4820, completionTokens: 312, totalTokens: 5132 },
+          model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+        },
+      };
+
+      render(<AiChatMessage message={meteredMessage} />);
+
+      const usageLine = screen.getByTestId('ai-usage-msg-a5');
+      expect(usageLine).toHaveTextContent('5,132 tokens');
+      expect(usageLine).toHaveTextContent('$0.0021');
+      // The prompt/completion split is available on hover rather than spent as transcript space.
+      expect(usageLine).toHaveAttribute('title', '4,820 in · 312 out');
+    });
+
+    it('reports tokens without a cost when the serving model has no published rate', () => {
+      const meteredMessage: AiMessageRecord = {
+        id: 'msg-a6',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'Served by a model we cannot price.',
+        status: 'complete',
+        createdAt: '2026-08-25T01:00:07.000Z',
+        metadata: {
+          usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+          model: 'unpriced-model',
+        },
+      };
+
+      render(<AiChatMessage message={meteredMessage} />);
+
+      const usageLine = screen.getByTestId('ai-usage-msg-a6');
+      expect(usageLine).toHaveTextContent('150 tokens');
+      // Unknown is not the same as free, so no cost is asserted in either direction.
+      expect(usageLine).not.toHaveTextContent('$');
+    });
+
+    it('omits the usage line when no telemetry was recorded', () => {
+      const plainMessage: AiMessageRecord = {
+        id: 'msg-a7',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'This turn predates usage telemetry.',
+        status: 'complete',
+        createdAt: '2026-08-25T01:00:08.000Z',
+      };
+      const userMessage: AiMessageRecord = {
+        id: 'msg-u7',
+        threadId: 'th-1',
+        role: 'user',
+        content: 'A question never carries provider telemetry.',
+        status: 'complete',
+        createdAt: '2026-08-25T01:00:09.000Z',
+      };
+
+      render(
+        <>
+          <AiChatMessage message={plainMessage} />
+          <AiChatMessage message={userMessage} />
+        </>,
+      );
+
+      expect(screen.queryByTestId('ai-usage-msg-a7')).toBeNull();
+      expect(screen.queryByTestId('ai-usage-msg-u7')).toBeNull();
+    });
   });
 
   describe('AiChatMessageList', () => {
@@ -102,7 +176,6 @@ describe('AI Message Rendering & Message List', () => {
       render(
         <AiChatMessageList
           messages={[]}
-          mode="assistant"
           onSendMessage={onSend}
         />,
       );
@@ -113,6 +186,33 @@ describe('AI Message Rendering & Message List', () => {
       expect(onSend).toHaveBeenCalledWith(
         'Can you summarize the core concepts of this study material into concise bullet points?',
       );
+    });
+
+    it('projects the in-flight turn so the transcript is not empty while generating', () => {
+      render(
+        <AiChatMessageList
+          messages={[]}
+          isStreaming={true}
+          streamingText=""
+          activity={{ label: 'Thinking…', elapsedMs: 0, isStalled: false }}
+        />,
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent('Thinking…');
+    });
+
+    it('renders accumulated tokens live and switches the label once text flows', () => {
+      render(
+        <AiChatMessageList
+          messages={[]}
+          isStreaming={true}
+          streamingText="The heart has four "
+          activity={null}
+        />,
+      );
+
+      expect(screen.getByText(/The heart has four/)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Writing…');
     });
 
     it('renders list of messages', () => {

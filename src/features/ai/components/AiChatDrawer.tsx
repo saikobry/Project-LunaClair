@@ -1,12 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { X, Trash2, Sparkles } from 'lucide-react';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
-import { IconButton } from '../../../shared/ui/IconButton/IconButton';
+import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
+import { AiChatDrawerHeader } from './AiChatDrawerHeader';
 import { useAiChatThread } from '../hooks/useAiChatThread';
-import { AiModeSelector } from './AiModeSelector';
 import { AiChatMessageList } from './AiChatMessageList';
+import { AiChatHistoryPanel } from './AiChatHistoryPanel';
+import { AiChatErrorBanner } from './AiChatErrorBanner';
+import { AiSessionMetrics } from './AiSessionMetrics';
 import { AiChatInput } from './AiChatInput';
+import { type AiSelectionAction } from '../utils/selectionActionPrompt';
+import { useAiSessionDeletion } from '../hooks/useAiSessionDeletion';
+import { useAiSelectionAction } from '../hooks/useAiSelectionAction';
 
 const mobile = '@media (max-width: 768px)';
 
@@ -71,60 +76,17 @@ const styles = stylex.create({
       transform: 'translateY(0)',
     },
   },
-  header: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-    padding: 20,
-    borderBottom: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
-    borderTopLeftRadius: 'inherit',
-    borderTopRightRadius: 'inherit',
-  },
-  headerTopRow: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  titleGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  titleIcon: {
-    width: 18,
-    height: 18,
-    color: 'var(--color-accent)',
-  },
-  title: {
-    fontSize: '18px',
-    fontWeight: 600,
-    color: 'var(--color-text-primary)',
-    margin: 0,
-  },
-  subtitle: {
-    fontSize: '13px',
-    color: 'var(--color-text-secondary)',
-    margin: '4px 0 0 0',
-  },
-  headerActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-  },
   body: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    position: 'relative',
   },
 });
 
 export interface SelectionContext {
   text: string;
-  action?: 'explain' | 'simplify' | 'example';
+  action?: AiSelectionAction;
   sectionHeading?: string;
 }
 
@@ -145,59 +107,76 @@ export function AiChatDrawer({
   selectionContext,
   onClearSelectionContext,
 }: AiChatDrawerProps) {
-  const [mode, setMode] = useState<'assistant' | 'socratic'>('assistant');
-  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Active chat thread for the current mode
+  // The workspace behind the drawer must not scroll under it — the drawer is a
+  // non-modal overlay with its own backdrop, so nothing else locks the page.
+  useBodyScrollLock(isOpen);
+
   const {
+    thread,
+    sessions,
     messages,
     isLoading,
     isStreaming,
+    activity,
+    streamingText,
     sendMessage,
     stopStreaming,
-    clearHistory,
     retryMessage,
-  } = useAiChatThread({
-    materialId,
-    mode,
+    retryLastPrompt,
+    dismissError,
+    clearHistory,
+    startNewSession,
+    selectSession,
+    deleteSession,
+    error,
+  } = useAiChatThread({ materialId });
+
+  const closeHistory = useCallback(() => setIsHistoryOpen(false), []);
+  const toggleHistory = useCallback(() => setIsHistoryOpen((open) => !open), []);
+
+  // Confirmation flow for deleting conversations lives in its own hook — the drawer only wires it.
+  const {
+    dialogCopy,
+    requestClearAll,
+    requestDeleteSession,
+    confirmDeletion,
+    cancelDeletion,
+  } = useAiSessionDeletion({
+    sessions,
+    deleteSession,
+    clearHistory,
+    onCleared: closeHistory,
   });
 
-  // Handle incoming selection contextual actions (e.g. from Reader toolbar)
-  const handledSelectionRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectionContext || !isOpen) return;
+  // A turn in flight belongs on the transcript, so the history panel yields the
+  // moment one starts. This also covers the reader's contextual Explain /
+  // Simplify / Example actions, which send without an event-handler call site of
+  // their own. Adjusted during render — React's "adjust state when a value
+  // changes" pattern — rather than in an effect, so the panel never paints over
+  // the answer that is already streaming behind it.
+  const [wasStreaming, setWasStreaming] = useState(isStreaming);
+  if (isStreaming !== wasStreaming) {
+    setWasStreaming(isStreaming);
+    if (isStreaming && isHistoryOpen) setIsHistoryOpen(false);
+  }
 
-    const selectionKey = `${selectionContext.action}:${selectionContext.text}`;
-    if (handledSelectionRef.current === selectionKey) return;
-    handledSelectionRef.current = selectionKey;
-
-    if (selectionContext.action) {
-      let prompt = '';
-      if (selectionContext.action === 'explain') {
-        prompt = `Please explain the following excerpt in clear detail:\n\n> "${selectionContext.text}"`;
-      } else if (selectionContext.action === 'simplify') {
-        prompt = `Please simplify this concept into plain, intuitive terms that are easy to remember:\n\n> "${selectionContext.text}"`;
-      } else if (selectionContext.action === 'example') {
-        prompt = `Please provide a clear, real-world example illustrating this concept:\n\n> "${selectionContext.text}"`;
-      }
-
-      if (prompt) {
-        sendMessage(prompt, {
-          documentContext: documentContext
-            ? { id: materialId || 'current-doc', markdown: documentContext }
-            : undefined,
-          selection: {
-            text: selectionContext.text,
-            surroundingHeading: selectionContext.sectionHeading,
-          },
-        });
-        onClearSelectionContext?.();
-      }
-    }
-  }, [selectionContext, isOpen, sendMessage, documentContext, materialId, onClearSelectionContext]);
+  // A reader selection (Explain / Simplify / Example, or the reader toolbar) becomes one chat turn
+  // and is then cleared. Deduplicated inside the hook, which owns the reader-to-drawer contract.
+  useAiSelectionAction({
+    isOpen,
+    materialId,
+    documentContext,
+    selectionContext,
+    send: sendMessage,
+    onHandled: onClearSelectionContext,
+  });
 
   const handleSendPrompt = useCallback(
     (promptText: string) => {
+      // A new turn belongs on the transcript, not behind the history panel.
+      setIsHistoryOpen(false);
       sendMessage(promptText, {
         documentContext: documentContext
           ? { id: materialId || 'current-doc', markdown: documentContext }
@@ -216,15 +195,18 @@ export function AiChatDrawer({
     [sendMessage, documentContext, materialId, selectionContext, onClearSelectionContext],
   );
 
-  const handleClearHistory = useCallback(() => {
-    if (messages.length === 0) return;
-    setIsConfirmingClear(true);
-  }, [messages.length]);
+  const handleSelectSession = useCallback(
+    (threadId: string) => {
+      selectSession(threadId);
+      setIsHistoryOpen(false);
+    },
+    [selectSession],
+  );
 
-  const handleConfirmClearHistory = useCallback(async () => {
-    setIsConfirmingClear(false);
-    await clearHistory();
-  }, [clearHistory]);
+  const handleNewSession = useCallback(() => {
+    startNewSession();
+    setIsHistoryOpen(false);
+  }, [startNewSession]);
 
   return (
     <>
@@ -244,55 +226,56 @@ export function AiChatDrawer({
         aria-label="AI Study Assistant"
         aria-hidden={!isOpen}
       >
-        <div {...stylex.props(styles.header)}>
-          <div {...stylex.props(styles.headerTopRow)}>
-            <div>
-              <div {...stylex.props(styles.titleGroup)}>
-                <Sparkles {...stylex.props(styles.titleIcon)} aria-hidden="true" />
-                <h2 {...stylex.props(styles.title)}>AI Study Assistant</h2>
-              </div>
-              <p {...stylex.props(styles.subtitle)}>
-                Study help, grounded in your material.
-              </p>
-            </div>
-            <div {...stylex.props(styles.headerActions)}>
-              {messages.length > 0 && (
-                <IconButton
-                  label="Clear chat history"
-                  icon={<Trash2 size={15} />}
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearHistory}
-                />
-              )}
-              <IconButton
-                label="Close AI Assistant"
-                icon={<X size={18} />}
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-              />
-            </div>
-          </div>
-
-          <AiModeSelector
-            currentMode={mode}
-            onModeChange={setMode}
-            assistantMessageCount={mode === 'assistant' ? messages.length : undefined}
-            socraticMessageCount={mode === 'socratic' ? messages.length : undefined}
-            disabled={isStreaming}
-          />
-        </div>
+        <AiChatDrawerHeader
+          title={thread?.title ?? 'AI Study Assistant'}
+          sessionCount={sessions.length}
+          isHistoryOpen={isHistoryOpen}
+          onToggleHistory={toggleHistory}
+          onClose={onClose}
+        />
 
         <div {...stylex.props(styles.body)}>
-          <AiChatMessageList
-            messages={messages}
-            isLoading={isLoading}
-            isStreaming={isStreaming}
-            onSendMessage={handleSendPrompt}
-            onRetryMessage={retryMessage}
-            mode={mode}
-          />
+          {isHistoryOpen ? (
+            <AiChatHistoryPanel
+              sessions={sessions}
+              activeThreadId={thread?.id ?? null}
+              isStreaming={isStreaming}
+              onSelectSession={handleSelectSession}
+              onNewSession={handleNewSession}
+              onDeleteSession={requestDeleteSession}
+              onClearAll={requestClearAll}
+              onClose={() => setIsHistoryOpen(false)}
+            />
+          ) : (
+            <AiChatMessageList
+              messages={messages}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              streamingText={streamingText}
+              activity={activity}
+              activeThreadId={thread?.id ?? null}
+              onSendMessage={handleSendPrompt}
+              onRetryMessage={retryMessage}
+            />
+          )}
+
+          {error && (
+            <AiChatErrorBanner
+              message={error.message}
+              onRetry={retryLastPrompt}
+              onDismiss={dismissError}
+            />
+          )}
+
+          {/* Conversation totals and the context estimate describe the transcript on screen, so
+              they step aside with it while the history panel is showing. */}
+          {!isHistoryOpen && (
+            <AiSessionMetrics
+              messages={messages}
+              documentMarkdown={documentContext}
+              selectionText={selectionContext?.text}
+            />
+          )}
 
           <AiChatInput
             onSendMessage={handleSendPrompt}
@@ -305,15 +288,18 @@ export function AiChatDrawer({
         </div>
       </aside>
 
-      <ConfirmationDialog
-        isOpen={isConfirmingClear}
-        title="Clear conversation?"
-        message="Messages in this mode will be removed from this device. This cannot be undone."
-        confirmLabel="Clear"
-        intent="danger"
-        onConfirm={handleConfirmClearHistory}
-        onCancel={() => setIsConfirmingClear(false)}
-      />
+      {/* Mounted only while an action is pending, so the copy is always complete. */}
+      {dialogCopy && (
+        <ConfirmationDialog
+          isOpen
+          title={dialogCopy.title}
+          message={dialogCopy.message}
+          confirmLabel={dialogCopy.confirmLabel}
+          intent="danger"
+          onConfirm={confirmDeletion}
+          onCancel={cancelDeletion}
+        />
+      )}
     </>
   );
 }

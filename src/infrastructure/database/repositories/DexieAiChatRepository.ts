@@ -3,7 +3,6 @@ import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRep
 import type {
   AiMessageRecord,
   AiThread,
-  AiTutorMode,
 } from '../../../domain/ai/models/ai.types';
 import { db, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
@@ -38,7 +37,7 @@ export class DexieAiChatRepository implements AiChatRepository {
 
     // Global threads carry no `materialId`, and a Dexie index skips records whose key is
     // `undefined` — so they are unreachable through the compound and stay a scan plus in-memory
-    // order. They are also few by construction (one per tutor mode at most).
+    // order. They are also few by construction (the global assistant's own sessions).
     const threads = await this.database.aiThreads
       .filter((t) => t.materialId === undefined)
       .toArray();
@@ -46,22 +45,20 @@ export class DexieAiChatRepository implements AiChatRepository {
     return threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async findLatestThread(
-    materialId: string | undefined,
-    mode: AiTutorMode,
-  ): Promise<AiThread | null> {
-    let threads: AiThread[];
+  async findLatestThread(materialId?: string): Promise<AiThread | null> {
     if (materialId !== undefined) {
-      threads = await this.database.aiThreads
-        .where('materialId')
-        .equals(materialId)
-        .filter((t) => t.mode === mode)
+      // The compound index already orders by `updatedAt`, so the newest session is the last row.
+      const threads = await this.database.aiThreads
+        .where('[materialId+updatedAt]')
+        .between([materialId, Dexie.minKey], [materialId, Dexie.maxKey])
         .toArray();
-    } else {
-      threads = await this.database.aiThreads
-        .filter((t) => t.materialId === undefined && t.mode === mode)
-        .toArray();
+
+      return threads[threads.length - 1] ?? null;
     }
+
+    const threads = await this.database.aiThreads
+      .filter((t) => t.materialId === undefined)
+      .toArray();
 
     if (threads.length === 0) return null;
     threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

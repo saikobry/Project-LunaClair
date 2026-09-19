@@ -122,6 +122,44 @@ and cannot hold the rationale). Those entries say so explicitly.
   therefore proves nothing about this diagnostic for a **modified** file either
   — not just for a newly added one. Full scan is the only valid check.
 
+## `react-doctor/no-loading-flag-reset-outside-finally` — `src/features/ai/hooks/useAiChatThread.ts`
+
+- **Rule predicate used:** `no-loading-flag-reset-outside-finally` → _Reported
+  pattern_: `setLoading(true); await save(); setLoading(false);` — "A trailing
+  `setLoading(false)` after an `await` never runs if the awaited call rejects…
+  reset it in a `finally` block (or mirror the reset on every catch) so it clears
+  on both paths."
+- **Observed evidence:**
+  - The reported occurrence is already the rule's own **"Candidate corrected
+    pattern"**: `setIsLoading(true)` outside the `try`, then
+    `} finally { if (!cancelled) setIsLoading(false); }` attached to the `try`
+    that owns every `await` in that function. The diagnostic's claim that the
+    reset happens "only on the success path" is therefore falsified — the
+    `catch` falls through to the same `finally`, and the early `return`s inside
+    the `try` exit through it too.
+  - The reset lives in a locally-defined async closure invoked with
+    `void load()` from the effect body, not in the effect's own `try`. That
+    nesting is what the detector does not see through; three shapes were tried
+    (reset inline in the effect body, reset in an extracted `useCallback`, and
+    the current nested closure) and the diagnostic fired on the nested-closure
+    shape regardless of the `finally` being present.
+  - The `if (!cancelled)` guard is load-bearing and cannot be dropped to satisfy
+    the matcher: this effect re-runs whenever the session selection or the
+    material changes, so an unconditional reset would clear the **newer** load's
+    spinner while it is still in flight. The guard is the standard stale-load
+    guard, and `cancelled` is set by the effect teardown.
+- **Outcome:** Rejected — documented false positive; the code already implements
+  the rule's prescribed remediation, and the diagnostic class (stuck truthy
+  loading flag on rejection) cannot occur here because both the rejection and
+  the success path converge on the same `finally`.
+- **Suppression:** `doctor.config.ts` → `ignore.overrides` scoped to this one file
+  and this one rule (not a repo-wide `rules` off-switch, so a genuine trailing
+  reset elsewhere is still reported).
+- **Review condition:** Re-check if the sessions/messages load moves to TanStack
+  Query (cache state would supply `isLoading`, removing the manual flag and this
+  entry with it), if the reset is hoisted into the effect body, or if the
+  detector starts attributing a reset inside a nested `finally` correctly.
+
 ## `react/set-state-in-effect` (oxlint) — `src/features/reader/hooks/useMaterialAssets.ts`
 
 - **Rule predicate used:** _React docs, `set-state-in-effect`_: "Effects should

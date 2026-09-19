@@ -67,7 +67,7 @@ export interface AiUsage {
 export type AiStreamEvent =
   | { type: 'start'; messageId: string }
   | { type: 'token'; text: string }
-  | { type: 'done'; usage?: AiUsage }
+  | { type: 'done'; usage?: AiUsage; model?: string }
   | { type: 'error'; code: string; message: string };
 
 /**
@@ -77,13 +77,16 @@ export type AiMessageStatus = 'streaming' | 'complete' | 'error';
 
 /**
  * Persisted AI conversation thread entity in Dexie IndexedDB.
+ *
+ * A thread is one conversation session. Sessions are scoped to a study material
+ * (or to the global assistant when `materialId` is undefined); a material may
+ * hold many sessions, and the newest by `updatedAt` is the one reopened.
  */
 export interface AiThread {
   id: string;
   /** Optional: undefined = global assistant thread; string = material-scoped thread. */
   materialId?: string;
   title: string;
-  mode: AiTutorMode;
   createdAt: string; // ISO 8601 UTC
   updatedAt: string; // ISO 8601 UTC
 }
@@ -101,6 +104,8 @@ export interface AiMessageRecord {
   createdAt: string; // ISO 8601 UTC
   metadata?: {
     usage?: AiUsage;
+    /** Provider model id that served the turn; the price rate card is keyed by it. */
+    model?: string;
     errorCode?: string;
     errorMessage?: string;
   };

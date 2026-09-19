@@ -85,6 +85,7 @@ export class SendChatMessageUseCase {
     let accumulatedText = '';
     let activeAssistantId: string | null = null;
     let finalUsage: AiUsage | undefined;
+    let finalModel: string | undefined;
     let streamError: { code: string; message: string } | null = null;
 
     try {
@@ -108,6 +109,7 @@ export class SendChatMessageUseCase {
             break;
           case 'done':
             finalUsage = event.usage;
+            finalModel = event.model;
             break;
           case 'error':
             streamError = { code: event.code, message: event.message };
@@ -129,6 +131,13 @@ export class SendChatMessageUseCase {
         const assistantTime = Math.max(nowTime, userTime + 1);
         const now = new Date(assistantTime).toISOString();
 
+        // Token accounting rides whichever outcome gets persisted. A turn that errored mid-stream
+        // still consumed the tokens it received, so dropping usage on failure would under-report it.
+        const telemetry: NonNullable<AiMessageRecord['metadata']> = {
+          ...(finalUsage ? { usage: finalUsage } : {}),
+          ...(finalModel ? { model: finalModel } : {}),
+        };
+
         if (streamError) {
           await this.chatRepo.saveMessage({
             id: assistantId,
@@ -140,6 +149,7 @@ export class SendChatMessageUseCase {
             metadata: {
               errorCode: streamError.code,
               errorMessage: streamError.message,
+              ...telemetry,
             },
           });
         } else if (accumulatedText) {
@@ -150,9 +160,7 @@ export class SendChatMessageUseCase {
             content: accumulatedText,
             status: 'complete',
             createdAt: now,
-            metadata: {
-              usage: finalUsage,
-            },
+            metadata: telemetry,
           });
         }
       }

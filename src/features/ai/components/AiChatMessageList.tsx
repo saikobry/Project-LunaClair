@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { ArrowDown, Bot, Sparkles, HelpCircle, BookOpen, Lightbulb } from 'lucide-react';
+import { ArrowDown, Bot, Sparkles, HelpCircle, Lightbulb } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { AiChatMessage } from './AiChatMessage';
 import { Button } from '../../../shared/ui/Button/Button';
 import { useAiAutoScroll } from '../hooks/useAiAutoScroll';
+import type { AiActivityState } from '../utils/aiActivity';
 
 const styles = stylex.create({
   container: {
@@ -108,9 +109,14 @@ export interface AiChatMessageListProps {
   messages: AiMessageRecord[];
   isLoading?: boolean;
   isStreaming?: boolean;
+  /** Tokens accumulated so far by the in-flight turn — rendered live as it arrives. */
+  streamingText?: string;
+  /** Wait state before the first token; drives the rotating / stalled label. */
+  activity?: AiActivityState | null;
+  /** Session id the in-flight turn belongs to. */
+  activeThreadId?: string | null;
   onSendMessage?: (prompt: string) => void;
   onRetryMessage?: (messageId: string) => void;
-  mode?: 'assistant' | 'socratic';
 }
 
 const STARTER_PROMPTS = [
@@ -135,19 +141,44 @@ export function AiChatMessageList({
   messages,
   isLoading = false,
   isStreaming = false,
+  streamingText = '',
+  activity = null,
+  activeThreadId = null,
   onSendMessage,
   onRetryMessage,
-  mode = 'assistant',
 }: AiChatMessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isNearBottom, scrollToBottom, notifyContentUpdated } = useAiAutoScroll(containerRef, {
     isStreaming,
   });
 
+  /**
+   * The in-flight turn is not persisted until it completes, so it is projected
+   * here as a provisional message. Without this the transcript sits empty for
+   * the whole request and the only sign of life is the composer's Stop button.
+   */
+  const pendingMessage = useMemo<AiMessageRecord | null>(() => {
+    if (!isStreaming) return null;
+    return {
+      id: 'ai-pending-turn',
+      threadId: activeThreadId ?? 'pending-thread',
+      role: 'assistant',
+      content: streamingText,
+      status: 'streaming',
+      createdAt: '',
+    };
+  }, [isStreaming, streamingText, activeThreadId]);
+
+  // Before the first token the label reports the wait itself; once text flows,
+  // the label only has to confirm that generation is still in progress.
+  const streamingLabel = streamingText
+    ? 'Writing…'
+    : activity?.label ?? 'Thinking…';
+
   // Whenever messages change or stream updates, trigger auto-scroll if near bottom
   useEffect(() => {
     notifyContentUpdated();
-  }, [messages, notifyContentUpdated]);
+  }, [messages, streamingText, notifyContentUpdated]);
 
   return (
     <div
@@ -157,22 +188,14 @@ export function AiChatMessageList({
       aria-label="AI conversation history"
       aria-live="polite"
     >
-      {messages.length === 0 && !isLoading && (
+      {messages.length === 0 && !isLoading && !isStreaming && (
         <div {...stylex.props(styles.emptyState)}>
           <div {...stylex.props(styles.emptyIconContainer)}>
-            {mode === 'socratic' ? (
-              <BookOpen style={{ width: 24, height: 24 }} />
-            ) : (
-              <Bot style={{ width: 24, height: 24 }} />
-            )}
+            <Bot style={{ width: 24, height: 24 }} />
           </div>
-          <h3 {...stylex.props(styles.emptyTitle)}>
-            {mode === 'socratic' ? 'Socratic Tutor' : 'AI Study Assistant'}
-          </h3>
+          <h3 {...stylex.props(styles.emptyTitle)}>AI Study Assistant</h3>
           <p {...stylex.props(styles.emptySubtitle)}>
-            {mode === 'socratic'
-              ? 'I will guide you step-by-step through questions to strengthen your understanding.'
-              : 'Ask anything about your study notes, request summaries, or clarify difficult concepts.'}
+            Ask anything about your study notes, request summaries, or clarify difficult concepts.
           </p>
 
           {onSendMessage && (
@@ -205,6 +228,14 @@ export function AiChatMessageList({
           onRetry={onRetryMessage}
         />
       ))}
+
+      {pendingMessage && (
+        <AiChatMessage
+          key={pendingMessage.id}
+          message={pendingMessage}
+          streamingLabel={streamingLabel}
+        />
+      )}
 
       {!isNearBottom && (
         <div {...stylex.props(styles.scrollToBottomWrap)}>

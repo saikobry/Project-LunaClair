@@ -1,57 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { AiChatDrawer } from '../AiChatDrawer';
 import { AiDrawerToggleButton } from '../AiDrawerToggleButton';
-import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
-import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
-import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';
-import { GetOrCreateAiThreadUseCase } from '../../../../application/use-cases/ai/GetOrCreateAiThreadUseCase';
-import { GetAiThreadMessagesUseCase } from '../../../../application/use-cases/ai/GetAiThreadMessagesUseCase';
-import { DeleteAiThreadUseCase } from '../../../../application/use-cases/ai/DeleteAiThreadUseCase';
-import { ClearChatHistoryUseCase } from '../../../../application/use-cases/ai/ClearChatHistoryUseCase';
-import type { UseCases } from '../../../../app/bootstrap/createUseCases';
-import type { Infrastructure, Repositories } from '../../../../app/bootstrap/createInfrastructure';
-
-function createTestHarness(db: LunaClairDatabase, mockAi: MockAiAdapter) {
-  const aiChatRepository = new DexieAiChatRepository(db);
-  const sendChatMessage = new SendChatMessageUseCase(mockAi, aiChatRepository);
-  const getOrCreateThread = new GetOrCreateAiThreadUseCase(aiChatRepository);
-  const getThreadMessages = new GetAiThreadMessagesUseCase(aiChatRepository);
-  const deleteThread = new DeleteAiThreadUseCase(aiChatRepository);
-  const clearChatHistory = new ClearChatHistoryUseCase(aiChatRepository);
-
-  const contextValue = {
-    repositories: {
-      aiChat: aiChatRepository,
-    } as unknown as Repositories,
-    infrastructure: {
-      repositories: {
-        aiChat: aiChatRepository,
-      },
-    } as unknown as Infrastructure,
-    useCases: {
-      ai: {
-        sendChatMessage,
-        getOrCreateThread,
-        getThreadMessages,
-        deleteThread,
-        clearChatHistory,
-      },
-    } as unknown as UseCases,
-  } as unknown as ApplicationContextValue;
-
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <ApplicationContext.Provider value={contextValue}>
-      {children}
-    </ApplicationContext.Provider>
-  );
-
-  return { contextValue, wrapper, aiChatRepository };
-}
+import { createAiChatHarness } from '../../../../test/mocks/aiChatHarness';
 
 describe('AI Chat Drawer & Workspace Integration', () => {
   let db: LunaClairDatabase;
@@ -62,6 +16,7 @@ describe('AI Chat Drawer & Workspace Integration', () => {
   });
 
   afterEach(async () => {
+    document.body.style.overflow = '';
     await db.delete();
     db.close();
   });
@@ -100,7 +55,7 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       const mockAi = new MockAiAdapter({
         tokens: ['The heart ', 'pumps blood ', 'throughout the body.'],
       });
-      const harness = createTestHarness(db, mockAi);
+      const harness = createAiChatHarness(db, mockAi);
       const onClose = vi.fn();
 
       render(
@@ -127,8 +82,13 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       expect(sendBtn).toBeEnabled();
       fireEvent.click(sendBtn);
 
-      // Verify user message appeared immediately
-      expect(screen.getByText('What does the heart do?')).toBeInTheDocument();
+      // Verify user message appeared immediately. Sending persists through the
+      // session-creation use case first, so the bubble is awaited rather than
+      // assumed synchronous.
+      const transcript = screen.getByRole('log');
+      await waitFor(() => {
+        expect(within(transcript).getByText('What does the heart do?')).toBeInTheDocument();
+      });
 
       // Wait for assistant tokens to stream and complete
       await waitFor(() => {
@@ -145,7 +105,7 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       const mockAi = new MockAiAdapter({
         tokens: ['The SA node initiates the electrical impulse.'],
       });
-      const harness = createTestHarness(db, mockAi);
+      const harness = createAiChatHarness(db, mockAi);
       const onClearSelection = vi.fn();
 
       render(
@@ -173,6 +133,88 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       }, { timeout: 4000 });
 
       expect(onClearSelection).toHaveBeenCalled();
+    });
+
+    it('locks page scroll while open and releases it when closed', () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const harness = createAiChatHarness(db, mockAi);
+
+      const { rerender } = render(
+        <AiChatDrawer isOpen={true} onClose={vi.fn()} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      expect(document.body.style.overflow).toBe('hidden');
+
+      rerender(
+        <AiChatDrawer isOpen={false} onClose={vi.fn()} materialId="material-bio" />,
+      );
+
+      expect(document.body.style.overflow).toBe('');
+    });
+
+    it('shows a stalled-aware wait label while the assistant has produced no text', async () => {
+      const mockAi = new MockAiAdapter({
+        tokens: ['Pacemaker.'],
+        delayMs: 200,
+      });
+      const harness = createAiChatHarness(db, mockAi);
+
+      render(
+        <AiChatDrawer isOpen={true} onClose={vi.fn()} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      // The composer is disabled until session resolution settles.
+      await screen.findByText(/Ask anything about your study notes/i);
+      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      textarea.textContent = 'What keeps the heart beating?';
+      fireEvent.input(textarea);
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      // The wait label belongs to the transcript, not just the composer.
+      const transcript = screen.getByRole('log');
+      const status = await within(transcript).findByRole('status', {}, { timeout: 3000 });
+      expect(status.textContent).toMatch(/Thinking…|Cooking…|Digging through your material…|Weighing the details…/);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Pacemaker\./)).toBeInTheDocument();
+      }, { timeout: 4000 });
+    });
+
+    it('keeps the previous conversation in history when starting a new one', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer one.'] });
+      const harness = createAiChatHarness(db, mockAi);
+
+      render(
+        <AiChatDrawer isOpen={true} onClose={vi.fn()} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      // The composer is disabled until session resolution settles.
+      await screen.findByText(/Ask anything about your study notes/i);
+      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      textarea.textContent = 'First question';
+      fireEvent.input(textarea);
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      const transcript = screen.getByRole('log');
+      await waitFor(() => {
+        expect(within(transcript).getByText('Answer one.')).toBeInTheDocument();
+      }, { timeout: 4000 });
+
+      // The session is named from its first prompt, so history is identifiable.
+      fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
+      const panel = await screen.findByRole('region', { name: /Conversation history/i });
+      expect(await within(panel).findByText('First question')).toBeInTheDocument();
+
+      // Starting a new chat clears the transcript without deleting the old session.
+      fireEvent.click(screen.getByRole('button', { name: 'Start a new conversation' }));
+      expect(await screen.findByText(/Ask anything about your study notes/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
+      const reopenedPanel = await screen.findByRole('region', { name: /Conversation history/i });
+      expect(await within(reopenedPanel).findByText('First question')).toBeInTheDocument();
     });
   });
 });

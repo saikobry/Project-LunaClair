@@ -1,4 +1,4 @@
-import type { AiMessageRecord, AiThread, AiTutorMode } from '../models/ai.types';
+import type { AiMessageRecord, AiThread } from '../models/ai.types';
 
 /**
  * Domain port for local-first AI thread and message persistence.
@@ -13,15 +13,17 @@ export interface AiChatRepository {
   getThread(threadId: string): Promise<AiThread | null>;
 
   /**
-   * Lists all threads for a given material, or all global threads if materialId is undefined.
-   * Results ordered by updatedAt descending.
+   * Lists all conversation sessions for a given material, or all global sessions
+   * if materialId is undefined. Results ordered by updatedAt descending.
    */
   listThreads(materialId?: string): Promise<AiThread[]>;
 
   /**
-   * Finds the latest active thread for a given scope (materialId + mode).
+   * Finds the most recently updated session in a given scope (materialId, or the
+   * global assistant when materialId is undefined). Returns null when the scope
+   * has no sessions yet.
    */
-  findLatestThread(materialId: string | undefined, mode: AiTutorMode): Promise<AiThread | null>;
+  findLatestThread(materialId?: string): Promise<AiThread | null>;
 
   /**
    * Persists or updates a thread record.

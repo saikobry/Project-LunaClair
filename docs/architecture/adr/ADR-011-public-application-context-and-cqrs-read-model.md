@@ -72,7 +72,7 @@ We establish the **Pragmatic CQRS, Domain Port & Composition Root Architecture**
    - **Application Capabilities & State Transitions (`useCases`)**: If an operation represents an intentional state transition (e.g., `publishQuestion`, `archiveQuiz`), multi-entity orchestration (`importMaterial`, `publishStudyPackage`), or domain computation (`recordFlashcardReview`, `startQuizSession`), it **must** remain an Application Use Case, even if its initial implementation is lightweight. Line count does not determine use case validity; semantic domain intent does.
 
 4. **Self-Healing Domain Workflows & Reactive Query Hooks**:
-   - Complexities like crash-recovery for interrupted AI chat messages are encapsulated inside `GetOrCreateAiThreadUseCase` rather than invoked manually by UI hooks.
+   - Complexities like crash-recovery for interrupted AI chat messages are encapsulated inside `ResolveAiThreadUseCase` rather than invoked manually by UI hooks. (The decision is unchanged; the implementing use case was renamed when AI conversations became multi-session — see `src/application/AGENTS.md`.)
    - Modals and forms consume reactive TanStack Query hooks (e.g. `useTerms(subjectId)`) instead of invoking raw repository methods in `useEffect`.
 
 5. **Zero Instance Duplication**:

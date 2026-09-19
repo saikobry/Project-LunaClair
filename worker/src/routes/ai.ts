@@ -1,8 +1,19 @@
 import { badRequest, json } from '../core/responses';
+import { readAiTokenUsage, type AiTokenUsage } from '../core/aiUsage';
 import type { RouteContext } from '../core/types';
 
 const PRIMARY_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const FALLBACK_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+
+/**
+ * Output budget per request; mirrored by the client's `AI_RESERVED_OUTPUT_TOKENS`.
+ *
+ * Cloudflare validates a request against the **estimated input plus this reservation** — not the
+ * input alone, and not the tokens actually generated. Its rejection names both numbers, e.g.
+ * "5021: The estimated number of input and maximum output tokens (8810) exceeded this model context
+ * window limit (8192)", which is why the client's prompt budget subtracts this value from the window.
+ */
+const MAX_OUTPUT_TOKENS = 4_096;
 
 /**
  * POST /api/ai/chat
@@ -114,21 +125,31 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
 
   const messageId = `msg-${crypto.randomUUID()}`;
 
+  // Which model actually served the stream, plus the provider's token accounting for it. Both ride
+  // the terminal `done` event so the client can attribute a turn's real cost: the two models bill at
+  // different rates, so a cost without the serving model is a guess rather than a measurement.
+  let modelUsed = PRIMARY_AI_MODEL;
+  let finalUsage: AiTokenUsage | undefined;
+  let emittedTokenCount = 0;
+  /** First payload that carried neither text nor usage — the only clue if nothing is generated. */
+  let unexpectedPayloadSample: string | undefined;
+
   try {
     let aiResponse: unknown;
     try {
       aiResponse = await env.AI.run(PRIMARY_AI_MODEL, {
         messages: formattedMessages,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: MAX_OUTPUT_TOKENS,
         temperature: 0.5,
       });
     } catch (primaryErr) {
       console.warn('Primary AI model encountered error, falling back to Llama 3.1 8B:', primaryErr);
+      modelUsed = FALLBACK_AI_MODEL;
       aiResponse = await env.AI.run(FALLBACK_AI_MODEL, {
         messages: formattedMessages,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: MAX_OUTPUT_TOKENS,
         temperature: 0.5,
       });
     }
@@ -137,7 +158,44 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    const transformStream = new TransformStream({
+    /**
+     * Emits one Workers AI SSE line as app-native events. Shared by `transform` and `flush` so the
+     * trailing buffered line is handled by exactly the same rules as every complete line before it.
+     */
+    const handleLine = (line: string, controller: TransformStreamDefaultController<Uint8Array>) => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) return;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === '[DONE]') return;
+
+      let parsed: { response?: unknown; usage?: unknown };
+      try {
+        parsed = JSON.parse(payload) as { response?: unknown; usage?: unknown };
+      } catch {
+        return; // Incomplete line or malformed payload
+      }
+
+      // Cloudflare attaches token usage to the terminal chunk; a later report supersedes an earlier one.
+      const usage = readAiTokenUsage(parsed.usage);
+      if (usage) finalUsage = usage;
+
+      const hasText = typeof parsed.response === 'string' && parsed.response.length > 0;
+
+      // A payload with neither text nor usage is a shape this endpoint does not understand — most
+      // likely a provider error object, which would otherwise be discarded without trace.
+      if (!hasText && !usage && unexpectedPayloadSample === undefined) {
+        unexpectedPayloadSample = payload.slice(0, 300);
+      }
+
+      if (hasText) {
+        emittedTokenCount += 1;
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'token', text: parsed.response })}\n\n`),
+        );
+      }
+    };
+
+    const transformStream = new TransformStream<Uint8Array, Uint8Array>({
       start(controller) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'start', messageId })}\n\n`));
       },
@@ -146,43 +204,25 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
-          const payload = trimmed.slice(5).trim();
-          if (payload === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(payload) as { response?: string };
-            if (typeof parsed.response === 'string' && parsed.response.length > 0) {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'token', text: parsed.response })}\n\n`),
-              );
-            }
-          } catch {
-            // Ignore incomplete line or malformed payload
-          }
-        }
+        for (const line of lines) handleLine(line, controller);
       },
       flush(controller) {
-        if (buffer.trim()) {
-          const trimmed = buffer.trim();
-          if (trimmed.startsWith('data:')) {
-            const payload = trimmed.slice(5).trim();
-            if (payload !== '[DONE]') {
-              try {
-                const parsed = JSON.parse(payload) as { response?: string };
-                if (typeof parsed.response === 'string' && parsed.response.length > 0) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ type: 'token', text: parsed.response })}\n\n`),
-                  );
-                }
-              } catch {
-                // Ignore
-              }
-            }
-          }
+        handleLine(buffer, controller);
+        // A 200 that carries no text is otherwise indistinguishable from a hang on the client, which
+        // sees only a start and a done. Log it server-side so the cause is visible in `wrangler tail`.
+        if (emittedTokenCount === 0) {
+          console.warn('Workers AI stream completed without producing any tokens', {
+            model: modelUsed,
+            sample: unexpectedPayloadSample,
+          });
         }
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+        // `usage` is omitted by JSON.stringify when the provider reported none, which is the same
+        // thing as "unknown" — never a fabricated zero.
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'done', usage: finalUsage, model: modelUsed })}\n\n`,
+          ),
+        );
       },
     });
 

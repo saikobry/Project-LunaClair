@@ -28,20 +28,18 @@ describe('DexieAiChatRepository & Schema v9', () => {
   });
 
   it('saves and retrieves AI threads with correct scoping', async () => {
-    const threadMaterial: AiThread = {
-      id: 't-cardio-assist',
+    const threadOlder: AiThread = {
+      id: 't-cardio-older',
       materialId: 'doc-cardio',
-      title: 'Cardio Assistant',
-      mode: 'assistant',
+      title: 'Cardio Session One',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
 
-    const threadSocratic: AiThread = {
-      id: 't-cardio-soc',
+    const threadNewest: AiThread = {
+      id: 't-cardio-newest',
       materialId: 'doc-cardio',
-      title: 'Cardio Socratic',
-      mode: 'socratic',
+      title: 'Cardio Session Two',
       createdAt: '2026-08-25T01:10:00.000Z',
       updatedAt: '2026-08-25T01:10:00.000Z',
     };
@@ -50,31 +48,33 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 't-global-assist',
       materialId: undefined,
       title: 'Global Tutor',
-      mode: 'assistant',
       createdAt: '2026-08-25T00:50:00.000Z',
       updatedAt: '2026-08-25T00:50:00.000Z',
     };
 
-    await repo.saveThread(threadMaterial);
-    await repo.saveThread(threadSocratic);
+    await repo.saveThread(threadOlder);
+    await repo.saveThread(threadNewest);
     await repo.saveThread(threadGlobal);
 
     // Verify listThreads with materialId filter
     const materialThreads = await repo.listThreads('doc-cardio');
     expect(materialThreads).toHaveLength(2);
-    expect(materialThreads[0].id).toBe('t-cardio-soc'); // Sorted by updatedAt descending
+    expect(materialThreads[0].id).toBe('t-cardio-newest'); // newest first
 
     // Verify listThreads for global threads
     const globalThreads = await repo.listThreads(undefined);
     expect(globalThreads).toHaveLength(1);
     expect(globalThreads[0].id).toBe('t-global-assist');
 
-    // Verify findLatestThread by material + mode
-    const latestAssist = await repo.findLatestThread('doc-cardio', 'assistant');
-    expect(latestAssist?.id).toBe('t-cardio-assist');
+    // Every session of a material is its own conversation — the newest one is reopened.
+    const latest = await repo.findLatestThread('doc-cardio');
+    expect(latest?.id).toBe('t-cardio-newest');
 
-    const latestSoc = await repo.findLatestThread('doc-cardio', 'socratic');
-    expect(latestSoc?.id).toBe('t-cardio-soc');
+    // A material with no sessions resolves to null instead of throwing.
+    expect(await repo.findLatestThread('doc-absent')).toBeNull();
+
+    const latestGlobal = await repo.findLatestThread(undefined);
+    expect(latestGlobal?.id).toBe('t-global-assist');
   });
 
   it('saves message and updates parent thread updatedAt timestamp', async () => {
@@ -82,7 +82,6 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-1',
       materialId: 'doc-1',
       title: 'Test Thread',
-      mode: 'assistant',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -111,7 +110,6 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-order',
       materialId: 'doc-1',
       title: 'Order',
-      mode: 'assistant',
       createdAt: '2026-08-25T02:00:00.000Z',
       updatedAt: '2026-08-25T02:00:00.000Z',
     });
@@ -152,7 +150,6 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-delete',
       materialId: 'doc-1',
       title: 'To Delete',
-      mode: 'assistant',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -188,7 +185,6 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-crash',
       materialId: 'doc-1',
       title: 'Crash Test',
-      mode: 'assistant',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };

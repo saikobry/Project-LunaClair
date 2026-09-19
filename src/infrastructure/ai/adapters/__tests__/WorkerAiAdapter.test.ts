@@ -21,7 +21,10 @@ describe('WorkerAiAdapter', () => {
       encoder.encode('data: {"type":"start","messageId":"msg-123"}\n\n'),
       encoder.encode('data: {"type":"token","text":"Pac'),
       encoder.encode('emaker"}\n\ndata: {"type":"token","text":" of the heart"}\n\n'),
-      encoder.encode('data: {"type":"done","usage":{"promptTokens":10,"completionTokens":5}}\n\n'),
+      // The Worker reports which model served the turn so the client can price it correctly.
+      encoder.encode(
+        'data: {"type":"done","usage":{"promptTokens":10,"completionTokens":5},"model":"@cf/meta/llama-3.3-70b-instruct-fp8-fast"}\n\n',
+      ),
     ];
 
     let chunkIndex = 0;
@@ -59,6 +62,7 @@ describe('WorkerAiAdapter', () => {
     expect(events[3]).toEqual({
       type: 'done',
       usage: { promptTokens: 10, completionTokens: 5 },
+      model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
     });
   });
 

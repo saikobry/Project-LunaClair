@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
-import { GetOrCreateAiThreadUseCase } from '../GetOrCreateAiThreadUseCase';
+import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
 import { GetAiThreadMessagesUseCase } from '../GetAiThreadMessagesUseCase';
 
 describe('GetAiThreadMessagesUseCase', () => {
@@ -21,13 +21,10 @@ describe('GetAiThreadMessagesUseCase', () => {
     });
 
     it('retrieves chronological messages for a thread', async () => {
-        const getOrCreate = new GetOrCreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo);
         const getMessages = new GetAiThreadMessagesUseCase(chatRepo);
 
-        const thread = await getOrCreate.execute({
-            materialId: 'doc-1',
-            mode: 'assistant',
-        });
+        const thread = await createThread.execute({ materialId: 'doc-1' });
 
         await chatRepo.saveMessage({
             id: 'm1',

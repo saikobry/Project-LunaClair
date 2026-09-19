@@ -1,56 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import 'fake-indexeddb/auto';
 import { useAiChatThread } from '../useAiChatThread';
-import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
-import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
-import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';
-import { GetOrCreateAiThreadUseCase } from '../../../../application/use-cases/ai/GetOrCreateAiThreadUseCase';
-import { GetAiThreadMessagesUseCase } from '../../../../application/use-cases/ai/GetAiThreadMessagesUseCase';
-import { DeleteAiThreadUseCase } from '../../../../application/use-cases/ai/DeleteAiThreadUseCase';
-import { ClearChatHistoryUseCase } from '../../../../application/use-cases/ai/ClearChatHistoryUseCase';
-import type { UseCases } from '../../../../app/bootstrap/createUseCases';
-import type { Infrastructure, Repositories } from '../../../../app/bootstrap/createInfrastructure';
-
-function createTestHarness(db: LunaClairDatabase, mockAi: MockAiAdapter) {
-  const aiChatRepository = new DexieAiChatRepository(db);
-  const sendChatMessage = new SendChatMessageUseCase(mockAi, aiChatRepository);
-  const getOrCreateThread = new GetOrCreateAiThreadUseCase(aiChatRepository);
-  const getThreadMessages = new GetAiThreadMessagesUseCase(aiChatRepository);
-  const deleteThread = new DeleteAiThreadUseCase(aiChatRepository);
-  const clearChatHistory = new ClearChatHistoryUseCase(aiChatRepository);
-
-  const contextValue = {
-    repositories: {
-      aiChat: aiChatRepository,
-    } as unknown as Repositories,
-    infrastructure: {
-      repositories: {
-        aiChat: aiChatRepository,
-      },
-    } as unknown as Infrastructure,
-    useCases: {
-      ai: {
-        sendChatMessage,
-        getOrCreateThread,
-        getThreadMessages,
-        deleteThread,
-        clearChatHistory,
-      },
-    } as unknown as UseCases,
-  } as unknown as ApplicationContextValue;
-
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <ApplicationContext.Provider value={contextValue}>
-      {children}
-    </ApplicationContext.Provider>
-  );
-
-  return { contextValue, wrapper, aiChatRepository };
-}
+import { createAiChatHarness } from '../../../../test/mocks/aiChatHarness';
+import type { AiService } from '../../../../domain/ai/services/AiService';
 
 describe('useAiChatThread', () => {
   let db: LunaClairDatabase;
@@ -65,15 +20,14 @@ describe('useAiChatThread', () => {
     db.close();
   });
 
-  it('hydrates thread and persists conversation across remounts (reload persistence)', async () => {
+  it('starts with no session until a prompt is sent, then persists across remounts', async () => {
     const mockAi = new MockAiAdapter({
       tokens: ['The SA node ', 'is the heart’s ', 'pacemaker.'],
     });
-    const harness = createTestHarness(db, mockAi);
+    const harness = createAiChatHarness(db, mockAi);
 
-    // 1. Initial mount
     const { result, unmount } = renderHook(
-      () => useAiChatThread({ materialId: 'doc-cardio', mode: 'assistant' }),
+      () => useAiChatThread({ materialId: 'doc-cardio' }),
       { wrapper: harness.wrapper },
     );
 
@@ -81,48 +35,146 @@ describe('useAiChatThread', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.thread).toBeDefined();
-    expect(result.current.messages).toHaveLength(0);
+    // Opening the drawer must not manufacture an empty conversation.
+    expect(result.current.thread).toBeNull();
+    expect(result.current.sessions).toHaveLength(0);
 
-    // 2. Send message and wait for stream completion
     await act(async () => {
       await result.current.sendMessage('What is the SA node?');
     });
 
+    expect(result.current.thread).not.toBeNull();
     expect(result.current.messages).toHaveLength(2);
-    expect(result.current.messages[0].role).toBe('user');
     expect(result.current.messages[0].content).toBe('What is the SA node?');
-    expect(result.current.messages[1].role).toBe('assistant');
     expect(result.current.messages[1].content).toBe('The SA node is the heart’s pacemaker.');
     expect(result.current.messages[1].status).toBe('complete');
 
-    // 3. Simulate page reload by unmounting and mounting a fresh hook
+    // Simulate page reload
     unmount();
 
-    const { result: remountedResult } = renderHook(
-      () => useAiChatThread({ materialId: 'doc-cardio', mode: 'assistant' }),
+    const { result: remounted } = renderHook(
+      () => useAiChatThread({ materialId: 'doc-cardio' }),
       { wrapper: harness.wrapper },
     );
 
     await waitFor(() => {
-      expect(remountedResult.current.isLoading).toBe(false);
+      expect(remounted.current.isLoading).toBe(false);
     });
 
-    expect(remountedResult.current.messages).toHaveLength(2);
-    expect(remountedResult.current.messages[0].content).toBe('What is the SA node?');
-    expect(remountedResult.current.messages[1].content).toBe('The SA node is the heart’s pacemaker.');
+    expect(remounted.current.messages).toHaveLength(2);
+    expect(remounted.current.sessions).toHaveLength(1);
+    expect(remounted.current.sessions[0].title).toBe('What is the SA node?');
   });
 
-  it('clears thread history', async () => {
-    const mockAi = new MockAiAdapter({
-      tokens: ['Pacemaker.'],
-    });
-    const harness = createTestHarness(db, mockAi);
+  it('surfaces a retryable error when a turn completes without producing any text', async () => {
+    // A 200 that streams a start and a done but no tokens: without an explicit error the pending
+    // bubble simply vanishes and the user waits for a reply that will never arrive.
+    const mockAi = new MockAiAdapter({ tokens: [] });
+    const harness = createAiChatHarness(db, mockAi);
 
-    const { result } = renderHook(
-      () => useAiChatThread({ materialId: 'doc-cardio', mode: 'assistant' }),
-      { wrapper: harness.wrapper },
-    );
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('What is the SA node?');
+    });
+
+    expect(result.current.error?.code).toBe('EMPTY_RESPONSE');
+    expect(result.current.isStreaming).toBe(false);
+    // Nothing was persisted, so no phantom assistant turn is left in the transcript.
+    expect(result.current.messages).toHaveLength(1);
+  });
+
+  it('starts a new session without deleting the previous conversation', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('First question');
+    });
+    const firstSessionId = result.current.thread!.id;
+
+    act(() => {
+      result.current.startNewSession();
+    });
+
+    // The switch must be synchronous: the draft branch of the load effect is
+    // async, so a prompt sent straight after "New chat" would otherwise be
+    // appended to the conversation the user just left.
+    expect(result.current.thread).toBeNull();
+    expect(result.current.messages).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.sendMessage('Second question');
+    });
+
+    expect(result.current.thread!.id).not.toBe(firstSessionId);
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.sessions).toHaveLength(2);
+
+    // The earlier conversation is still intact and selectable.
+    act(() => {
+      result.current.selectSession(firstSessionId);
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages[0]?.content).toBe('First question');
+    });
+    expect(result.current.messages).toHaveLength(2);
+  });
+
+  it('deletes a single session and hands the drawer to the remaining one', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('First question');
+    });
+    const firstSessionId = result.current.thread!.id;
+
+    act(() => {
+      result.current.startNewSession();
+    });
+    await act(async () => {
+      await result.current.sendMessage('Second question');
+    });
+
+    await act(async () => {
+      await result.current.deleteSession(firstSessionId);
+    });
+
+    expect(result.current.sessions).toHaveLength(1);
+    expect(result.current.thread!.id).not.toBe(firstSessionId);
+  });
+
+  it('clears every session for the material', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -138,21 +190,15 @@ describe('useAiChatThread', () => {
     });
 
     expect(result.current.messages).toHaveLength(0);
-
-    // Verify Dexie records are cleared
-    const messagesInDb = await harness.aiChatRepository.getMessages(result.current.thread!.id);
-    expect(messagesInDb).toHaveLength(0);
+    expect(result.current.sessions).toHaveLength(0);
   });
 
   it('recovers interrupted streaming turns after reload without getting stuck in streaming state', async () => {
-    const mockAi = new MockAiAdapter({
-      tokens: ['Pacemaker.'],
-    });
-    const harness = createTestHarness(db, mockAi);
+    const mockAi = new MockAiAdapter({ tokens: ['Pacemaker.'] });
+    const harness = createAiChatHarness(db, mockAi);
 
-    // 1. Initial mount and create thread
     const { result, unmount } = renderHook(
-      () => useAiChatThread({ materialId: 'doc-crash', mode: 'assistant' }),
+      () => useAiChatThread({ materialId: 'doc-crash' }),
       { wrapper: harness.wrapper },
     );
 
@@ -160,14 +206,17 @@ describe('useAiChatThread', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    await act(async () => {
+      await result.current.sendMessage('Tell me about the heart');
+    });
     const threadId = result.current.thread!.id;
 
-    // 2. Simulate browser crash while assistant was streaming
+    // Simulate the browser dying mid-stream on the following turn
     await harness.aiChatRepository.saveMessage({
       id: 'u-crashed',
       threadId,
       role: 'user',
-      content: 'Tell me about the heart',
+      content: 'And the ventricles?',
       status: 'complete',
       createdAt: '2024-01-01T01:00:00.000Z',
     });
@@ -180,34 +229,91 @@ describe('useAiChatThread', () => {
       createdAt: '2024-01-01T01:00:01.000Z',
     });
 
-    // 3. Unmount and remount (simulating page reload)
     unmount();
 
-    const { result: reloadedResult } = renderHook(
-      () => useAiChatThread({ materialId: 'doc-crash', mode: 'assistant' }),
+    const { result: reloaded } = renderHook(
+      () => useAiChatThread({ materialId: 'doc-crash' }),
       { wrapper: harness.wrapper },
     );
 
     await waitFor(() => {
-      expect(reloadedResult.current.isLoading).toBe(false);
+      expect(reloaded.current.isLoading).toBe(false);
     });
 
-    // 4. Assertions: UI is not streaming, interrupted turn is recovered
-    expect(reloadedResult.current.isStreaming).toBe(false);
-    expect(reloadedResult.current.messages).toHaveLength(2);
-    expect(reloadedResult.current.messages[0].content).toBe('Tell me about the heart');
-    expect(reloadedResult.current.messages[1].status).toBe('error');
-    expect(reloadedResult.current.messages[1].metadata?.errorCode).toBe('INTERRUPTED');
-    expect(reloadedResult.current.messages[1].metadata?.errorMessage).toBe('Generation was interrupted.');
+    expect(reloaded.current.isStreaming).toBe(false);
+    // The completed first turn, then the user turn and the crashed assistant turn.
+    expect(reloaded.current.messages).toHaveLength(4);
 
-    // 5. Verify user can retry / send a new message successfully
+    const crashedTurn = reloaded.current.messages.find((m) => m.id === 'a-crashed');
+    expect(crashedTurn?.status).toBe('error');
+    expect(crashedTurn?.metadata?.errorCode).toBe('INTERRUPTED');
+    expect(crashedTurn?.metadata?.errorMessage).toBe('Generation was interrupted.');
+  });
+
+  it('surfaces the wait label before the first token and clears it once text flows', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Pacemaker.'], delayMs: 150 });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    let sendPromise: Promise<void> | undefined;
     await act(async () => {
-      await reloadedResult.current.sendMessage('Let me try asking again.');
+      sendPromise = result.current.sendMessage('What keeps the heart beating?');
     });
 
-    expect(reloadedResult.current.messages).toHaveLength(4);
-    expect(reloadedResult.current.messages[2].content).toBe('Let me try asking again.');
-    expect(reloadedResult.current.messages[3].content).toBe('Pacemaker.');
-    expect(reloadedResult.current.messages[3].status).toBe('complete');
+    await waitFor(() => {
+      expect(result.current.activity).not.toBeNull();
+    });
+    expect(result.current.activity?.label).toBe('Thinking…');
+    expect(result.current.activity?.isStalled).toBe(false);
+
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(result.current.activity).toBeNull();
+    expect(result.current.isStreaming).toBe(false);
+  });
+
+  it('abandons a request that never produces a token and offers a retry', async () => {
+    // A service that accepts the request and then stays silent forever.
+    const silentAi = {
+      async *streamChat() {
+        await new Promise(() => undefined);
+        // Unreachable: the await above never settles. Present so the iterator
+        // contract is explicit rather than a generator with no yield.
+        yield { type: 'done' as const };
+      },
+    } as unknown as AiService;
+
+    const harness = createAiChatHarness(db, silentAi);
+
+    // A short threshold keeps the watchdog deterministic without fake timers.
+    const { result } = renderHook(
+      () => useAiChatThread({ materialId: 'doc-cardio', firstTokenTimeoutMs: 80 }),
+      { wrapper: harness.wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      void result.current.sendMessage('Are you there?');
+    });
+
+    await waitFor(() => {
+      expect(result.current.error?.code).toBe('TIMEOUT');
+    }, { timeout: 3000 });
+
+    expect(result.current.isStreaming).toBe(false);
+    expect(result.current.activity).toBeNull();
+    expect(result.current.retryLastPrompt).toBeTypeOf('function');
   });
 });

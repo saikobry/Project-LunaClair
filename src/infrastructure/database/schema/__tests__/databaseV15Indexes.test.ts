@@ -227,9 +227,9 @@ describe('Dexie Schema v15 — index-only pass', () => {
 
         // aiThreads: most-recently-updated first within a material.
         await db.aiThreads.bulkPut([
-            { id: 't-old', materialId: 'mat-1', title: 'Old', mode: 'assistant', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z' },
-            { id: 't-new', materialId: 'mat-1', title: 'New', mode: 'socratic', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:09:00.000Z' },
-            { id: 't-global', title: 'Global', mode: 'assistant', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:10:00.000Z' },
+            { id: 't-old', materialId: 'mat-1', title: 'Old', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z' },
+            { id: 't-new', materialId: 'mat-1', title: 'New', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:09:00.000Z' },
+            { id: 't-global', title: 'Global', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:10:00.000Z' },
         ]);
 
         const threads = await db.aiThreads

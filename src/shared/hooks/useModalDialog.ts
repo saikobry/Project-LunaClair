@@ -5,6 +5,7 @@ import {
   useRef,
   type RefObject,
 } from 'react';
+import { useBodyScrollLock } from './useBodyScrollLock';
 
 interface UseModalDialogOptions {
   /** Whether the modal should be open. */
@@ -56,14 +57,7 @@ export function useModalDialog({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !lockScroll) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen, lockScroll]);
+  useBodyScrollLock(isOpen && lockScroll);
 
   const hasBackdropHandler = onBackdropClick != null;
   const hasEscapeHandler = onEscape != null;

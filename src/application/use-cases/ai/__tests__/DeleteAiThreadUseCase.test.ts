@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
-import { GetOrCreateAiThreadUseCase } from '../GetOrCreateAiThreadUseCase';
+import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
 import { DeleteAiThreadUseCase } from '../DeleteAiThreadUseCase';
 
 describe('DeleteAiThreadUseCase', () => {
@@ -21,17 +21,11 @@ describe('DeleteAiThreadUseCase', () => {
     });
 
     it('deletes specific thread while leaving other document threads intact', async () => {
-        const getOrCreate = new GetOrCreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo);
         const deleteThread = new DeleteAiThreadUseCase(chatRepo);
 
-        const thread1 = await getOrCreate.execute({
-            materialId: 'doc-1',
-            mode: 'assistant',
-        });
-        await getOrCreate.execute({
-            materialId: 'doc-2',
-            mode: 'assistant',
-        });
+        const thread1 = await createThread.execute({ materialId: 'doc-1' });
+        await createThread.execute({ materialId: 'doc-2' });
 
         await deleteThread.execute({ threadId: thread1.id });
         const remainingForDoc1 = await chatRepo.listThreads('doc-1');

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
-import { GetOrCreateAiThreadUseCase } from '../GetOrCreateAiThreadUseCase';
+import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
 import { ClearChatHistoryUseCase } from '../ClearChatHistoryUseCase';
 
 describe('ClearChatHistoryUseCase', () => {
@@ -21,17 +21,11 @@ describe('ClearChatHistoryUseCase', () => {
     });
 
     it('clears all threads and messages for a material', async () => {
-        const getOrCreate = new GetOrCreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo);
         const clearHistory = new ClearChatHistoryUseCase(chatRepo);
 
-        await getOrCreate.execute({
-            materialId: 'doc-bio',
-            mode: 'assistant',
-        });
-        await getOrCreate.execute({
-            materialId: 'doc-bio',
-            mode: 'socratic',
-        });
+        await createThread.execute({ materialId: 'doc-bio' });
+        await createThread.execute({ materialId: 'doc-bio' });
 
         expect(await chatRepo.listThreads('doc-bio')).toHaveLength(2);
 

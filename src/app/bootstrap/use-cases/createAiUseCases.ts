@@ -1,5 +1,7 @@
 import { SendChatMessageUseCase } from '../../../application/use-cases/ai/SendChatMessageUseCase';
-import { GetOrCreateAiThreadUseCase } from '../../../application/use-cases/ai/GetOrCreateAiThreadUseCase';
+import { ResolveAiThreadUseCase } from '../../../application/use-cases/ai/ResolveAiThreadUseCase';
+import { CreateAiThreadUseCase } from '../../../application/use-cases/ai/CreateAiThreadUseCase';
+import { RenameAiThreadUseCase } from '../../../application/use-cases/ai/RenameAiThreadUseCase';
 import { GetAiThreadMessagesUseCase } from '../../../application/use-cases/ai/GetAiThreadMessagesUseCase';
 import { DeleteAiThreadUseCase } from '../../../application/use-cases/ai/DeleteAiThreadUseCase';
 import { ClearChatHistoryUseCase } from '../../../application/use-cases/ai/ClearChatHistoryUseCase';
@@ -15,7 +17,9 @@ export function createAiUseCases(infrastructure: Infrastructure) {
     return {
         ai: {
             sendChatMessage: new SendChatMessageUseCase(services.ai, repositories.aiChat),
-            getOrCreateThread: new GetOrCreateAiThreadUseCase(repositories.aiChat),
+            resolveThread: new ResolveAiThreadUseCase(repositories.aiChat),
+            createThread: new CreateAiThreadUseCase(repositories.aiChat),
+            renameThread: new RenameAiThreadUseCase(repositories.aiChat),
             getThreadMessages: new GetAiThreadMessagesUseCase(repositories.aiChat),
             deleteThread: new DeleteAiThreadUseCase(repositories.aiChat),
             clearChatHistory: new ClearChatHistoryUseCase(repositories.aiChat),

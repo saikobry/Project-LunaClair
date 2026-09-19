@@ -9,6 +9,7 @@ import { Bot, User, AlertCircle, RotateCcw } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { aiSanitizeSchema } from '../utils/aiMarkdown';
 import { Button } from '../../../shared/ui/Button/Button';
+import { AiMessageUsage } from './AiMessageUsage';
 import { AiStreamingIndicator } from './AiStreamingIndicator';
 
 const styles = stylex.create({
@@ -196,11 +197,14 @@ const markdownComponents: Components = {
 export interface AiChatMessageProps {
   message: AiMessageRecord;
   onRetry?: (messageId: string) => void;
+  /** Overrides the wait label shown while a turn is still streaming. */
+  streamingLabel?: string;
 }
 
 export const AiChatMessage = memo(function AiChatMessage({
   message,
   onRetry,
+  streamingLabel,
 }: AiChatMessageProps) {
   const isUser = message.role === 'user';
   const isStreaming = message.status === 'streaming';
@@ -245,9 +249,11 @@ export const AiChatMessage = memo(function AiChatMessage({
           </div>
         )}
 
+        <AiMessageUsage message={message} />
+
         {isStreaming && (
           <div style={{ marginTop: 6 }}>
-            <AiStreamingIndicator label="Generating response…" />
+            <AiStreamingIndicator label={streamingLabel ?? 'Generating response…'} />
           </div>
         )}
 
