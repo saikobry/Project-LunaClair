@@ -37,6 +37,9 @@ Supported agents include: **Codex**, **Kilo**, **OpenCode**, **Freebuff**, **Cli
 > - Dispatch with `dispatch.ps1 -Wait` (or run `wait-agent.ps1`) and **let the process block synchronously** until Herdr completes, or stop calling tools until a background notification arrives.
 > - Herdr's reactive socket wait (`herdr agent wait`) blocks at the OS named-pipe level. It consumes **zero LLM tokens** and zero CPU.
 > - Inspect output **only once** after completion using `get-report.ps1` via AgentsView. The only valid mid-flight intervention is if Herdr reports the agent is `[BLOCKED]` waiting on human approval.
+> - **PRAGMATIC DISPATCH CONTRACT FOR AI ASSISTANTS**:
+>   1. **Default Posture — Chill & Prioritize the Script**: Upon dispatching a task or sending an agent prompt, launch `wait-agent.ps1` (or use `-Wait`). If running in the background, yield your turn and let the OS socket do the waiting. Do not routinely poll or step-monitor panes.
+>   2. **Bounded Diagnostic Peeking (Rare Exceptions Only)**: Peeking is not dogmatically banned, but must be strictly limited. If `wait-agent.ps1` times out, throws an error, or Herdr reports an agent is `[BLOCKED]`, take a single, targeted look (e.g. `herdr pane read <pane> --lines 30`) to diagnose or unblock, then return to waiting. Never loop or spam inspection tools across normal working turns.
 
 ---
 
@@ -158,6 +161,18 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
   - `-NoSync`: Skips the initial incremental `agentsview sync` step.
   - `-OutputFile <path>`: Optionally saves combined markdown report.
 
+- **`consult.ps1`**:
+  High-level, agent-agnostic one-shot consultation command that packages the full round-trip workflow (spec preparation / git diff packaging -> dispatch with synchronous wait -> AgentsView structured report extraction).
+  - `consult.ps1 <worker> [-Changes] [-Topic "<title>"]`: Automatically packages all current modifications (git status, staged diffs, and unstaged working tree diffs) into a structured review spec, injects the no-tools guard, dispatches it to `<worker>`, waits, and retrieves the verdict.
+  - `consult.ps1 <worker> -StagedDiff [-Topic "<title>"]`: Packages specifically staged git diffs (`git diff --cached`).
+  - `consult.ps1 <worker> <specPath>`: Run consultation against an existing specification markdown.
+  - `consult.ps1 <worker> -Prompt "<question>"`: Quick consultation with an inline question, auto-generating a spec.
+  - **Natural Language Triggers**:
+    - **Review Changes**: When asked to *"check our current changes with <worker>"* or *"consult <worker>"*: simply run `consult.ps1 <worker> -Changes`. It automatically handles all context packaging, prompt sanitization, tool restriction, reactive socket wait, and report extraction.
+    - **Plan Review / Second Opinion**: When asked to *"consult <worker> about our plan"* or *"get a second opinion on this implementation"*: save the discussed plan into `.orchestrator/specs/<topic>-plan.md` and run `consult.ps1 <worker> .orchestrator/specs/<topic>-plan.md`. The target agent receives the full plan, reviews the architecture, and returns feedback in pure prose without executing any tools.
+  - **Automatic Diff Size-Guard**: Diffs >150KB or >1500 lines automatically filter out lockfiles (`package-lock.json`, `pnpm-lock.yaml`), prepend `git diff --stat` (capped at 100 files), and truncate the diff body to the first 1,000 lines with an informative measurement notice. Use `-FullDiff` to bypass when the full raw diff is explicitly required.
+  - Fully agent-agnostic: `<worker>` can be `codex`, `kilo`, `cline`, `freebuff`, `opencode`, or any active pane ID (e.g. `w5:p2`).
+
 - **`clean.ps1`**:
   Wipes temporary specs and reports in `.orchestrator/`.
   - `-All`: Clears all temporary staging files.
@@ -260,3 +275,44 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
    ```powershell
    powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/get-report.ps1 -Workers "codex,kilo-scout,cline"
    ```
+
+---
+
+### 6. Architectural Consultation & Pre-Commit Review (One-Shot Consult Flow)
+*Quickly solicit an expert peer review or sanity-check from any agent on staged diffs, architecture plans, or design questions.*
+
+```powershell
+# 1. Consult Codex (or any agent) on current staged changes before committing:
+# (Auto-packages staged diff + status and instructs reviewer: "Do not read other files and do not use tools")
+powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/consult.ps1 codex -StagedDiff -Topic "Review Staged AI Hardening"
+
+# 2. Consult on an existing specification markdown:
+powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/consult.ps1 codex .orchestrator/specs/consult-9-signoff.md
+
+# 3. Quick consultation with an inline design question:
+powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/consult.ps1 opencode -Prompt "Compare SQLite CAS vs version increment for offline sync idempotency"
+
+# 4. Peer review on an implementation or architectural plan:
+# (Cline/User stages agreed plan to a spec; reviewer provides feedback in pure prose with zero tool calls)
+powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/consult.ps1 codex .orchestrator/specs/feature-plan.md
+```
+
+---
+
+### 7. Token-Saver Large-Diff Consultation (Scout Summarization + Specialist Review)
+*Save 90–95% of tokens when using an expensive, high-reasoning model (e.g. Codex on GPT-5/o1, Claude 3.5 Sonnet) to review large changes.*
+
+Instead of dumping a raw 30,000+ token diff into an expensive model:
+1. **Local Scout (e.g. Cline or Kilo) reviews the raw diff locally**:
+   - Compiles an **Architectural Review Dossier** into `.orchestrator/specs/<topic>-dossier.md`:
+     - **Summary**: High-level purpose and architectural impact.
+     - **Per-File Changes**: Key functions/classes modified and rationale.
+     - **Critical Snippets**: Only the load-bearing interfaces, state changes, or algorithms.
+     - **Targeted Questions**: Specific risks, concurrency edge cases, or trade-offs for the expert model.
+2. **Dispatch the dense dossier to the expensive consultant**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/consult.ps1 codex .orchestrator/specs/<topic>-dossier.md
+   ```
+3. **Outcome**:
+   The expensive model reads ~1,500–2,500 tokens of concentrated architectural signal instead of 40,000 tokens of raw diff, delivering superior architectural critique at a tiny fraction of the cost.
+

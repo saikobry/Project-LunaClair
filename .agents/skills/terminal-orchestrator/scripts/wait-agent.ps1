@@ -7,6 +7,19 @@ param(
     [int]$DebounceMilliseconds = 3600
 )
 
+function Resolve-HerdrTarget([string]$target) {
+    if ($target -match "^w\d+:p\d+$") { return $target }
+    try {
+        $raw = herdr agent list 2>$null
+        if ($raw) {
+            $json = $raw | ConvertFrom-Json
+            $found = $json.result.agents | Where-Object { $_.name -eq $target -or $_.agent -eq $target } | Select-Object -First 1
+            if ($found -and $found.pane_id) { return $found.pane_id }
+        }
+    } catch {}
+    return $target
+}
+
 # 1. Normalize worker list
 $workerList = @()
 foreach ($w in $Workers) {
@@ -16,7 +29,7 @@ foreach ($w in $Workers) {
         $workerList += $w.Trim()
     }
 }
-$workerList = @($workerList | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+$workerList = @($workerList | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { Resolve-HerdrTarget $_ } | Select-Object -Unique)
 
 if ($workerList.Count -eq 0) {
     Write-Error "No valid workers specified to wait on."

@@ -5,6 +5,7 @@ param(
     [hashtable]$Target,
     [switch]$Wait,
     [int]$TimeoutSeconds = 300,
+    [string]$InstructionPrompt = "",
     [string]$AnchorPane,
     [ValidateSet("right", "down")]
     [string]$SplitDirection = "right"
@@ -153,7 +154,11 @@ foreach ($workerItem in $dispatchPlan.Keys) {
     }
 
     # Pure task instruction prompt (no sentinel noise)
-    $prompt = "Please read $specPath and implement the task."
+    $prompt = if ($InstructionPrompt) {
+        $InstructionPrompt
+    } else {
+        "Please read $specPath and implement the task."
+    }
 
     # Delivery
     if ($matchedAgent -and $matchedAgent.name) {
