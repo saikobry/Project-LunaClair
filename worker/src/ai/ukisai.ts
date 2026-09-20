@@ -1,4 +1,5 @@
 import { readAiTokenUsage } from '../core/aiUsage';
+import { createTimeoutSignal } from './deadline';
 import { toAiProviderError } from './errors';
 import { readSseData } from './sse';
 import { AiProviderError, type AiProvider, type AiProviderEvent, type AiProviderRequest } from './types';
@@ -28,6 +29,11 @@ const RETRY_HINT_PATTERN = /try again in (\d+)\s*s/i;
  *
  * The endpoint sends no `Access-Control-Allow-Origin`, so this is reachable only from the Worker —
  * which the architecture already required.
+ *
+ * The deadline covers **becoming responsive**, not the whole answer: the composed signal is dropped
+ * once the response headers arrive, and the route's idle deadline governs the body from there. A
+ * below-SLA research endpoint that accepts a request and then never answers is the failure this
+ * prevents, and it was reachable before this existed.
  */
 export class UkisAiProvider implements AiProvider {
   readonly id = 'ukisai' as const;
@@ -38,6 +44,12 @@ export class UkisAiProvider implements AiProvider {
   }
 
   async *stream(request: AiProviderRequest): AsyncIterable<AiProviderEvent> {
+    const deadline = createTimeoutSignal(
+      request.signal,
+      request.timeoutMs,
+      `UkisAI did not respond within ${request.timeoutMs}ms.`,
+    );
+
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -52,13 +64,24 @@ export class UkisAiProvider implements AiProvider {
           stream_options: { include_usage: true },
           chat_template_kwargs: { enable_thinking: false },
         }),
-        signal: request.signal,
+        signal: deadline.signal,
       });
     } catch (err: unknown) {
+      // Timeout and client abort are separated on purpose: one is the provider's fault and must be
+      // retryable, the other is the user's Stop and must not be reported as a failure at all.
+      if (deadline.timedOut()) {
+        throw new AiProviderError(
+          `UkisAI did not respond within ${request.timeoutMs}ms.`,
+          'TIMEOUT',
+        );
+      }
       if (request.signal?.aborted) {
-        throw new AiProviderError('The AI request was cancelled.', 'UPSTREAM_ERROR');
+        throw new AiProviderError('The AI request was cancelled.', 'ABORTED');
       }
       throw toAiProviderError(err, 'UkisAI request failed');
+    } finally {
+      // Headers are in (or the request already failed): the connect deadline has done its job.
+      deadline.clear();
     }
 
     if (!response.ok) {

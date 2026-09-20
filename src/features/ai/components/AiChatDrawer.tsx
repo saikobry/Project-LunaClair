@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
@@ -118,7 +118,7 @@ export function AiChatDrawer({
 
   // Which model the next message asks for. Per request, not per conversation: the thread stores no
   // model, so switching here changes the next turn and never the one already streaming.
-  const { catalog, selectedModel, selectModel } = useAiModelSelection();
+  const { catalog, selectedModel, selectModel, refreshCatalog } = useAiModelSelection();
 
   const {
     thread,
@@ -140,6 +140,14 @@ export function AiChatDrawer({
     error,
     cooldownSeconds,
   } = useAiChatThread({ materialId, model: selectedModel.id });
+
+  // The server refused the model this client offered, which means the catalog here is behind the
+  // server's (a model was just disabled or retired). The bundled mirror and the cached copy are
+  // both offline stand-ins, so the only cure is to re-read the catalog and let the picker reflect
+  // what is actually servable — never to retry the refused model.
+  useEffect(() => {
+    if (error?.code === 'MODEL_UNAVAILABLE') refreshCatalog();
+  }, [error?.code, refreshCatalog]);
 
   const closeHistory = useCallback(() => setIsHistoryOpen(false), []);
   const toggleHistory = useCallback(() => setIsHistoryOpen((open) => !open), []);

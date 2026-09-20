@@ -92,6 +92,31 @@ describe('useAiModelSelection', () => {
     expect(result.current.selectedModel.id).toBe(MAX_ID);
   });
 
+  it('re-reads the catalog on refresh, so a refused model stops being offered', async () => {
+    const withoutMax: AiModelCatalog = {
+      ...DEFAULT_AI_MODEL_CATALOG,
+      version: '2099-01-01.1',
+      models: [DEFAULT_AI_MODEL_CATALOG.models[0]],
+    };
+    const execute = vi
+      .fn<() => Promise<AiModelCatalog>>()
+      .mockResolvedValueOnce(DEFAULT_AI_MODEL_CATALOG)
+      .mockResolvedValue(withoutMax);
+
+    const { result } = renderHook(() => useAiModelSelection(), {
+      wrapper: wrapperWith(execute),
+    });
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.refreshCatalog();
+    });
+
+    await waitFor(() => {
+      expect(result.current.catalog.models.map((model) => model.id)).toEqual([DEFAULT_ID]);
+    });
+  });
+
   it('resolves a retired or unknown preference to the catalog default', () => {
     // A model can leave the catalog; the stored id must never be sent as-is.
     localStorage.setItem(STORAGE_KEYS.ai.modelId, 'model-that-was-removed');

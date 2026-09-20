@@ -21,6 +21,7 @@ async function collect(provider: UkisAiProvider, modelId = 'swift') {
     messages: [{ role: 'user', content: 'hi' }],
     maxOutputTokens: 4_096,
     temperature: 0.5,
+    timeoutMs: 60_000,
   })) {
     events.push(event);
   }
@@ -151,5 +152,56 @@ describe('UkisAiProvider', () => {
     await expect(collect(new UkisAiProvider(BASE_URL))).rejects.toMatchObject({
       message: 'HTTP 502 Bad Gateway',
     });
+  });
+
+  it('abandons a request that never becomes responsive as TIMEOUT', async () => {
+    vi.useFakeTimers();
+    try {
+      // A host below SLA can accept the connection and then send nothing at all.
+      globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(init.signal?.reason ?? new Error('aborted')),
+          );
+        });
+      }) as unknown as typeof fetch;
+
+      const streamed = collect(new UkisAiProvider(BASE_URL));
+      const settled = expect(streamed).rejects.toMatchObject({ code: 'TIMEOUT' });
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await settled;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a caller cancellation as ABORTED, not as an upstream failure', async () => {
+    const controller = new AbortController();
+    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(init.signal?.reason ?? new Error('aborted')),
+        );
+        controller.abort();
+      });
+    }) as unknown as typeof fetch;
+
+    const events: unknown[] = [];
+    const streamed = (async () => {
+      for await (const event of new UkisAiProvider(BASE_URL).stream({
+        modelId: 'swift',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxOutputTokens: 4_096,
+        temperature: 0.5,
+        timeoutMs: 60_000,
+        signal: controller.signal,
+      })) {
+        events.push(event);
+      }
+    })();
+
+    await expect(streamed).rejects.toMatchObject({ code: 'ABORTED' });
+    expect(events).toEqual([]);
   });
 });

@@ -8,7 +8,10 @@
 
   // Comma-separated allowlist of browser origins; empty = local dev defaults.
   "vars": {
-    "CORS_ORIGINS": ""
+    "CORS_ORIGINS": "",
+    // AI kill switch: catalog model ids to stop serving (e.g. "ukisai-swift-max"). Empty = all
+    // available. Takes effect on redeploy; the default model is never disabled.
+    "AI_DISABLED_MODELS": ""
   },
 
   // Cloudflare D1 (serverless SQLite) — the cloud sync layer for LunaClair.

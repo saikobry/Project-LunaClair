@@ -15,6 +15,14 @@ export interface AiModelSelection {
   selectedModel: AiModelDescriptor;
   /** Selects the model for the next request and remembers it on this device. */
   selectModel: (modelId: string) => void;
+  /**
+   * Re-reads the catalog after the server refused a model.
+   *
+   * A `MODEL_UNAVAILABLE` refusal means this client's catalog is behind the server's — a model was
+   * just disabled or retired — so the picker is refreshed rather than left offering a choice that
+   * has stopped working.
+   */
+  refreshCatalog: () => void;
 }
 
 /** A stored preference is a hint, not a contract: it is validated against the catalog on read. */
@@ -53,9 +61,9 @@ export function useAiModelSelection(): AiModelSelection {
     readStoredModelId(),
   );
 
-  useEffect(() => {
+  const requestCatalog = useCallback((): (() => void) => {
     const getModelCatalog = context?.useCases?.ai?.getModelCatalog;
-    if (!getModelCatalog) return;
+    if (!getModelCatalog) return () => {};
 
     let cancelled = false;
     void getModelCatalog
@@ -70,6 +78,8 @@ export function useAiModelSelection(): AiModelSelection {
     };
   }, [context]);
 
+  useEffect(() => requestCatalog(), [requestCatalog]);
+
   const selectModel = useCallback((modelId: string) => {
     setPreferredModelId(modelId);
     writeStoredModelId(modelId);
@@ -79,5 +89,5 @@ export function useAiModelSelection(): AiModelSelection {
   // render can offer — or send — a model the catalog does not have.
   const selectedModel = getAiModelDescriptor(catalog, preferredModelId);
 
-  return { catalog, selectedModel, selectModel };
+  return { catalog, selectedModel, selectModel, refreshCatalog: requestCatalog };
 }

@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AI_CATALOG_VERSION,
   AI_DEFAULT_MODEL_ID,
   AI_MODEL_ROUTES,
   hasSingleDefaultModel,
+  isAiModelServed,
+  listServedAiModelRoutes,
   resolveAiModelRoute,
+  resolveDisabledAiModelIds,
   toPublicAiModelCatalog,
 } from '../aiModels';
 
@@ -73,5 +76,68 @@ describe('toPublicAiModelCatalog', () => {
 
     expect(names).toContain('MAX');
     expect(names).toContain('Standard');
+  });
+
+  it('omits a disabled model rather than listing it to be refused', () => {
+    const catalog = toPublicAiModelCatalog(new Set(['ukisai-swift-max']));
+
+    expect(catalog.models.map((model) => model.id)).toEqual([AI_DEFAULT_MODEL_ID]);
+  });
+});
+
+describe('resolveDisabledAiModelIds', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('serves every model when the kill switch is unset or empty', () => {
+    expect(resolveDisabledAiModelIds({}).size).toBe(0);
+    expect(resolveDisabledAiModelIds({ AI_DISABLED_MODELS: '  ' }).size).toBe(0);
+  });
+
+  it('parses a comma-separated list and tolerates whitespace', () => {
+    const disabled = resolveDisabledAiModelIds({ AI_DISABLED_MODELS: ' ukisai-swift-max , ' });
+
+    expect(disabled).toEqual(new Set(['ukisai-swift-max']));
+  });
+
+  it('refuses to disable the default model, which every degraded path falls back to', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const disabled = resolveDisabledAiModelIds({ AI_DISABLED_MODELS: AI_DEFAULT_MODEL_ID });
+
+    expect(disabled.size).toBe(0);
+    expect(warn).toHaveBeenCalledWith(
+      'AI_DISABLED_MODELS names the default model, which cannot be disabled',
+      { id: AI_DEFAULT_MODEL_ID },
+    );
+  });
+
+  it('ignores an unknown id in the switch instead of failing chat', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const disabled = resolveDisabledAiModelIds({ AI_DISABLED_MODELS: 'not-a-model' });
+
+    expect(disabled.size).toBe(0);
+    expect(warn).toHaveBeenCalledWith('AI_DISABLED_MODELS names an unknown model', {
+      id: 'not-a-model',
+    });
+  });
+});
+
+describe('isAiModelServed', () => {
+  it('serves a registered model with no kill switch and no retirement flag', () => {
+    const max = AI_MODEL_ROUTES.find((route) => route.id === 'ukisai-swift-max');
+    expect(max).toBeDefined();
+    expect(isAiModelServed(max!)).toBe(true);
+  });
+
+  it('stops serving a model the kill switch names', () => {
+    const max = AI_MODEL_ROUTES.find((route) => route.id === 'ukisai-swift-max')!;
+    expect(isAiModelServed(max, new Set(['ukisai-swift-max']))).toBe(false);
+  });
+
+  it('keeps the default served even when disabled, so a deployment cannot empty the catalog', () => {
+    const standard = AI_MODEL_ROUTES.find((route) => route.isDefault)!;
+    expect(isAiModelServed(standard, new Set([standard.id]))).toBe(true);
+    expect(listServedAiModelRoutes(new Set([standard.id]))).toContain(standard);
   });
 });

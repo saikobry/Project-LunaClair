@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleAiChat, handleAiModels } from '../ai';
+import { AI_STREAM_IDLE_TIMEOUT_MS } from '../../ai/deadline';
 import type { Env, RouteContext } from '../../core/types';
 
 const DEFAULT_PROVIDER_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -39,11 +40,13 @@ function ukisaiStream() {
 function makeCtx(
   body: unknown,
   run?: (model: string, inputs: Record<string, unknown>) => Promise<unknown>,
+  envOverrides: Partial<Env> = {},
 ): RouteContext {
   const env = {
     DB: {} as unknown as D1Database,
     AI: run ? { run: vi.fn(run) } : undefined,
     UKISAI_BASE_URL,
+    ...envOverrides,
   } as unknown as Env;
 
   return {
@@ -77,6 +80,37 @@ describe('handleAiModels', () => {
     const catalog = (await response.json()) as { defaultModelId: string; models: unknown[] };
     expect(catalog.defaultModelId).toBe(DEFAULT_CATALOG_ID);
     expect(catalog.models.length).toBeGreaterThan(0);
+  });
+
+  it('drops a killed model from the catalog, so the picker cannot offer it', async () => {
+    const response = handleAiModels(makeCtx({}, undefined, { AI_DISABLED_MODELS: 'ukisai-swift-max' }));
+    const catalog = (await response.json()) as { models: Array<{ id: string }> };
+
+    expect(catalog.models.map((model) => model.id)).toEqual([DEFAULT_CATALOG_ID]);
+  });
+});
+
+describe('handleAiChat operational kill switch', () => {
+  it('refuses a model the kill switch disabled, without serving anything else', async () => {
+    const response = await handleAiChat(
+      makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }, undefined, {
+        AI_DISABLED_MODELS: 'ukisai-swift-max',
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'MODEL_UNAVAILABLE' });
+  });
+
+  it('still serves the default model while the switch names another one', async () => {
+    const run = vi.fn(async () => workersAiStream());
+    const response = await handleAiChat(
+      makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, run, {
+        AI_DISABLED_MODELS: 'ukisai-swift-max',
+      }),
+    );
+
+    expect(response.status).toBe(200);
   });
 });
 
@@ -263,6 +297,69 @@ describe('handleAiChat failures', () => {
 
     expect(response.status).toBe(502);
     expect(await response.json()).toMatchObject({ code: 'UPSTREAM_ERROR' });
+  });
+
+  it('abandons a provider that accepts the request and then never yields', async () => {
+    vi.useFakeTimers();
+    try {
+      const response = handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, () => new Promise(() => {})),
+      );
+
+      await vi.advanceTimersByTimeAsync(AI_STREAM_IDLE_TIMEOUT_MS);
+      const settled = await response;
+
+      // Without the deadline this request would hold the Worker response open indefinitely.
+      expect(settled.status).toBe(504);
+      expect(await settled.json()).toMatchObject({ code: 'TIMEOUT' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails mid-stream rather than hanging when tokens stop arriving', async () => {
+    vi.useFakeTimers();
+    try {
+      let opened = false;
+      const run = async () => {
+        const encoder = new TextEncoder();
+        return new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('data: {"response":"Hello"}\n\n'));
+            opened = true;
+            // Never closed: the provider went silent after the first token.
+          },
+        });
+      };
+
+      const responsePromise = handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, run),
+      );
+      const drained = responsePromise.then((response) => readEvents(response));
+
+      // Let the first event commit the 200, then let the idle deadline elapse.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(opened).toBe(true);
+      await vi.advanceTimersByTimeAsync(AI_STREAM_IDLE_TIMEOUT_MS);
+
+      const events = await drained;
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: 'error', code: 'TIMEOUT' }),
+      );
+      // The turn is still attributed to the model that served it.
+      expect(events.at(-1)).toMatchObject({ type: 'done', model: DEFAULT_CATALOG_ID });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('answers an already-cancelled request without reporting an upstream failure', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }] });
+    const response = await handleAiChat({ ...ctx, request: new Request(ctx.request, { signal: controller.signal }) } as RouteContext);
+
+    expect(response.status).toBe(499);
   });
 
   it('rejects a request with no messages', async () => {

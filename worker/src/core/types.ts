@@ -17,6 +17,12 @@ export interface Env {
   AI?: AiBinding;
   /** Override for the UkisAI (Swift) base URL — local dev and tests; unset = hosted endpoint. */
   UKISAI_BASE_URL?: string;
+  /**
+   * Operational kill switch: comma-separated catalog model ids to stop serving without a deploy.
+   * Disabled models drop out of `GET /api/ai/models` and chat refuses them. The default model
+   * cannot be disabled (see `resolveDisabledAiModelIds`).
+   */
+  AI_DISABLED_MODELS?: string;
 }
 
 export interface RouteContext {

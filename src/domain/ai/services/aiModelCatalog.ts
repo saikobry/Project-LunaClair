@@ -6,9 +6,12 @@
  * succeeded — a fresh install with no cache, or an offline first run — so the app can still meter a
  * request and price a turn instead of refusing to work.
  *
- * The mirror is a copy of `worker/src/core/aiModels.ts`, which the client cannot import. The Worker
- * is authoritative: `version` is compared against the served catalog so a stale mirror loses to a
- * fetched one, and this constant must be bumped whenever the Worker's changes.
+ * The mirror is a copy of `worker/src/core/aiModels.ts`, which the client cannot import. A fetch
+ * that succeeds always wins — the Worker is the only party that knows which models exist *now*,
+ * so a cached or bundled copy is only ever an offline stand-in. `version` arbitrates between those
+ * two offline sources, and this constant must be bumped whenever the Worker's changes; the
+ * worker-side coherence test (`worker/src/core/__tests__/aiModelCatalog.coherence.test.ts`) fails
+ * if the two ever disagree on a model, a budget, a price, or the default.
  */
 
 export type AiProviderId = 'workers-ai' | 'ukisai';

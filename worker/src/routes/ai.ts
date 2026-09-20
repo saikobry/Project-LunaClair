@@ -1,13 +1,16 @@
 import { badRequest, json } from '../core/responses';
 import { readAiTokenUsage } from '../core/aiUsage';
 import {
+  isAiModelServed,
   resolveAiModelRoute,
+  resolveDisabledAiModelIds,
   toPublicAiModelCatalog,
   type AiModelRoute,
 } from '../core/aiModels';
 import type { RouteContext } from '../core/types';
 import { resolveAiProvider } from '../ai/providers';
 import { toAiProviderError } from '../ai/errors';
+import { AI_STREAM_IDLE_TIMEOUT_MS, withIdleDeadline } from '../ai/deadline';
 import type { AiErrorCode, AiProviderEvent } from '../ai/types';
 
 /**
@@ -23,9 +26,21 @@ const STATUS_BY_CODE: Record<AiResponseCode, number> = {
   MODEL_UNAVAILABLE: 400,
   CONTEXT_LIMIT: 400,
   RATE_LIMITED: 429,
+  TIMEOUT: 504,
+  ABORTED: 499,
   PROVIDER_UNAVAILABLE: 503,
   UPSTREAM_ERROR: 502,
 };
+
+/**
+ * The client went away mid-request (it pressed Stop, or navigated off).
+ *
+ * Nothing reads this body, so it exists to keep the failure out of the error path: reporting a
+ * cancellation as a 502 would make a user-initiated Stop look like a broken endpoint.
+ */
+function aborted(corsHeaders: Record<string, string>): Response {
+  return new Response(null, { status: STATUS_BY_CODE.ABORTED, headers: corsHeaders });
+}
 
 function failure(
   code: AiResponseCode,
@@ -47,7 +62,7 @@ function failure(
  * a request against the right window. Provider routing data is projected away.
  */
 export function handleAiModels(ctx: RouteContext): Response {
-  return json(toPublicAiModelCatalog(), 200, ctx.corsHeaders);
+  return json(toPublicAiModelCatalog(resolveDisabledAiModelIds(ctx.env)), 200, ctx.corsHeaders);
 }
 
 /**
@@ -63,9 +78,16 @@ export function handleAiModels(ctx: RouteContext): Response {
  * There is deliberately **no fallback model**. The previous silent retry named
  * `@cf/meta/llama-3.1-8b-instruct`, which Cloudflare deprecated on 2026-05-30, so it could fail
  * obscurely after an unrelated primary failure; a failed request now fails visibly with a code.
+ *
+ * Every provider pull is bounded by an idle deadline, so a provider that goes silent mid-answer
+ * fails as `TIMEOUT` rather than holding the response open; a client that cancels is answered with
+ * `ABORTED` instead of being dressed up as an upstream failure.
  */
 export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   const { request, env, corsHeaders } = ctx;
+
+  // A disconnected client leaves nobody to answer; short-circuit before parsing or spending work.
+  if (request.signal.aborted) return aborted(corsHeaders);
 
   const body = (await request.json().catch(() => null)) as {
     messages?: Array<{ role?: unknown; content?: unknown }>;
@@ -87,6 +109,17 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     return failure(
       'MODEL_UNAVAILABLE',
       `Unknown AI model "${requestedModelId}". Call GET /api/ai/models for the available models.`,
+      corsHeaders,
+    );
+  }
+
+  // A disabled model is a distinct case from an unknown one: the id is real, so the client should
+  // refresh its catalog and pick again rather than treat the request as a bug.
+  const disabledModelIds = resolveDisabledAiModelIds(env);
+  if (!isAiModelServed(modelRoute, disabledModelIds)) {
+    return failure(
+      'MODEL_UNAVAILABLE',
+      `Model "${modelRoute.id}" is not currently available on this endpoint.`,
       corsHeaders,
     );
   }
@@ -165,6 +198,7 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     maxOutputTokens: modelRoute.maxOutputTokens,
     temperature: 0.5,
     signal: request.signal,
+    timeoutMs: AI_STREAM_IDLE_TIMEOUT_MS,
   })[Symbol.asyncIterator]();
 
   // Pull one event **before** committing to a 200. Rate limits, context rejections, and binding
@@ -173,8 +207,11 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   // longer change the status, so those become an app-native `error` event instead.
   let first: IteratorResult<AiProviderEvent>;
   try {
-    first = await iterator.next();
+    // The idle deadline applies here too: a provider that accepts the request and then never yields
+    // is exactly the hang this guards, and it would otherwise hold the response open forever.
+    first = await withIdleDeadline(iterator.next());
   } catch (err: unknown) {
+    if (request.signal.aborted) return aborted(corsHeaders);
     const providerError = toAiProviderError(err);
     console.error('AI provider failed before streaming', {
       model: modelRoute.id,
@@ -209,7 +246,9 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
       try {
         if (!first.done) emit(first.value);
         for (;;) {
-          const next = await iterator.next();
+          // Idle, not total: a long answer that keeps producing tokens may stream indefinitely,
+          // while one that stops producing fails within the deadline instead of hanging the drawer.
+          const next = await withIdleDeadline(iterator.next());
           if (next.done) break;
           emit(next.value);
         }

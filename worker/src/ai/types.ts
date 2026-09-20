@@ -13,8 +13,14 @@ import type { AiProviderId } from '../core/aiModels';
  * model id and never a provider.
  */
 
-/** Normalized failure codes, carried through to the client's coded error response. */
-export type AiErrorCode = 'RATE_LIMITED' | 'CONTEXT_LIMIT' | 'UPSTREAM_ERROR';
+/**
+ * Normalized failure codes, carried through to the client's coded error response.
+ *
+ * `TIMEOUT` covers a provider that accepted the request and then went silent, and `ABORTED` a
+ * request the client itself cancelled — kept apart so a user pressing Stop is never reported to
+ * them as an upstream failure.
+ */
+export type AiErrorCode = 'RATE_LIMITED' | 'CONTEXT_LIMIT' | 'TIMEOUT' | 'ABORTED' | 'UPSTREAM_ERROR';
 
 /**
  * A provider failure, already classified.
@@ -52,6 +58,14 @@ export interface AiProviderRequest {
   temperature: number;
   /** Aborts the outbound provider request when the client disconnects. */
   signal?: AbortSignal;
+  /**
+   * How long this provider may take to become responsive, in milliseconds.
+   *
+   * Part of the contract rather than an implementation detail: a provider that can cancel its own
+   * outbound request (an HTTP adapter) must honor it, and the route independently enforces it per
+   * pull so a provider that cannot still fails instead of hanging.
+   */
+  timeoutMs: number;
 }
 
 export interface AiProvider {
