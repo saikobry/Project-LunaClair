@@ -17,6 +17,14 @@
     "AI_CHAT_DISABLED": "false"
   },
 
+  // Workers Logs. Declared explicitly because `console` output is **not retained** without it — the
+  // AI request telemetry records (`worker/src/ai/telemetry.ts`) are only queryable when the Worker
+  // writes them to Workers Logs, and their fields are indexed precisely because the object is logged
+  // rather than a stringified line.
+  "observability": {
+    "enabled": true
+  },
+
   // Cloudflare D1 (serverless SQLite) — the cloud sync layer for LunaClair.
   // The browser can never reach D1 directly; this Worker is the only bridge.
   "d1_databases": [

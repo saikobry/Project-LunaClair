@@ -162,6 +162,7 @@ describe('Worker /api/ai/chat Endpoint', () => {
 
     it('logs what the provider sent when a stream produces no tokens', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const info = vi.spyOn(console, 'log').mockImplementation(() => {});
       const envWithAi: Env = {
         ...baseEnv,
         // A provider error object: without this the client sees only a start and a done.
@@ -172,14 +173,21 @@ describe('Worker /api/ai/chat Endpoint', () => {
       const text = await res.text();
 
       expect(text).toContain('"type":"done"');
-      // The route knows nothing was produced; the provider knows which payload was unreadable.
-      expect(warn).toHaveBeenCalledWith(
-        'AI stream completed without producing any tokens',
-        expect.objectContaining({ model: 'cf-llama-3.3-70b', provider: 'workers-ai' }),
-      );
+      // The provider knows which payload was unreadable; the route's own record counts the delivery
+      // (`emittedTokenChunks: 0`), which is what makes this case measurable instead of a lone warning.
       expect(warn).toHaveBeenCalledWith(
         'Workers AI sent a payload this endpoint does not understand',
         expect.objectContaining({ sample: '{"error":"model is not available"}' }),
+      );
+      expect(info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'ai.chat',
+          status: 200,
+          outcome: 'ok',
+          model: 'cf-llama-3.3-70b',
+          provider: 'workers-ai',
+          emittedTokenChunks: 0,
+        }),
       );
     });
 

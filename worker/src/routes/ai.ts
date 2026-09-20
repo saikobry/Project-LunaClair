@@ -12,6 +12,12 @@ import type { RouteContext } from '../core/types';
 import { resolveAiProvider } from '../ai/providers';
 import { toAiProviderError } from '../ai/errors';
 import {
+  logAiRequestTelemetry,
+  safeTelemetryMessage,
+  type AiRequestReason,
+  type AiRequestTelemetry,
+} from '../ai/telemetry';
+import {
   AI_FIRST_EVENT_TIMEOUT_MS,
   AI_STREAM_IDLE_TIMEOUT_MS,
   withIdleDeadline,
@@ -97,14 +103,51 @@ export function handleAiModels(ctx: RouteContext): Response {
  */
 export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   const { request, env, corsHeaders } = ctx;
+  const requestStartedAt = Date.now();
+
+  /**
+   * Emits this request's one telemetry record, whichever way it ends.
+   *
+   * Guarded rather than repeated at each exit: a request has exactly one outcome, and a path that
+   * both failed and then unwound would otherwise report twice. See `ai/telemetry.ts` for what the
+   * record may contain — never prompt, document, or selection text.
+   */
+  let telemetryLogged = false;
+  const recordRequest = (
+    outcome: AiRequestTelemetry['outcome'],
+    fields: Omit<AiRequestTelemetry, 'outcome' | 'durationMs'> & { reason?: AiRequestReason },
+  ): void => {
+    if (telemetryLogged) return;
+    telemetryLogged = true;
+    logAiRequestTelemetry({ outcome, durationMs: Date.now() - requestStartedAt, ...fields });
+  };
 
   // A disconnected client leaves nobody to answer; short-circuit before parsing or spending work.
-  if (request.signal.aborted) return aborted(corsHeaders);
+  if (request.signal.aborted) {
+    recordRequest('aborted', {
+      status: 499,
+      model: null,
+      provider: null,
+      stage: 'pre-stream',
+      reason: 'client-abort',
+      emittedTokenChunks: 0,
+    });
+    return aborted(corsHeaders);
+  }
 
   // The global shutdown is checked before the body is even read, so it consistently beats an invalid
   // requested model, a malformed body, or a missing binding: when the assistant is off, that is the
   // only thing worth telling a caller.
   if (isAiChatDisabled(env)) {
+    recordRequest('rejected', {
+      status: 503,
+      model: null,
+      provider: null,
+      code: 'AI_DISABLED',
+      stage: 'pre-stream',
+      reason: 'global-shutdown',
+      emittedTokenChunks: 0,
+    });
     return failure(
       'AI_DISABLED',
       'The AI assistant is temporarily unavailable.',
@@ -121,6 +164,14 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   } | null;
 
   if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
+    recordRequest('rejected', {
+      status: 400,
+      model: null,
+      provider: null,
+      code: 'BAD_REQUEST',
+      stage: 'pre-stream',
+      emittedTokenChunks: 0,
+    });
     return badRequest('Invalid request: messages array is required', corsHeaders);
   }
 
@@ -129,6 +180,15 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   const modelRoute = resolveAiModelRoute(requestedModelId);
 
   if (!modelRoute) {
+    recordRequest('rejected', {
+      status: 400,
+      model: null,
+      provider: null,
+      code: 'MODEL_UNAVAILABLE',
+      stage: 'pre-stream',
+      reason: 'model-unknown',
+      emittedTokenChunks: 0,
+    });
     return failure(
       'MODEL_UNAVAILABLE',
       `Unknown AI model "${requestedModelId}". Call GET /api/ai/models for the available models.`,
@@ -142,6 +202,15 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   // every degraded selection path falls back to.
   const disabledModelIds = resolveDisabledAiModelIds(env);
   if (!isAiModelServed(modelRoute, disabledModelIds, false)) {
+    recordRequest('rejected', {
+      status: 400,
+      model: modelRoute.id,
+      provider: modelRoute.provider,
+      code: 'MODEL_UNAVAILABLE',
+      stage: 'pre-stream',
+      reason: 'model-disabled',
+      emittedTokenChunks: 0,
+    });
     return failure(
       'MODEL_UNAVAILABLE',
       `Model "${modelRoute.id}" is not currently available on this endpoint.`,
@@ -152,6 +221,15 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   // A missing binding is a deployment gap with a precise diagnosis, so it is named rather than
   // folded into a generic provider failure.
   if (modelRoute.provider === 'workers-ai' && !env.AI) {
+    recordRequest('rejected', {
+      status: 503,
+      model: modelRoute.id,
+      provider: modelRoute.provider,
+      code: 'PROVIDER_UNAVAILABLE',
+      stage: 'pre-stream',
+      reason: 'provider-unconfigured',
+      emittedTokenChunks: 0,
+    });
     return failure(
       'PROVIDER_UNAVAILABLE',
       'Cloudflare Workers AI binding not configured on Worker',
@@ -161,6 +239,15 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
 
   const provider = resolveAiProvider(modelRoute, env);
   if (!provider) {
+    recordRequest('rejected', {
+      status: 503,
+      model: modelRoute.id,
+      provider: modelRoute.provider,
+      code: 'PROVIDER_UNAVAILABLE',
+      stage: 'pre-stream',
+      reason: 'provider-unconfigured',
+      emittedTokenChunks: 0,
+    });
     return failure(
       'PROVIDER_UNAVAILABLE',
       `Model "${modelRoute.id}" is not available on this endpoint.`,
@@ -217,22 +304,29 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
   const sse = (event: Record<string, unknown>): Uint8Array =>
     encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
 
+  // Set when the consumer goes away — an aborted request or a cancelled response body. Nothing is
+  // written after this: an `enqueue` on a cancelled stream throws, and an unguarded throw in the
+  // error path would skip the terminal `done` and leave the stream errored instead of closed.
+  //
+  // Declared before the abort listener below on purpose: a disconnected client must stop the writes
+  // even if the runtime never calls the stream's `cancel()` callback, which is not guaranteed.
+  let consumerCancelled = false;
+  // First-write-wins: if the client aborted, later stream cancel callbacks do not overwrite it.
+  let cancelReason: AiRequestReason = 'consumer-cancel';
+
+  const markCancelled = (reason: AiRequestReason) => {
+    if (!consumerCancelled) cancelReason = reason;
+    consumerCancelled = true;
+  };
+
+  let released = false;
+  let iterator: AsyncIterator<AiProviderEvent> | undefined;
+
   // One controller per provider stream, owned by the route. This is what turns "the promise we were
   // awaiting is abandoned" into "the outbound work is over": a deadline or a vanished client aborts
   // it, and every provider receives it as `signal` (see `AiProviderRequest`).
   const providerController = new AbortController();
   const abortProvider = () => providerController.abort();
-  const forwardRequestAbort = () => abortProvider();
-  request.signal.addEventListener('abort', forwardRequestAbort, { once: true });
-
-  const iterator = provider.stream({
-    modelId: modelRoute.providerModelId,
-    messages: formattedMessages,
-    maxOutputTokens: modelRoute.maxOutputTokens,
-    temperature: 0.5,
-    signal: providerController.signal,
-    connectTimeoutMs: AI_FIRST_EVENT_TIMEOUT_MS,
-  })[Symbol.asyncIterator]();
 
   /**
    * Runs the provider generator's own cleanup and stops the outbound work.
@@ -243,17 +337,51 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
    * Idempotent, because several paths (a deadline, a cancel, and the exit) can all reach it.
    */
   const releaseProvider = () => {
+    if (released) return;
+    released = true;
     request.signal.removeEventListener('abort', forwardRequestAbort);
     abortProvider();
-    const returned = iterator.return?.();
-    if (returned) void returned.catch(() => undefined);
+    if (iterator?.return) {
+      try {
+        const returned = iterator.return();
+        if (returned) void Promise.resolve(returned).catch(() => undefined);
+      } catch {
+        // Synchronous throw ignored
+      }
+    }
   };
+
+  const forwardRequestAbort = () => {
+    markCancelled('client-abort');
+    releaseProvider();
+  };
+  request.signal.addEventListener('abort', forwardRequestAbort, { once: true });
+
+  const streamIterator = provider.stream({
+    modelId: modelRoute.providerModelId,
+    messages: formattedMessages,
+    maxOutputTokens: modelRoute.maxOutputTokens,
+    temperature: 0.5,
+    signal: providerController.signal,
+    connectTimeoutMs: AI_FIRST_EVENT_TIMEOUT_MS,
+  })[Symbol.asyncIterator]();
+
+  iterator = streamIterator;
+  if (released) {
+    try {
+      const returned = iterator.return?.();
+      if (returned) void Promise.resolve(returned).catch(() => undefined);
+    } catch {
+      // Synchronous throw ignored
+    }
+  }
 
   // Pull one event **before** committing to a 200. Rate limits, context rejections, and binding
   // failures all surface on the first pull, and they must keep their own status and code rather than
   // arriving as a 200 whose body happens to contain an error. Failures after text has started can no
   // longer change the status, so those become an app-native `error` event instead.
   let first: IteratorResult<AiProviderEvent>;
+  let firstEventMs: number | undefined;
   try {
     // The **first-event** deadline, shorter than the client's own watchdog: the Worker should be the
     // one to report a stalled provider, because its failure is coded and specific.
@@ -262,16 +390,36 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
       AI_FIRST_EVENT_TIMEOUT_MS,
       releaseProvider,
     );
+    firstEventMs = Date.now() - requestStartedAt;
   } catch (err: unknown) {
     if (request.signal.aborted) {
+      // The client itself went away: a cancellation, not an upstream fault, which is why it is not
+      // recorded as an error and carries no code.
+      recordRequest('aborted', {
+        status: 499,
+        model: modelRoute.id,
+        provider: provider.id,
+        stage: 'pre-stream',
+        reason: 'client-abort',
+        emittedTokenChunks: 0,
+      });
       releaseProvider();
       return aborted(corsHeaders);
     }
     const providerError = toAiProviderError(err);
-    console.error('AI provider failed before streaming', {
+    const failureStatus = STATUS_BY_CODE[providerError.code as AiResponseCode] ?? 500;
+    recordRequest('error', {
+      status: failureStatus,
       model: modelRoute.id,
+      provider: provider.id,
       code: providerError.code,
-      message: providerError.message,
+      stage: 'pre-stream',
+      ...(providerError.code === 'TIMEOUT' ? { reason: 'timeout' as const } : {}),
+      message: safeTelemetryMessage(providerError.code, providerError.message),
+      ...(providerError.retryAfterSeconds !== undefined
+        ? { retryAfterSeconds: providerError.retryAfterSeconds }
+        : {}),
+      emittedTokenChunks: 0,
     });
     releaseProvider();
     return failure(
@@ -282,11 +430,6 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     );
   }
 
-  // Set when the consumer goes away. Nothing is written after this: an `enqueue` on a cancelled
-  // stream throws, and an unguarded throw in the error path would skip the terminal `done` and leave
-  // the stream errored instead of closed.
-  let consumerCancelled = false;
-
   const outputStream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const enqueueIfActive = (chunk: Uint8Array): boolean => {
@@ -296,7 +439,7 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
           return true;
         } catch {
           // The consumer vanished between the check and the write.
-          consumerCancelled = true;
+          markCancelled('consumer-cancel');
           releaseProvider();
           return false;
         }
@@ -304,78 +447,116 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
 
       enqueueIfActive(sse({ type: 'start', messageId }));
 
-      let emittedTokens = 0;
+      let emittedTokenChunks = 0;
       let usage: ReturnType<typeof readAiTokenUsage>;
-      let failedMidStream = false;
+      // Non-undefined only when the provider failed after text had started; it is also the flag that
+      // distinguishes a failure from a clean finish below.
+      let streamFailure: ReturnType<typeof toAiProviderError> | undefined;
 
-      const emit = (event: AiProviderEvent) => {
+      const emit = (event: AiProviderEvent): boolean => {
         if (event.type === 'usage') {
           usage = event.usage;
-          return;
+          return true;
         }
-        emittedTokens += 1;
-        enqueueIfActive(sse({ type: 'token', text: event.text }));
+        emittedTokenChunks += 1;
+        return enqueueIfActive(sse({ type: 'token', text: event.text }));
       };
 
       const pullNext = (timeoutMs: number) =>
-        withIdleDeadline(iterator.next(), timeoutMs, releaseProvider);
+        withIdleDeadline(iterator!.next(), timeoutMs, releaseProvider);
 
       try {
-        if (!first.done) emit(first.value);
-        for (;;) {
+        if (!first.done && !consumerCancelled) {
+          if (!emit(first.value)) {
+            // Write failed; consumer disconnected
+          }
+        }
+        while (!consumerCancelled) {
           // Idle, not total: a long answer that keeps producing tokens may stream indefinitely,
           // while one that stops producing fails within the deadline instead of hanging the drawer.
           const next = await pullNext(AI_STREAM_IDLE_TIMEOUT_MS);
-          if (next.done) break;
-          emit(next.value);
+          if (next.done || consumerCancelled) break;
+          if (!emit(next.value)) break;
         }
       } catch (err: unknown) {
-        const providerError = toAiProviderError(err);
-        failedMidStream = true;
-        console.error('AI provider stream failed mid-stream', {
-          model: modelRoute.id,
-          code: providerError.code,
-          message: providerError.message,
-        });
-        enqueueIfActive(
-          sse({
-            type: 'error',
-            code: providerError.code,
-            message: providerError.message,
-            ...(providerError.retryAfterSeconds !== undefined
-              ? { retryAfterSeconds: providerError.retryAfterSeconds }
-              : {}),
-          }),
-        );
-      }
-
-      // A 200 that carries no text is otherwise indistinguishable from a hang on the client, which
-      // sees only a start and a done. Log it server-side so the cause is visible in `wrangler tail`.
-      if (emittedTokens === 0 && !failedMidStream && !consumerCancelled) {
-        console.warn('AI stream completed without producing any tokens', {
-          model: modelRoute.id,
-          provider: provider.id,
-        });
-      }
-
-      // `usage` is omitted by JSON.stringify when the provider reported none, which is the same
-      // thing as "unknown" — never a fabricated zero. It is sent even after a mid-stream failure:
-      // a turn that erred after consuming tokens is still attributed to the model that served it.
-      if (!consumerCancelled) {
-        enqueueIfActive(sse({ type: 'done', usage, model: modelRoute.id }));
-        try {
-          controller.close();
-        } catch {
-          // Already closed or errored; nothing left to report.
+        if (!consumerCancelled) {
+          const providerError = toAiProviderError(err);
+          streamFailure = providerError;
+          enqueueIfActive(
+            sse({
+              type: 'error',
+              code: providerError.code,
+              message: providerError.message,
+              ...(providerError.retryAfterSeconds !== undefined
+                ? { retryAfterSeconds: providerError.retryAfterSeconds }
+                : {}),
+            }),
+          );
         }
-      }
+      } finally {
+        // A 200 that carries no text is otherwise indistinguishable from a hang on the client, which
+        // sees only a start and a done. The telemetry record below carries `emittedTokenChunks: 0` for this
+        // case, which is what makes it countable instead of a single line nobody correlates.
 
-      releaseProvider();
+        // `usage` is omitted by JSON.stringify when the provider reported none, which is the same
+        // thing as "unknown" — never a fabricated zero. It is sent even after a mid-stream failure:
+        // a turn that erred after consuming tokens is still attributed to the model that served it.
+        if (!consumerCancelled) {
+          enqueueIfActive(sse({ type: 'done', usage, model: modelRoute.id }));
+          try {
+            controller.close();
+          } catch {
+            // Already closed or errored; nothing left to report.
+          }
+        }
+
+        // The one record for this request, however it ended. A cancellation is reported as such rather
+        // than as the failure the provider threw on its way out.
+        if (consumerCancelled) {
+          recordRequest('aborted', {
+            status: 200,
+            model: modelRoute.id,
+            provider: provider.id,
+            stage: 'mid-stream',
+            reason: cancelReason,
+            firstEventMs,
+            emittedTokenChunks,
+          });
+        } else if (streamFailure) {
+          recordRequest('error', {
+            status: 200,
+            model: modelRoute.id,
+            provider: provider.id,
+            code: streamFailure.code,
+            stage: 'mid-stream',
+            ...(streamFailure.code === 'TIMEOUT' ? { reason: 'timeout' as const } : {}),
+            message: safeTelemetryMessage(streamFailure.code, streamFailure.message),
+            ...(streamFailure.retryAfterSeconds !== undefined
+              ? { retryAfterSeconds: streamFailure.retryAfterSeconds }
+              : {}),
+            firstEventMs,
+            emittedTokenChunks,
+            ...(usage ? { usage } : {}),
+          });
+        } else {
+          recordRequest('ok', {
+            status: 200,
+            model: modelRoute.id,
+            provider: provider.id,
+            stage: 'mid-stream',
+            firstEventMs,
+            emittedTokenChunks,
+            ...(usage ? { usage } : {}),
+          });
+        }
+
+        releaseProvider();
+      }
     },
 
     /** The consumer went away mid-stream: stop spending the provider's capacity on nobody. */
     cancel() {
-      consumerCancelled = true;
+      markCancelled('consumer-cancel');
       releaseProvider();
     },
   });

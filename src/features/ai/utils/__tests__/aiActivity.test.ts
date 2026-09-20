@@ -1,8 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
   AI_ACTIVITY_STALL_MS,
+  AI_FIRST_TOKEN_TIMEOUT_MS,
   resolveAiActivity,
 } from '../aiActivity';
+
+describe('AI_FIRST_TOKEN_TIMEOUT_MS', () => {
+  it('stays above the Worker first-event deadline, so the Worker reports the stall', () => {
+    // A cross-boundary contract: the Worker gives up on a silent provider at its own
+    // `AI_FIRST_EVENT_TIMEOUT_MS` (25s, asserted in
+    // `worker/src/core/__tests__/aiModelCatalog.coherence.test.ts`), and only then should this
+    // watchdog fire. Whichever side gives up first owns the message a user sees, and the Worker's is
+    // coded, model-attributed, and specific — this side's is a generic "did not start responding".
+    // Lowering this number below the Worker's deadline would silently reverse that. Pinned here
+    // rather than imported from `worker/`, which the client cannot reach.
+    expect(AI_FIRST_TOKEN_TIMEOUT_MS).toBe(30_000);
+  });
+});
 
 describe('resolveAiActivity', () => {
   it('starts on a generic label that does not claim the model has answered', () => {

@@ -15,15 +15,20 @@ import {
   isAiCatalogVersion,
 } from '../../../../src/domain/ai/services/aiModelCatalog';
 import { AI_FIRST_EVENT_TIMEOUT_MS } from '../../ai/deadline';
-import { AI_FIRST_TOKEN_TIMEOUT_MS } from '../../../../src/features/ai/utils/aiActivity';
 
 describe('client catalog mirror ↔ Worker registry coherence', () => {
   it('lets the Worker give up on a silent provider before the client does', () => {
     // The two timeouts measure the same thing from opposite ends, and their order decides which
     // message a user sees. If the client watchdog fires first, its generic "did not start
-    // responding" is all anyone gets and the Worker's coded, model-attributed answer never
-    // arrives — so the server deadline has to be the tighter of the two.
-    expect(AI_FIRST_EVENT_TIMEOUT_MS).toBeLessThan(AI_FIRST_TOKEN_TIMEOUT_MS);
+    // responding" is all anyone gets and the Worker's coded, model-attributed answer never arrives
+    // — so the server deadline has to be the tighter of the two.
+    //
+    // Asserted against the number rather than by importing the client's constant: a Worker test
+    // reaching into a client **feature** module couples the server's test suite to client UI, and
+    // that constant is the AI feature's own (`AI_FIRST_TOKEN_TIMEOUT_MS`, 30s). The other half of the
+    // contract is pinned client-side (`aiActivity.test.ts`), so changing either side means changing a
+    // pinned number in two places — the cost of not sharing a module the Worker cannot import anyway.
+    expect(AI_FIRST_EVENT_TIMEOUT_MS).toBeLessThan(30_000);
   });
 
   it('agrees on the catalog version', () => {

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleAiChat, handleAiModels } from '../ai';
 import { AI_FIRST_EVENT_TIMEOUT_MS, AI_STREAM_IDLE_TIMEOUT_MS } from '../../ai/deadline';
 import type { Env, RouteContext } from '../../core/types';
+import * as providersModule from '../../ai/providers';
+import type { AiProvider, AiProviderEvent } from '../../ai/types';
 
 const DEFAULT_PROVIDER_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const DEFAULT_CATALOG_ID = 'cf-llama-3.3-70b';
@@ -91,6 +93,31 @@ async function readEvents(response: Response): Promise<Array<Record<string, unkn
     .map((line) => line.trim())
     .filter((line) => line.startsWith('data:'))
     .map((line) => JSON.parse(line.slice(5).trim()) as Record<string, unknown>);
+}
+
+/**
+ * Captures every console channel for one test and exposes the parsed AI telemetry records.
+ *
+ * Records are read back off the console rather than through a seam, because "what actually reaches
+ * the logs" is the thing being asserted — and the level it lands on is part of the contract.
+ */
+function captureTelemetry() {
+  const written: unknown[] = [];
+  const spies = (['log', 'warn', 'error'] as const).map((level) =>
+    vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+      written.push(args[0]);
+    }),
+  );
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && (value as { event?: unknown }).event === 'ai.chat';
+
+  return {
+    records: () => written.filter(isRecord),
+    /** Anything that is not a telemetry record, i.e. some other logging this test must not see. */
+    otherLines: () => written.filter((value) => !isRecord(value)).map((value) => String(value)),
+    restore: () => spies.forEach((spy) => spy.mockRestore()),
+  };
 }
 
 describe('handleAiModels', () => {
@@ -492,8 +519,82 @@ describe('handleAiChat failures', () => {
     await vi.waitFor(() => expect(wasCancelled()).toBe(true));
   });
 
+  it('writes nothing after the client request aborts, and does not report a failure', async () => {
+    // The runtime is not required to call the stream's `cancel()` when the request goes away, so the
+    // abort handler marks the stream cancelled itself. Without that, a disconnecting client still got
+    // an `error` or `done` written into a response nobody was reading.
+    const telemetry = captureTelemetry();
+    try {
+      const { body, wasCancelled } = stalledUkisaiStream();
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+      const controller = new AbortController();
+      const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' });
+      const response = await handleAiChat({
+        ...ctx,
+        request: new Request(ctx.request, { signal: controller.signal }),
+      });
+      expect(response.status).toBe(200);
+
+      const reader = response.body?.getReader();
+      expect(reader).toBeDefined();
+      const decoder = new TextDecoder();
+      const chunks: string[] = [];
+
+      // One pump owns every read. Racing separate `read()` calls would leave an orphaned pending read
+      // behind, and that orphan is what swallows the chunk the assertion is looking for — the test
+      // then passes whether or not the write happened.
+      void (async () => {
+        for (;;) {
+          const { value, done } = await reader!.read();
+          if (done) return;
+          chunks.push(decoder.decode(value));
+        }
+      })().catch(() => undefined);
+
+      /** Waits until no new chunk has arrived for `quietMs`, so a queued chunk cannot hide a later one. */
+      const settle = async (quietMs: number): Promise<void> => {
+        let seen = -1;
+        let quietSince = Date.now();
+        while (Date.now() - quietSince < quietMs) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          if (chunks.length !== seen) {
+            seen = chunks.length;
+            quietSince = Date.now();
+          }
+        }
+      };
+
+      // Whatever the route had already committed, then abort the way a Stop or a navigation does.
+      await settle(30);
+      controller.abort();
+      await vi.waitFor(() => expect(wasCancelled()).toBe(true));
+
+      // Nothing further is written: the loop exits through the cancelled pull, not through the error
+      // path, and the terminal event is skipped because the consumer is gone.
+      await settle(60);
+      const written = chunks.join('');
+
+      expect(written).toContain('"type":"token"');
+      expect(written).not.toContain('"type":"done"');
+      expect(written).not.toContain('"type":"error"');
+
+      // Reported once, as a cancellation — not as the provider failure it triggered on the way out,
+      // and not at error level.
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({ status: 200, outcome: 'aborted', stage: 'mid-stream', reason: 'client-abort' }),
+      ]);
+      expect(telemetry.otherLines()).toEqual([]);
+      await reader!.cancel();
+      // First-write-wins: subsequent reader cancel doesn't overwrite client-abort
+      expect(telemetry.records()[0]?.reason).toBe('client-abort');
+    } finally {
+      telemetry.restore();
+    }
+  });
+
   it('writes nothing after the consumer cancels, and does not report a failure', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const telemetry = captureTelemetry();
     try {
       const { body, wasCancelled } = stalledUkisaiStream();
       globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
@@ -507,27 +608,323 @@ describe('handleAiChat failures', () => {
       // Let the route's stream body settle, so an unguarded enqueue would have thrown by now.
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(errorSpy).not.toHaveBeenCalledWith(
-        'AI provider stream failed mid-stream',
-        expect.anything(),
-      );
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({ status: 200, outcome: 'aborted', stage: 'mid-stream', reason: 'consumer-cancel' }),
+      ]);
+      expect(telemetry.otherLines()).toEqual([]);
     } finally {
-      errorSpy.mockRestore();
+      telemetry.restore();
     }
   });
 
   it('answers an already-cancelled request without reporting an upstream failure', async () => {
-    const controller = new AbortController();
-    controller.abort();
-    const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }] });
-    const response = await handleAiChat({ ...ctx, request: new Request(ctx.request, { signal: controller.signal }) } as RouteContext);
+    const telemetry = captureTelemetry();
+    try {
+      const controller = new AbortController();
+      controller.abort();
+      const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }] });
+      const response = await handleAiChat({ ...ctx, request: new Request(ctx.request, { signal: controller.signal }) } as RouteContext);
 
-    expect(response.status).toBe(499);
+      expect(response.status).toBe(499);
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({ status: 499, outcome: 'aborted', stage: 'pre-stream', reason: 'client-abort' }),
+      ]);
+    } finally {
+      telemetry.restore();
+    }
   });
 
   it('rejects a request with no messages', async () => {
     const response = await handleAiChat(makeCtx({ messages: [] }, async () => workersAiStream()));
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe('handleAiChat telemetry', () => {
+  it('records the served turn, so latency and cost are measurable at all', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      const run = vi.fn(async () => workersAiStream());
+      const response = await handleAiChat(makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, run));
+      await readEvents(response);
+
+      const [record] = telemetry.records();
+      expect(record).toMatchObject({
+        event: 'ai.chat',
+        status: 200,
+        model: DEFAULT_CATALOG_ID,
+        provider: 'workers-ai',
+        outcome: 'ok',
+        emittedTokenChunks: 1,
+        usage: { promptTokens: 5, completionTokens: 2 },
+      });
+      // Both timings are present and real, which is the whole point of the record.
+      expect(typeof record?.firstEventMs).toBe('number');
+      expect(typeof record?.durationMs).toBe('number');
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('records one line per request, never two', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      const run = vi.fn(async () => workersAiStream());
+      await readEvents(await handleAiChat(makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, run)));
+
+      expect(telemetry.records()).toHaveLength(1);
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('records a pre-stream failure with the code, the stage, and the provider message', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, async () => {
+          throw new Error(
+            '5021: The estimated number of input and maximum output tokens (8810) exceeded this model context window limit (8192)',
+          );
+        }),
+      );
+
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({
+          status: 400,
+          outcome: 'error',
+          stage: 'pre-stream',
+          code: 'CONTEXT_LIMIT',
+          model: DEFAULT_CATALOG_ID,
+          provider: 'workers-ai',
+        }),
+      ]);
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('records a mid-stream failure as its own stage, with what was already delivered', async () => {
+    vi.useFakeTimers();
+    const telemetry = captureTelemetry();
+    try {
+      const { body } = stalledUkisaiStream();
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+      const response = await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+      const drained = readEvents(response);
+      await vi.advanceTimersByTimeAsync(AI_STREAM_IDLE_TIMEOUT_MS);
+      await drained;
+
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({
+          status: 200,
+          outcome: 'error',
+          code: 'TIMEOUT',
+          stage: 'mid-stream',
+          reason: 'timeout',
+          emittedTokenChunks: 1,
+        }),
+      ]);
+    } finally {
+      telemetry.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('records a policy refusal without any provider work', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      const run = vi.fn(async () => workersAiStream());
+      await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }, run, {
+          AI_DISABLED_MODELS: 'ukisai-swift-max',
+        }),
+      );
+
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({
+          status: 400,
+          outcome: 'rejected',
+          stage: 'pre-stream',
+          reason: 'model-disabled',
+          code: 'MODEL_UNAVAILABLE',
+          model: 'ukisai-swift-max',
+          emittedTokenChunks: 0,
+        }),
+      ]);
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('records a 200 that produced no text as zero delivered tokens', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      // A stream whose payload carries no text: the case that was previously a one-off warning line
+      // nobody could correlate.
+      const empty = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: {"usage":{"total_tokens":7}}\n\n'));
+          controller.close();
+        },
+      });
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body: empty })) as unknown as typeof fetch;
+
+      const response = await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+      await readEvents(response);
+
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({ status: 200, outcome: 'ok', emittedTokenChunks: 0 }),
+      ]);
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('never writes the prompt, the study material, or the selection to the logs', async () => {
+    const telemetry = captureTelemetry();
+    const materialMarker = 'STUDY-MATERIAL-MARKER-9f3a';
+    const selectionMarker = 'SELECTION-MARKER-71bd';
+    const promptMarker = 'PROMPT-MARKER-2c8e';
+    try {
+      const run = vi.fn(async () => workersAiStream());
+      await readEvents(
+        await handleAiChat(
+          makeCtx(
+            {
+              messages: [{ role: 'user', content: promptMarker }],
+              documentContext: { title: 'Material', markdown: materialMarker },
+              selection: { text: selectionMarker },
+            },
+            run,
+          ),
+        ),
+      );
+
+      // The prompt really did carry all three, so an empty-log pass is not vacuous.
+      const [, inputs] = run.mock.calls[0] as unknown as [string, { messages: Array<{ content: string }> }];
+      const sent = inputs.messages.map((message) => message.content).join('\n');
+      expect(sent).toContain(materialMarker);
+      expect(sent).toContain(selectionMarker);
+      expect(sent).toContain(promptMarker);
+
+      // ...and none of it reached the logs, at any level.
+      const everyLine = [...telemetry.records().map((record) => JSON.stringify(record)), ...telemetry.otherLines()].join('\n');
+      expect(everyLine).not.toContain(materialMarker);
+      expect(everyLine).not.toContain(selectionMarker);
+      expect(everyLine).not.toContain(promptMarker);
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('uses the exact active iterator and does not re-acquire it from an AsyncIterable', async () => {
+    let iteratorsCreated = 0;
+    const customEvents: AsyncIterable<AiProviderEvent> = {
+      [Symbol.asyncIterator]() {
+        iteratorsCreated++;
+        return (async function* () {
+          yield { type: 'token' as const, text: 'hi' };
+        })();
+      },
+    };
+
+    const mockProvider: AiProvider = {
+      id: 'ukisai',
+      stream: vi.fn(() => customEvents),
+    };
+    const spy = vi.spyOn(providersModule, 'resolveAiProvider').mockReturnValue(mockProvider);
+
+    try {
+      const response = await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+      await readEvents(response);
+
+      // Must only have acquired the iterator once
+      expect(iteratorsCreated).toBe(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('does not hang stream shutdown when iterator.return() returns a promise that never resolves', async () => {
+    let returnCalled = false;
+    async function* hangingStream(): AsyncGenerator<AiProviderEvent, void, void> {
+      yield { type: 'token', text: 'hello' };
+      await new Promise(() => {}); // hang forever
+    }
+    const iter = hangingStream();
+    iter.return = () => {
+      returnCalled = true;
+      return new Promise<IteratorResult<AiProviderEvent, void>>(() => {});
+    };
+
+    const customEvents: AsyncIterable<AiProviderEvent> = {
+      [Symbol.asyncIterator]: () => iter,
+    };
+    const mockProvider: AiProvider = {
+      id: 'ukisai',
+      stream: vi.fn(() => customEvents),
+    };
+    const spy = vi.spyOn(providersModule, 'resolveAiProvider').mockReturnValue(mockProvider);
+
+    try {
+      const controller = new AbortController();
+      const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' });
+      const response = await handleAiChat({
+        ...ctx,
+        request: new Request(ctx.request, { signal: controller.signal }),
+      });
+
+      const reader = response.body?.getReader();
+      await reader?.read();
+      controller.abort();
+      await reader?.cancel();
+
+      expect(returnCalled).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('terminates pull loop immediately when enqueue fails', async () => {
+    let pulledCount = 0;
+    async function* endlessStream(): AsyncGenerator<AiProviderEvent, void, void> {
+      while (true) {
+        pulledCount++;
+        yield { type: 'token', text: `chunk-${pulledCount}` };
+      }
+    }
+
+    const customEvents: AsyncIterable<AiProviderEvent> = {
+      [Symbol.asyncIterator]: () => endlessStream(),
+    };
+    const mockProvider: AiProvider = {
+      id: 'ukisai',
+      stream: vi.fn(() => customEvents),
+    };
+    const spy = vi.spyOn(providersModule, 'resolveAiProvider').mockReturnValue(mockProvider);
+
+    try {
+      const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' });
+      const response = await handleAiChat(ctx);
+      const reader = response.body?.getReader();
+      await reader?.read();
+      await reader?.cancel();
+
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      expect(pulledCount).toBeLessThanOrEqual(3);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
