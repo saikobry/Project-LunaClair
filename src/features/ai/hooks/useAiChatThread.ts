@@ -14,7 +14,12 @@ import {
   type AiActivityState,
 } from '../utils/aiActivity';
 import { deriveSessionTitle } from '../utils/deriveSessionTitle';
-import { resolveCooldownSeconds } from '../utils/aiRateLimit';
+import {
+  readCooldownDeadline,
+  resolveCooldownSeconds,
+  secondsUntilDeadline,
+  writeCooldownDeadline,
+} from '../utils/aiRateLimit';
 
 export interface UseAiChatThreadOptions {
   /** Optional study material ID. If undefined, operates on the global assistant. */
@@ -147,10 +152,14 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
   const [streamingText, setStreamingText] = useState('');
   const [activity, setActivity] = useState<AiActivityState | null>(null);
   const [error, setError] = useState<AiChatError | null>(null);
-  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
-  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  // Hydrated from storage: a reload must not re-arm a request the provider is still refusing. The
+  // wait belongs to the provider's window, not to this tab.
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(readCooldownDeadline);
+  const [cooldownSeconds, setCooldownSeconds] = useState(() =>
+    cooldownUntil === null ? 0 : secondsUntilDeadline(cooldownUntil),
+  );
   /** Mirrors `cooldownUntil` for `sendMessage`, which must not close over stale state. */
-  const cooldownUntilRef = useRef<number | null>(null);
+  const cooldownUntilRef = useRef<number | null>(cooldownUntil);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   /** Identifies the in-flight turn so a superseded stream cannot clobber newer state. */
@@ -170,6 +179,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     const seconds = resolveCooldownSeconds(retryAfterSeconds);
     const until = Date.now() + seconds * 1_000;
     cooldownUntilRef.current = until;
+    writeCooldownDeadline(until);
     setCooldownUntil(until);
     setCooldownSeconds(seconds);
   }, []);
@@ -178,10 +188,13 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     if (cooldownUntil === null) return;
 
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      const remaining = secondsUntilDeadline(cooldownUntil);
       setCooldownSeconds(remaining);
       if (remaining === 0) {
         cooldownUntilRef.current = null;
+        // Expiry is the one moment the stored deadline is provably spent, so it is cleared here
+        // rather than left for the read path to notice.
+        writeCooldownDeadline(null);
         setCooldownUntil(null);
       }
     };
@@ -391,7 +404,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
       if (remainingCooldown !== null && Date.now() < remainingCooldown) {
         setError({
           code: 'RATE_LIMITED',
-          message: `Shared capacity is busy. Try again in ${Math.ceil((remainingCooldown - Date.now()) / 1000)}s.`,
+          message: `Shared capacity is busy. Try again in ${secondsUntilDeadline(remainingCooldown)}s.`,
         });
         return;
       }

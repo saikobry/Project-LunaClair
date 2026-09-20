@@ -17,6 +17,13 @@ export const STORAGE_KEYS = {
   ai: {
     /** Preferred AI model id — a per-request choice, device-local, never a conversation property. */
     modelId: 'lunaclair.ai.model_id',
+    /**
+     * Absolute epoch-ms deadline of an active rate-limit cooldown.
+     *
+     * The wait belongs to the provider's window, not to this tab: a reload must not re-arm a request
+     * the provider is still refusing.
+     */
+    rateLimitUntil: 'lunaclair.ai.rate_limit_until',
   },
   sync: {
     deviceId: 'lunaclair.device_id',

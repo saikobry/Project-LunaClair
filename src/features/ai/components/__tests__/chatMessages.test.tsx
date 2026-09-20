@@ -114,6 +114,9 @@ describe('AI Message Rendering & Message List', () => {
       const usageLine = screen.getByTestId('ai-usage-msg-a5');
       expect(usageLine).toHaveTextContent('5,132 tokens');
       expect(usageLine).toHaveTextContent('$0.0021');
+      // The serving model is named; a turn persisted by an older build records the provider's own
+      // model id, which resolves to the catalog's display name.
+      expect(usageLine).toHaveTextContent('Standard');
       // The prompt/completion split is available on hover rather than spent as transcript space.
       expect(usageLine).toHaveAttribute('title', '4,820 in · 312 out');
     });
@@ -138,6 +141,44 @@ describe('AI Message Rendering & Message List', () => {
       expect(usageLine).toHaveTextContent('150 tokens');
       // Unknown is not the same as free, so no cost is asserted in either direction.
       expect(usageLine).not.toHaveTextContent('$');
+    });
+
+    it('names the model per turn, so a thread that switched models is visibly mixed', () => {
+      const maxServed: AiMessageRecord = {
+        id: 'msg-a8',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'A longer-window answer.',
+        status: 'complete',
+        createdAt: '2026-09-19T01:00:00.000Z',
+        metadata: {
+          usage: { promptTokens: 900, completionTokens: 100, totalTokens: 1_000 },
+          model: 'ukisai-swift-max',
+        },
+      };
+      const unknownServed: AiMessageRecord = {
+        id: 'msg-a9',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'Served by a model this build does not know.',
+        status: 'complete',
+        createdAt: '2026-09-19T01:00:01.000Z',
+        metadata: {
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          model: 'brand-new-model',
+        },
+      };
+
+      render(
+        <>
+          <AiChatMessage message={maxServed} />
+          <AiChatMessage message={unknownServed} />
+        </>
+      );
+
+      expect(screen.getByTestId('ai-usage-msg-a8')).toHaveTextContent('MAX');
+      // Never mislabelled as another model: an id the catalog cannot name is shown as itself.
+      expect(screen.getByTestId('ai-usage-msg-a9')).toHaveTextContent('brand-new-model');
     });
 
     it('omits the usage line when no telemetry was recorded', () => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useAiModelSelection } from '../useAiModelSelection';
 import {
@@ -21,8 +22,12 @@ function wrapperWith(getCatalog?: () => Promise<AiModelCatalog>) {
     useCases: { ai: getCatalog ? { getModelCatalog: { execute: getCatalog } } : {} },
   } as unknown as ApplicationContextValue;
 
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   return ({ children }: { children: ReactNode }) => (
-    <ApplicationContext.Provider value={contextValue}>{children}</ApplicationContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <ApplicationContext.Provider value={contextValue}>{children}</ApplicationContext.Provider>
+    </QueryClientProvider>
   );
 }
 

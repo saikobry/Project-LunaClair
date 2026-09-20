@@ -1,15 +1,14 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
-import { ApplicationContext } from '../../../app/providers/ApplicationContext';
+import { useCallback, useState } from 'react';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
 import {
-  DEFAULT_AI_MODEL_CATALOG,
   getAiModelDescriptor,
   type AiModelCatalog,
   type AiModelDescriptor,
 } from '../../../domain/ai/services/aiModelCatalog';
+import { useAiModelCatalog } from './queries/useAiModelCatalog';
 
 export interface AiModelSelection {
-  /** Best-known catalog: the fetched one when it succeeded, otherwise the bundled mirror. */
+  /** Best-known catalog: the served one when a fetch succeeded, otherwise the bundled mirror. */
   catalog: AiModelCatalog;
   /** Resolved selection — never an id the catalog does not contain. */
   selectedModel: AiModelDescriptor;
@@ -43,42 +42,23 @@ function writeStoredModelId(modelId: string): void {
 }
 
 /**
- * Owns which model the next request uses, and the catalog it may choose from.
+ * Owns which model the next request uses, on top of the shared catalog query.
  *
  * The choice is **per request and device-local**, not a property of a conversation: `AiThread`
  * stores no model, every turn records the model that served it, and a conversation may mix models.
  * That is what keeps the change additive — no Dexie migration, no session pinned to a model that
  * may later be retired.
  *
- * The catalog starts as the bundled mirror, so the picker renders offline and on a first run; the
- * fetched catalog replaces it when the Worker answers. An id absent from the catalog (retired, or
- * stored by an older build) resolves to the catalog default rather than being sent and refused.
+ * The preference is stored as an id only; it is **resolved through the catalog on every read**, so a
+ * retired or unknown id quietly becomes the catalog default instead of being sent and refused. The
+ * catalog itself is not this hook's to own (see `useAiModelCatalog`), so a second consumer shares
+ * one entry rather than fetching a second copy.
  */
 export function useAiModelSelection(): AiModelSelection {
-  const context = useContext(ApplicationContext);
-  const [catalog, setCatalog] = useState<AiModelCatalog>(DEFAULT_AI_MODEL_CATALOG);
+  const { catalog, refreshCatalog } = useAiModelCatalog();
   const [preferredModelId, setPreferredModelId] = useState<string | undefined>(() =>
     readStoredModelId(),
   );
-
-  const requestCatalog = useCallback((): (() => void) => {
-    const getModelCatalog = context?.useCases?.ai?.getModelCatalog;
-    if (!getModelCatalog) return () => {};
-
-    let cancelled = false;
-    void getModelCatalog
-      .execute()
-      .then((next) => {
-        if (!cancelled) setCatalog(next);
-      })
-      .catch(() => undefined); // The bundled mirror is already in place; a refresh is best-effort.
-
-    return () => {
-      cancelled = true;
-    };
-  }, [context]);
-
-  useEffect(() => requestCatalog(), [requestCatalog]);
 
   const selectModel = useCallback((modelId: string) => {
     setPreferredModelId(modelId);
@@ -89,5 +69,5 @@ export function useAiModelSelection(): AiModelSelection {
   // render can offer — or send — a model the catalog does not have.
   const selectedModel = getAiModelDescriptor(catalog, preferredModelId);
 
-  return { catalog, selectedModel, selectModel, refreshCatalog: requestCatalog };
+  return { catalog, selectedModel, selectModel, refreshCatalog };
 }

@@ -5,7 +5,9 @@ import {
   DEFAULT_AI_MODEL_CATALOG,
   findAiModelDescriptor,
   getAiModelDescriptor,
+  isAiCatalogVersion,
   isAiModelCatalog,
+  compareAiCatalogVersions,
   pickNewerAiModelCatalog,
   type AiModelCatalog,
 } from '../aiModelCatalog';
@@ -92,6 +94,56 @@ describe('pickNewerAiModelCatalog', () => {
 
   it('treats an equal version as the first argument, so a fetched copy wins a tie', () => {
     expect(pickNewerAiModelCatalog(newer, { ...newer })?.version).toBe(newer.version);
+  });
+
+  it('ranks by numeric fields, not by text', () => {
+    // As text, `2026-9-2.1` sorts *after* `2026-10-01.1`; as numbers it is September, so it loses.
+    expect(
+      pickNewerAiModelCatalog(
+        { ...DEFAULT_AI_MODEL_CATALOG, version: '2026-9-2.1' },
+        { ...DEFAULT_AI_MODEL_CATALOG, version: '2026-10-01.1' },
+      )?.version,
+    ).toBe('2026-10-01.1');
+  });
+
+  it('never lets a malformed version displace a well-formed one', () => {
+    const malformed: AiModelCatalog = { ...DEFAULT_AI_MODEL_CATALOG, version: 'zzz' };
+    const wellFormed: AiModelCatalog = { ...DEFAULT_AI_MODEL_CATALOG, version: '2026-01-01.1' };
+
+    expect(pickNewerAiModelCatalog(malformed, wellFormed)?.version).toBe(wellFormed.version);
+    expect(pickNewerAiModelCatalog(wellFormed, malformed)?.version).toBe(wellFormed.version);
+  });
+});
+
+describe('compareAiCatalogVersions', () => {
+  it('compares each field numerically', () => {
+    expect(compareAiCatalogVersions('2026-09-20.1', '2026-09-20.1')).toBe(0);
+    expect(compareAiCatalogVersions('2026-09-20.1', '2026-09-20.2')).toBeLessThan(0);
+    expect(compareAiCatalogVersions('2026-09-21.0', '2026-09-20.9')).toBeGreaterThan(0);
+    expect(compareAiCatalogVersions('2027-01-01.0', '2026-12-31.9')).toBeGreaterThan(0);
+  });
+
+  it('orders a well-formed label above an unparseable one, either way round', () => {
+    expect(compareAiCatalogVersions('2026-09-20.1', 'not-a-version')).toBeGreaterThan(0);
+    expect(compareAiCatalogVersions('not-a-version', '2026-09-20.1')).toBeLessThan(0);
+  });
+
+  it('stays deterministic when neither label is parseable', () => {
+    expect(compareAiCatalogVersions('bbb', 'aaa')).toBeGreaterThan(0);
+    expect(compareAiCatalogVersions('aaa', 'bbb')).toBeLessThan(0);
+    expect(compareAiCatalogVersions('aaa', 'aaa')).toBe(0);
+  });
+});
+
+describe('isAiCatalogVersion', () => {
+  it('accepts the format the registry and the mirror both use', () => {
+    expect(isAiCatalogVersion(AI_CATALOG_VERSION)).toBe(true);
+  });
+
+  it('rejects labels the numeric comparison could not order', () => {
+    for (const version of ['2026-09-20', '2026-9-20.1', 'v1', '', '2026-09-20.1-beta']) {
+      expect(isAiCatalogVersion(version), version).toBe(false);
+    }
   });
 });
 

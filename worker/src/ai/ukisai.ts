@@ -1,6 +1,6 @@
 import { readAiTokenUsage } from '../core/aiUsage';
 import { createTimeoutSignal } from './deadline';
-import { toAiProviderError } from './errors';
+import { classifyAiFailure, toAiProviderError, type AiFailureSignal } from './errors';
 import { readSseData } from './sse';
 import { AiProviderError, type AiProvider, type AiProviderEvent, type AiProviderRequest } from './types';
 
@@ -119,31 +119,49 @@ export class UkisAiProvider implements AiProvider {
 /**
  * Maps a non-OK response onto a coded failure.
  *
- * The endpoint answers with an OpenAI-shaped `{ error: { message, type } }`; the message is what
- * carries the retry hint on a 429 and the token accounting on an over-length request, so it is read
- * and forwarded rather than replaced with a generic string.
+ * Classification trusts what the response *declares* — its status, its `Retry-After` header, and the
+ * OpenAI-shaped `{ error: { message, type, code } }` fields — and reads the message only to keep the
+ * human-readable detail (and, failing everything else, to guess the cause). The message is forwarded
+ * rather than replaced, because it carries the token accounting on an over-length request.
  */
 async function classifyFailure(response: Response): Promise<AiProviderError> {
   let message = `HTTP ${response.status} ${response.statusText}`;
+  const signal: AiFailureSignal = { status: response.status };
   try {
-    const body = (await response.json()) as { error?: { message?: unknown } | string };
-    const detail = typeof body.error === 'string' ? body.error : body.error?.message;
-    if (typeof detail === 'string' && detail) message = detail;
+    const body = (await response.json()) as {
+      error?: { message?: unknown; type?: unknown; code?: unknown } | string;
+    };
+    const error = body.error;
+    if (typeof error === 'string') {
+      message = error;
+    } else {
+      if (typeof error?.message === 'string' && error.message) message = error.message;
+      if (typeof error?.type === 'string') signal.type = error.type;
+      if (typeof error?.code === 'string' || typeof error?.code === 'number') {
+        signal.code = error.code;
+      }
+    }
   } catch {
     // Non-JSON error body: the status text stands in.
   }
 
-  const lower = message.toLowerCase();
-  if (response.status === 429 || lower.includes('rate limit')) {
-    const hinted = RETRY_HINT_PATTERN.exec(message);
-    return new AiProviderError(
-      message,
-      'RATE_LIMITED',
-      hinted ? Number.parseInt(hinted[1], 10) : undefined,
-    );
+  const code = classifyAiFailure(message, signal);
+  if (code !== 'RATE_LIMITED') return new AiProviderError(message, code);
+
+  // The header is the structured form of the wait; the message hint is what this host actually
+  // sends today, so it stays as the fallback rather than being replaced by it.
+  return new AiProviderError(message, 'RATE_LIMITED', readRetryAfterSeconds(response, message));
+}
+
+/** Seconds to wait: the `Retry-After` header when present, else the provider's "Try again in Ns." */
+function readRetryAfterSeconds(response: Response, message: string): number | undefined {
+  const header = response.headers?.get('retry-after');
+  if (header) {
+    const seconds = Number.parseInt(header, 10);
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds;
+    // A date-form header is legal HTTP; anything unparseable falls through to the message.
   }
-  if (lower.includes('context') || lower.includes('too long') || lower.includes('max_tokens')) {
-    return new AiProviderError(message, 'CONTEXT_LIMIT');
-  }
-  return new AiProviderError(message, 'UPSTREAM_ERROR');
+
+  const hinted = RETRY_HINT_PATTERN.exec(message);
+  return hinted ? Number.parseInt(hinted[1], 10) : undefined;
 }

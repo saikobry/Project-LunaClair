@@ -117,18 +117,61 @@ export function getAiModelDescriptor(
 }
 
 /**
- * Picks the newer of two catalogs by version.
+ * The catalog's version label format: `YYYY-MM-DD.N`, e.g. `2026-09-20.1`.
  *
- * Versions are ordered labels (`2026-09-20.1`), not semantic versions, so a lexicographic compare
- * is exact for the fixed-width date prefix and stable for any suffix.
+ * The format is a contract, not a convention — `isAiCatalogVersion` validates it, the Worker's
+ * coherence test asserts the registry and this mirror both use it, and the comparison below depends
+ * on its fixed-width fields.
  */
+const CATALOG_VERSION_PATTERN = /^(\d{4})-(\d{2})-(\d{2})\.(\d+)$/;
+
+/** True when `version` follows the catalog's `YYYY-MM-DD.N` label format. */
+export function isAiCatalogVersion(version: string): boolean {
+  return CATALOG_VERSION_PATTERN.test(version);
+}
+
+function parseAiCatalogVersion(version: string): [number, number, number, number] | null {
+  const match = CATALOG_VERSION_PATTERN.exec(version);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4])];
+}
+
+/**
+ * Orders two catalog versions: negative when `a` is older, positive when newer, zero when equal.
+ *
+ * The fields are compared as **numbers**, not as text. The old lexicographic compare happened to be
+ * correct for fixed-width digits, but it silently stops being correct the moment a field is not
+ * zero-padded (`2026-9-2` sorts after `2026-10-1` as text) — and a cache that wrongly outranks the
+ * mirror is a stale catalog, which is exactly what this ordering exists to prevent.
+ *
+ * A malformed label never wins: a well-formed version outranks one that cannot be parsed, so a
+ * corrupt stored value cannot displace a known-good catalog. Two unparseable labels fall back to a
+ * plain text compare, which is arbitrary but total and deterministic.
+ */
+export function compareAiCatalogVersions(a: string, b: string): number {
+  const parsedA = parseAiCatalogVersion(a);
+  const parsedB = parseAiCatalogVersion(b);
+
+  if (parsedA && parsedB) {
+    for (let index = 0; index < parsedA.length; index += 1) {
+      if (parsedA[index] !== parsedB[index]) return parsedA[index] < parsedB[index] ? -1 : 1;
+    }
+    return 0;
+  }
+
+  if (parsedA) return 1;
+  if (parsedB) return -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Picks the newer of two catalogs by version (see `compareAiCatalogVersions`). */
 export function pickNewerAiModelCatalog(
   a: AiModelCatalog | null,
   b: AiModelCatalog | null,
 ): AiModelCatalog | null {
   if (!a) return b;
   if (!b) return a;
-  return a.version >= b.version ? a : b;
+  return compareAiCatalogVersions(a.version, b.version) >= 0 ? a : b;
 }
 
 /** Minimal shape check for a catalog read off the network or out of storage. */

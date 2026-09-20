@@ -33,8 +33,10 @@ export class WorkersAiProvider implements AiProvider {
         temperature: request.temperature,
       });
     } catch (err: unknown) {
-      // Cloudflare reports context rejections and rate limits as thrown errors whose message is the
-      // only signal, so the shared classifier — not a blanket UPSTREAM_ERROR — decides the code.
+      // Cloudflare reports context rejections and rate limits as thrown errors. The shared
+      // classifier reads a declared status/code when the thrown value carries one (including the
+      // numeric platform code that prefixes the message), and only then falls back to prose — so a
+      // blanket UPSTREAM_ERROR is never the answer when the cause is knowable.
       throw toAiProviderError(err, 'Workers AI invocation failed');
     }
 

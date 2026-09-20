@@ -10,6 +10,15 @@ const styles = stylex.create({
     color: 'var(--color-text-secondary)',
     fontVariantNumeric: 'tabular-nums',
   },
+  // A conversation may mix models, so the serving model is named rather than assumed: the accent
+  // colour is what makes a thread the user switched inside visibly mixed at a glance.
+  modelTag: {
+    color: 'var(--color-text-accent)',
+    fontWeight: 500,
+  },
+  separator: {
+    margin: '0 4px',
+  },
 });
 
 export interface AiMessageUsageProps {
@@ -17,7 +26,7 @@ export interface AiMessageUsageProps {
 }
 
 /**
- * Provider-reported token usage and estimated cost for one settled assistant turn.
+ * Which model served one settled assistant turn, plus its provider-reported tokens and cost.
  *
  * Renders nothing unless the turn is complete: an in-flight projection has no telemetry yet, and an
  * errored turn reports its failure instead of a cost. When the serving model has no published rate
@@ -38,6 +47,12 @@ export const AiMessageUsage = memo(function AiMessageUsage({ message }: AiMessag
       // The prompt/completion split stays on hover rather than being spent as transcript space.
       title={usage.breakdown ?? undefined}
     >
+      {usage.modelLabel && (
+        <>
+          <span {...stylex.props(styles.modelTag)}>{usage.modelLabel}</span>
+          <span {...stylex.props(styles.separator)}>·</span>
+        </>
+      )}
       {usage.label}
     </div>
   );

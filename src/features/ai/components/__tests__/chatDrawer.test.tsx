@@ -11,12 +11,15 @@ describe('AI Chat Drawer & Workspace Integration', () => {
   let db: LunaClairDatabase;
 
   beforeEach(async () => {
+    // Cooldown deadlines are persisted; a test that starts one must not hand it to the next test.
+    localStorage.clear();
     db = new LunaClairDatabase();
     await db.open();
   });
 
   afterEach(async () => {
     document.body.style.overflow = '';
+    localStorage.clear();
     await db.delete();
     db.close();
   });

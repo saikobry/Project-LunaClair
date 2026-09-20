@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   ApplicationContext,
   type ApplicationContextValue,
@@ -46,11 +47,18 @@ export function createAiChatHarness(db: LunaClairDatabase, aiService: AiService)
     } as unknown as UseCases,
   } as unknown as ApplicationContextValue;
 
+  // The real app mounts one QueryClient at the root, and AI hooks read shared cache state through
+  // it (the model catalog), so the harness must provide one too — per harness, so cached data from
+  // one test never leaks into the next.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <ApplicationContext.Provider value={contextValue}>
-      {children}
-    </ApplicationContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <ApplicationContext.Provider value={contextValue}>{children}</ApplicationContext.Provider>
+    </QueryClientProvider>
   );
 
-  return { contextValue, wrapper, aiChatRepository };
+  return { contextValue, wrapper, aiChatRepository, queryClient };
 }

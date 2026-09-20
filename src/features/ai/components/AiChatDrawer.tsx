@@ -166,19 +166,23 @@ export function AiChatDrawer({
     onCleared: closeHistory,
   });
 
-  // The guard the picker explains and the composer enforces. Derived from the same estimator the
-  // metric strip shows, against the selected model rather than the default one, and only an
-  // overshoot blocks sending — the request has not been refused until it is sent.
-  const isOverBudget = useMemo(
+  // Estimated **once**, against the selected model rather than the default one. Two consumers read
+  // it — the send guard below and the meter strip — and computing it in both would mean two walks
+  // over the transcript and the document, plus two places to edit whenever the estimator changes.
+  const sessionContext = useMemo(
     () =>
       estimateSessionContext({
         messages,
         documentMarkdown: documentContext,
         selectionText: selectionContext?.text,
         modelId: selectedModel.id,
-      }).estimate.isOverBudget,
+      }),
     [messages, documentContext, selectionContext?.text, selectedModel.id],
   );
+
+  // The guard the picker explains and the composer enforces. Only an overshoot blocks sending — the
+  // request has not been refused until it is sent.
+  const isOverBudget = sessionContext.estimate.isOverBudget;
   const isSendBlocked = isOverBudget || cooldownSeconds > 0;
 
   // A turn in flight belongs on the transcript, so the history panel yields the
@@ -302,12 +306,7 @@ export function AiChatDrawer({
               they step aside with it while the history panel is showing. */}
           {!isHistoryOpen && (
             <>
-              <AiSessionMetrics
-                messages={messages}
-                documentMarkdown={documentContext}
-                selectionText={selectionContext?.text}
-                modelId={selectedModel.id}
-              />
+              <AiSessionMetrics messages={messages} context={sessionContext} />
               <AiModelPicker
                 models={catalog.models}
                 selectedModelId={selectedModel.id}

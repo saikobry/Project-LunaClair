@@ -110,6 +110,39 @@ describe('UkisAiProvider', () => {
     expect(error).toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: 7 });
   });
 
+  it('prefers the Retry-After header over the prose hint', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: { get: (name: string) => (name === 'retry-after' ? '3' : null) },
+      json: async () => ({
+        error: { message: 'Rate limit: 5 prompts per minute per IP. Try again in 7s.' },
+      }),
+    } as unknown as Response);
+
+    // The header is the structured form of the same fact, so it wins over the message.
+    await expect(collect(new UkisAiProvider(BASE_URL))).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryAfterSeconds: 3,
+    });
+  });
+
+  it('classifies a declared error type without reading the message', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({
+        error: { message: 'Request rejected.', type: 'context_length_exceeded' },
+      }),
+    } as unknown as Response);
+
+    await expect(collect(new UkisAiProvider(BASE_URL))).rejects.toMatchObject({
+      code: 'CONTEXT_LIMIT',
+    });
+  });
+
   it('classifies a length rejection as CONTEXT_LIMIT', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,

@@ -5,17 +5,22 @@ import { useAiChatThread } from '../useAiChatThread';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { createAiChatHarness } from '../../../../test/mocks/aiChatHarness';
+import { STORAGE_KEYS } from '../../../../shared/constants/storageKeys';
 import type { AiService } from '../../../../domain/ai/services/AiService';
 
 describe('useAiChatThread', () => {
   let db: LunaClairDatabase;
 
   beforeEach(async () => {
+    // The cooldown deadline is persisted by design, so a test that starts one would otherwise hand
+    // its remaining seconds to every test after it.
+    localStorage.clear();
     db = new LunaClairDatabase();
     await db.open();
   });
 
   afterEach(async () => {
+    localStorage.clear();
     await db.delete();
     db.close();
   });
@@ -385,6 +390,59 @@ describe('useAiChatThread', () => {
     expect(streamChat.mock.calls.length).toBe(attemptsAfterFirst);
     expect(result.current.error?.code).toBe('RATE_LIMITED');
     expect(result.current.error?.message).toMatch(/Shared capacity is busy/);
+  });
+
+  it('resumes a persisted cooldown after a reload instead of re-arming the request', async () => {
+    // The wait describes the provider's window, not this tab: a reload must not spend the next
+    // request on another refusal.
+    localStorage.setItem(
+      STORAGE_KEYS.ai.rateLimitUntil,
+      String(Date.now() + 30_000),
+    );
+
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const streamChat = vi.spyOn(mockAi, 'streamChat');
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.cooldownSeconds).toBeGreaterThan(0);
+
+    await act(async () => {
+      await result.current.sendMessage('Too soon?');
+    });
+
+    expect(streamChat).not.toHaveBeenCalled();
+    expect(result.current.error?.code).toBe('RATE_LIMITED');
+  });
+
+  it('ignores a persisted cooldown that has already elapsed', async () => {
+    localStorage.setItem(STORAGE_KEYS.ai.rateLimitUntil, String(Date.now() - 1_000));
+
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.cooldownSeconds).toBe(0);
+
+    await act(async () => {
+      await result.current.sendMessage('A question.');
+    });
+
+    expect(result.current.messages).toHaveLength(2);
   });
 
   it('reports no cooldown when a turn succeeds', async () => {

@@ -2,7 +2,6 @@ import { memo, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import {
-  estimateSessionContext,
   summarizeSessionUsage,
   type SessionContextEstimate,
   type SessionUsageSummary,
@@ -83,18 +82,17 @@ function buildContextTitle(context: SessionContextEstimate): string {
 }
 
 export interface AiSessionMetricsProps {
+  /** Settled turns whose reported usage the totals are summed from. */
   messages: AiMessageRecord[];
-  /** Raw study material markdown; capped internally to what the request actually sends. */
-  documentMarkdown?: string;
-  /** Text selection currently attached to the composer. */
-  selectionText?: string;
   /**
-   * Model the next request will use. Omitted = the catalog default.
+   * The next request's context estimate, computed by the caller.
    *
-   * The window and the document cap are per-model, so the meter must follow the selection —
-   * otherwise switching to a 256k-window model would keep reporting against the default model.
+   * Passed in rather than derived here so the meter and the drawer's send guard read the **same**
+   * number from one calculation: two call sites of `estimateSessionContext` would walk the
+   * transcript and the document twice per change and, worse, each have to be updated whenever the
+   * estimator does.
    */
-  modelId?: string;
+  context: SessionContextEstimate;
 }
 
 /**
@@ -107,18 +105,15 @@ export interface AiSessionMetricsProps {
  */
 export const AiSessionMetrics = memo(function AiSessionMetrics({
   messages,
-  documentMarkdown,
-  selectionText,
-  modelId,
+  context,
 }: AiSessionMetricsProps) {
   const totals = useMemo(() => summarizeSessionUsage(messages), [messages]);
-  const context = useMemo(
-    () => estimateSessionContext({ messages, documentMarkdown, selectionText, modelId }),
-    [messages, documentMarkdown, selectionText, modelId],
-  );
 
-  // Nothing measured and nothing to ground means nothing worth the chrome.
-  if (messages.length === 0 && !documentMarkdown) return null;
+  // Nothing measured and nothing to ground means nothing worth the chrome. The estimate already
+  // holds the capped character counts, so it answers this without re-deriving anything.
+  const metersAnything =
+    context.documentChars + context.selectionChars + context.conversationChars > 0;
+  if (!metersAnything) return null;
 
   const totalsLabel = totals
     ? `Session ${totals.tokenLabel} tokens${totals.costLabel ? ` · ${totals.costLabel}` : ''}`

@@ -12,12 +12,19 @@ import {
 import {
   AI_CATALOG_VERSION as CLIENT_CATALOG_VERSION,
   DEFAULT_AI_MODEL_CATALOG,
+  isAiCatalogVersion,
 } from '../../../../src/domain/ai/services/aiModelCatalog';
 
 describe('client catalog mirror ↔ Worker registry coherence', () => {
   it('agrees on the catalog version', () => {
     expect(CLIENT_CATALOG_VERSION).toBe(AI_CATALOG_VERSION);
     expect(DEFAULT_AI_MODEL_CATALOG.version).toBe(AI_CATALOG_VERSION);
+  });
+
+  it('uses a version label the client can order numerically', () => {
+    // The client compares catalog versions field-by-field, so a version it cannot parse would be
+    // ranked below a well-formed one rather than compared — i.e. silently never adopted.
+    expect(isAiCatalogVersion(AI_CATALOG_VERSION)).toBe(true);
   });
 
   it('agrees on the default model', () => {

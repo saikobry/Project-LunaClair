@@ -1,5 +1,9 @@
 import type { AiUsage } from '../../../domain/ai/models/ai.types';
 import { estimateAiCostUsd } from '../../../domain/ai/services/aiModelPricing';
+import {
+  DEFAULT_AI_MODEL_CATALOG,
+  findAiModelDescriptor,
+} from '../../../domain/ai/services/aiModelCatalog';
 
 /** Presentation-ready summary of one turn's provider-reported token usage. */
 export interface AiUsageSummary {
@@ -9,6 +13,13 @@ export interface AiUsageSummary {
   cost: string | null;
   /** Prompt/completion split, or `null` when the provider reported only a total. */
   breakdown: string | null;
+  /**
+   * Name of the model that served this turn, or `null` when the turn records none.
+   *
+   * A conversation may mix models, so each turn names its own: without it, a MAX answer and a
+   * Standard answer would look identical in a thread the user switched models inside.
+   */
+  modelLabel: string | null;
   /** Single-line label for the transcript, e.g. `1,204 tokens · $0.0016`. */
   label: string;
 }
@@ -48,6 +59,10 @@ export function formatUsdCost(cost: number): string {
  *
  * Cost is never zero for a shown summary: both published rates are positive, so a positive token
  * count always costs something.
+ *
+ * The model name is resolved from the client's bundled catalog — the same display names the server
+ * serves, which the registry's coherence test enforces. A model the bundle does not know yet renders
+ * its raw id rather than being mislabelled as another model.
  */
 export function formatAiUsage(usage?: AiUsage | null, model?: string): AiUsageSummary | null {
   if (!usage) return null;
@@ -66,10 +81,13 @@ export function formatAiUsage(usage?: AiUsage | null, model?: string): AiUsageSu
     ? `${plainNumber.format(usage.promptTokens as number)} in · ${plainNumber.format(usage.completionTokens as number)} out`
     : null;
 
+  const descriptor = findAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, model);
+
   return {
     tokens,
     cost: costLabel,
     breakdown,
+    modelLabel: model ? (descriptor?.display.name ?? model) : null,
     label: costLabel ? `${tokens} tokens · ${costLabel}` : `${tokens} tokens`,
   };
 }
