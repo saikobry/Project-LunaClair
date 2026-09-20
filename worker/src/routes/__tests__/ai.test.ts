@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleAiChat, handleAiModels } from '../ai';
-import { AI_STREAM_IDLE_TIMEOUT_MS } from '../../ai/deadline';
+import { AI_FIRST_EVENT_TIMEOUT_MS, AI_STREAM_IDLE_TIMEOUT_MS } from '../../ai/deadline';
 import type { Env, RouteContext } from '../../core/types';
 
 const DEFAULT_PROVIDER_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -62,6 +62,27 @@ function makeCtx(
   };
 }
 
+/**
+ * An OpenAI-shaped stream that emits one token and then never ends.
+ *
+ * Its `cancel` handler is spy-able on purpose: "was the pull actually cancelled?" is otherwise
+ * invisible from the outside, and an abandoned read that stays parked is exactly the leak the route
+ * now has to prevent.
+ */
+function stalledUkisaiStream(): { body: ReadableStream<Uint8Array>; wasCancelled: () => boolean } {
+  const encoder = new TextEncoder();
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return { body, wasCancelled: () => cancelled };
+}
+
 /** Parses the app-native SSE events out of a chat response body. */
 async function readEvents(response: Response): Promise<Array<Record<string, unknown>>> {
   const text = await response.text();
@@ -87,6 +108,39 @@ describe('handleAiModels', () => {
     const catalog = (await response.json()) as { models: Array<{ id: string }> };
 
     expect(catalog.models.map((model) => model.id)).toEqual([DEFAULT_CATALOG_ID]);
+  });
+
+  it('reports the whole assistant as disabled instead of lying with an empty list', async () => {
+    const response = handleAiModels(makeCtx({}, undefined, { AI_CHAT_DISABLED: 'true' }));
+    const catalog = (await response.json()) as { availability: string; models: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(catalog.availability).toBe('disabled');
+    expect(catalog.models).toEqual([]);
+  });
+});
+
+describe('handleAiChat global shutdown', () => {
+  it('refuses every model, including the default, before it looks at the request', async () => {
+    const run = vi.fn(async () => workersAiStream());
+    const response = await handleAiChat(
+      makeCtx({ messages: [{ role: 'user', content: 'hi' }] }, run, { AI_CHAT_DISABLED: 'true' }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: 'AI_DISABLED' });
+    // The point of the global switch: it can stop the assistant during an incident even when the
+    // request names the default, which a per-model switch could not.
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('refuses a malformed body too, because it stops before parsing', async () => {
+    const response = await handleAiChat(
+      makeCtx('not-an-object', undefined, { AI_CHAT_DISABLED: '1' }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: 'AI_DISABLED' });
   });
 });
 
@@ -350,6 +404,115 @@ describe('handleAiChat failures', () => {
       expect(events.at(-1)).toMatchObject({ type: 'done', model: DEFAULT_CATALOG_ID });
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('aborts the provider request when the first event misses the first-event deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () =>
+              reject(init.signal?.reason ?? new Error('aborted')),
+            );
+          }),
+      );
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      const settled = handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+      await vi.advanceTimersByTimeAsync(AI_FIRST_EVENT_TIMEOUT_MS);
+      const response = await settled;
+
+      expect(response.status).toBe(504);
+      expect(await response.json()).toMatchObject({ code: 'TIMEOUT' });
+
+      // The signal handed to the provider is the route's, and it is aborted — cancelled, not merely
+      // abandoned.
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(init.signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels a stalled provider stream at the inter-token idle deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const { body, wasCancelled } = stalledUkisaiStream();
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+      const response = await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+      const drained = readEvents(response);
+
+      await vi.advanceTimersByTimeAsync(AI_STREAM_IDLE_TIMEOUT_MS);
+      const events = await drained;
+
+      expect(events).toContainEqual(expect.objectContaining({ type: 'error', code: 'TIMEOUT' }));
+      // Still attributed: a turn that consumed tokens is charged to the model that served it.
+      expect(events.at(-1)).toMatchObject({ type: 'done', model: 'ukisai-swift-max' });
+      await vi.waitFor(() => expect(wasCancelled()).toBe(true));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels provider work when the client request aborts mid-stream', async () => {
+    const { body, wasCancelled } = stalledUkisaiStream();
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    const ctx = makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' });
+    const response = await handleAiChat({
+      ...ctx,
+      request: new Request(ctx.request, { signal: controller.signal }),
+    });
+    expect(response.status).toBe(200);
+
+    controller.abort();
+
+    await vi.waitFor(() => expect(wasCancelled()).toBe(true));
+  });
+
+  it('cancels provider work when the response consumer cancels', async () => {
+    const { body, wasCancelled } = stalledUkisaiStream();
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+    const response = await handleAiChat(
+      makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+    );
+
+    await response.body?.cancel();
+
+    // Nobody is reading any more, so spending the shared provider budget on it is waste.
+    await vi.waitFor(() => expect(wasCancelled()).toBe(true));
+  });
+
+  it('writes nothing after the consumer cancels, and does not report a failure', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { body, wasCancelled } = stalledUkisaiStream();
+      globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, body })) as unknown as typeof fetch;
+
+      const response = await handleAiChat(
+        makeCtx({ messages: [{ role: 'user', content: 'hi' }], model: 'ukisai-swift-max' }),
+      );
+
+      await response.body?.cancel();
+      await vi.waitFor(() => expect(wasCancelled()).toBe(true));
+      // Let the route's stream body settle, so an unguarded enqueue would have thrown by now.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(errorSpy).not.toHaveBeenCalledWith(
+        'AI provider stream failed mid-stream',
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
     }
   });
 

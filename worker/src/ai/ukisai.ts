@@ -30,10 +30,11 @@ const RETRY_HINT_PATTERN = /try again in (\d+)\s*s/i;
  * The endpoint sends no `Access-Control-Allow-Origin`, so this is reachable only from the Worker —
  * which the architecture already required.
  *
- * The deadline covers **becoming responsive**, not the whole answer: the composed signal is dropped
- * once the response headers arrive, and the route's idle deadline governs the body from there. A
- * below-SLA research endpoint that accepts a request and then never answers is the failure this
- * prevents, and it was reachable before this existed.
+ * The connect deadline covers **becoming responsive**, not the whole answer: only the connect timer
+ * is cleared once headers arrive, while `request.signal` — owned by the route — stays attached to the
+ * body for the rest of the stream. A below-SLA research endpoint that accepts a request and then
+ * never answers is the failure the connect deadline prevents; a body that stalls mid-answer is the
+ * route's idle deadline to cancel, and cancelling it is what tears this fetch down.
  */
 export class UkisAiProvider implements AiProvider {
   readonly id = 'ukisai' as const;
@@ -46,8 +47,8 @@ export class UkisAiProvider implements AiProvider {
   async *stream(request: AiProviderRequest): AsyncIterable<AiProviderEvent> {
     const deadline = createTimeoutSignal(
       request.signal,
-      request.timeoutMs,
-      `UkisAI did not respond within ${request.timeoutMs}ms.`,
+      request.connectTimeoutMs,
+      `UkisAI did not respond within ${request.connectTimeoutMs}ms.`,
     );
 
     let response: Response;
@@ -71,7 +72,7 @@ export class UkisAiProvider implements AiProvider {
       // retryable, the other is the user's Stop and must not be reported as a failure at all.
       if (deadline.timedOut()) {
         throw new AiProviderError(
-          `UkisAI did not respond within ${request.timeoutMs}ms.`,
+          `UkisAI did not respond within ${request.connectTimeoutMs}ms.`,
           'TIMEOUT',
         );
       }
@@ -80,7 +81,8 @@ export class UkisAiProvider implements AiProvider {
       }
       throw toAiProviderError(err, 'UkisAI request failed');
     } finally {
-      // Headers are in (or the request already failed): the connect deadline has done its job.
+      // Headers are in (or the request already failed): the connect deadline has done its job. Only
+      // the timer and its listener go — `request.signal` remains the body's cancellation channel.
       deadline.clear();
     }
 
@@ -91,7 +93,7 @@ export class UkisAiProvider implements AiProvider {
       throw new AiProviderError('UkisAI returned no response body', 'UPSTREAM_ERROR');
     }
 
-    for await (const payload of readSseData(response.body)) {
+    for await (const payload of readSseData(response.body, request.signal)) {
       if (payload === '[DONE]') return;
 
       let parsed: {

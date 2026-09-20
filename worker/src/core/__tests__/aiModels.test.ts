@@ -4,6 +4,7 @@ import {
   AI_DEFAULT_MODEL_ID,
   AI_MODEL_ROUTES,
   hasSingleDefaultModel,
+  isAiChatDisabled,
   isAiModelServed,
   listServedAiModelRoutes,
   resolveAiModelRoute,
@@ -79,9 +80,27 @@ describe('toPublicAiModelCatalog', () => {
   });
 
   it('omits a disabled model rather than listing it to be refused', () => {
-    const catalog = toPublicAiModelCatalog(new Set(['ukisai-swift-max']));
+    const catalog = toPublicAiModelCatalog(new Set(['ukisai-swift-max']), false);
 
     expect(catalog.models.map((model) => model.id)).toEqual([AI_DEFAULT_MODEL_ID]);
+    expect(catalog.availability).toBe('available');
+    expect(catalog.defaultModelId).toBe(AI_DEFAULT_MODEL_ID);
+  });
+
+  it('reports itself disabled and serves nothing under the global shutdown', () => {
+    const catalog = toPublicAiModelCatalog(new Set(), true);
+
+    expect(catalog.availability).toBe('disabled');
+    expect(catalog.models).toEqual([]);
+    expect(catalog.defaultModelId).toBeNull();
+  });
+
+  it('reports no default when the default itself was disabled, and never re-points it', () => {
+    const catalog = toPublicAiModelCatalog(new Set([AI_DEFAULT_MODEL_ID]), false);
+
+    // A different model must never be silently promoted: the caller has to choose explicitly.
+    expect(catalog.defaultModelId).toBeNull();
+    expect(catalog.models.map((model) => model.id)).not.toContain(AI_DEFAULT_MODEL_ID);
   });
 });
 
@@ -99,16 +118,10 @@ describe('resolveDisabledAiModelIds', () => {
     expect(disabled).toEqual(new Set(['ukisai-swift-max']));
   });
 
-  it('refuses to disable the default model, which every degraded path falls back to', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
+  it('disables the default model too, so an incident can stop the one every path falls back to', () => {
     const disabled = resolveDisabledAiModelIds({ AI_DISABLED_MODELS: AI_DEFAULT_MODEL_ID });
 
-    expect(disabled.size).toBe(0);
-    expect(warn).toHaveBeenCalledWith(
-      'AI_DISABLED_MODELS names the default model, which cannot be disabled',
-      { id: AI_DEFAULT_MODEL_ID },
-    );
+    expect(disabled).toEqual(new Set([AI_DEFAULT_MODEL_ID]));
   });
 
   it('ignores an unknown id in the switch instead of failing chat', () => {
@@ -127,17 +140,40 @@ describe('isAiModelServed', () => {
   it('serves a registered model with no kill switch and no retirement flag', () => {
     const max = AI_MODEL_ROUTES.find((route) => route.id === 'ukisai-swift-max');
     expect(max).toBeDefined();
-    expect(isAiModelServed(max!)).toBe(true);
+    expect(isAiModelServed(max!, new Set(), false)).toBe(true);
   });
 
   it('stops serving a model the kill switch names', () => {
     const max = AI_MODEL_ROUTES.find((route) => route.id === 'ukisai-swift-max')!;
-    expect(isAiModelServed(max, new Set(['ukisai-swift-max']))).toBe(false);
+    expect(isAiModelServed(max, new Set(['ukisai-swift-max']), false)).toBe(false);
   });
 
-  it('keeps the default served even when disabled, so a deployment cannot empty the catalog', () => {
+  it('stops serving every model under the global shutdown, including the default', () => {
+    for (const route of AI_MODEL_ROUTES) {
+      expect(isAiModelServed(route, new Set(), true), route.id).toBe(false);
+    }
+    expect(listServedAiModelRoutes(new Set(), true)).toEqual([]);
+  });
+
+  it('lets the kill switch disable the default, which then has nothing to fall back to', () => {
     const standard = AI_MODEL_ROUTES.find((route) => route.isDefault)!;
-    expect(isAiModelServed(standard, new Set([standard.id]))).toBe(true);
-    expect(listServedAiModelRoutes(new Set([standard.id]))).toContain(standard);
+    expect(isAiModelServed(standard, new Set([standard.id]), false)).toBe(false);
+    expect(listServedAiModelRoutes(new Set([standard.id]), false)).not.toContain(standard);
+  });
+});
+
+describe('isAiChatDisabled', () => {
+  it('accepts the spellings someone would type during an incident', () => {
+    for (const raw of ['true', 'TRUE', ' 1 ', 'yes', 'on', 'On']) {
+      expect(isAiChatDisabled({ AI_CHAT_DISABLED: raw }), raw).toBe(true);
+    }
+  });
+
+  it('treats unset, empty, and explicit-false values as enabled', () => {
+    expect(isAiChatDisabled({})).toBe(false);
+    expect(isAiChatDisabled({ AI_CHAT_DISABLED: '' })).toBe(false);
+    expect(isAiChatDisabled({ AI_CHAT_DISABLED: 'false' })).toBe(false);
+    // Not a spelling we claim to honor: a typo must not silently disable the assistant.
+    expect(isAiChatDisabled({ AI_CHAT_DISABLED: 'disable' })).toBe(false);
   });
 });

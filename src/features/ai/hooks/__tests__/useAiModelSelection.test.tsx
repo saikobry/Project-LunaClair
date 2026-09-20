@@ -44,7 +44,7 @@ describe('useAiModelSelection', () => {
     const { result } = renderHook(() => useAiModelSelection(), { wrapper: wrapperWith() });
 
     expect(result.current.catalog.models.length).toBeGreaterThan(1);
-    expect(result.current.selectedModel.id).toBe(DEFAULT_ID);
+    expect(result.current.selectedModel?.id).toBe(DEFAULT_ID);
   });
 
   it('adopts the fetched catalog', async () => {
@@ -62,7 +62,7 @@ describe('useAiModelSelection', () => {
     await waitFor(() => {
       expect(result.current.catalog.version).toBe('2099-01-01.1');
     });
-    expect(result.current.selectedModel.id).toBe(DEFAULT_ID);
+    expect(result.current.selectedModel?.id).toBe(DEFAULT_ID);
   });
 
   it('keeps the bundled mirror when the catalog fetch fails', async () => {
@@ -75,7 +75,7 @@ describe('useAiModelSelection', () => {
     await waitFor(() => {
       expect(result.current.catalog).toEqual(DEFAULT_AI_MODEL_CATALOG);
     });
-    expect(result.current.selectedModel.id).toBe(DEFAULT_ID);
+    expect(result.current.selectedModel?.id).toBe(DEFAULT_ID);
   });
 
   it('remembers a chosen model on the device', () => {
@@ -85,7 +85,7 @@ describe('useAiModelSelection', () => {
       result.current.selectModel(MAX_ID);
     });
 
-    expect(result.current.selectedModel.id).toBe(MAX_ID);
+    expect(result.current.selectedModel?.id).toBe(MAX_ID);
     expect(localStorage.getItem(STORAGE_KEYS.ai.modelId)).toBe(MAX_ID);
   });
 
@@ -94,7 +94,7 @@ describe('useAiModelSelection', () => {
 
     const { result } = renderHook(() => useAiModelSelection(), { wrapper: wrapperWith() });
 
-    expect(result.current.selectedModel.id).toBe(MAX_ID);
+    expect(result.current.selectedModel?.id).toBe(MAX_ID);
   });
 
   it('re-reads the catalog on refresh, so a refused model stops being offered', async () => {
@@ -128,7 +128,25 @@ describe('useAiModelSelection', () => {
 
     const { result } = renderHook(() => useAiModelSelection(), { wrapper: wrapperWith() });
 
-    expect(result.current.selectedModel.id).toBe(DEFAULT_ID);
+    expect(result.current.selectedModel?.id).toBe(DEFAULT_ID);
+  });
+
+  it('resolves to no selection at all when the assistant is switched off', async () => {
+    const off: AiModelCatalog = {
+      version: '2099-01-01.1',
+      availability: 'disabled',
+      defaultModelId: null,
+      models: [],
+    };
+
+    const { result } = renderHook(() => useAiModelSelection(), {
+      wrapper: wrapperWith(async () => off),
+    });
+    await waitFor(() => expect(result.current.isAiDisabled).toBe(true));
+
+    // Nothing is sent and nothing is substituted: the drawer blocks on this rather than choosing a
+    // model for the user.
+    expect(result.current.selectedModel).toBeNull();
   });
 
   it('survives storage that refuses to write', () => {
@@ -142,7 +160,7 @@ describe('useAiModelSelection', () => {
     });
 
     // The choice still applies to this session even if it cannot be persisted.
-    expect(result.current.selectedModel.id).toBe(MAX_ID);
+    expect(result.current.selectedModel?.id).toBe(MAX_ID);
     setItem.mockRestore();
   });
 });

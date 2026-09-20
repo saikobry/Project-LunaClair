@@ -17,10 +17,17 @@ import type { AiProviderId } from '../core/aiModels';
  * Normalized failure codes, carried through to the client's coded error response.
  *
  * `TIMEOUT` covers a provider that accepted the request and then went silent, and `ABORTED` a
- * request the client itself cancelled — kept apart so a user pressing Stop is never reported to
- * them as an upstream failure.
+ * request that was cancelled — kept apart so a user pressing Stop is never reported to them as an
+ * upstream failure. `AI_DISABLED` is not a provider's failure at all: it is the deployment saying the
+ * assistant is off, which is why it is checked before a model is even resolved.
  */
-export type AiErrorCode = 'RATE_LIMITED' | 'CONTEXT_LIMIT' | 'TIMEOUT' | 'ABORTED' | 'UPSTREAM_ERROR';
+export type AiErrorCode =
+  | 'AI_DISABLED'
+  | 'RATE_LIMITED'
+  | 'CONTEXT_LIMIT'
+  | 'TIMEOUT'
+  | 'ABORTED'
+  | 'UPSTREAM_ERROR';
 
 /**
  * A provider failure, already classified.
@@ -56,16 +63,24 @@ export interface AiProviderRequest {
   messages: Array<{ role: string; content: string }>;
   maxOutputTokens: number;
   temperature: number;
-  /** Aborts the outbound provider request when the client disconnects. */
-  signal?: AbortSignal;
   /**
-   * How long this provider may take to become responsive, in milliseconds.
+   * **Owned by the route**, and required.
    *
-   * Part of the contract rather than an implementation detail: a provider that can cancel its own
-   * outbound request (an HTTP adapter) must honor it, and the route independently enforces it per
-   * pull so a provider that cannot still fails instead of hanging.
+   * The provider must stop consuming response data and cancel any cancellable outbound work when it
+   * aborts — that is what makes a deadline or a vanished client a real cancellation rather than an
+   * abandoned promise. A provider whose upstream call cannot be cancelled at all (an in-process
+   * platform binding) must still stop reading and say so in its own docs; the route guarantees the
+   * response is released either way.
    */
-  timeoutMs: number;
+  signal: AbortSignal;
+  /**
+   * How long this provider may take to **become responsive** — to answer with headers/body.
+   *
+   * Not a total stream-duration limit: a healthy long answer must not be cut off by it. The route
+   * separately enforces an idle deadline per pull, so a provider that cannot cancel its own request
+   * still cannot hold the response open.
+   */
+  connectTimeoutMs: number;
 }
 
 export interface AiProvider {

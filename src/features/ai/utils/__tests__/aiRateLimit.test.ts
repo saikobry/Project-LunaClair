@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   AI_RATE_LIMIT_FALLBACK_SECONDS,
   formatCooldownNotice,
+  mergeCooldownDeadline,
   readCooldownDeadline,
   resolveCooldownSeconds,
   secondsUntilDeadline,
@@ -42,6 +43,26 @@ describe('resolveCooldownSeconds', () => {
 
   it('bounds an implausibly long wait instead of holding the composer hostage', () => {
     expect(resolveCooldownSeconds(3_600)).toBe(120);
+  });
+});
+
+describe('mergeCooldownDeadline', () => {
+  const now = 1_700_000_000_000;
+
+  it('establishes the requested deadline when none is running', () => {
+    expect(mergeCooldownDeadline(null, now + 10_000, now)).toBe(now + 10_000);
+  });
+
+  it('lets a stale refusal push the deadline out but never pull it in', () => {
+    const running = now + 45_000;
+
+    // A slower, older turn reporting "3s" after a fresher one reported 45s must not shorten it.
+    expect(mergeCooldownDeadline(running, now + 3_000, now)).toBe(running);
+    expect(mergeCooldownDeadline(running, now + 60_000, now)).toBe(now + 60_000);
+  });
+
+  it('ignores a lapsed deadline, so an expired wait cannot inflate the next one', () => {
+    expect(mergeCooldownDeadline(now - 1, now + 5_000, now)).toBe(now + 5_000);
   });
 });
 

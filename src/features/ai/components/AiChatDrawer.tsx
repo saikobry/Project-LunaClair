@@ -7,9 +7,7 @@ import { useAiChatThread } from '../hooks/useAiChatThread';
 import { AiChatMessageList } from './AiChatMessageList';
 import { AiChatHistoryPanel } from './AiChatHistoryPanel';
 import { AiChatErrorBanner } from './AiChatErrorBanner';
-import { AiSessionMetrics } from './AiSessionMetrics';
-import { AiModelPicker } from './AiModelPicker';
-import { AiChatInput } from './AiChatInput';
+import { AiChatDrawerComposer } from './AiChatDrawerComposer';
 import { useAiModelSelection } from '../hooks/useAiModelSelection';
 import { estimateSessionContext } from '../utils/aiSessionMetrics';
 import { type AiSelectionAction } from '../utils/selectionActionPrompt';
@@ -118,7 +116,8 @@ export function AiChatDrawer({
 
   // Which model the next message asks for. Per request, not per conversation: the thread stores no
   // model, so switching here changes the next turn and never the one already streaming.
-  const { catalog, selectedModel, selectModel, refreshCatalog } = useAiModelSelection();
+  const modelSelection = useAiModelSelection();
+  const { selectedModel, refreshCatalog } = modelSelection;
 
   const {
     thread,
@@ -139,7 +138,7 @@ export function AiChatDrawer({
     deleteSession,
     error,
     cooldownSeconds,
-  } = useAiChatThread({ materialId, model: selectedModel.id });
+  } = useAiChatThread({ materialId, model: selectedModel?.id });
 
   // The server refused the model this client offered, which means the catalog here is behind the
   // server's (a model was just disabled or retired). The bundled mirror and the cached copy are
@@ -175,15 +174,10 @@ export function AiChatDrawer({
         messages,
         documentMarkdown: documentContext,
         selectionText: selectionContext?.text,
-        modelId: selectedModel.id,
+        modelId: selectedModel?.id,
       }),
-    [messages, documentContext, selectionContext?.text, selectedModel.id],
+    [messages, documentContext, selectionContext?.text, selectedModel?.id],
   );
-
-  // The guard the picker explains and the composer enforces. Only an overshoot blocks sending — the
-  // request has not been refused until it is sent.
-  const isOverBudget = sessionContext.estimate.isOverBudget;
-  const isSendBlocked = isOverBudget || cooldownSeconds > 0;
 
   // A turn in flight belongs on the transcript, so the history panel yields the
   // moment one starts. This also covers the reader's contextual Explain /
@@ -197,6 +191,20 @@ export function AiChatDrawer({
     if (isStreaming && isHistoryOpen) setIsHistoryOpen(false);
   }
 
+  /**
+   * The one send path, guarded by "is there anything legitimate to send on".
+   *
+   * The composer blocks itself, but the reader's Explain/Simplify/Example actions call `send`
+   * directly, so the guard has to live on the function rather than on the input.
+   */
+  const sendIfAvailable = useCallback(
+    async (content: string, options?: Parameters<typeof sendMessage>[1]) => {
+      if (selectedModel === null) return;
+      await sendMessage(content, options);
+    },
+    [selectedModel, sendMessage],
+  );
+
   // A reader selection (Explain / Simplify / Example, or the reader toolbar) becomes one chat turn
   // and is then cleared. Deduplicated inside the hook, which owns the reader-to-drawer contract.
   useAiSelectionAction({
@@ -204,7 +212,7 @@ export function AiChatDrawer({
     materialId,
     documentContext,
     selectionContext,
-    send: sendMessage,
+    send: sendIfAvailable,
     onHandled: onClearSelectionContext,
   });
 
@@ -212,7 +220,7 @@ export function AiChatDrawer({
     (promptText: string) => {
       // A new turn belongs on the transcript, not behind the history panel.
       setIsHistoryOpen(false);
-      sendMessage(promptText, {
+      void sendIfAvailable(promptText, {
         documentContext: documentContext
           ? { id: materialId || 'current-doc', markdown: documentContext }
           : undefined,
@@ -227,7 +235,7 @@ export function AiChatDrawer({
         onClearSelectionContext?.();
       }
     },
-    [sendMessage, documentContext, materialId, selectionContext, onClearSelectionContext],
+    [sendIfAvailable, documentContext, materialId, selectionContext, onClearSelectionContext],
   );
 
   const handleSelectSession = useCallback(
@@ -302,28 +310,19 @@ export function AiChatDrawer({
             />
           )}
 
-          {/* Conversation totals and the context estimate describe the transcript on screen, so
-              they step aside with it while the history panel is showing. */}
-          {!isHistoryOpen && (
-            <>
-              <AiSessionMetrics messages={messages} context={sessionContext} />
-              <AiModelPicker
-                models={catalog.models}
-                selectedModelId={selectedModel.id}
-                onSelectModel={selectModel}
-                isOverBudget={isOverBudget}
-                cooldownSeconds={cooldownSeconds}
-              />
-            </>
-          )}
-
-          <AiChatInput
+          {/* Totals, the model choice, and the composer — one strip, so the guard the picker
+              explains and the composer enforces cannot drift apart. */}
+          <AiChatDrawerComposer
+            isVisible={!isHistoryOpen}
+            messages={messages}
+            context={sessionContext}
+            model={modelSelection}
+            cooldownSeconds={cooldownSeconds}
+            isStreaming={isStreaming}
+            isLoading={isLoading}
+            selectionExcerpt={selectionContext?.text}
             onSendMessage={handleSendPrompt}
             onStopGeneration={stopStreaming}
-            isStreaming={isStreaming}
-            disabled={isLoading}
-            isSendBlocked={isSendBlocked}
-            selectionExcerpt={selectionContext?.text}
             onClearSelection={onClearSelectionContext}
           />
         </div>

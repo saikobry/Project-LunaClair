@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
 import {
-  getAiModelDescriptor,
+  isAiCatalogDisabled,
+  resolveAiModelSelection,
   type AiModelCatalog,
   type AiModelDescriptor,
 } from '../../../domain/ai/services/aiModelCatalog';
@@ -10,8 +11,17 @@ import { useAiModelCatalog } from './queries/useAiModelCatalog';
 export interface AiModelSelection {
   /** Best-known catalog: the served one when a fetch succeeded, otherwise the bundled mirror. */
   catalog: AiModelCatalog;
-  /** Resolved selection — never an id the catalog does not contain. */
-  selectedModel: AiModelDescriptor;
+  /**
+   * Resolved selection, or `null` when there is nothing legitimate to send on.
+   *
+   * `null` covers both "the assistant is switched off" (`availability: 'disabled'`) and "no model is
+   * selected because there is no default to inherit" — a single-model catalog with
+   * `defaultModelId: null` demands an explicit choice rather than a silent one. The drawers block
+   * sending on it; nothing is ever substituted.
+   */
+  selectedModel: AiModelDescriptor | null;
+  /** `true` when the deployment has switched the assistant off entirely. */
+  isAiDisabled: boolean;
   /** Selects the model for the next request and remembers it on this device. */
   selectModel: (modelId: string) => void;
   /**
@@ -65,9 +75,16 @@ export function useAiModelSelection(): AiModelSelection {
     writeStoredModelId(modelId);
   }, []);
 
-  // Resolved rather than validated in an effect: an unknown id quietly becomes the default, so no
-  // render can offer — or send — a model the catalog does not have.
-  const selectedModel = getAiModelDescriptor(catalog, preferredModelId);
+  // Resolved rather than validated in an effect: an unknown id falls back to the catalog's default,
+  // and a catalog with no default to fall back to resolves to nothing at all — so no render can
+  // offer, or send, a model the catalog does not have.
+  const selectedModel = resolveAiModelSelection(catalog, preferredModelId);
 
-  return { catalog, selectedModel, selectModel, refreshCatalog };
+  return {
+    catalog,
+    selectedModel,
+    isAiDisabled: isAiCatalogDisabled(catalog),
+    selectModel,
+    refreshCatalog,
+  };
 }

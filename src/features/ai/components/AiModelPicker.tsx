@@ -1,7 +1,10 @@
 import * as stylex from '@stylexjs/stylex';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import type { AiModelDescriptor } from '../../../domain/ai/services/aiModelCatalog';
-import { formatCooldownNotice } from '../utils/aiRateLimit';
+import {
+  resolvePickerNotice,
+  resolvePickerUnavailableNotice,
+} from '../utils/aiModelPickerNotice';
 
 const styles = stylex.create({
   row: {
@@ -26,8 +29,18 @@ const styles = stylex.create({
 export interface AiModelPickerProps {
   /** Selectable models, in catalog order. */
   models: AiModelDescriptor[];
-  /** Currently selected catalog id. */
-  selectedModelId: string;
+  /**
+   * The catalog's default, or `null` when there is nothing to default to.
+   *
+   * It decides whether a single-model catalog may stay hidden: with a default, that one model is
+   * already what the next request uses, but **without** one nothing is selected, so the row has to
+   * ask for a choice instead of picking silently.
+   */
+  defaultModelId: string | null;
+  /** `disabled` = the deployment has switched the assistant off entirely. */
+  isAiDisabled: boolean;
+  /** Currently selected catalog id, or `null` when nothing is selected. */
+  selectedModelId: string | null;
   onSelectModel: (modelId: string) => void;
   /**
    * True when the next request would exceed the selected model's prompt budget.
@@ -41,36 +54,50 @@ export interface AiModelPickerProps {
 /**
  * Model choice for the next request, sat beside the conversation's cost meter.
  *
- * Only rendered when the catalog offers a choice — a segmented control with one option states
- * nothing and would imply a capability that is not there.
+ * Rendered when the catalog offers something to say: a choice (two or more models), a single model
+ * that nothing is selected for, an empty catalog, or a switched-off assistant. A control with one
+ * option whose model is *already* the default stays hidden, because it would state nothing and imply
+ * a capability that is not there.
  *
- * The line under the control answers "what am I getting", and when something is wrong it says which
- * of the two different problems it is: a conversation too large for the selected model (switch or
- * start over) or shared capacity temporarily exhausted (wait). Neither is silent, because both
- * otherwise show up as a failed request the user cannot explain.
+ * The line beside the control answers "what am I getting", and when something is wrong it says which
+ * problem it is: a conversation too large for the selected model (switch or start over), shared
+ * capacity temporarily exhausted (wait), the assistant switched off by the deployment, or a catalog
+ * with nothing in it. None of them is silent — each otherwise shows up as a failed request the user
+ * cannot explain.
  */
 export function AiModelPicker({
   models,
+  defaultModelId,
+  isAiDisabled,
   selectedModelId,
   onSelectModel,
   isOverBudget,
   cooldownSeconds,
 }: AiModelPickerProps) {
-  if (models.length < 2) return null;
+  const unavailableNotice = resolvePickerUnavailableNotice(isAiDisabled, models.length > 0);
+  if (unavailableNotice) {
+    return (
+      <div {...stylex.props(styles.row)}>
+        <span {...stylex.props(styles.notice, styles.noticeWarning)}>{unavailableNotice}</span>
+      </div>
+    );
+  }
 
-  const selected = models.find((model) => model.id === selectedModelId);
-  const isCoolingDown = cooldownSeconds > 0;
-  const notice = isCoolingDown
-    ? formatCooldownNotice(cooldownSeconds)
-    : isOverBudget
-      ? `This conversation no longer fits ${selected?.display.name ?? 'the selected model'}. Start a new chat or pick another model.`
-      : (selected?.display.tagline ?? '');
+  // One model and a default for it: the choice is already made, so there is nothing to ask.
+  if (models.length === 1 && defaultModelId !== null) return null;
+
+  const notice = resolvePickerNotice({
+    cooldownSeconds,
+    isOverBudget,
+    selectedModelId,
+    selectedModel: models.find((model) => model.id === selectedModelId),
+  });
 
   return (
     <div {...stylex.props(styles.row)}>
       <SegmentedControl
         label="AI model for the next message"
-        value={selectedModelId}
+        value={selectedModelId ?? ''}
         onChange={(value) => onSelectModel(value)}
         size="sm"
       >
@@ -79,13 +106,8 @@ export function AiModelPicker({
         ))}
       </SegmentedControl>
       {notice && (
-        <span
-          {...stylex.props(
-            styles.notice,
-            (isCoolingDown || isOverBudget) && styles.noticeWarning,
-          )}
-        >
-          {notice}
+        <span {...stylex.props(styles.notice, notice.isWarning && styles.noticeWarning)}>
+          {notice.message}
         </span>
       )}
     </div>

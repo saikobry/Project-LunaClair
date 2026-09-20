@@ -43,6 +43,9 @@ export interface AiModelRoute {
   /**
    * Deploy-time availability. `false` retires a model for everyone; the operational kill switch
    * (`AI_DISABLED_MODELS`) does the same without a deploy. Defaults to available.
+   *
+   * Applies to **every** model, including the default: an incident that needs the default stopped
+   * cannot be one the switch refuses to handle.
    */
   available?: boolean;
 }
@@ -95,10 +98,25 @@ export interface PublicAiModelDescriptor {
   pricing: AiModelPricing | null;
 }
 
+/** Whether this deployment is serving AI at all. */
+export type AiCatalogAvailability = 'available' | 'disabled';
+
 export interface AiModelCatalog {
   /** Changes whenever the facts below change; a client cache older than this is stale. */
   version: string;
-  defaultModelId: string;
+  /**
+   * `disabled` = the global emergency switch is on. The client distinguishes this from an empty
+   * catalog so it can say "temporarily unavailable" rather than "no models", and so it does not
+   * treat a shutdown as a reason to keep refreshing.
+   */
+  availability: AiCatalogAvailability;
+  /**
+   * The model a request that names none is served by, or `null` when there is nothing to default to
+   * — either because everything is off, or because the default itself was disabled. Never a
+   * *different* model: silently re-pointing the default would answer with something the user did not
+   * ask for.
+   */
+  defaultModelId: string | null;
   models: PublicAiModelDescriptor[];
 }
 
@@ -106,14 +124,22 @@ export interface AiModelCatalog {
  * Projects the internal registry onto the shape the client is allowed to see.
  *
  * Unavailable models are **omitted**, never listed-and-refused: the picker must not offer a choice
- * the endpoint will reject, and a stale cached catalog that still lists one is corrected by the
- * version bump this removal carries.
+ * the endpoint will reject. Under the global shutdown the catalog is empty *and* says so, and it is
+ * still served with a 200 — the client has to be able to tell "intentionally off" from "endpoint
+ * unreachable", and those look identical behind an error status.
  */
-export function toPublicAiModelCatalog(disabled?: ReadonlySet<string>): AiModelCatalog {
+export function toPublicAiModelCatalog(
+  disabled?: ReadonlySet<string>,
+  globallyDisabled = false,
+): AiModelCatalog {
+  const models = listServedAiModelRoutes(disabled, globallyDisabled);
+  const defaultServed = models.some((route) => route.id === AI_DEFAULT_MODEL_ID);
+
   return {
     version: AI_CATALOG_VERSION,
-    defaultModelId: AI_DEFAULT_MODEL_ID,
-    models: listServedAiModelRoutes(disabled).map((route) => ({
+    availability: globallyDisabled ? 'disabled' : 'available',
+    defaultModelId: defaultServed ? AI_DEFAULT_MODEL_ID : null,
+    models: models.map((route) => ({
       id: route.id,
       display: { ...route.display },
       contextWindowTokens: route.contextWindowTokens,
@@ -140,10 +166,11 @@ export function resolveAiModelRoute(modelId?: string): AiModelRoute | undefined 
  * The operational kill switch: models named by `AI_DISABLED_MODELS` stop being served without a
  * deploy.
  *
- * The default route is **exempt**. A switch that can empty the catalog would turn one config change
- * into "the assistant is broken", and the default is the fallback every degraded selection path
- * already resolves to. Disabling it is therefore ignored, loudly. An attempt is only visible in the
- * logs rather than failing the request, because a mistyped variable must not break chat.
+ * **Every** model can be disabled, the default included. The earlier exemption existed so one config
+ * change could not leave the assistant with nothing to fall back on, but it also meant the switch
+ * could not stop the one model most likely to be the problem — and "we cannot turn this off" is a
+ * worse failure than "the catalog is empty". An unknown id is still logged and ignored rather than
+ * failing the request: a mistyped variable must not break chat.
  */
 export function resolveDisabledAiModelIds(env: { AI_DISABLED_MODELS?: string }): Set<string> {
   const disabled = new Set<string>();
@@ -153,10 +180,6 @@ export function resolveDisabledAiModelIds(env: { AI_DISABLED_MODELS?: string }):
   for (const entry of raw.split(',')) {
     const id = entry.trim();
     if (!id) continue;
-    if (id === AI_DEFAULT_MODEL_ID) {
-      console.warn('AI_DISABLED_MODELS names the default model, which cannot be disabled', { id });
-      continue;
-    }
     if (!AI_MODEL_ROUTES.some((route) => route.id === id)) {
       console.warn('AI_DISABLED_MODELS names an unknown model', { id });
       continue;
@@ -167,18 +190,38 @@ export function resolveDisabledAiModelIds(env: { AI_DISABLED_MODELS?: string }):
   return disabled;
 }
 
-/** True when the registry and the kill switch both serve this model. */
+/**
+ * The global emergency shutdown: `AI_CHAT_DISABLED` stops the assistant entirely, without a deploy.
+ *
+ * Separate from per-model availability on purpose. "Retire this model" and "stop everything now" are
+ * different intentions, and conflating them is how a routine retirement turns into an outage (or an
+ * outage waits on a code change). Deliberately permissive about how it is spelled: this is typed
+ * during an incident.
+ */
+export function isAiChatDisabled(env: { AI_CHAT_DISABLED?: string }): boolean {
+  const raw = env.AI_CHAT_DISABLED;
+  if (typeof raw !== 'string') return false;
+  return ['true', '1', 'yes', 'on'].includes(raw.trim().toLowerCase());
+}
+
+/** True when the registry, the kill switch, and the global shutdown all allow this model. */
 export function isAiModelServed(
   route: AiModelRoute,
-  disabled?: ReadonlySet<string>,
+  disabled: ReadonlySet<string>,
+  globallyDisabled: boolean,
 ): boolean {
-  if (route.isDefault) return true;
-  return route.available !== false && !disabled?.has(route.id);
+  if (globallyDisabled) return false;
+  return route.available !== false && !disabled.has(route.id);
 }
 
 /** Registered routes that are currently servable, in display order. */
-export function listServedAiModelRoutes(disabled?: ReadonlySet<string>): AiModelRoute[] {
-  return AI_MODEL_ROUTES.filter((route) => isAiModelServed(route, disabled));
+export function listServedAiModelRoutes(
+  disabled?: ReadonlySet<string>,
+  globallyDisabled = false,
+): AiModelRoute[] {
+  return AI_MODEL_ROUTES.filter((route) =>
+    isAiModelServed(route, disabled ?? new Set(), globallyDisabled),
+  );
 }
 
 /** True when the registry has exactly one default; asserted by the registry's own test. */

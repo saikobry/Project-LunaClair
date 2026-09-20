@@ -1,13 +1,14 @@
 import type { AiModelCatalogRepository } from '../../../domain/ai/repositories/AiModelCatalogRepository';
 import {
   DEFAULT_AI_MODEL_CATALOG,
+  isAiCatalogDisabled,
   isAiModelCatalog,
   pickNewerAiModelCatalog,
   type AiModelCatalog,
 } from '../../../domain/ai/services/aiModelCatalog';
 
 /** Cache key is versioned so a future shape change can abandon old entries instead of parsing them. */
-const CACHE_KEY = 'lunaclair.ai-model-catalog.v2';
+const CACHE_KEY = 'lunaclair.ai-model-catalog.v3';
 
 /** A catalog fetch must never stall the app: the bundled mirror answers immediately either way. */
 const FETCH_TIMEOUT_MS = 5_000;
@@ -80,12 +81,26 @@ export class WorkerAiModelCatalogRepository implements AiModelCatalogRepository 
   private async loadCatalog(): Promise<AiModelCatalog> {
     const fetched = await this.fetchCatalog();
     if (fetched) {
-      this.writeCache(fetched);
+      // An emergency shutdown is **never** persisted: storing it would turn a deployment's deliberate
+      // "off right now" into this device's answer for the next 24 hours, long after the switch is
+      // flipped back. A live disabled response still governs the query that received it.
+      if (!isAiCatalogDisabled(fetched)) this.writeCache(fetched);
       return fetched;
     }
 
     const cached = this.readCache();
     return pickNewerAiModelCatalog(cached, DEFAULT_AI_MODEL_CATALOG) ?? DEFAULT_AI_MODEL_CATALOG;
+  }
+
+  /**
+   * Accepts a catalog payload and fills in the facts an older one did not carry.
+   *
+   * `availability` is newer than the endpoint: a response from a build that predates it means
+   * "available", because that is what it was serving when it was written.
+   */
+  private static parseCatalog(value: unknown): AiModelCatalog | null {
+    if (!isAiModelCatalog(value)) return null;
+    return { ...value, availability: value.availability ?? 'available' };
   }
 
   private async fetchCatalog(): Promise<AiModelCatalog | null> {
@@ -100,7 +115,7 @@ export class WorkerAiModelCatalogRepository implements AiModelCatalogRepository 
       if (!response.ok) return null;
 
       const payload: unknown = await response.json();
-      return isAiModelCatalog(payload) ? payload : null;
+      return WorkerAiModelCatalogRepository.parseCatalog(payload);
     } catch {
       // Offline, timed out, or the endpoint answered something that is not a catalog.
       return null;
@@ -117,7 +132,7 @@ export class WorkerAiModelCatalogRepository implements AiModelCatalogRepository 
       const parsed = JSON.parse(raw) as Partial<CachedCatalogEnvelope>;
       if (typeof parsed.fetchedAt !== 'number') return null;
       if (this.now() - parsed.fetchedAt > CACHE_MAX_AGE_MS) return null;
-      return isAiModelCatalog(parsed.catalog) ? parsed.catalog : null;
+      return WorkerAiModelCatalogRepository.parseCatalog(parsed.catalog);
     } catch {
       return null;
     }

@@ -36,6 +36,25 @@ export function resolveCooldownSeconds(retryAfterSeconds?: number): number {
   return Math.min(rounded, MAX_COOLDOWN_SECONDS);
 }
 
+/**
+ * Resolves the deadline a new refusal should establish, given one that may already be running.
+ *
+ * **Monotonic**: a refusal may only ever push the deadline out, never pull it in. The cooldown is
+ * started after an `await`, so a slower older turn can report its rate limit *after* a newer one
+ * already did — and "try again in 3s" from a stale response must not cancel the "try again in 45s"
+ * a fresher one just established. The provider's window is shared, so the longest wait anyone has
+ * been told is the honest one. An expired `current` is ignored rather than merged, so a lapsed
+ * wait cannot inflate the next one.
+ */
+export function mergeCooldownDeadline(
+  current: number | null,
+  requested: number,
+  now: number = Date.now(),
+): number {
+  if (current === null || current <= now) return requested;
+  return Math.max(current, requested);
+}
+
 /** Short, honest label for the picker while a cooldown runs. */
 export function formatCooldownNotice(seconds: number): string {
   return `Shared capacity is busy — try again in ${seconds}s`;

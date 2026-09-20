@@ -14,8 +14,18 @@ import {
   DEFAULT_AI_MODEL_CATALOG,
   isAiCatalogVersion,
 } from '../../../../src/domain/ai/services/aiModelCatalog';
+import { AI_FIRST_EVENT_TIMEOUT_MS } from '../../ai/deadline';
+import { AI_FIRST_TOKEN_TIMEOUT_MS } from '../../../../src/features/ai/utils/aiActivity';
 
 describe('client catalog mirror ↔ Worker registry coherence', () => {
+  it('lets the Worker give up on a silent provider before the client does', () => {
+    // The two timeouts measure the same thing from opposite ends, and their order decides which
+    // message a user sees. If the client watchdog fires first, its generic "did not start
+    // responding" is all anyone gets and the Worker's coded, model-attributed answer never
+    // arrives — so the server deadline has to be the tighter of the two.
+    expect(AI_FIRST_EVENT_TIMEOUT_MS).toBeLessThan(AI_FIRST_TOKEN_TIMEOUT_MS);
+  });
+
   it('agrees on the catalog version', () => {
     expect(CLIENT_CATALOG_VERSION).toBe(AI_CATALOG_VERSION);
     expect(DEFAULT_AI_MODEL_CATALOG.version).toBe(AI_CATALOG_VERSION);

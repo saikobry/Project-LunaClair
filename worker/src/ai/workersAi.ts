@@ -14,6 +14,13 @@ import { AiProviderError, type AiProvider, type AiProviderEvent, type AiProvider
  * Leniency is deliberate: a payload carrying neither text nor usage is logged and skipped rather
  * than thrown, because Cloudflare attaches usage to the terminal chunk only and a run that yields
  * nothing must still reach a `done` event the client can act on.
+ *
+ * **Cancellation is partial here, and the honest version of it is documented rather than faked.**
+ * `AiBinding.run` accepts no verified cancellation option, so an already-pending run cannot be
+ * stopped — inventing an unsupported `signal` argument would only hide that. What this provider does
+ * guarantee is that it *stops consuming* the run and releases its reader the moment the route's
+ * signal aborts, and that the route never waits on the run: the response is released with a coded
+ * failure either way. The abandoned run finishes on the platform's side and its stream is discarded.
  */
 export class WorkersAiProvider implements AiProvider {
   readonly id = 'workers-ai' as const;
@@ -44,9 +51,15 @@ export class WorkersAiProvider implements AiProvider {
       throw new AiProviderError('Workers AI returned no stream', 'UPSTREAM_ERROR');
     }
 
+    // The run settled after the caller gave up: nothing to consume, and the failure is the caller's
+    // (a deadline or a vanished client), so report it as the cancellation it is.
+    if (request.signal.aborted) {
+      throw new AiProviderError('The AI request was cancelled.', 'ABORTED');
+    }
+
     let unexpectedSample: string | undefined;
 
-    for await (const payload of readSseData(response as ReadableStream<Uint8Array>)) {
+    for await (const payload of readSseData(response as ReadableStream<Uint8Array>, request.signal)) {
       if (payload === '[DONE]') return;
 
       let parsed: { response?: unknown; usage?: unknown };

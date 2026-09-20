@@ -8,13 +8,27 @@
  *
  * Yields raw payload strings (including `[DONE]`), leaving "what does this payload mean" to the
  * provider that knows the vocabulary.
+ *
+ * It accepts a cancellation signal for the same reason the route has one: a pending `reader.read()`
+ * is exactly what an abandoned pull leaves behind, and **cancelling the reader is what makes that
+ * read resolve** so this generator can run its `finally` instead of being left suspended. Releasing
+ * the lock alone does not settle anything.
  */
 export async function* readSseData(
   stream: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
 ): AsyncIterable<string> {
   const decoder = new TextDecoder();
   const reader = stream.getReader();
   let buffer = '';
+
+  const cancelReader = () => {
+    void reader.cancel().catch(() => undefined);
+  };
+  if (signal) {
+    if (signal.aborted) cancelReader();
+    else signal.addEventListener('abort', cancelReader, { once: true });
+  }
 
   try {
     while (true) {
@@ -35,6 +49,7 @@ export async function* readSseData(
     const trailing = payloadOf(buffer);
     if (trailing !== undefined) yield trailing;
   } finally {
+    signal?.removeEventListener('abort', cancelReader);
     reader.releaseLock();
   }
 }

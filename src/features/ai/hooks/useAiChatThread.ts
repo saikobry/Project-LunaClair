@@ -15,6 +15,7 @@ import {
 } from '../utils/aiActivity';
 import { deriveSessionTitle } from '../utils/deriveSessionTitle';
 import {
+  mergeCooldownDeadline,
   readCooldownDeadline,
   resolveCooldownSeconds,
   secondsUntilDeadline,
@@ -176,19 +177,29 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
    * backgrounded tab that misses ticks still resumes at the right remaining time instead of drifting.
    */
   const startCooldown = useCallback((retryAfterSeconds?: number) => {
-    const seconds = resolveCooldownSeconds(retryAfterSeconds);
-    const until = Date.now() + seconds * 1_000;
-    cooldownUntilRef.current = until;
-    writeCooldownDeadline(until);
-    setCooldownUntil(until);
-    setCooldownSeconds(seconds);
+    const now = Date.now();
+    const requestedUntil = now + resolveCooldownSeconds(retryAfterSeconds) * 1_000;
+
+    // Monotonic (see `mergeCooldownDeadline`): a stale refusal cannot shorten a fresher wait.
+    const effectiveUntil = mergeCooldownDeadline(cooldownUntilRef.current, requestedUntil, now);
+
+    cooldownUntilRef.current = effectiveUntil;
+    writeCooldownDeadline(effectiveUntil);
+    setCooldownUntil(effectiveUntil);
+    setCooldownSeconds(secondsUntilDeadline(effectiveUntil, now));
   }, []);
 
   useEffect(() => {
     if (cooldownUntil === null) return;
 
+    // The deadline this effect is responsible for. A tick that outlives its own deadline — because a
+    // newer, longer refusal replaced it — must not clear state that is no longer its own.
+    const capturedDeadline = cooldownUntil;
+
     const tick = () => {
-      const remaining = secondsUntilDeadline(cooldownUntil);
+      if (cooldownUntilRef.current !== capturedDeadline) return;
+
+      const remaining = secondsUntilDeadline(capturedDeadline);
       setCooldownSeconds(remaining);
       if (remaining === 0) {
         cooldownUntilRef.current = null;

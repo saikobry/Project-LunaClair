@@ -10,8 +10,11 @@
   "vars": {
     "CORS_ORIGINS": "",
     // AI kill switch: catalog model ids to stop serving (e.g. "ukisai-swift-max"). Empty = all
-    // available. Takes effect on redeploy; the default model is never disabled.
-    "AI_DISABLED_MODELS": ""
+    // available, including the default model. Takes effect on redeploy.
+    "AI_DISABLED_MODELS": "",
+    // Global AI emergency shutdown: "true" (or 1/yes/on) stops the assistant entirely — empty
+    // catalog, `AI_DISABLED` (503) from chat. Takes effect on redeploy.
+    "AI_CHAT_DISABLED": "false"
   },
 
   // Cloudflare D1 (serverless SQLite) — the cloud sync layer for LunaClair.

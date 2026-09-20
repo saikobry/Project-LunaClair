@@ -5,7 +5,7 @@ import {
   type AiModelCatalog,
 } from '../../../../domain/ai/services/aiModelCatalog';
 
-const CACHE_KEY = 'lunaclair.ai-model-catalog.v2';
+const CACHE_KEY = 'lunaclair.ai-model-catalog.v3';
 const ONE_DAY_MS = 24 * 60 * 60 * 1_000;
 
 /** Minimal in-memory Storage so the test never depends on jsdom's localStorage contents. */
@@ -25,6 +25,16 @@ function createStorage(): Storage {
 
 function servedCatalog(version: string): AiModelCatalog {
   return { ...DEFAULT_AI_MODEL_CATALOG, version };
+}
+
+/** What the endpoint serves while the global emergency switch is on. */
+function disabledCatalog(): AiModelCatalog {
+  return {
+    version: '2099-01-01.1',
+    availability: 'disabled',
+    defaultModelId: null,
+    models: [],
+  };
 }
 
 /** Seeded cache entries must be dated, or the freshness policy treats them as unusable. */
@@ -187,6 +197,50 @@ describe('WorkerAiModelCatalogRepository', () => {
     await expect(
       new WorkerAiModelCatalogRepository({ storage }).getCatalog(),
     ).resolves.toMatchObject({ version: '2099-01-01.1' });
+  });
+
+  it('serves a disabled catalog to the caller but never persists it', async () => {
+    const storage = createStorage();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => disabledCatalog(),
+    } as unknown as Response);
+
+    const catalog = await new WorkerAiModelCatalogRepository({ storage }).getCatalog();
+
+    // The shutdown governs this query...
+    expect(catalog.availability).toBe('disabled');
+    expect(catalog.models).toEqual([]);
+    // ...but must not become this device's answer for the next 24 hours after the switch is flipped
+    // back.
+    expect(storage.getItem(CACHE_KEY)).toBeNull();
+  });
+
+  it('lets a live disabled catalog override cached available data', async () => {
+    const storage = createStorage();
+    storage.setItem(CACHE_KEY, cacheEntry(servedCatalog('2099-01-01.1'), Date.now()));
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => disabledCatalog(),
+    } as unknown as Response);
+
+    const catalog = await new WorkerAiModelCatalogRepository({ storage }).getCatalog();
+
+    expect(catalog.availability).toBe('disabled');
+  });
+
+  it('treats a catalog from before the availability field as available', async () => {
+    const storage = createStorage();
+    const { availability: _omitted, ...legacy } = servedCatalog('2099-01-01.1');
+    storage.setItem(CACHE_KEY, JSON.stringify({ catalog: legacy, fetchedAt: Date.now() }));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+
+    const catalog = await new WorkerAiModelCatalogRepository({ storage }).getCatalog();
+
+    expect(catalog.availability).toBe('available');
+    expect(catalog.version).toBe('2099-01-01.1');
   });
 
   it('queries the catalog endpoint', async () => {

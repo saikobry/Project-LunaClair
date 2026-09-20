@@ -21,7 +21,8 @@ async function collect(provider: UkisAiProvider, modelId = 'swift') {
     messages: [{ role: 'user', content: 'hi' }],
     maxOutputTokens: 4_096,
     temperature: 0.5,
-    timeoutMs: 60_000,
+    connectTimeoutMs: 60_000,
+    signal: new AbortController().signal,
   })) {
     events.push(event);
   }
@@ -227,7 +228,7 @@ describe('UkisAiProvider', () => {
         messages: [{ role: 'user', content: 'hi' }],
         maxOutputTokens: 4_096,
         temperature: 0.5,
-        timeoutMs: 60_000,
+        connectTimeoutMs: 60_000,
         signal: controller.signal,
       })) {
         events.push(event);

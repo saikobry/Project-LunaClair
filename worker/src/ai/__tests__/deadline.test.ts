@@ -43,6 +43,38 @@ describe('withIdleDeadline', () => {
       'upstream exploded',
     );
   });
+
+  it('runs the cancellation callback exactly once, before rejecting', async () => {
+    vi.useFakeTimers();
+    const onTimeout = vi.fn();
+    const settled = expect(
+      withIdleDeadline(new Promise<string>(() => {}), 1_000, onTimeout),
+    ).rejects.toBeInstanceOf(AiStreamTimeoutError);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await settled;
+    // The callback is what turns an abandoned promise into cancelled work; twice would double-abort.
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not run the cancellation callback when the pull settles first', async () => {
+    const onTimeout = vi.fn();
+
+    await expect(withIdleDeadline(Promise.resolve('first'), 1_000, onTimeout)).resolves.toBe('first');
+
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  it('leaves no armed timer after a pull resolves, so nothing fires later', async () => {
+    vi.useFakeTimers();
+    const onTimeout = vi.fn();
+
+    await withIdleDeadline(Promise.resolve('first'), 1_000, onTimeout);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
 });
 
 describe('createTimeoutSignal', () => {

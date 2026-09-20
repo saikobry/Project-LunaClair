@@ -1,14 +1,23 @@
 import { AiProviderError } from './types';
 
 /**
- * How long a provider may go **without producing an event** before the request is abandoned.
+ * How long a provider has to produce its **first** event.
+ *
+ * Deliberately shorter than the client's first-token watchdog (30s, `AI_FIRST_TOKEN_TIMEOUT_MS`), so
+ * the Worker is the party that reports a stalled provider first: its failure is coded (`TIMEOUT`, 504)
+ * and its message is specific, while the client's is a generic "did not start responding". When the
+ * client wins this race the server's authoritative answer never reaches anyone.
+ */
+export const AI_FIRST_EVENT_TIMEOUT_MS = 25_000;
+
+/**
+ * How long a provider may go **without producing an event** once it has started.
  *
  * This is an *idle* deadline, not a total-duration cap: a response that keeps yielding tokens may
- * stream far longer than this, while a provider that accepts a request and then says nothing — a
- * stalled upstream, a hung socket, a platform binding that never resolves — cannot hold the Worker
- * response open indefinitely.
+ * stream far longer than this, while one that stops producing — a stalled upstream, a hung socket —
+ * cannot hold the Worker response open indefinitely.
  */
-export const AI_STREAM_IDLE_TIMEOUT_MS = 60_000;
+export const AI_STREAM_IDLE_TIMEOUT_MS = 45_000;
 
 interface TimeoutSignal {
   /** Aborts when the deadline elapses or the caller's signal aborts. */
@@ -63,22 +72,31 @@ export class AiStreamTimeoutError extends AiProviderError {
 }
 
 /**
- * Races one provider pull against the idle deadline.
+ * Races one provider pull against a deadline, **cancelling** the work when the deadline wins.
  *
- * Providers that can cancel their own outbound request do so through `AiProviderRequest.timeoutMs`;
- * this is the guarantee that does not depend on them. A provider that ignores the deadline — an
- * in-process platform binding, say — still cannot keep the response pending.
+ * `onTimeout` runs exactly once, immediately before the rejection, and is how the caller turns
+ * "this promise is abandoned" into "this work is over": the route aborts the provider's signal there
+ * rather than leaving a live socket (or a pending binding) behind the rejected race.
+ *
+ * The timer is always cleared, so a pull that resolves first never leaves one armed.
  */
 export async function withIdleDeadline<T>(
-  promise: Promise<T>,
+  operation: Promise<T>,
   timeoutMs: number = AI_STREAM_IDLE_TIMEOUT_MS,
+  onTimeout?: () => void,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      promise,
+      operation,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new AiStreamTimeoutError()), timeoutMs);
+        timer = setTimeout(() => {
+          try {
+            onTimeout?.();
+          } finally {
+            reject(new AiStreamTimeoutError());
+          }
+        }, timeoutMs);
       }),
     ]);
   } finally {

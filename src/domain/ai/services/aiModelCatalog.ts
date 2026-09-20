@@ -49,9 +49,24 @@ export interface AiModelDescriptor {
 export interface AiModelCatalog {
   /** Changes whenever the facts change; a cached catalog with an older version is stale. */
   version: string;
-  defaultModelId: string;
+  /**
+   * `disabled` = the deployment's emergency switch is on.
+   *
+   * Optional because a payload from a build that predates the field is still a usable catalog; it
+   * defaults to `available` on read.
+   */
+  availability?: AiCatalogAvailability;
+  /**
+   * The model a request that names none uses, or `null` when there is nothing to default to — the
+   * assistant is off, or the default itself was disabled. **Never a different model**: silently
+   * promoting one would answer with something the user did not ask for.
+   */
+  defaultModelId: string | null;
   models: AiModelDescriptor[];
 }
+
+/** Whether the deployment is serving AI at all. */
+export type AiCatalogAvailability = 'available' | 'disabled';
 
 export const AI_CATALOG_VERSION = '2026-09-20.1';
 
@@ -81,11 +96,14 @@ const MODELS: readonly AiModelDescriptor[] = Object.freeze([
 /** Bundled fallback catalog — preferred over a cache only when its version is newer. */
 export const DEFAULT_AI_MODEL_CATALOG: AiModelCatalog = Object.freeze({
   version: AI_CATALOG_VERSION,
+  // The bundle ships the assistant as built: serving, with a default.
+  availability: 'available' as const,
   defaultModelId: 'cf-llama-3.3-70b',
   models: [...MODELS],
 });
 
-export const AI_DEFAULT_MODEL_ID: string = DEFAULT_AI_MODEL_CATALOG.defaultModelId;
+export const AI_DEFAULT_MODEL_ID: string =
+  DEFAULT_AI_MODEL_CATALOG.defaultModelId ?? DEFAULT_AI_MODEL_CATALOG.models[0].id;
 
 /**
  * Finds a descriptor by catalog id **or** provider model id, so a turn persisted by an older build
@@ -104,7 +122,14 @@ export function findAiModelDescriptor(
   );
 }
 
-/** Resolves a descriptor, falling back to the catalog default when the id is absent or unknown. */
+/**
+ * Resolves a descriptor, falling back to the catalog default when the id is absent or unknown.
+ *
+ * For the **bundled mirror**, whose default and models always exist — that is what makes it the
+ * budget and pricing anchor for code that must not depend on a network fact. A *served* catalog can
+ * legitimately have no default (the assistant is off, or the default was disabled), which is what
+ * `resolveAiModelSelection` expresses; do not reach for this function there.
+ */
 export function getAiModelDescriptor(
   catalog: AiModelCatalog,
   modelId?: string,
@@ -112,8 +137,32 @@ export function getAiModelDescriptor(
   const found = findAiModelDescriptor(catalog, modelId);
   if (found) return found;
   return (
-    findAiModelDescriptor(catalog, catalog.defaultModelId) ?? catalog.models[0]
+    findAiModelDescriptor(catalog, catalog.defaultModelId ?? undefined) ?? catalog.models[0]
   );
+}
+
+/**
+ * Resolves the model a request may use, or `null` when there is nothing legitimate to use.
+ *
+ * The difference from `getAiModelDescriptor` is the one that matters for the UI: this **never**
+ * substitutes. It honours an explicit choice, otherwise the catalog's own default, otherwise
+ * nothing — so a disabled assistant or a retired default surfaces as "nothing is selected" (which
+ * the drawer blocks on) instead of quietly sending a request on a model the user never chose.
+ */
+export function resolveAiModelSelection(
+  catalog: AiModelCatalog,
+  preferredModelId?: string,
+): AiModelDescriptor | null {
+  return (
+    findAiModelDescriptor(catalog, preferredModelId) ??
+    findAiModelDescriptor(catalog, catalog.defaultModelId ?? undefined) ??
+    null
+  );
+}
+
+/** `true` when the deployment has switched the assistant off entirely. */
+export function isAiCatalogDisabled(catalog: AiModelCatalog): boolean {
+  return catalog.availability === 'disabled';
 }
 
 /**
@@ -178,10 +227,21 @@ export function pickNewerAiModelCatalog(
 export function isAiModelCatalog(value: unknown): value is AiModelCatalog {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<AiModelCatalog>;
-  if (typeof candidate.version !== 'string' || typeof candidate.defaultModelId !== 'string') {
+  if (typeof candidate.version !== 'string') return false;
+  // `null` is legitimate (nothing to default to); a missing field is not, because it would mean a
+  // retired model id was never reported as retired.
+  if (typeof candidate.defaultModelId !== 'string' && candidate.defaultModelId !== null) return false;
+  if (
+    candidate.availability !== undefined &&
+    candidate.availability !== 'available' &&
+    candidate.availability !== 'disabled'
+  ) {
     return false;
   }
-  if (!Array.isArray(candidate.models) || candidate.models.length === 0) return false;
+  // A disabled deployment has no models at all; every other catalog must offer at least one.
+  if (!Array.isArray(candidate.models)) return false;
+  if (candidate.models.length === 0) return candidate.availability === 'disabled';
+
   return candidate.models.every((model) => {
     if (!model || typeof model !== 'object') return false;
     const descriptor = model as Partial<AiModelDescriptor>;

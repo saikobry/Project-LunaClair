@@ -7,11 +7,17 @@ const MODELS = DEFAULT_AI_MODEL_CATALOG.models;
 const DEFAULT_ID = DEFAULT_AI_MODEL_CATALOG.defaultModelId;
 const MAX_ID = 'ukisai-swift-max';
 
-function renderPicker(overrides: Partial<React.ComponentProps<typeof AiModelPicker>> = {}) {
+function renderPicker(
+  overrides: Partial<Omit<React.ComponentProps<typeof AiModelPicker>, 'defaultModelId'>> & {
+    defaultModelId?: string | null;
+  } = {},
+) {
   const onSelectModel = vi.fn();
   render(
     <AiModelPicker
       models={MODELS}
+      defaultModelId={DEFAULT_ID}
+      isAiDisabled={false}
       selectedModelId={DEFAULT_ID}
       onSelectModel={onSelectModel}
       isOverBudget={false}
@@ -68,10 +74,32 @@ describe('AiModelPicker', () => {
   });
 
   it('renders nothing when the catalog offers no choice', () => {
-    // A single-option control implies a capability that is not there.
+    // A single-option control whose model is already the default implies a capability that is not
+    // there.
     renderPicker({ models: [MODELS[0]] });
 
     expect(screen.queryByText('Standard')).not.toBeInTheDocument();
     expect(screen.queryByText('MAX')).not.toBeInTheDocument();
+  });
+
+  it('asks for a choice when a single model has no default to inherit', () => {
+    // Nothing is selected in that state, so hiding the control would leave the user unable to start.
+    renderPicker({ models: [MODELS[0]], defaultModelId: null, selectedModelId: null });
+
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText(/Choose a model to start chatting/)).toBeInTheDocument();
+  });
+
+  it('says the assistant is unavailable when the deployment switched it off', () => {
+    renderPicker({ models: [], defaultModelId: null, selectedModelId: null, isAiDisabled: true });
+
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText('Standard')).not.toBeInTheDocument();
+  });
+
+  it('says there are no models when the catalog is empty but not disabled', () => {
+    renderPicker({ models: [], defaultModelId: null, selectedModelId: null });
+
+    expect(screen.getByText(/No AI models are currently available/)).toBeInTheDocument();
   });
 });
