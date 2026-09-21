@@ -25,7 +25,7 @@ function Format-DiffSection {
         [switch]$FullDiff
     )
 
-    $excludePathspecs = @(":(exclude)*package-lock.json", ":(exclude)*pnpm-lock.yaml", ":(exclude)*yarn.lock")
+    $excludePathspecs = @('":(exclude)*package-lock.json"', '":(exclude)*pnpm-lock.yaml"', '":(exclude)*yarn.lock"')
     $cmd = "$DiffCommand -- . " + ($excludePathspecs -join " ")
     $rawDiff = (Invoke-Expression "$cmd 2>`$null")
     if ($rawDiff) {
@@ -137,7 +137,7 @@ if (-not $specPath) {
 
     if (-not $AllowTools) {
         $lines += "> [!IMPORTANT]"
-        $lines += '> **Do not read other files and do not use tools.** Everything you need is contained in this document. If something is missing or unclear, **write your questions as prose in your report** and I will answer them and re-dispatch - do not execute tool calls.'
+        $lines += '> **Read this file only.** Do not read other files and do not run commands or edits. Respond in prose with your findings and verdict.'
         $lines += ""
     }
 
@@ -217,7 +217,7 @@ Write-Host "  Report: $OutputFile`n"
 $defaultPrompt = if ($AllowTools) {
     "Please review $specPath and provide your report."
 } else {
-    "Please read and review $specPath, then provide your report. Do not read any other files and do not use tools."
+    "Please read and review $specPath (you may read this single file, but do not read other files and do not run commands or edits), then provide your report in prose."
 }
 $promptToDispatch = if ($InstructionPrompt) { $InstructionPrompt } else { $defaultPrompt }
 
