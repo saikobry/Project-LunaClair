@@ -10,6 +10,7 @@ export type NavActiveSection =
   | 'explore'
   | 'import'
   | 'analytics'
+  | 'settings'
   | 'none';
 
 export interface ViewportNavProps {

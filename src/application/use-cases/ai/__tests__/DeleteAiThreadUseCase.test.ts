@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
+import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
 import { DeleteAiThreadUseCase } from '../DeleteAiThreadUseCase';
 
 describe('DeleteAiThreadUseCase', () => {
@@ -21,7 +22,7 @@ describe('DeleteAiThreadUseCase', () => {
     });
 
     it('deletes specific thread while leaving other document threads intact', async () => {
-        const createThread = new CreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo, new InMemoryPreferencesRepository());
         const deleteThread = new DeleteAiThreadUseCase(chatRepo);
 
         const thread1 = await createThread.execute({ materialId: 'doc-1' });

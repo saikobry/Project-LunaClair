@@ -7,11 +7,6 @@ import type {
 } from '../../../domain/ai/models/ai.types';
 
 export interface SendAiMessageOptions {
-  document?: {
-    id: string;
-    title?: string;
-    markdown: string;
-  };
   selection?: {
     text: string;
     surroundingHeading?: string;
@@ -106,7 +101,6 @@ export function useAiStreamChat(initialMessages: AiChatMessage[] = []): UseAiStr
       try {
         const stream = context.useCases.ai.sendChatMessage.execute({
           messages: updatedMessages,
-          document: options.document,
           selection: options.selection,
           mode: options.mode,
           signal: controller.signal,

@@ -7,7 +7,7 @@ import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/a
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
-import type { AiThread, AiMessageRecord } from '../../../domain/ai/models/ai.types';
+import type { AiThread, AiGroundingMode, AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sync/models/sync.types';
 import type { Collection } from '../../../domain/collections/models/Collection';
 import type { CollectionMaterial } from '../../../domain/collections/models/CollectionMaterial';
@@ -31,6 +31,20 @@ export interface DrawingRecord extends DrawingPath {
 export interface PreferenceRecord {
     key: string;
     value: unknown;
+}
+
+/**
+ * Row shape for the aiThreads store.
+ *
+ * Mirrors `AiThread` except that `grounding` is optional: rows written before grounding existed
+ * have no such field, and IndexedDB cannot back-fill one. The domain type requires it, so the
+ * repository normalizes every row it reads (see `DexieAiChatRepository.normalizeThreadRow`).
+ *
+ * Note this needs **no schema version**: `grounding` is not indexed, and Dexie store definitions
+ * list indexed keys only.
+ */
+export interface AiThreadRow extends Omit<AiThread, 'grounding'> {
+    grounding?: AiGroundingMode;
 }
 
 /** Row shape for the metadata store. */
@@ -83,7 +97,7 @@ export class LunaClairDatabase extends Dexie {
     quizEditingDrafts!: Table<QuizDraft, string>;
     flashcardReviews!: Table<ReviewState, string>;
     documentContents!: Table<ImportedDocumentContent, string>;
-    aiThreads!: Table<AiThread, string>;
+    aiThreads!: Table<AiThreadRow, string>;
     aiMessages!: Table<AiMessageRecord, string>;
     localAssets!: Table<StoredAsset, string>;
     syncQueue!: Table<SyncQueueItem, string>;

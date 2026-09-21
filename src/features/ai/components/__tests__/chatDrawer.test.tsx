@@ -66,7 +66,6 @@ describe('AI Chat Drawer & Workspace Integration', () => {
           isOpen={true}
           onClose={onClose}
           materialId="material-bio"
-          documentContext="# Biology Notes\nThe circulatory system..."
         />,
         { wrapper: harness.wrapper },
       );
@@ -116,7 +115,6 @@ describe('AI Chat Drawer & Workspace Integration', () => {
           isOpen={true}
           onClose={vi.fn()}
           materialId="material-bio"
-          documentContext="# Cardiac Notes\n..."
           selectionContext={{
             text: 'The SA node initiates each cardiac cycle',
             action: 'explain',
@@ -212,12 +210,62 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       expect(await within(panel).findByText('First question')).toBeInTheDocument();
 
       // Starting a new chat clears the transcript without deleting the old session.
-      fireEvent.click(screen.getByRole('button', { name: 'Start a new conversation' }));
-      expect(await screen.findByText(/Ask anything about your study notes/i)).toBeInTheDocument();
+      const newChatBtn = await screen.findByRole('button', { name: 'Start a new conversation' });
+      await waitFor(() => {
+        expect(newChatBtn).toBeEnabled();
+      });
+      fireEvent.click(newChatBtn);
+      await waitFor(() => {
+        expect(screen.queryByRole('region', { name: /Conversation history/i })).not.toBeInTheDocument();
+      }, { timeout: 4000 });
+      expect(
+        await screen.findByText(/Ask anything about your study notes/i, undefined, { timeout: 4000 }),
+      ).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
       const reopenedPanel = await screen.findByRole('region', { name: /Conversation history/i });
       expect(await within(reopenedPanel).findByText('First question')).toBeInTheDocument();
+    });
+
+    it('allows toggling material grounding in the composer and persists it', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const harness = createAiChatHarness(db, mockAi);
+
+      render(
+        <AiChatDrawer isOpen={true} onClose={vi.fn()} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      await screen.findByText(/Ask anything about your study notes/i);
+
+      // Verify grounding control is present and default is whole material
+      const noMaterialRadio = await screen.findByRole('radio', { name: /No material/i });
+      fireEvent.click(noMaterialRadio);
+
+      // Type and send a prompt
+      const textarea = screen.getByRole('textbox', { name: /Ask the AI Study Assistant/i });
+      textarea.textContent = 'Test ungrounded question';
+      fireEvent.input(textarea);
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      // Wait for assistant tokens to complete
+      await waitFor(() => {
+        expect(screen.getByText(/Answer\./)).toBeInTheDocument();
+      }, { timeout: 4000 });
+
+      // The thread created had draftGrounding: 'none'
+      const threads = await db.aiThreads.toArray();
+      expect(threads).toHaveLength(1);
+      expect(threads[0].grounding).toBe('none');
+
+      // Now toggle back to whole material on the active thread
+      const wholeMaterialRadio = screen.getByRole('radio', { name: /Whole material/i });
+      fireEvent.click(wholeMaterialRadio);
+
+      await waitFor(async () => {
+        const updated = await db.aiThreads.get(threads[0].id);
+        expect(updated?.grounding).toBe('whole');
+      });
     });
   });
 });

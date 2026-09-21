@@ -42,6 +42,8 @@ function getShellRouteContext(currentRoute: AppRoute): {
     active = 'import';
   } else if (currentRoute.kind === 'analytics') {
     active = 'analytics';
+  } else if (currentRoute.kind === 'settings') {
+    active = 'settings';
   }
 
   const suppressOverlays =

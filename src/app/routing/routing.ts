@@ -126,6 +126,7 @@ export type AppRoute =
   | { kind: 'explore'; q?: string; sort?: ExploreSortOption }
   | { kind: 'analytics' }
   | { kind: 'import' }
+  | { kind: 'settings' }
   /**
    * Material workspace. `fromCollectionId` records the playlist the user
    * opened the material from, so the breadcrumb can render
@@ -187,6 +188,8 @@ export function routeToUrl(route: AppRoute): string {
       return '/analytics';
     case 'import':
       return '/import';
+    case 'settings':
+      return '/settings';
     case 'share': {
       const params = new URLSearchParams();
       // `URLSearchParams` percent-encodes the nested origin URL for us.
@@ -320,6 +323,11 @@ export function urlToRoute(path: string, search: string): AppRoute | null {
   // /analytics
   if (url.pathname === '/analytics') {
     return { kind: 'analytics' };
+  }
+
+  // /settings
+  if (url.pathname === '/settings') {
+    return { kind: 'settings' };
   }
 
   // /import

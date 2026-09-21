@@ -1,5 +1,5 @@
 import type { AiChatRepository } from '../../../../domain/ai/repositories/AiChatRepository';
-import type { AiMessageRecord, AiThread } from '../../../../domain/ai/models/ai.types';
+import type { AiGroundingMode, AiMessageRecord, AiThread } from '../../../../domain/ai/models/ai.types';
 
 /**
  * In-memory `AiChatRepository` for pure application-layer unit tests.
@@ -30,6 +30,18 @@ export class InMemoryAiChatRepository implements AiChatRepository {
     this.threads.set(thread.id, { ...thread });
   }
 
+  async setGrounding(threadId: string, grounding: AiGroundingMode): Promise<void> {
+    const thread = this.threads.get(threadId);
+    if (!thread) return;
+    this.threads.set(threadId, { ...thread, grounding });
+  }
+
+  async setTitle(threadId: string, title: string): Promise<void> {
+    const thread = this.threads.get(threadId);
+    if (!thread) return;
+    this.threads.set(threadId, { ...thread, title });
+  }
+
   async deleteThread(threadId: string): Promise<void> {
     this.threads.delete(threadId);
     for (const [id, message] of this.messages) {
@@ -55,6 +67,27 @@ export class InMemoryAiChatRepository implements AiChatRepository {
     for (const message of messages) {
       await this.saveMessage(message);
     }
+  }
+
+  async saveMessagePair(
+    userMessage: AiMessageRecord,
+    assistantMessage: AiMessageRecord,
+  ): Promise<void> {
+    // Mirrors the Dexie adapter: the parent is verified first and the pair lands together, so a
+    // thread that no longer exists rolls back rather than leaving orphaned history.
+    const thread = this.threads.get(userMessage.threadId);
+    if (!thread) {
+      throw new Error(`Cannot persist messages for missing thread ${userMessage.threadId}`);
+    }
+
+    this.messages.set(userMessage.id, { ...userMessage });
+    this.messages.set(assistantMessage.id, { ...assistantMessage });
+
+    const latest =
+      userMessage.createdAt.localeCompare(assistantMessage.createdAt) >= 0
+        ? userMessage.createdAt
+        : assistantMessage.createdAt;
+    this.threads.set(thread.id, { ...thread, updatedAt: latest });
   }
 
   async clearMaterialThreads(materialId: string): Promise<void> {

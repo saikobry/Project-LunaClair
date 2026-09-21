@@ -112,6 +112,7 @@ export const AiSessionMetrics = memo(function AiSessionMetrics({
   // Nothing measured and nothing to ground means nothing worth the chrome. The estimate already
   // holds the capped character counts, so it answers this without re-deriving anything.
   const metersAnything =
+    context.isIndeterminate ||
     context.documentChars + context.selectionChars + context.conversationChars > 0;
   if (!metersAnything) return null;
 
@@ -125,13 +126,13 @@ export const AiSessionMetrics = memo(function AiSessionMetrics({
       <div {...stylex.props(styles.row)}>
         {totalsLabel && totals && <span title={buildTotalsTitle(totals)}>{totalsLabel}</span>}
         <span {...stylex.props(styles.context)} title={buildContextTitle(context)}>
-          Context ~{percent}%
+          {context.isIndeterminate ? 'Context calculating…' : `Context ~${percent}%`}
         </span>
       </div>
       <div
         {...stylex.props(styles.track)}
         role="progressbar"
-        aria-valuenow={Math.min(100, Math.max(0, percent))}
+        aria-valuenow={context.isIndeterminate ? undefined : Math.min(100, Math.max(0, percent))}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Estimated context window usage"
@@ -141,7 +142,10 @@ export const AiSessionMetrics = memo(function AiSessionMetrics({
             styles.fill,
             context.estimate.isOverBudget ? styles.fillOver : styles.fillNormal,
           )}
-          style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+          style={{
+            width: context.isIndeterminate ? '100%' : `${Math.min(100, Math.max(0, percent))}%`,
+            opacity: context.isIndeterminate ? 0.35 : 1,
+          }}
         />
       </div>
     </div>

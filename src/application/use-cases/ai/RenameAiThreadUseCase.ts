@@ -11,6 +11,9 @@ export interface RenameAiThreadInput {
  *
  * Deliberately does not touch `updatedAt`: recency must keep tracking
  * conversation activity, so renaming an old session never reorders history.
+ *
+ * Writes through a title-only partial update rather than re-saving a whole read object, so a
+ * grounding toggle landing between the read and the write is not reverted by a stale copy.
  * Returns null when the thread is gone or the title is blank.
  */
 export class RenameAiThreadUseCase {
@@ -31,8 +34,7 @@ export class RenameAiThreadUseCase {
       return null;
     }
 
-    const renamed: AiThread = { ...thread, title };
-    await this.chatRepo.saveThread(renamed);
-    return renamed;
+    await this.chatRepo.setTitle(input.threadId, title);
+    return { ...thread, title };
   }
 }

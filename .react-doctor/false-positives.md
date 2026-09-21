@@ -122,6 +122,39 @@ and cannot hold the rationale). Those entries say so explicitly.
   therefore proves nothing about this diagnostic for a **modified** file either
   — not just for a newly added one. Full scan is the only valid check.
 
+## `react-doctor/no-pass-data-to-parent` — `src/features/ai/hooks/useAiSelectionAction.ts`
+
+- **Rule predicate used:** `no-pass-data-to-parent` → "Fetch the data in the parent
+  and pass it down as a prop (or return it from the hook), instead of handing
+  it back up through a prop callback in a `useEffect`" ([React docs, passing
+  data to the parent](https://react.dev/learn/you-might-not-need-an-effect#passing-data-to-the-parent)).
+- **Observed evidence:**
+  - The reported `onHandled?.()` call passes **no data**: it is a `() => void`
+    completion signal, and the parent stores nothing derived from it — it
+    clears (`null`s) the already-handled selection request. The docs pattern
+    this rule guards (child computes data the parent then keeps as state) does
+    not occur here.
+  - The "fetch in the parent" alternative does not apply: the completion being
+    signalled (the dispatched turn landing on the transcript) is only
+    observable from inside the hook that owns the dispatch key and sees the
+    `messages` prop change. Hoisting the match into the drawer would split the
+    request lifecycle across two components and leak the built prompt out of
+    the hook; checking it during render would be set-state-during-render, which
+    is worse than the reported effect.
+  - Termination is structural, not eventual: the callback clears the selection
+    context, which makes the confirming condition permanently false, so the
+    effect cannot ping-pong. Covered by
+    `hooks/__tests__/useAiSelectionAction.test.tsx` (dispatch-then-confirm,
+    same-context dedup, clear-and-return resend).
+- **Outcome:** Rejected — documented false positive; void completion signal,
+  not upward data sync.
+- **Suppression:** `doctor.config.ts` → `ignore.overrides` scoped to this one
+  file and this one rule (not a repo-wide `rules` off-switch, so genuine
+  upward data sync elsewhere is still reported).
+- **Review condition:** Re-check if the callback starts carrying payload data
+  the parent stores, or if the confirmation moves to a real event (then the
+  effect — and this entry — goes away).
+
 ## `react-doctor/no-loading-flag-reset-outside-finally` — `src/features/ai/hooks/useAiChatThread.ts`
 
 - **Rule predicate used:** `no-loading-flag-reset-outside-finally` → _Reported

@@ -215,4 +215,34 @@ describe('estimateSessionContext', () => {
 
     expect(context.percent).toBe(Math.round(context.estimate.utilization * 100));
   });
+
+  it('uses documentCharacters directly without applying redundant capping', () => {
+    const context = estimateSessionContext({ messages: [], documentCharacters: 12_345 });
+    expect(context.documentChars).toBe(12_345);
+    expect(context.isIndeterminate).toBe(false);
+  });
+
+  it('defaults isIndeterminate to false when omitted', () => {
+    const context = estimateSessionContext({ messages: [] });
+    expect(context.isIndeterminate).toBe(false);
+  });
+
+  it('respects explicit isIndeterminate flag', () => {
+    const context = estimateSessionContext({ messages: [], documentCharacters: 0, isIndeterminate: true });
+    expect(context.isIndeterminate).toBe(true);
+  });
+
+  it('counts conversation characters using the shared request projection (drops empty error exchange)', () => {
+    const messages = [
+      userTurn('u1', 'Failed prompt'),
+      assistantTurn('a1', {}, PRIMARY_MODEL, { status: 'error', content: '' }),
+      userTurn('u2', 'Kept prompt'),
+      assistantTurn('a2', {}, PRIMARY_MODEL, { status: 'error', content: 'Partial content' }),
+    ];
+
+    const context = estimateSessionContext({ messages, documentCharacters: 0 });
+    // u1 + a1 are dropped because a1 is empty error.
+    // u2 ('Kept prompt', len 11) + a2 ('Partial content', len 15) are kept. Total = 26.
+    expect(context.conversationChars).toBe(26);
+  });
 });

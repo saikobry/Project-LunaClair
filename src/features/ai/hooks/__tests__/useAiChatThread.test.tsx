@@ -89,10 +89,52 @@ describe('useAiChatThread', () => {
       await result.current.sendMessage('What is the SA node?');
     });
 
-    expect(result.current.error?.code).toBe('EMPTY_RESPONSE');
     expect(result.current.isStreaming).toBe(false);
-    // Nothing was persisted, so no phantom assistant turn is left in the transcript.
-    expect(result.current.messages).toHaveLength(1);
+    // The turn is settled as an empty error turn rather than left pending: the user turn must never
+    // be stranded without a partner, and the failure stays visible and retryable in the transcript.
+    // The banner is cleared once that persisted turn is reloaded, so the failure is reported once.
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages).toHaveLength(2);
+    const [userTurn, assistantTurn] = result.current.messages;
+    expect(userTurn.role).toBe('user');
+    expect(assistantTurn.role).toBe('assistant');
+    expect(assistantTurn.status).toBe('error');
+    expect(assistantTurn.content).toBe('');
+    expect(assistantTurn.metadata?.errorCode).toBe('EMPTY_RESPONSE');
+  });
+
+  it('keeps a retryable banner when a failure persists no turn at all', async () => {
+    // A save that rolls back (or a validation/missing-thread refusal) persists
+    // nothing for the refresh to reload. Clearing the banner then would dissolve
+    // the failure into an empty transcript with no explanation, so the coded
+    // error stays visible and the prompt stays retryable from hook state.
+    const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+    const harness = createAiChatHarness(db, mockAi);
+    vi.spyOn(harness.aiChatRepository, 'saveMessagePair').mockRejectedValueOnce(
+      new Error('simulated write failure'),
+    );
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('What is the SA node?');
+    });
+
+    expect(result.current.isStreaming).toBe(false);
+    expect(result.current.messages).toHaveLength(0);
+    expect(result.current.error?.code).toBe('PERSISTENCE_ERROR');
+
+    await act(async () => {
+      await result.current.retryLastPrompt();
+    });
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.error).toBeNull();
   });
 
   it('starts a new session without deleting the previous conversation', async () => {
@@ -320,6 +362,45 @@ describe('useAiChatThread', () => {
     expect(result.current.isStreaming).toBe(false);
     expect(result.current.activity).toBeNull();
     expect(result.current.retryLastPrompt).toBeTypeOf('function');
+  });
+
+  it('opens a distinct session without history when freshSession is requested', async () => {
+    const mockAi = new MockAiAdapter({ tokens: ['Fresh answer.'] });
+    const received: Array<Array<{ role: string; content: string }>> = [];
+    const original = mockAi.streamChat.bind(mockAi);
+    mockAi.streamChat = (request) => {
+      received.push(request.messages.map((m) => ({ role: m.role, content: m.content })));
+      return original(request);
+    };
+    const harness = createAiChatHarness(db, mockAi);
+
+    const { result } = renderHook(() => useAiChatThread({ materialId: 'doc-cardio' }), {
+      wrapper: harness.wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('First question');
+    });
+    const firstSessionId = result.current.thread!.id;
+    expect(result.current.messages).toHaveLength(2);
+
+    await act(async () => {
+      await result.current.sendMessage('Selection follow-up', { freshSession: true });
+    });
+
+    // A distinct session carries only the new turn; the previous one is untouched.
+    expect(result.current.thread!.id).not.toBe(firstSessionId);
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.messages[0].content).toBe('Selection follow-up');
+    expect(result.current.sessions).toHaveLength(2);
+    // The provider never saw the previous conversation.
+    expect(received).toHaveLength(2);
+    expect(received[1]).toHaveLength(1);
+    expect(received[1][0].content).toBe('Selection follow-up');
   });
 
   it('sends the selected model and leaves it unset when none is chosen', async () => {

@@ -1,7 +1,8 @@
-import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
+import type { AiGroundingMode, AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import type { AiModelSelection } from '../hooks/useAiModelSelection';
 import type { SessionContextEstimate } from '../utils/aiSessionMetrics';
 import { AiChatInput } from './AiChatInput';
+import { AiGroundingControl } from './AiGroundingControl';
 import { AiModelPicker } from './AiModelPicker';
 import { AiSessionMetrics } from './AiSessionMetrics';
 
@@ -25,6 +26,9 @@ export interface AiChatDrawerComposerProps {
   onSendMessage: (content: string) => void;
   onStopGeneration: () => void;
   onClearSelection?: () => void;
+  materialId?: string;
+  grounding?: AiGroundingMode;
+  onSetGrounding?: (mode: AiGroundingMode) => void;
 }
 
 /**
@@ -48,6 +52,9 @@ export function AiChatDrawerComposer({
   onSendMessage,
   onStopGeneration,
   onClearSelection,
+  materialId,
+  grounding,
+  onSetGrounding,
 }: AiChatDrawerComposerProps) {
   if (!isVisible) return null;
 
@@ -58,6 +65,13 @@ export function AiChatDrawerComposer({
   return (
     <>
       <AiSessionMetrics messages={messages} context={context} />
+      {materialId !== undefined && grounding !== undefined && onSetGrounding !== undefined && (
+        <AiGroundingControl
+          materialId={materialId}
+          grounding={grounding}
+          onSetGrounding={onSetGrounding}
+        />
+      )}
       <AiModelPicker
         models={model.catalog.models}
         defaultModelId={model.catalog.defaultModelId}

@@ -1,3 +1,5 @@
+import type { AiGroundingTarget } from '../../../application/use-cases/ai/AiGroundingResolver';
+
 /**
  * AI query keys — owns the AI cache namespace (`['ai', ...]`).
  *
@@ -8,4 +10,8 @@
 export const aiQueryKeys = {
   all: ['ai'] as const,
   modelCatalog: () => ['ai', 'model-catalog'] as const,
+  groundingContext: (target: AiGroundingTarget, model?: string) =>
+    ['ai', 'grounding-context', target, model ?? ''] as const,
+  groundingDefault: () => ['ai', 'grounding-default'] as const,
+  selectionThreadMode: () => ['ai', 'selection-thread-mode'] as const,
 };

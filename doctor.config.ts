@@ -40,6 +40,15 @@ export default {
         rules: ['react-doctor/no-static-element-interactions'],
       },
       {
+        // Completion signal, not upward data sync: `onHandled` is `() => void`
+        // and the parent stores nothing derived — it clears the handled
+        // selection request. The landing it confirms is only observable inside
+        // this hook, and clearing makes the condition permanently false, so
+        // the effect cannot ping-pong. Evidence: .react-doctor/false-positives.md
+        files: ['src/features/ai/hooks/useAiSelectionAction.ts'],
+        rules: ['react-doctor/no-pass-data-to-parent'],
+      },
+      {
         // The loading-flag reset IS inside a `finally` block — the rule's own
         // "Candidate corrected pattern" — so the diagnostic's premise ("resets
         // only on the success path") is falsified. The reset additionally sits in

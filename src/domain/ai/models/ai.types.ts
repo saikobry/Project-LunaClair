@@ -96,12 +96,47 @@ export type AiMessageStatus = 'streaming' | 'complete' | 'error';
  * (or to the global assistant when `materialId` is undefined); a material may
  * hold many sessions, and the newest by `updatedAt` is the one reopened.
  */
+/**
+ * Whether a conversation grounds its answers in the study material it belongs to.
+ *
+ * Per-conversation, not per-turn: a selected passage is transient and cannot be a property of a
+ * thread, so a thread records only whether a material is in scope at all. The selection stays a
+ * per-turn concern on the request.
+ *
+ * Deliberately **unindexed**. A previous thread-level capability field (`mode`, added in Dexie v9)
+ * was pruned in v15 once tutor modes were retired, so keeping this off the index keeps the same
+ * removal cheap. It survives where `mode` did not: `mode` duplicated per-turn prompt semantics that
+ * belonged on the sending surface, whereas grounding is genuine conversation state no per-turn
+ * surface can express — a user wants a grounded thread and an ungrounded thread at the same time.
+ */
+export type AiGroundingMode = 'none' | 'whole';
+
+/**
+ * Where a reader selection action (Explain / Simplify / Example) sends its turn.
+ *
+ * - `'latest'` — the turn continues the material's newest conversation (the one
+ *   the drawer shows), creating one only when none exists.
+ * - `'new'` — the turn always opens a distinct conversation, leaving the
+ *   current one untouched.
+ *
+ * Device-local preference, not conversation state: `AiThread` stores none of it.
+ */
+export type AiSelectionThreadMode = 'latest' | 'new';
+
 export interface AiThread {
   id: string;
   /** Optional: undefined = global assistant thread; string = material-scoped thread. */
   materialId?: string;
   title: string;
   createdAt: string; // ISO 8601 UTC
+  /**
+   * Whether this conversation answers from its material.
+   *
+   * Required on the domain type: absence is a property of the persistence row only
+   * (`AiThreadRow`), which the repository normalizes away on read. A global thread
+   * (`materialId === undefined`) is always `'none'` — there is no material to attach.
+   */
+  grounding: AiGroundingMode;
   updatedAt: string; // ISO 8601 UTC
 }
 

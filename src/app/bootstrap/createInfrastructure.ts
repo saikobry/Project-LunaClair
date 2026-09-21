@@ -17,6 +17,7 @@ import type { SyncStateRepository } from '../../domain/sync/repositories/SyncSta
 import type { ConflictDraftRepository } from '../../domain/sync/repositories/ConflictDraftRepository';
 import type { CollectionRepository } from '../../domain/collections/repositories/CollectionRepository';
 import type { CollectionMaterialRepository } from '../../domain/collections/repositories/CollectionMaterialRepository';
+import type { PreferencesRepository } from '../../domain/preferences/repositories/PreferencesRepository';
 
 import { HybridDocumentRepository } from '../../infrastructure/storage/repositories/HybridDocumentRepository';
 import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
@@ -29,6 +30,7 @@ import { dexieQuizSessionRepository } from '../../infrastructure/database/reposi
 import { dexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
 import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
 import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
+import { dexiePreferencesRepository } from '../../infrastructure/database/repositories/DexiePreferencesRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/adapters/WorkerAiAdapter';
 import { WorkerAiModelCatalogRepository } from '../../infrastructure/ai/catalog/WorkerAiModelCatalogRepository';
 import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
@@ -72,6 +74,7 @@ export interface Repositories {
     analytics: AnalyticsRepository;
     aiChat: AiChatRepository;
     aiModelCatalog: AiModelCatalogRepository;
+    preferences: PreferencesRepository;
     importAsset: ImportAssetRepository;
     asset: AssetRepository;
     syncQueue: SyncQueueRepository;
@@ -130,6 +133,7 @@ export function createInfrastructure(): Infrastructure {
         analytics: dexieAnalyticsRepository,
         aiChat: dexieAiChatRepository,
         aiModelCatalog: aiModelCatalogRepository,
+        preferences: dexiePreferencesRepository,
         importAsset: dexieImportAssetRepository,
         asset: dexieAssetRepository,
         syncQueue: dexieSyncQueueRepository,

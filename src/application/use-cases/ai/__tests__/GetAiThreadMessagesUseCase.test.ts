@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
+import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
 import { GetAiThreadMessagesUseCase } from '../GetAiThreadMessagesUseCase';
 
 describe('GetAiThreadMessagesUseCase', () => {
@@ -21,7 +22,7 @@ describe('GetAiThreadMessagesUseCase', () => {
     });
 
     it('retrieves chronological messages for a thread', async () => {
-        const createThread = new CreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo, new InMemoryPreferencesRepository());
         const getMessages = new GetAiThreadMessagesUseCase(chatRepo);
 
         const thread = await createThread.execute({ materialId: 'doc-1' });

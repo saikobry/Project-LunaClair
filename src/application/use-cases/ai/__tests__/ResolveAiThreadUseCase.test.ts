@@ -8,6 +8,7 @@ function thread(id: string, materialId: string | undefined, updatedAt: string): 
     id,
     materialId,
     title: id,
+    grounding: materialId === undefined ? 'none' : 'whole',
     createdAt: '2026-08-25T01:00:00.000Z',
     updatedAt,
   };

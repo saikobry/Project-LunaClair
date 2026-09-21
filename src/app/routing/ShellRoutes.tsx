@@ -10,6 +10,7 @@ import MaterialWorkspaceScreen from '../screens/material-workspace/MaterialWorks
 // Route-level code-splitting for screen compositions
 const ExploreScreen = lazy(() => import('../screens/explore/ExploreScreen'));
 const AnalyticsScreen = lazy(() => import('../screens/analytics/AnalyticsScreen'));
+const SettingsScreen = lazy(() => import('../screens/settings/SettingsScreen'));
 const QuizCanvasBuilderScreen = lazy(() =>
   import('../screens/quiz-canvas/QuizCanvasBuilderScreen').then((m) => ({ default: m.QuizCanvasBuilderScreen })),
 );
@@ -189,6 +190,11 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       {currentRoute.kind === 'analytics' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
           <AnalyticsScreen />
+        </Suspense>
+      )}
+      {currentRoute.kind === 'settings' && (
+        <Suspense fallback={<WorkspaceSkeleton />}>
+          <SettingsScreen />
         </Suspense>
       )}
       {currentRoute.kind === 'import' && (

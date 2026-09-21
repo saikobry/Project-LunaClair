@@ -9,10 +9,13 @@ import { AiChatHistoryPanel } from './AiChatHistoryPanel';
 import { AiChatErrorBanner } from './AiChatErrorBanner';
 import { AiChatDrawerComposer } from './AiChatDrawerComposer';
 import { useAiModelSelection } from '../hooks/useAiModelSelection';
+import { useAiSelectionThreadMode } from '../hooks/queries/useAiSelectionThreadMode';
 import { estimateSessionContext } from '../utils/aiSessionMetrics';
 import { type AiSelectionAction } from '../utils/selectionActionPrompt';
 import { useAiSessionDeletion } from '../hooks/useAiSessionDeletion';
 import { useAiSelectionAction } from '../hooks/useAiSelectionAction';
+import { useAiGroundingContext } from '../hooks/queries/useAiGroundingContext';
+import type { AiGroundingTarget } from '../../../application/use-cases/ai/AiGroundingResolver';
 
 const mobile = '@media (max-width: 768px)';
 
@@ -95,7 +98,6 @@ export interface AiChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   materialId?: string;
-  documentContext?: string;
   selectionContext?: SelectionContext | null;
   onClearSelectionContext?: () => void;
 }
@@ -104,7 +106,6 @@ export function AiChatDrawer({
   isOpen,
   onClose,
   materialId,
-  documentContext,
   selectionContext,
   onClearSelectionContext,
 }: AiChatDrawerProps) {
@@ -118,6 +119,13 @@ export function AiChatDrawer({
   // model, so switching here changes the next turn and never the one already streaming.
   const modelSelection = useAiModelSelection();
   const { selectedModel, refreshCatalog } = modelSelection;
+
+  // Where selection actions reply: the newest conversation, or a distinct one.
+  // Device-local preference, shared with the Settings surface. Its load gates
+  // the selection dispatch below: the hook falls back to 'latest' before the
+  // stored value arrives, and sending on the fallback would ignore a stored
+  // 'new' — the same settle-before-send rule as the session itself.
+  const { threadMode, isLoading: isThreadModeLoading } = useAiSelectionThreadMode();
 
   const {
     thread,
@@ -138,7 +146,22 @@ export function AiChatDrawer({
     deleteSession,
     error,
     cooldownSeconds,
+    grounding,
+    draftGrounding,
+    setGrounding,
   } = useAiChatThread({ materialId, model: selectedModel?.id });
+
+  // Grounding target: resolves from the active persisted thread or the current draft state.
+  const groundingTarget = useMemo<AiGroundingTarget | null>(() => {
+    if (thread) return { threadId: thread.id };
+    if (materialId) return { materialId, grounding: draftGrounding };
+    return null;
+  }, [thread, materialId, draftGrounding]);
+
+  const groundingQuery = useAiGroundingContext(groundingTarget, {
+    model: selectedModel?.id,
+    enabled: isOpen && materialId !== undefined,
+  });
 
   // The server refused the model this client offered, which means the catalog here is behind the
   // server's (a model was just disabled or retired). The bundled mirror and the cached copy are
@@ -172,11 +195,21 @@ export function AiChatDrawer({
     () =>
       estimateSessionContext({
         messages,
-        documentMarkdown: documentContext,
+        documentCharacters: materialId !== undefined ? groundingQuery.data?.documentCharacters : 0,
+        isIndeterminate:
+          materialId !== undefined ? (groundingQuery.isLoading || groundingQuery.isError) : false,
         selectionText: selectionContext?.text,
         modelId: selectedModel?.id,
       }),
-    [messages, documentContext, selectionContext?.text, selectedModel?.id],
+    [
+      messages,
+      materialId,
+      groundingQuery.data?.documentCharacters,
+      groundingQuery.isLoading,
+      groundingQuery.isError,
+      selectionContext?.text,
+      selectedModel?.id,
+    ],
   );
 
   // A turn in flight belongs on the transcript, so the history panel yields the
@@ -207,11 +240,15 @@ export function AiChatDrawer({
 
   // A reader selection (Explain / Simplify / Example, or the reader toolbar) becomes one chat turn
   // and is then cleared. Deduplicated inside the hook, which owns the reader-to-drawer contract.
+  // The dispatch waits for the session to settle and clears only once the turn is on the
+  // transcript, so a mount-time abort cannot orphan an empty session with the request already
+  // forgotten.
   useAiSelectionAction({
     isOpen,
-    materialId,
-    documentContext,
+    ready: !isLoading && !isThreadModeLoading,
     selectionContext,
+    messages,
+    forceNewThread: threadMode === 'new',
     send: sendIfAvailable,
     onHandled: onClearSelectionContext,
   });
@@ -221,9 +258,6 @@ export function AiChatDrawer({
       // A new turn belongs on the transcript, not behind the history panel.
       setIsHistoryOpen(false);
       void sendIfAvailable(promptText, {
-        documentContext: documentContext
-          ? { id: materialId || 'current-doc', markdown: documentContext }
-          : undefined,
         selection: selectionContext
           ? {
               text: selectionContext.text,
@@ -235,7 +269,7 @@ export function AiChatDrawer({
         onClearSelectionContext?.();
       }
     },
-    [sendIfAvailable, documentContext, materialId, selectionContext, onClearSelectionContext],
+    [sendIfAvailable, selectionContext, onClearSelectionContext],
   );
 
   const handleSelectSession = useCallback(
@@ -324,6 +358,9 @@ export function AiChatDrawer({
             onSendMessage={handleSendPrompt}
             onStopGeneration={stopStreaming}
             onClearSelection={onClearSelectionContext}
+            materialId={materialId}
+            grounding={grounding}
+            onSetGrounding={setGrounding}
           />
         </div>
       </aside>

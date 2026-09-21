@@ -38,6 +38,8 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
   - `QuizCanvasBuilderScreen.tsx` — Thin routing wrapper hosting the interactive quiz authoring canvas.
 - `analytics/` — Learning Analytics Screen:
   - `AnalyticsScreen.tsx` — Learning insights and study statistics dashboard route (`/analytics`).
+- `settings/` — Settings Screen:
+  - `SettingsScreen.tsx` — Device-local preferences route (`/settings`), a composer over feature-owned sections (AI owns `AiSettingsSection`; new preference areas arrive as new sections, never as logic here).
 - `importer/` — Document Importer Screen:
   - `ImporterScreen.tsx` — 5-step document import wizard route (`/importer`).
 - `shared-package/` — Shared Package Screen:

@@ -7,6 +7,7 @@ const THREAD: AiThread = {
   id: 'thread-1',
   materialId: 'doc-cardio',
   title: 'New chat',
+  grounding: 'whole',
   createdAt: '2026-08-25T01:00:00.000Z',
   updatedAt: '2026-08-25T01:00:00.000Z',
 };
@@ -31,6 +32,18 @@ describe('RenameAiThreadUseCase', () => {
   it('keeps updatedAt untouched so history order tracks conversation activity', async () => {
     const renamed = await renameThread.execute({ threadId: 'thread-1', title: 'Cardiac cycle' });
     expect(renamed?.updatedAt).toBe(THREAD.updatedAt);
+  });
+
+  it('does not revert a grounding toggle made after the thread was read', async () => {
+    // The stale-object hazard: a whole-object save would write back the grounding value read before
+    // the toggle. The title-only partial update leaves both fields correct.
+    await chatRepo.setGrounding('thread-1', 'none');
+
+    await renameThread.execute({ threadId: 'thread-1', title: 'Cardiac cycle' });
+
+    const thread = await chatRepo.getThread('thread-1');
+    expect(thread?.title).toBe('Cardiac cycle');
+    expect(thread?.grounding).toBe('none');
   });
 
   it('returns null for a missing thread or a blank title', async () => {

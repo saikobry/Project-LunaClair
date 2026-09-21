@@ -1,10 +1,46 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { SendChatMessageUseCase } from '../SendChatMessageUseCase';
+import { AiGroundingResolver } from '../AiGroundingResolver';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import type { AiStreamEvent } from '../../../../domain/ai/models/ai.types';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { DocumentRepository } from '../../../../domain/reader/repositories/DocumentRepository';
+import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
+
+const GROUNDING_MATERIAL: StudyMaterial = {
+  id: 'doc-1',
+  title: 'Anatomy & Physiology',
+  documentId: 'document-doc-1',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+/**
+ * The material and document stubs a grounding context needs; the thread itself comes from the real
+ * Dexie repository so the resolution path under test is the one production uses.
+ */
+function createGroundingResolver(
+  chatRepo: DexieAiChatRepository,
+  options: { material?: StudyMaterial | null; content?: string } = {},
+): AiGroundingResolver {
+  const material = options.material === undefined ? GROUNDING_MATERIAL : options.material;
+  const libraryRepo = {
+    getMaterialById: async () => material,
+  } as unknown as LibraryRepository;
+  const documentRepo = {
+    getDocumentByMaterial: async () => ({
+      id: 'document-doc-1',
+      title: GROUNDING_MATERIAL.title,
+      content: options.content ?? '# Cardiovascular System\nThe sinoatrial node is the pacemaker.',
+      format: 'markdown' as const,
+    }),
+  } as unknown as DocumentRepository;
+
+  return new AiGroundingResolver(chatRepo, libraryRepo, documentRepo);
+}
 
 describe('SendChatMessageUseCase', () => {
   let db: LunaClairDatabase;
@@ -25,7 +61,7 @@ describe('SendChatMessageUseCase', () => {
     const mockAi = new MockAiAdapter({
       tokens: ['Pacemaker', ' of ', 'the heart.'],
     });
-    const useCase = new SendChatMessageUseCase(mockAi);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo));
 
     const stream = useCase.execute({
       messages: [
@@ -36,11 +72,6 @@ describe('SendChatMessageUseCase', () => {
           createdAt: new Date().toISOString(),
         },
       ],
-      document: {
-        id: 'doc-1',
-        title: 'Anatomy & Physiology',
-        markdown: '# Cardiovascular System\nThe sinoatrial node is the pacemaker.',
-      },
       mode: 'assistant',
     });
 
@@ -59,13 +90,13 @@ describe('SendChatMessageUseCase', () => {
     const mockAi = new MockAiAdapter({
       tokens: ['Natural', ' pacemaker.'],
     });
-    const useCase = new SendChatMessageUseCase(mockAi, chatRepo);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
 
     const thread = {
       id: 'thread-auto-save',
       materialId: 'doc-1',
       title: 'Test Thread',
-      mode: 'assistant' as const,
+      grounding: 'whole' as const,
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -107,13 +138,13 @@ describe('SendChatMessageUseCase', () => {
       errorCode: 'API_ERROR',
       errorMessage: 'Service failure',
     });
-    const useCase = new SendChatMessageUseCase(mockAi, chatRepo);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
 
     const thread = {
       id: 'thread-fail-save',
       materialId: 'doc-1',
       title: 'Fail Thread',
-      mode: 'assistant' as const,
+      grounding: 'whole' as const,
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -149,7 +180,7 @@ describe('SendChatMessageUseCase', () => {
 
   it('yields validation error when messages array is empty', async () => {
     const mockAi = new MockAiAdapter();
-    const useCase = new SendChatMessageUseCase(mockAi);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo));
 
     const stream = useCase.execute({
       messages: [],
@@ -177,7 +208,7 @@ describe('SendChatMessageUseCase', () => {
       received.push(request.model);
       return original(request);
     };
-    const useCase = new SendChatMessageUseCase(mockAi);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo));
 
     const stream = useCase.execute({
       messages: [
@@ -203,7 +234,7 @@ describe('SendChatMessageUseCase', () => {
       received.push(request.model);
       return original(request);
     };
-    const useCase = new SendChatMessageUseCase(mockAi);
+    const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo));
 
     const stream = useCase.execute({
       messages: [
@@ -220,33 +251,235 @@ describe('SendChatMessageUseCase', () => {
     expect(received).toEqual([undefined]);
   });
 
-  it('applies the selected model document budget to the context it sends', async () => {
-    // MAX accepts an order of magnitude more material than the default model; capping at the default
-    // would silently send a fraction of the material the user asked about.
-    const mockAi = new MockAiAdapter();
-    let documentChars = 0;
-    const original = mockAi.streamChat.bind(mockAi);
-    mockAi.streamChat = (request) => {
-      documentChars = request.documentContext?.markdown.length ?? 0;
-      return original(request);
-    };
-    const useCase = new SendChatMessageUseCase(mockAi);
+  // The per-model document budget moved with the resolution: `AiGroundingResolver` owns the cap now,
+  // so it is covered there rather than through the send path.
 
-    const stream = useCase.execute({
-      messages: [
-        { id: 'm1', role: 'user', content: 'Summarize this chapter.', createdAt: new Date().toISOString() },
-      ],
-      document: { id: 'doc-1', title: 'Long Chapter', markdown: 'x'.repeat(100_000) },
-      model: 'ukisai-swift-max',
-      mode: 'assistant',
-    });
-    const events: AiStreamEvent[] = [];
-    for await (const event of stream) {
-      events.push(event);
+  describe('thread-scoped grounding', () => {
+    async function saveThread(grounding: 'none' | 'whole', materialId?: string): Promise<string> {
+      const id = `thread-${grounding}-${materialId ?? 'global'}`;
+      await chatRepo.saveThread({
+        id,
+        materialId,
+        title: 'Grounded',
+        grounding,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      return id;
     }
 
-    expect(events.length).toBeGreaterThan(0);
-    expect(documentChars).toBeGreaterThan(16_000);
-    expect(documentChars).toBeLessThan(170_000);
+    /** Records what the request actually carried, then delegates to the real adapter. */
+    function recordDocuments(mockAi: MockAiAdapter): Array<string | undefined> {
+      const seen: Array<string | undefined> = [];
+      const original = mockAi.streamChat.bind(mockAi);
+      mockAi.streamChat = (request) => {
+        seen.push(request.documentContext?.markdown);
+        return original(request);
+      };
+      return seen;
+    }
+
+    it('attaches the document from the thread, with no document passed by the caller', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Grounded.'] });
+      const seen = recordDocuments(mockAi);
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      for await (const _ of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        // drained
+      }
+
+      expect(seen[0]).toContain('sinoatrial node');
+    });
+
+    it('keeps the document attached on a retry of the same conversation', async () => {
+      // The original defect: retry re-sent the prompt without the material, because the document was
+      // a per-call argument the retry path did not pass.
+      const mockAi = new MockAiAdapter({ tokens: ['Grounded.'] });
+      const seen = recordDocuments(mockAi);
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      const prompt = {
+        id: 'u-1',
+        role: 'user' as const,
+        content: 'Explain.',
+        createdAt: '2026-01-01T00:05:00.000Z',
+      };
+      for await (const _ of useCase.execute({ threadId, messages: [prompt] })) {
+        // drained
+      }
+      for await (const _ of useCase.execute({ threadId, messages: [prompt] })) {
+        // drained
+      }
+
+      expect(seen).toHaveLength(2);
+      expect(seen[1]).toContain('sinoatrial node');
+    });
+
+    it('attaches nothing for an ungrounded conversation', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['From knowledge.'] });
+      const seen = recordDocuments(mockAi);
+      const threadId = await saveThread('none', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      for await (const _ of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        // drained
+      }
+
+      expect(seen[0]).toBeUndefined();
+    });
+
+    it('leaves a recoverable placeholder when the turn is interrupted', async () => {
+      const controller = new AbortController();
+      const mockAi = new MockAiAdapter({ tokens: ['a', 'b', 'c'] });
+      const original = mockAi.streamChat.bind(mockAi);
+      mockAi.streamChat = (request) =>
+        (async function* () {
+          for await (const event of original(request)) {
+            if (event.type === 'token') controller.abort();
+            yield event;
+          }
+        })();
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      for await (const _ of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+        signal: controller.signal,
+      })) {
+        // drained
+      }
+
+      // The user turn is never stranded: its partner exists, still streaming, for recovery to repair.
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages).toHaveLength(2);
+      expect(messages[0].status).toBe('complete');
+      expect(messages[1].status).toBe('streaming');
+      expect(await chatRepo.recoverInterruptedMessages()).toBe(1);
+    });
+
+    it('fails with a coded error and a retryable pair when the material is gone', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['should not run'] });
+      const seen = recordDocuments(mockAi);
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo, { material: null }),
+        chatRepo,
+      );
+
+      const events: AiStreamEvent[] = [];
+      for await (const event of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        events.push(event);
+      }
+
+      expect(seen).toHaveLength(0);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ type: 'error', code: 'GROUNDING_UNAVAILABLE' });
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages).toHaveLength(2);
+      expect(messages[0].role).toBe('user');
+      expect(messages[1].status).toBe('error');
+      expect(messages[1].metadata?.errorCode).toBe('GROUNDING_UNAVAILABLE');
+    });
+
+    it('rejects a send against a conversation that no longer exists', async () => {
+      // Reporting this as "ungrounded" would let the send persist turns under a parent that is gone.
+      const mockAi = new MockAiAdapter({ tokens: ['should not run'] });
+      const seen = recordDocuments(mockAi);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      const events: AiStreamEvent[] = [];
+      for await (const event of useCase.execute({
+        threadId: 'thread-deleted',
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        events.push(event);
+      }
+
+      expect(seen).toHaveLength(0);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ type: 'error', code: 'THREAD_NOT_FOUND' });
+      expect(await db.aiMessages.where('threadId').equals('thread-deleted').toArray()).toEqual([]);
+    });
+
+    it('reports an empty completion as a coded error event as well as a turn', async () => {
+      // Reported once, from the one place that knows the turn produced nothing, so the banner and the
+      // persisted error turn cannot disagree about what happened.
+      const mockAi = new MockAiAdapter({ tokens: [] });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      const events: AiStreamEvent[] = [];
+      for await (const event of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        events.push(event);
+      }
+
+      expect(events.filter((event) => event.type === 'error')).toEqual([
+        { type: 'error', code: 'EMPTY_RESPONSE', message: 'The assistant returned an empty response. Please try again.' },
+      ]);
+    });
+
+    it('settles an empty completion as a visible error turn rather than leaving it pending', async () => {
+      const mockAi = new MockAiAdapter({ tokens: [] });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo),
+        chatRepo,
+      );
+
+      for await (const _ of useCase.execute({
+        threadId,
+        messages: [{ id: 'u-1', role: 'user', content: 'Explain.', createdAt: '2026-01-01T00:05:00.000Z' }],
+      })) {
+        // drained
+      }
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages).toHaveLength(2);
+      expect(messages[1].status).toBe('error');
+      expect(messages[1].metadata?.errorCode).toBe('EMPTY_RESPONSE');
+      expect(messages[1].content).toBe('');
+    });
   });
 });

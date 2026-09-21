@@ -4,11 +4,22 @@ import type { ReactNode } from 'react';
 import { useAiStreamChat } from '../useAiStreamChat';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import { SendChatMessageUseCase } from '../../../../application/use-cases/ai/SendChatMessageUseCase';
+import { AiGroundingResolver } from '../../../../application/use-cases/ai/AiGroundingResolver';
+import { InMemoryAiChatRepository } from '../../../../application/use-cases/ai/__tests__/inMemoryAiChatRepository';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
+import type { LibraryRepository } from '../../../../domain/library/repositories/LibraryRepository';
+import type { DocumentRepository } from '../../../../domain/reader/repositories/DocumentRepository';
 import type { UseCases } from '../../../../app/bootstrap/createUseCases';
 
 function createMockContext(mockAi: MockAiAdapter): ApplicationContextValue {
-  const sendChatMessage = new SendChatMessageUseCase(mockAi);
+  // This hook sends with no `threadId`, so grounding is never consulted; the resolver exists only
+  // because a send path must not be constructible without one.
+  const groundingResolver = new AiGroundingResolver(
+    new InMemoryAiChatRepository(),
+    { getMaterialById: async () => null } as unknown as LibraryRepository,
+    { getDocumentByMaterial: async () => ({}) } as unknown as DocumentRepository,
+  );
+  const sendChatMessage = new SendChatMessageUseCase(mockAi, groundingResolver);
 
   return {
     useCases: {

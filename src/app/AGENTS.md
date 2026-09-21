@@ -30,6 +30,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
     - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).
     - `screens/analytics/` — `AnalyticsScreen.tsx` (learning insights and study metrics screen).
+    - `screens/settings/` — `SettingsScreen.tsx` (device-local preferences route (`/settings`), composer over feature-owned sections).
     - `screens/importer/` — `ImporterScreen.tsx` (5-step document import wizard screen).
     - `screens/shared-package/` — `SharedPackageScreen.tsx` (cloud package inspection and import screen).
 
@@ -48,7 +49,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `navigation/CompactCollectionsPanel.tsx` — The two compact collections surfaces, providing instant playlist switching, count badges, and New Collection creation. `CompactCollectionsDockDrawer` (mobile, `placement="dock"`) is a **native modal `<dialog>`** opened through the shared `useModalDialog` hook — focus trapping, Escape, `::backdrop`, and top-layer stacking come from the platform — and keeps the drag-to-dismiss gesture and touch-friendly rows. `CompactCollectionsRailPanel` (tablet, `placement="rail"`) is the anchored side popover with dynamic boundary clamping and height recalculation for lower rail positions. Breakpoint crossing (mobile dock ↔ tablet rail ↔ desktop sidebar) auto-dismisses either surface. The dock drawer's style block keeps the pre-dialog border box (1px top/left/right) and overrides the UA dialog defaults so its geometry is unchanged.
     - `navigation/compactCollectionsPopover.stylex.ts` — StyleX rules for the trigger and both compact collections surfaces (including the dock drawer's native-dialog resets and `::backdrop`).
     - `navigation/navigation.types.ts` — Shared viewport navigation types, active states, and `MaterialWorkspaceTab`.
-    - `navigation/navItems.ts` — Shared nav-item registry (labels, icons, routes, active-path matching) consumed by all three viewport navigation slices. Primary items are **Home** (`/`), **Library** (`/library`), Explore, and Insights. Collection membership is a Library lens (`collected` / `uncollected`), not a destination, and Import is reached from Home's quick actions plus the first-run empty state (which keeps it reachable when the library is empty and quick actions are not rendered).
+    - `navigation/navItems.ts` — Shared nav-item registry (labels, icons, routes, active-path matching) consumed by all three viewport navigation slices. Primary items are **Home** (`/`), **Library** (`/library`), Explore, Insights, and Settings (`/settings`). Collection membership is a Library lens (`collected` / `uncollected`), not a destination, and Import is reached from Home's quick actions plus the first-run empty state (which keeps it reachable when the library is empty and quick actions are not rendered).
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
 - `overlays/` — Transient System UI (Out of Document Flow):

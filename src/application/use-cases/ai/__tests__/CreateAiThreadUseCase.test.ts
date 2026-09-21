@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
 import { InMemoryAiChatRepository } from './inMemoryAiChatRepository';
+import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
 
 describe('CreateAiThreadUseCase', () => {
   let chatRepo: InMemoryAiChatRepository;
@@ -8,7 +9,7 @@ describe('CreateAiThreadUseCase', () => {
 
   beforeEach(() => {
     chatRepo = new InMemoryAiChatRepository();
-    createThread = new CreateAiThreadUseCase(chatRepo);
+    createThread = new CreateAiThreadUseCase(chatRepo, new InMemoryPreferencesRepository());
   });
 
   it('always creates a distinct session for the same material', async () => {

@@ -4,6 +4,7 @@ import {
   type ApplicationContextValue,
 } from '../../../app/providers/ApplicationContext';
 import type {
+  AiGroundingMode,
   AiMessageRecord,
   AiThread,
 } from '../../../domain/ai/models/ai.types';
@@ -14,6 +15,7 @@ import {
   type AiActivityState,
 } from '../utils/aiActivity';
 import { deriveSessionTitle } from '../utils/deriveSessionTitle';
+import { projectRequestMessages } from '../../../domain/ai/context/aiRequestProjection';
 import {
   mergeCooldownDeadline,
   readCooldownDeadline,
@@ -25,12 +27,6 @@ import {
 export interface UseAiChatThreadOptions {
   /** Optional study material ID. If undefined, operates on the global assistant. */
   materialId?: string;
-  /** Study material document content for context grounding. */
-  documentContext?: {
-    id: string;
-    title?: string;
-    markdown: string;
-  };
   /** Text selection context. */
   selection?: {
     text: string;
@@ -49,6 +45,16 @@ export interface UseAiChatThreadOptions {
    * streaming; retries reuse it because they go through the same options.
    */
   model?: string;
+  /**
+   * Send-time only: ignore the active session and open a distinct one for this
+   * turn, with none of the current history in its payload.
+   *
+   * The reader's selection actions use it when the "new chat per selection"
+   * preference is on. It bypasses the `thread` closure on purpose, so a stale
+   * render cannot land the turn on the conversation the user just left — the
+   * same reason `startNewSession` clears synchronously.
+   */
+  freshSession?: boolean;
 }
 
 export interface AiChatError {
@@ -97,6 +103,12 @@ export interface UseAiChatThreadResult {
   selectSession: (threadId: string) => void;
   deleteSession: (threadId: string) => Promise<void>;
   reloadMessages: () => Promise<void>;
+  /** Effective grounding mode for the current session (thread or draft). */
+  grounding: AiGroundingMode;
+  /** Draft session's chosen grounding mode before any thread is persisted. */
+  draftGrounding: AiGroundingMode;
+  /** Sets grounding for the active conversation or draft. */
+  setGrounding: (mode: AiGroundingMode) => Promise<void>;
 }
 
 /**
@@ -168,6 +180,45 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
   const streamStartedAtRef = useRef(0);
   const firstTokenRef = useRef(false);
   const previousMaterialIdRef = useRef(materialId);
+  const lastAttemptedPromptRef = useRef<string | null>(null);
+
+  const [draftGrounding, setDraftGrounding] = useState<AiGroundingMode>(() =>
+    materialId === undefined ? 'none' : 'whole',
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!context?.repositories?.preferences || materialId === undefined) return;
+    void context.repositories.preferences.getAiGroundingDefault().then((defaultMode) => {
+      if (!cancelled) setDraftGrounding(defaultMode);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [context, materialId]);
+
+  const grounding: AiGroundingMode =
+    materialId === undefined
+      ? 'none'
+      : thread
+        ? thread.grounding
+        : draftGrounding;
+
+  const setGrounding = useCallback(
+    async (mode: AiGroundingMode) => {
+      if (materialId === undefined && mode === 'whole') return;
+      if (thread && context?.useCases?.ai) {
+        await context.useCases.ai.setThreadGrounding.execute({
+          threadId: thread.id,
+          grounding: mode,
+        });
+        setThread((prev) => (prev ? { ...prev, grounding: mode } : prev));
+      } else {
+        setDraftGrounding(mode);
+      }
+    },
+    [context, thread, materialId],
+  );
 
   /**
    * Starts a cooldown from the wait a provider named.
@@ -350,7 +401,12 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     setThread(null);
     setMessages([]);
     setSelection({ kind: 'draft' });
-  }, [abort]);
+    if (context?.repositories?.preferences && materialId !== undefined) {
+      void context.repositories.preferences.getAiGroundingDefault().then((defaultMode) => {
+        setDraftGrounding(defaultMode);
+      });
+    }
+  }, [abort, context, materialId]);
 
   const selectSession = useCallback(
     (threadId: string) => {
@@ -427,12 +483,18 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
       const seq = streamSeqRef.current + 1;
       streamSeqRef.current = seq;
 
-      const isFirstTurn = messages.length === 0;
+      const forceNewSession = overrideOptions.freshSession === true;
+      const isFirstTurn = forceNewSession || messages.length === 0;
 
-      let activeThread = thread;
+      lastAttemptedPromptRef.current = trimmed;
+
+      let activeThread = forceNewSession ? null : thread;
       if (!activeThread) {
         try {
-          activeThread = await context.useCases.ai.createThread.execute({ materialId });
+          activeThread = await context.useCases.ai.createThread.execute({
+            materialId,
+            grounding: draftGrounding,
+          });
         } catch (err: unknown) {
           if (streamSeqRef.current !== seq) return;
           const message = err instanceof Error ? err.message : 'Failed to start a chat session';
@@ -475,24 +537,15 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
         }
       }
 
-      const mergedDocContext = overrideOptions.documentContext ?? options.documentContext;
       const mergedSelection = overrideOptions.selection ?? options.selection;
       const mergedModel = overrideOptions.model ?? options.model;
 
-      const chatMessagesPayload = [
-        ...messages.map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          createdAt: m.createdAt,
-        })),
-        {
-          id: userMessageRecord.id,
-          role: userMessageRecord.role,
-          content: userMessageRecord.content,
-          createdAt: userMessageRecord.createdAt,
-        },
-      ];
+      // The same projection the context meter counts over, so the meter and the payload can never
+      // disagree about which turns are sent: empty failure turns take their prompt with them, and an
+      // unsettled placeholder is never sent as an empty assistant reply. A forced-new session carries
+      // no history by construction — the previous conversation stays untouched.
+      const historyForPayload = forceNewSession ? [] : messages;
+      const chatMessagesPayload = projectRequestMessages([...historyForPayload, userMessageRecord]);
 
       let accumulated = '';
       let hadStreamErrorEvent = false;
@@ -501,7 +554,6 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
         const stream = context.useCases.ai.sendChatMessage.execute({
           threadId: activeThread.id,
           messages: chatMessagesPayload,
-          document: mergedDocContext,
           selection: mergedSelection,
           model: mergedModel,
           signal: controller.signal,
@@ -575,8 +627,12 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
               setMessages(refreshed);
 
               // A stream error is persisted as its own turn, so the inline card
-              // carries it; only failures with no persisted turn need the banner.
-              if (hadStreamErrorEvent) setError(null);
+              // carries it; only failures with a persisted turn clear the banner.
+              // A failure that persisted nothing (validation, missing thread, a
+              // save that rolled back) keeps its retryable banner instead of
+              // dissolving into an empty transcript with no explanation.
+              const landed = refreshed.some((message) => message.id === userMessageRecord.id);
+              if (hadStreamErrorEvent && landed) setError(null);
             } catch {
               // The streamed answer is already on screen; a failed history resync
               // must not turn a successful turn into an unhandled rejection.
@@ -587,7 +643,7 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
         }
       }
     },
-    [context, thread, materialId, options, messages, abort, refreshSessions, startCooldown],
+    [context, thread, materialId, draftGrounding, options, messages, abort, refreshSessions, startCooldown],
   );
 
   const retryMessage = useCallback(
@@ -604,9 +660,11 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
   );
 
   const retryLastPrompt = useCallback(async () => {
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
-    if (lastUserMessage) {
-      await sendMessage(lastUserMessage.content);
+    const promptToRetry =
+      lastAttemptedPromptRef.current ??
+      [...messages].reverse().find((m) => m.role === 'user')?.content;
+    if (promptToRetry) {
+      await sendMessage(promptToRetry);
     }
   }, [messages, sendMessage]);
 
@@ -634,5 +692,8 @@ export function useAiChatThread(options: UseAiChatThreadOptions = {}): UseAiChat
     selectSession,
     deleteSession,
     reloadMessages,
+    grounding,
+    draftGrounding,
+    setGrounding,
   };
 }

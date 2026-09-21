@@ -247,7 +247,6 @@ export function MaterialWorkspaceScreen({
             isOpen={isAiOpen}
             onClose={() => setIsAiOpen(false)}
             materialId={materialId}
-            documentContext={doc?.content}
             selectionContext={selectionContext}
             onClearSelectionContext={() => setSelectionContext(null)}
           />

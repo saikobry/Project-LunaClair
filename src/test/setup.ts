@@ -1,6 +1,16 @@
-import '@testing-library/jest-dom/vitest';
+// Type-only: augments vitest's `Assertion` with the jest-dom matchers so `toBeInTheDocument`
+// type-checks. Elided at runtime — the registration below is what actually installs them.
+import type {} from '@testing-library/jest-dom/vitest';
+import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, expect, vi } from 'vitest';
+
+// jest-dom 7's `/vitest` entry does not register its matchers under Vitest 4: every DOM matcher
+// (`toBeInTheDocument`, `toHaveTextContent`, ...) fails with "Invalid Chai property", silently
+// disabling DOM assertions across the suite. Registering from the public `/matchers` entry is
+// jest-dom's supported manual-setup path and does work. Do not "simplify" this back to a runtime
+// `import '@testing-library/jest-dom/vitest'` without re-running a component test.
+expect.extend(jestDomMatchers as Parameters<typeof expect.extend>[0]);
 
 // Polyfill StyleX for Vitest / JSDOM environment
 vi.mock('@stylexjs/stylex', () => {

@@ -14,7 +14,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `databaseLifecycle.ts` → Reload-required vocabulary and detection (`DatabaseReloadReason`, `DatabaseReloadRequiredError`, `readStoredDatabaseVersion`, `isStoredDatabaseNewer`)
     - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
   - `repositories/` — Concrete Dexie persistence adapters implementing domain repository ports:
-    - `DexieAiChatRepository.ts` → `AiChatRepository`
+    - `DexieAiChatRepository.ts` → `AiChatRepository` (normalizes every read into the domain shape: a **global** row (no `materialId`) is coerced to `grounding: 'none'` whatever is stored, and a material-scoped row with an absent or malformed value reads `'whole'` — absence is a property of `AiThreadRow` only, and normalization is side-effect free, never rewriting the row. `grounding` is deliberately **unindexed**, so it needs no schema version. Partial update `setGrounding` modifies only grounding without disturbing `updatedAt` or title, and `saveMessagePair` atomically opens turns with a streaming placeholder so aborted/interrupted turns are never left orphaned without an assistant partner)
     - `DexieAnalyticsRepository.ts` → `AnalyticsRepository`
     - `DexieAnnotationRepository.ts` → `AnnotationRepository`
     - `DexieAssetRepository.ts` → `AssetRepository` (read-only: `get(assetId)`, `getByMaterialId(materialId)`)
@@ -23,6 +23,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
     - `DexieImportAssetRepository.ts` → `ImportAssetRepository` (write-only: `put`)
     - `DexieLibraryRepository.ts` → `LibraryRepository` (normalizes material `tags` through the domain `normalizeTags` helper at both write boundaries — `undefined` leaves tags unchanged, empty array clears; declares no material delete — removal is `DexieLibraryImportService`'s atomic cascade)
+    - `DexiePreferencesRepository.ts` → `PreferencesRepository` (owns the `ai.groundingDefault` key, which never leaves this adapter; validates the stored value on read and falls back to `'whole'` — a stored preference is a hint, not a contract. The `preferences` store has existed unused since an early schema version and is now live; it needs no schema change)
     - `DexieQuestionRepository.ts` → `QuestionRepository`
     - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`
     - `DexieQuizRepository.ts` → `QuizRepository`

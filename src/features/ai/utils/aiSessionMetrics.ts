@@ -1,5 +1,6 @@
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { AiContextBuilder } from '../../../domain/ai/context/AiContextBuilder';
+import { projectRequestMessages } from '../../../domain/ai/context/aiRequestProjection';
 import { estimateAiCostUsd } from '../../../domain/ai/services/aiModelPricing';
 import {
   estimateContextUsage,
@@ -84,11 +85,18 @@ export interface SessionContextEstimate {
   lastMeasuredPromptTokens: number | null;
   /** Whole-percent share of the prompt budget, rounded — display only. */
   percent: number;
+  /** True when the document context size is indeterminate or currently resolving. */
+  isIndeterminate?: boolean;
 }
 
 export interface SessionContextInput {
   messages: AiMessageRecord[];
   documentMarkdown?: string;
+  /**
+   * Capped serialized document characters resolved from GetAiGroundingContextUseCase.
+   * If omitted and documentMarkdown is also omitted, treated as unknown/indeterminate.
+   */
+  documentCharacters?: number;
   selectionText?: string;
   /**
    * The model the next request will use. Omitted = the catalog default.
@@ -97,6 +105,7 @@ export interface SessionContextInput {
    * the default model's 16k cap would understate the material by an order of magnitude.
    */
   modelId?: string;
+  isIndeterminate?: boolean;
 }
 
 /**
@@ -105,26 +114,40 @@ export interface SessionContextInput {
  * Character counts are taken through the same `AiContextBuilder` the request uses, so the document
  * and selection caps here cannot drift from what is actually sent — re-deriving those limits locally
  * is exactly how an estimate goes quietly wrong.
+ *
+ * The conversation term is counted over `projectRequestMessages`, the same projection the provider
+ * payload is built from. Counting raw records would include error and placeholder turns the payload
+ * drops, overstate the next request, and block sends that would in fact have fit.
  */
 export function estimateSessionContext(input: SessionContextInput): SessionContextEstimate {
+  const requestMessages = projectRequestMessages(input.messages);
   const model = getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, input.modelId);
-  const documentChars =
-    AiContextBuilder.buildDocumentContext({
-      id: 'context-estimate',
-      markdown: input.documentMarkdown,
-      maxCharacters: model.maxDocumentContextChars,
-    })?.markdown.length ?? 0;
+
+  let documentChars = 0;
+  const isIndeterminate = Boolean(input.isIndeterminate);
+
+  if (input.documentCharacters !== undefined) {
+    documentChars = input.documentCharacters;
+  } else if (input.documentMarkdown !== undefined) {
+    documentChars =
+      AiContextBuilder.buildDocumentContext({
+        id: 'context-estimate',
+        markdown: input.documentMarkdown,
+        maxCharacters: model.maxDocumentContextChars,
+      })?.markdown.length ?? 0;
+  }
+
   const selectionChars =
     AiContextBuilder.buildSelectionContext({ text: input.selectionText })?.text.length ?? 0;
-  const conversationChars = input.messages.reduce((sum, message) => sum + message.content.length, 0);
+  const conversationChars = requestMessages.reduce((sum, message) => sum + message.content.length, 0);
 
   const estimate = estimateContextUsage(
     {
       documentChars,
       selectionChars,
       conversationChars,
-      // The transcript as it stands, plus the prompt that is about to be appended to it.
-      messageCount: input.messages.length + 1,
+      // The messages that will actually be sent, plus the prompt about to be appended to them.
+      messageCount: requestMessages.length + 1,
     },
     model,
   );
@@ -145,5 +168,6 @@ export function estimateSessionContext(input: SessionContextInput): SessionConte
     conversationChars,
     lastMeasuredPromptTokens,
     percent: Math.round(estimate.utilization * 100),
+    isIndeterminate,
   };
 }

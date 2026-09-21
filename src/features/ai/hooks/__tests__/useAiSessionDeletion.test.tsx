@@ -8,6 +8,7 @@ const sessions: AiThread[] = [
     id: 'thread-1',
     materialId: 'm1',
     title: 'What is the sinoatrial node?',
+    grounding: 'whole',
     createdAt: '2026-09-19T00:00:00.000Z',
     updatedAt: '2026-09-19T00:00:00.000Z',
   },

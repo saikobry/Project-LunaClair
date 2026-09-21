@@ -200,6 +200,7 @@ describe('Dexie Schema v11 & Non-Destructive Migration', () => {
             id: 'th-ai-1',
             materialId: 'doc-cardio-1',
             title: 'Cardiac Cycle Q&A',
+            grounding: 'whole',
             createdAt: '2026-08-01T12:00:00.000Z',
             updatedAt: '2026-08-01T12:05:00.000Z',
         };

@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieAiChatRepository } from '../../../../infrastructure/database/repositories/DexieAiChatRepository';
 import { CreateAiThreadUseCase } from '../CreateAiThreadUseCase';
+import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
 import { ClearChatHistoryUseCase } from '../ClearChatHistoryUseCase';
 
 describe('ClearChatHistoryUseCase', () => {
@@ -21,7 +22,7 @@ describe('ClearChatHistoryUseCase', () => {
     });
 
     it('clears all threads and messages for a material', async () => {
-        const createThread = new CreateAiThreadUseCase(chatRepo);
+        const createThread = new CreateAiThreadUseCase(chatRepo, new InMemoryPreferencesRepository());
         const clearHistory = new ClearChatHistoryUseCase(chatRepo);
 
         await createThread.execute({ materialId: 'doc-bio' });

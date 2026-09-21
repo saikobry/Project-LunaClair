@@ -32,6 +32,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 't-cardio-older',
       materialId: 'doc-cardio',
       title: 'Cardio Session One',
+      grounding: 'whole',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -40,6 +41,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 't-cardio-newest',
       materialId: 'doc-cardio',
       title: 'Cardio Session Two',
+      grounding: 'whole',
       createdAt: '2026-08-25T01:10:00.000Z',
       updatedAt: '2026-08-25T01:10:00.000Z',
     };
@@ -48,6 +50,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 't-global-assist',
       materialId: undefined,
       title: 'Global Tutor',
+      grounding: 'none',
       createdAt: '2026-08-25T00:50:00.000Z',
       updatedAt: '2026-08-25T00:50:00.000Z',
     };
@@ -82,6 +85,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-1',
       materialId: 'doc-1',
       title: 'Test Thread',
+      grounding: 'whole',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -110,6 +114,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-order',
       materialId: 'doc-1',
       title: 'Order',
+      grounding: 'whole',
       createdAt: '2026-08-25T02:00:00.000Z',
       updatedAt: '2026-08-25T02:00:00.000Z',
     });
@@ -150,6 +155,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-delete',
       materialId: 'doc-1',
       title: 'To Delete',
+      grounding: 'whole',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -185,6 +191,7 @@ describe('DexieAiChatRepository & Schema v9', () => {
       id: 'thread-crash',
       materialId: 'doc-1',
       title: 'Crash Test',
+      grounding: 'whole',
       createdAt: '2026-08-25T01:00:00.000Z',
       updatedAt: '2026-08-25T01:00:00.000Z',
     };
@@ -208,5 +215,199 @@ describe('DexieAiChatRepository & Schema v9', () => {
     expect(messages[0].status).toBe('error');
     expect(messages[0].metadata?.errorCode).toBe('INTERRUPTED');
     expect(messages[0].metadata?.errorMessage).toBe('Generation was interrupted.');
+  });
+
+  describe('grounding normalization', () => {
+    /**
+     * Writes a row straight to the table, bypassing the domain type, to reproduce a row persisted
+     * before `grounding` existed or one carrying a value no runtime guard would accept.
+     */
+    async function writeRawRow(row: Record<string, unknown>): Promise<void> {
+      await db.aiThreads.put(row as never);
+    }
+
+    it('normalizes a material-scoped row written before grounding existed to whole', async () => {
+      await writeRawRow({
+        id: 'legacy',
+        materialId: 'doc-1',
+        title: 'Legacy',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const thread = await repo.getThread('legacy');
+
+      expect(thread?.grounding).toBe('whole');
+    });
+
+    it('normalizes a malformed stored mode to whole rather than trusting it', async () => {
+      await writeRawRow({
+        id: 'corrupt',
+        materialId: 'doc-1',
+        title: 'Corrupt',
+        grounding: 'sometimes',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const thread = await repo.getThread('corrupt');
+
+      expect(thread?.grounding).toBe('whole');
+    });
+
+    it('coerces a global row storing whole to none, whatever is on disk', async () => {
+      await writeRawRow({
+        id: 'global',
+        title: 'Global',
+        grounding: 'whole',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      expect((await repo.getThread('global'))?.grounding).toBe('none');
+      expect((await repo.listThreads())[0]?.grounding).toBe('none');
+      expect((await repo.findLatestThread())?.grounding).toBe('none');
+    });
+
+    it('normalizes identically across every read path', async () => {
+      await writeRawRow({
+        id: 'legacy',
+        materialId: 'doc-1',
+        title: 'Legacy',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const viaGet = await repo.getThread('legacy');
+      const viaList = (await repo.listThreads('doc-1'))[0];
+      const viaLatest = await repo.findLatestThread('doc-1');
+
+      expect(viaGet?.grounding).toBe('whole');
+      expect(viaList?.grounding).toBe('whole');
+      expect(viaLatest?.grounding).toBe('whole');
+    });
+
+    it('round-trips both valid modes without rewriting the stored row', async () => {
+      await repo.saveThread({
+        id: 'material',
+        materialId: 'doc-1',
+        title: 'Material',
+        grounding: 'none',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      expect((await repo.getThread('material'))?.grounding).toBe('none');
+
+      // Side-effect free: a read must not rewrite the row into the normalized shape.
+      const stored = await db.aiThreads.get('material');
+      expect(stored?.grounding).toBe('none');
+    });
+
+    it('renames through a partial write, preserving grounding and recency', async () => {
+      await repo.saveThread({
+        id: 'rename',
+        materialId: 'doc-1',
+        title: 'Old title',
+        grounding: 'whole',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      await repo.setGrounding('rename', 'none');
+      await repo.setTitle('rename', 'New title');
+
+      const thread = await repo.getThread('rename');
+      expect(thread?.title).toBe('New title');
+      // The toggle survives the rename: a whole-object save of a stale read would have reverted it.
+      expect(thread?.grounding).toBe('none');
+      expect(thread?.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    it('updates only the grounding field and leaves updatedAt alone', async () => {
+      await repo.saveThread({
+        id: 'toggle',
+        materialId: 'doc-1',
+        title: 'Toggle',
+        grounding: 'whole',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      await repo.setGrounding('toggle', 'none');
+
+      const thread = await repo.getThread('toggle');
+      expect(thread?.grounding).toBe('none');
+      expect(thread?.title).toBe('Toggle');
+      expect(thread?.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('saveMessagePair', () => {
+    beforeEach(async () => {
+      await repo.saveThread({
+        id: 'pair',
+        materialId: 'doc-1',
+        title: 'Pair',
+        grounding: 'whole',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+    });
+
+    it('persists both turns and bumps the thread to the later timestamp', async () => {
+      await repo.saveMessagePair(
+        {
+          id: 'user-1',
+          threadId: 'pair',
+          role: 'user',
+          content: 'Why?',
+          status: 'complete',
+          createdAt: '2026-01-01T00:10:00.000Z',
+        },
+        {
+          id: 'assistant-1',
+          threadId: 'pair',
+          role: 'assistant',
+          content: '',
+          status: 'streaming',
+          createdAt: '2026-01-01T00:10:01.000Z',
+        },
+      );
+
+      const messages = await repo.getMessages('pair');
+      expect(messages).toHaveLength(2);
+      expect(messages[0].role).toBe('user');
+      expect(messages[1].status).toBe('streaming');
+
+      expect((await repo.getThread('pair'))?.updatedAt).toBe('2026-01-01T00:10:01.000Z');
+    });
+
+    it('rejects a pair whose parent thread no longer exists, leaving nothing orphaned', async () => {
+      // The parent is verified inside the transaction, so a thread deleted between the resolver's
+      // read and this write rolls the pair back instead of orphaning history nothing can reach.
+      await expect(
+        repo.saveMessagePair(
+          {
+            id: 'user-orphan',
+            threadId: 'deleted-thread',
+            role: 'user',
+            content: 'Retry',
+            status: 'complete',
+            createdAt: '2026-01-01T00:10:00.000Z',
+          },
+          {
+            id: 'assistant-orphan',
+            threadId: 'deleted-thread',
+            role: 'assistant',
+            content: '',
+            status: 'streaming',
+            createdAt: '2026-01-01T00:10:01.000Z',
+          },
+        ),
+      ).rejects.toThrow(/missing thread/);
+
+      expect(await db.aiMessages.where('threadId').equals('deleted-thread').toArray()).toEqual([]);
+    });
   });
 });
