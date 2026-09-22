@@ -99,7 +99,13 @@ export const AiChatDrawerHeader = memo(function AiChatDrawerHeader({
             <Sparkles {...stylex.props(styles.titleIcon)} aria-hidden="true" />
             <h2 {...stylex.props(styles.title)}>{title}</h2>
           </div>
-          <p {...stylex.props(styles.subtitle)}>Study help, grounded in your material.</p>
+          {/*
+            Neutral on purpose: grounding is per-conversation and mutable, so a header that claimed
+            "grounded in your material" would contradict the Material context control the moment it is
+            set to "No material". What each turn carried is stated by the per-turn "Material attached"
+            tag, which is verifiable; the header states only what the surface is for.
+          */}
+          <p {...stylex.props(styles.subtitle)}>Study help for this material.</p>
         </div>
         <div {...stylex.props(styles.headerActions)}>
           <span {...stylex.props(styles.historyButtonWrap)}>

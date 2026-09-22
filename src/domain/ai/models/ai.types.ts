@@ -155,6 +155,18 @@ export interface AiMessageRecord {
     usage?: AiUsage;
     /** Provider model id that served the turn; the price rate card is keyed by it. */
     model?: string;
+    /**
+     * Whether the material was actually attached when this turn was sent — a **request fact**, not a
+     * source claim. We know what the send path put in the prompt; we cannot verify what the model used,
+     * so this must never be surfaced as "answered from material".
+     *
+     * Snapshotted per turn because the thread's `grounding` is mutable: a `none → whole → none`
+     * conversation would otherwise leave a mixed transcript with no way to tell which turns were
+     * grounded. `'none'` is written when grounding was resolved and off; `undefined` means the mode
+     * was never resolved (a failed turn, or a record written before this field existed) — keep the
+     * two distinct rather than collapsing them.
+     */
+    grounding?: AiGroundingMode;
     errorCode?: string;
     errorMessage?: string;
   };

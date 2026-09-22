@@ -95,6 +95,65 @@ describe('AI Message Rendering & Message List', () => {
       expect(screen.getByText('Generation was interrupted.')).toBeInTheDocument();
     });
 
+    it('shows "Material attached" on an assistant turn sent with the material', () => {
+      const groundedMessage: AiMessageRecord = {
+        id: 'msg-g1',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'Your notes define this clearly.',
+        status: 'complete',
+        metadata: { grounding: 'whole' },
+        createdAt: '2026-08-25T01:00:05.000Z',
+      };
+
+      render(<AiChatMessage message={groundedMessage} />);
+      expect(screen.getByText('Material attached')).toBeInTheDocument();
+    });
+
+    it('shows no badge on an assistant turn sent ungrounded', () => {
+      const ungroundedMessage: AiMessageRecord = {
+        id: 'msg-g2',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'A general-knowledge answer.',
+        status: 'complete',
+        metadata: { grounding: 'none' },
+        createdAt: '2026-08-25T01:00:05.000Z',
+      };
+
+      render(<AiChatMessage message={ungroundedMessage} />);
+      expect(screen.queryByText('Material attached')).toBeNull();
+    });
+
+    it('shows no badge on a legacy assistant turn with no metadata', () => {
+      const legacyMessage: AiMessageRecord = {
+        id: 'msg-g3',
+        threadId: 'th-1',
+        role: 'assistant',
+        content: 'Written before the field existed.',
+        status: 'complete',
+        createdAt: '2026-08-25T01:00:05.000Z',
+      };
+
+      render(<AiChatMessage message={legacyMessage} />);
+      expect(screen.queryByText('Material attached')).toBeNull();
+    });
+
+    it('never shows the badge on a user turn', () => {
+      const userMessage: AiMessageRecord = {
+        id: 'msg-g4',
+        threadId: 'th-1',
+        role: 'user',
+        content: 'What do my notes say?',
+        status: 'complete',
+        metadata: { grounding: 'whole' },
+        createdAt: '2026-08-25T01:00:05.000Z',
+      };
+
+      render(<AiChatMessage message={userMessage} />);
+      expect(screen.queryByText('Material attached')).toBeNull();
+    });
+
     it('shows the token count and cost of a settled assistant turn', () => {
       const meteredMessage: AiMessageRecord = {
         id: 'msg-a5',

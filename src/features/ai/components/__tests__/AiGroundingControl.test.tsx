@@ -1,19 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AiGroundingControl } from '../AiGroundingControl';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
-import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
-import { SetGroundingDefaultUseCase } from '../../../../application/use-cases/ai/SetGroundingDefaultUseCase';
 
-function createWrapper(prefRepo = new InMemoryPreferencesRepository('whole')) {
+function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const setGroundingDefault = new SetGroundingDefaultUseCase(prefRepo);
   const contextValue = {
-    repositories: { preferences: prefRepo },
-    useCases: { ai: { setGroundingDefault } },
+    repositories: {},
+    useCases: { ai: {} },
   } as unknown as ApplicationContextValue;
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -22,7 +19,7 @@ function createWrapper(prefRepo = new InMemoryPreferencesRepository('whole')) {
     </QueryClientProvider>
   );
 
-  return { wrapper, prefRepo };
+  return { wrapper };
 }
 
 describe('AiGroundingControl', () => {
@@ -58,46 +55,38 @@ describe('AiGroundingControl', () => {
     expect(screen.getByRole('radio', { name: /No material/i })).toBeInTheDocument();
   });
 
-  it('shows "(Default for new chats)" when grounding matches the default preference', async () => {
-    const { wrapper } = createWrapper(new InMemoryPreferencesRepository('whole'));
-    const onSetGrounding = vi.fn();
+  it('describes the grounded mode so the choice explains itself', async () => {
+    const { wrapper } = createWrapper();
 
     render(
       <AiGroundingControl
         materialId="mat-1"
         grounding="whole"
-        onSetGrounding={onSetGrounding}
+        onSetGrounding={vi.fn()}
       />,
       { wrapper },
     );
 
-    expect(await screen.findByText('(Default for new chats)')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/text is attached to each new message/i),
+    ).toBeInTheDocument();
   });
 
-  it('shows "Set as default for new chats" button when grounding differs from default and updates preference on click', async () => {
-    const prefRepo = new InMemoryPreferencesRepository('whole');
-    const { wrapper } = createWrapper(prefRepo);
-    const onSetGrounding = vi.fn();
+  it('describes the ungrounded mode in its own words', async () => {
+    const { wrapper } = createWrapper();
 
     render(
       <AiGroundingControl
         materialId="mat-1"
         grounding="none"
-        onSetGrounding={onSetGrounding}
+        onSetGrounding={vi.fn()}
       />,
       { wrapper },
     );
 
-    const btn = await screen.findByRole('button', { name: /Save no material as default/i });
-    expect(btn).toBeInTheDocument();
-
-    fireEvent.click(btn);
-
-    await waitFor(async () => {
-      expect(await prefRepo.getAiGroundingDefault()).toBe('none');
-    });
-
-    expect(await screen.findByText('(Default for new chats)')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/answers come from general knowledge/i),
+    ).toBeInTheDocument();
   });
 
   it('invokes onSetGrounding when clicking an option', async () => {

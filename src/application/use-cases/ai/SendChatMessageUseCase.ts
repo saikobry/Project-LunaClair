@@ -3,6 +3,7 @@ import type { AiChatRepository } from '../../../domain/ai/repositories/AiChatRep
 import type {
   AiChatMessage,
   AiDocumentContext,
+  AiGroundingMode,
   AiMessageRecord,
   AiStreamEvent,
   AiTutorMode,
@@ -97,6 +98,11 @@ export class SendChatMessageUseCase {
     // 1. Resolve grounding once, for the whole turn, from the conversation's own record. No caller
     //    supplies the material, so none can forget it — the reason a retry used to lose the document.
     let documentContext: AiDocumentContext | undefined;
+    // The resolved mode is a per-turn *request fact* snapshotted onto the turn records below. Kept
+    // outside the `try` so a successful resolution survives to the write path; a failure throws before
+    // assignment, leaving it `undefined`, so a failed turn carries no grounding claim rather than a
+    // guessed one.
+    let resolvedGrounding: AiGroundingMode | undefined;
     if (threadId) {
       try {
         const snapshot = await this.groundingResolver.resolve(
@@ -104,6 +110,7 @@ export class SendChatMessageUseCase {
           { model: input.model, signal: input.signal },
         );
         documentContext = snapshot.documentContext;
+        resolvedGrounding = snapshot.mode;
       } catch (err: unknown) {
         // An abort is the user ending the request, not a failure: write nothing, exactly like an
         // interrupted turn, which is left to the recovery path.
@@ -127,6 +134,14 @@ export class SendChatMessageUseCase {
       }
     }
 
+    // The user turn is stamped now that grounding has settled. `'none'` is written when the mode was
+    // resolved and off; `undefined` is reserved for "never resolved" (a failed turn, or a pre-field
+    // row). This is deliberately `!== undefined`, not a truthiness check — do not simplify it to omit
+    // `'none'`, which would erase the distinction between a checked-off turn and a legacy one.
+    if (userRecord && resolvedGrounding !== undefined) {
+      userRecord.metadata = { grounding: resolvedGrounding };
+    }
+
     // 2. Open the turn atomically: the user record and its assistant placeholder land in one
     //    transaction, so no cancellation can strand a user turn without a partner. The placeholder is
     //    what the pre-existing `recoverInterruptedMessages` repairs on reopen — this is why
@@ -143,6 +158,11 @@ export class SendChatMessageUseCase {
         content: '',
         status: 'streaming',
         createdAt: new Date(placeholderTime).toISOString(),
+        // Carried onto the placeholder so an interrupted turn (recovered, never settled) still
+        // remembers the request fact; the settle path overwrites it with the same value.
+        ...(resolvedGrounding !== undefined
+          ? { metadata: { grounding: resolvedGrounding } }
+          : {}),
       };
       try {
         await this.chatRepo.saveMessagePair(userRecord, placeholder);
@@ -212,6 +232,9 @@ export class SendChatMessageUseCase {
         const telemetry: NonNullable<AiMessageRecord['metadata']> = {
           ...(finalUsage ? { usage: finalUsage } : {}),
           ...(finalModel ? { model: finalModel } : {}),
+          // A stream error after successful grounding still records that the material was attached —
+          // the request fact is about what was sent, not about how the turn ended.
+          ...(resolvedGrounding !== undefined ? { grounding: resolvedGrounding } : {}),
         };
 
         const settle = async (

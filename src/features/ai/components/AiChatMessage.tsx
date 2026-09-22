@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
-import { Bot, User, AlertCircle, RotateCcw } from 'lucide-react';
+import { Bot, User, AlertCircle, RotateCcw, Paperclip } from 'lucide-react';
 import type { AiMessageRecord } from '../../../domain/ai/models/ai.types';
 import { aiSanitizeSchema } from '../utils/aiMarkdown';
 import { Button } from '../../../shared/ui/Button/Button';
@@ -169,6 +169,25 @@ const styles = stylex.create({
     marginBottom: 6,
     display: 'inline-block',
   },
+  groundedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    fontSize: '12px',
+    fontWeight: 600,
+    padding: '4px 10px 4px 8px',
+    borderRadius: '999px',
+    backgroundColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)',
+    color: 'var(--color-accent)',
+    border: '1px solid color-mix(in srgb, var(--color-accent) 34%, transparent)',
+    marginBottom: 8,
+  },
+  groundedBadgeIcon: {
+    width: 13,
+    height: 13,
+    flexShrink: 0,
+  },
 });
 
 const markdownComponents: Components = {
@@ -199,6 +218,26 @@ export interface AiChatMessageProps {
   onRetry?: (messageId: string) => void;
   /** Overrides the wait label shown while a turn is still streaming. */
   streamingLabel?: string;
+}
+
+/**
+ * The per-turn **"Material attached"** tag — the request fact that grounding was on when the reply
+ * was sent (`metadata.grounding === 'whole'`), never an output claim about what the model used.
+ *
+ * A component that returns `null` rather than a `{cond && <tag/>}` expression inside
+ * `AiChatMessage`: the condition lives here so the render function's control flow stays flat.
+ *
+ * Assistant-only — the tag describes the reply, not the prompt. `'none'` (resolved and off) and
+ * `undefined` (legacy, or a turn whose grounding never resolved) both render nothing.
+ */
+function GroundedBadge({ message }: { message: AiMessageRecord }) {
+  if (message.role !== 'assistant' || message.metadata?.grounding !== 'whole') return null;
+  return (
+    <span {...stylex.props(styles.groundedBadge)}>
+      <Paperclip {...stylex.props(styles.groundedBadgeIcon)} aria-hidden="true" />
+      Material attached
+    </span>
+  );
 }
 
 export const AiChatMessage = memo(function AiChatMessage({
@@ -234,6 +273,7 @@ export const AiChatMessage = memo(function AiChatMessage({
         {isInterrupted && (
           <span {...stylex.props(styles.interruptedBadge)}>Interrupted</span>
         )}
+        <GroundedBadge message={message} />
 
         {isUser ? (
           <div>{message.content}</div>

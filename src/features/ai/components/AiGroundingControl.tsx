@@ -1,39 +1,22 @@
-import { useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import type { AiGroundingMode } from '../../../domain/ai/models/ai.types';
-import { useAiGroundingDefault } from '../hooks/queries/useAiGroundingDefault';
+import { resolveGroundingNotice } from '../utils/aiGroundingNotice';
 
 const styles = stylex.create({
   row: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
     padding: '4px 16px 6px',
     backgroundColor: 'var(--color-background-surface)',
   },
-  affordance: {
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'right',
-  },
-  defaultButton: {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    margin: 0,
-    fontSize: 11,
-    lineHeight: 1.35,
-    color: 'var(--color-accent)',
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    fontFamily: 'inherit',
-    ':hover': {
-      color: 'var(--color-accent-hover)',
-    },
-  },
-  defaultActiveText: {
+  /**
+   * Same treatment as the model picker's notice (`AiModelPicker`): a quiet secondary line that
+   * describes the option currently selected, so the choice explains itself.
+   */
+  notice: {
     fontSize: 11,
     lineHeight: 1.35,
     color: 'var(--color-text-secondary)',
@@ -47,10 +30,15 @@ export interface AiGroundingControlProps {
 }
 
 /**
- * Primary toggle and secondary default affordance for thread-scoped material document grounding.
+ * Thread-scoped material document grounding toggle.
  *
- * The primary control edits the active thread (or draft); the secondary affordance persists
- * the choice into preferences as the default for new conversations.
+ * Edits the active thread (or draft) only. The new-conversation default lives
+ * in Settings (`AiSettingsSection`) — deliberately not here, so a per-thread
+ * choice cannot silently become a global one.
+ *
+ * Each mode carries a one-line description of what it does to the next message, resolved from the
+ * current value rather than shown as static help — the control states its own meaning.
+ *
  * Only rendered when materialId is present (material-scoped workspace).
  */
 export function AiGroundingControl({
@@ -58,15 +46,7 @@ export function AiGroundingControl({
   grounding,
   onSetGrounding,
 }: AiGroundingControlProps) {
-  const { defaultMode, setDefaultMode } = useAiGroundingDefault();
-
-  const handleSaveDefault = useCallback(() => {
-    void setDefaultMode(grounding);
-  }, [grounding, setDefaultMode]);
-
   if (materialId === undefined) return null;
-
-  const isCurrentDefault = grounding === defaultMode;
 
   return (
     <div {...stylex.props(styles.row)}>
@@ -79,22 +59,7 @@ export function AiGroundingControl({
         <SegmentedControlItem value="whole" label="Whole material" />
         <SegmentedControlItem value="none" label="No material" />
       </SegmentedControl>
-      <div {...stylex.props(styles.affordance)}>
-        {isCurrentDefault ? (
-          <span {...stylex.props(styles.defaultActiveText)} title="Current default for new conversations">
-            (Default for new chats)
-          </span>
-        ) : (
-          <button
-            type="button"
-            {...stylex.props(styles.defaultButton)}
-            onClick={handleSaveDefault}
-            aria-label={`Save ${grounding === 'whole' ? 'whole material' : 'no material'} as default for new conversations`}
-          >
-            Set as default for new chats
-          </button>
-        )}
-      </div>
+      <span {...stylex.props(styles.notice)}>{resolveGroundingNotice(grounding)}</span>
     </div>
   );
 }

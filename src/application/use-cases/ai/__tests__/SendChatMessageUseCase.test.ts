@@ -482,4 +482,135 @@ describe('SendChatMessageUseCase', () => {
       expect(messages[1].content).toBe('');
     });
   });
+
+  describe('per-turn grounding stamp', () => {
+    async function saveThread(grounding: 'none' | 'whole', materialId?: string): Promise<string> {
+      const id = `stamp-${grounding}-${materialId ?? 'global'}`;
+      await chatRepo.saveThread({
+        id,
+        materialId,
+        title: 'Stamp',
+        grounding,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      return id;
+    }
+
+    function prompt(id: string, content: string, createdAt: string) {
+      return { id, role: 'user' as const, content, createdAt };
+    }
+
+    async function drain(useCase: SendChatMessageUseCase, threadId: string, message: ReturnType<typeof prompt>) {
+      for await (const _ of useCase.execute({ threadId, messages: [message] })) {
+        // drained
+      }
+    }
+
+    it('stamps the resolved mode onto both records of a grounded turn', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Grounded.'] });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
+
+      await drain(useCase, threadId, prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z'));
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages.map((m) => m.metadata?.grounding)).toEqual(['whole', 'whole']);
+    });
+
+    it('writes an explicit "none" for a healthy ungrounded turn', async () => {
+      // "Checked and off" must stay distinguishable from "never resolved": see the failed-turn test.
+      const mockAi = new MockAiAdapter({ tokens: ['From knowledge.'] });
+      const threadId = await saveThread('none', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
+
+      await drain(useCase, threadId, prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z'));
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages.map((m) => m.metadata?.grounding)).toEqual(['none', 'none']);
+    });
+
+    it('omits the stamp when grounding never resolved, rather than claiming "none"', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['should not run'] });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(
+        mockAi,
+        createGroundingResolver(chatRepo, { material: null }),
+        chatRepo,
+      );
+
+      await drain(useCase, threadId, prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z'));
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages.map((m) => m.metadata?.grounding)).toEqual([undefined, undefined]);
+    });
+
+    it('keeps each turn\'s mode after the thread grounding flips', async () => {
+      // The transcript is mixed by design: earlier turns must not be rewritten by a later toggle.
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
+
+      await drain(useCase, threadId, prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z'));
+      await chatRepo.setGrounding(threadId, 'none');
+      await drain(useCase, threadId, prompt('u-2', 'Again.', '2026-01-01T00:06:00.000Z'));
+
+      const messages = await chatRepo.getMessages(threadId);
+      // Asserted per role: the assistant rows settle at wall-clock time, so the interleaved storage order
+      // is not the conversational order here (the user prompts use fixed past timestamps).
+      const byRole = (role: 'user' | 'assistant') =>
+        messages.filter((m) => m.role === role).map((m) => m.metadata?.grounding);
+      expect(byRole('user')).toEqual(['whole', 'none']);
+      expect(byRole('assistant')).toEqual(['whole', 'none']);
+      expect(messages).toHaveLength(4);
+    });
+
+    it('keeps the stamp on a turn that was interrupted before it settled', async () => {
+      const controller = new AbortController();
+      const mockAi = new MockAiAdapter({ tokens: ['a', 'b'] });
+      const original = mockAi.streamChat.bind(mockAi);
+      mockAi.streamChat = (request) =>
+        (async function* () {
+          for await (const event of original(request)) {
+            if (event.type === 'token') controller.abort();
+            yield event;
+          }
+        })();
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
+
+      for await (const _ of useCase.execute({
+        threadId,
+        messages: [prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z')],
+        signal: controller.signal,
+      })) {
+        // drained
+      }
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages).toHaveLength(2);
+      expect(messages[1].status).toBe('streaming');
+      expect(messages.map((m) => m.metadata?.grounding)).toEqual(['whole', 'whole']);
+    });
+
+    it('keeps the stamp on a grounded turn that settles as a stream error', async () => {
+      // The request fact is about what was *sent*, not how the turn ended: grounding succeeded and the
+      // material went into the prompt, so a provider failure must not erase that from the record.
+      const mockAi = new MockAiAdapter({
+        shouldFail: true,
+        errorCode: 'API_ERROR',
+        errorMessage: 'Service failure',
+      });
+      const threadId = await saveThread('whole', GROUNDING_MATERIAL.id);
+      const useCase = new SendChatMessageUseCase(mockAi, createGroundingResolver(chatRepo), chatRepo);
+
+      await drain(useCase, threadId, prompt('u-1', 'Explain.', '2026-01-01T00:05:00.000Z'));
+
+      const messages = await chatRepo.getMessages(threadId);
+      expect(messages).toHaveLength(2);
+      expect(messages[1].status).toBe('error');
+      expect(messages[1].metadata?.errorCode).toBe('API_ERROR');
+      expect(messages.map((m) => m.metadata?.grounding)).toEqual(['whole', 'whole']);
+    });
+  });
 });
