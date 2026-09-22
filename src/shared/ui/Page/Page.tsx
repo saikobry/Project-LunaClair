@@ -1,5 +1,7 @@
 import { type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '../Button/Button';
 
 const mobileScreen = '@media (max-width: 768px)';
 
@@ -50,6 +52,10 @@ const styles = stylex.create({
   content: {
     flex: 1,
   },
+  backRow: {
+    display: 'flex',
+    marginBottom: 16,
+  },
   breadcrumbHeaderHidden: {
     marginBottom: 16,
   },
@@ -75,6 +81,14 @@ export interface PageProps {
   breadcrumb?: ReactNode;
   /** Action elements rendered in the header (buttons, etc.). */
   actions?: ReactNode;
+  /**
+   * Optional back navigation. The screen owns the destination (this callback
+   * performs it); Page only renders the chrome. Rendered above the title when
+   * provided, so screens opt in without building their own breadcrumb row.
+   */
+  onBack?: () => void;
+  /** Accessible name for the back button. @default 'Back' */
+  backLabel?: string;
   /** When true, visually hides the header while preserving the h1 for screen readers. */
   headerHidden?: boolean;
   /** Page content. */
@@ -93,11 +107,25 @@ export function Page({
   description,
   breadcrumb,
   actions,
+  onBack,
+  backLabel = 'Back',
   headerHidden = false,
   children,
 }: PageProps) {
   return (
     <div {...stylex.props(styles.screen)}>
+      {onBack && (
+        <div {...stylex.props(styles.backRow)}>
+          <Button
+            variant="secondary"
+            label={backLabel}
+            icon={<ArrowLeft size={15} />}
+            onClick={onBack}
+          >
+            Back
+          </Button>
+        </div>
+      )}
       {breadcrumb && (
         <div {...stylex.props(headerHidden && styles.breadcrumbHeaderHidden)}>
           {breadcrumb}

@@ -39,7 +39,7 @@ Owns the route-level presentation screens, page layouts, and cross-feature capab
 - `analytics/` — Learning Analytics Screen:
   - `AnalyticsScreen.tsx` — Learning insights and study statistics dashboard route (`/analytics`).
 - `settings/` — Settings Screen:
-  - `SettingsScreen.tsx` — Device-local preferences route (`/settings`), a composer over feature-owned sections (AI owns `AiSettingsSection`; new preference areas arrive as new sections, never as logic here).
+  - `SettingsScreen.tsx` — Device-local preferences route (`/settings`), a composer over feature-owned sections (AI owns `AiSettingsSection`; new preference areas arrive as new sections, never as logic here). Back navigation arrives as `onBack` from the shell (`goBack`: last in-app route, Home fallback, so the page behaves like an overlay over wherever you came from) and forwards to `Page`, which owns the button chrome.
 - `importer/` — Document Importer Screen:
   - `ImporterScreen.tsx` — 5-step document import wizard route (`/importer`).
 - `shared-package/` — Shared Package Screen:

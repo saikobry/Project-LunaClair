@@ -78,6 +78,8 @@ function ExploreRoute({
 interface ShellRoutesProps {
   currentRoute: AppRoute;
   navigate: (route: AppRoute) => void;
+  /** Returns to the last in-app route (Settings back), falling back to Home. */
+  goBack: () => void;
   /** Bottom-bar clearance (px) for the quiz canvas toolbar lane. */
   bottomInset: number;
 }
@@ -87,7 +89,7 @@ interface ShellRoutesProps {
  * the route screens need (open material, launch quiz, manage, exit).
  * Extracted from `AppShell` so the shell stays a thin composition root.
  */
-export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutesProps) {
+export function ShellRoutes({ currentRoute, navigate, goBack, bottomInset }: ShellRoutesProps) {
   const touchMutation = useTouchMaterial();
 
   // `fromCollectionId` is the entry-point origin the workspace breadcrumb needs
@@ -194,7 +196,7 @@ export function ShellRoutes({ currentRoute, navigate, bottomInset }: ShellRoutes
       )}
       {currentRoute.kind === 'settings' && (
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <SettingsScreen />
+          <SettingsScreen onBack={goBack} />
         </Suspense>
       )}
       {currentRoute.kind === 'import' && (

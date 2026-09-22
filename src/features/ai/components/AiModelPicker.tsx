@@ -15,11 +15,22 @@ const styles = stylex.create({
     padding: '6px 16px 8px',
     backgroundColor: 'var(--color-background-surface)',
   },
+  rowStacked: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
   notice: {
     fontSize: 11,
     lineHeight: 1.35,
     textAlign: 'right',
     color: 'var(--color-text-secondary)',
+  },
+  noticeStacked: {
+    textAlign: 'left',
   },
   noticeWarning: {
     color: 'var(--color-warning)',
@@ -49,6 +60,13 @@ export interface AiModelPickerProps {
   isOverBudget: boolean;
   /** Seconds until a rate-limited request may be sent again; 0 = ready. */
   cooldownSeconds: number;
+  /**
+   * `'inline'` (default) is the drawer's horizontal strip — control beside its
+   * notice. `'stacked'` is the Settings card row — control full-width with the
+   * notice below it, no padding or surface of its own (the section row owns
+   * the geometry, so inline insets would double up).
+   */
+  layout?: 'inline' | 'stacked';
 }
 
 /**
@@ -73,12 +91,14 @@ export function AiModelPicker({
   onSelectModel,
   isOverBudget,
   cooldownSeconds,
+  layout = 'inline',
 }: AiModelPickerProps) {
+  const stacked = layout === 'stacked';
   const unavailableNotice = resolvePickerUnavailableNotice(isAiDisabled, models.length > 0);
   if (unavailableNotice) {
     return (
-      <div {...stylex.props(styles.row)}>
-        <span {...stylex.props(styles.notice, styles.noticeWarning)}>{unavailableNotice}</span>
+      <div {...stylex.props(styles.row, stacked && styles.rowStacked)}>
+        <span {...stylex.props(styles.notice, stacked && styles.noticeStacked, styles.noticeWarning)}>{unavailableNotice}</span>
       </div>
     );
   }
@@ -94,7 +114,7 @@ export function AiModelPicker({
   });
 
   return (
-    <div {...stylex.props(styles.row)}>
+    <div {...stylex.props(styles.row, stacked && styles.rowStacked)}>
       <SegmentedControl
         label="AI model for the next message"
         value={selectedModelId ?? ''}
@@ -106,7 +126,7 @@ export function AiModelPicker({
         ))}
       </SegmentedControl>
       {notice && (
-        <span {...stylex.props(styles.notice, notice.isWarning && styles.noticeWarning)}>
+        <span {...stylex.props(styles.notice, stacked && styles.noticeStacked, notice.isWarning && styles.noticeWarning)}>
           {notice.message}
         </span>
       )}

@@ -120,7 +120,7 @@ test.describe('Settings E2E', () => {
 
   async function openSettings(page: Page) {
     await page
-      .getByRole('navigation', { name: 'Desktop Navigation' })
+      .getByRole('banner')
       .getByRole('button', { name: 'Settings' })
       .click();
     await expect(page).toHaveURL('/settings');

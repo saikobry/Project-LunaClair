@@ -8,7 +8,6 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: 24,
     width: '100%',
-    maxWidth: 720,
   },
 });
 
@@ -17,13 +16,16 @@ const styles = stylex.create({
  *
  * A composer, not an owner: each section is owned by its feature (AI owns the
  * assistant section), and this screen only stacks them. New preference areas
- * arrive as new sections, never as logic in this file.
+ * arrive as new sections, never as logic in this file. The back destination
+ * arrives as `onBack` (the shell's `goBack`: last in-app route, Home fallback);
+ * the screen only forwards it to `Page`, which owns the button chrome.
  */
-export function SettingsScreen() {
+export function SettingsScreen({ onBack }: { onBack?: () => void }) {
   return (
     <Page
       title="Settings"
       description="Preferences for this device. They never sync and never leave this browser."
+      onBack={onBack}
     >
       <div {...stylex.props(styles.content)}>
         <AiSettingsSection />

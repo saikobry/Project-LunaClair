@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { Download } from 'lucide-react';
+import { Download, Settings } from 'lucide-react';
 import logoSvg from '../../assets/logo.svg';
 import { APP_VERSION } from '../../shared/constants/appInfo';
 import { SyncStatusPill } from '../../features/sync/components/SyncStatusPill';
@@ -7,25 +7,70 @@ import { isIOS, isStandalone } from '../overlays/installDetection';
 import { useFocusMode } from '../providers/FocusModeContext';
 import { useHeaderScroll } from './useHeaderScroll';
 import { styles } from './appHeader.stylex';
+import type { AppRoute } from '../routing/routing';
+import type { NavActiveSection } from './navigation/navigation.types';
 
 export interface AppHeaderProps {
   /** Opens the install instructions dialog (PWA opt-in). */
   onOpenInstallInfo?: () => void;
+  /** Active section for the header Settings action (`settings` highlights it). */
+  active?: NavActiveSection;
+  /** Navigates to a route (the header Settings action goes to `{ kind: 'settings' }`). */
+  onNavigate?: (route: AppRoute) => void;
 }
 
 /**
  * Global Top Bar: application identity (logo, title, version) on the left,
- * and system actions (PWA install, cloud sync) on the right.
+ * and system actions (PWA install, cloud sync, Settings) on the right.
  *
  * Appears as a horizontal top bar at the top, and morphs into floating
- * compact glass islands with a vertically stacked action capsule on scroll
+ * compact glass islands with a single-row action capsule on scroll
  * or when Focus Mode is active.
  *
  * On desktop/tablet the bar spans the screens column only (it starts after
  * the navigation rail); in Focus Mode the rail collapses, so the bar takes
  * the full viewport width back.
  */
-export function AppHeader({ onOpenInstallInfo }: AppHeaderProps) {
+/**
+ * Header Settings action: icon + label at rest, icon-only when compact or on
+ * tablet (same vocabulary as the sync pill and the install button).
+ */
+function HeaderSettingsButton({
+  isCompact,
+  isActive,
+  onNavigate,
+}: {
+  isCompact: boolean;
+  isActive: boolean;
+  onNavigate?: (route: AppRoute) => void;
+}) {
+  return (
+    <button
+      type="button"
+      {...stylex.props(
+        styles.settingsButton,
+        isActive && styles.settingsButtonActive,
+        isCompact && styles.settingsButtonCompact,
+      )}
+      onClick={() => onNavigate?.({ kind: 'settings' })}
+      aria-current={isActive ? 'page' : undefined}
+      title="Settings"
+      aria-label="Settings"
+    >
+      <Settings size={13} />
+      <span
+        {...stylex.props(
+          styles.settingsLabel,
+          isCompact && styles.settingsLabelCompact,
+        )}
+      >
+        Settings
+      </span>
+    </button>
+  );
+}
+
+export function AppHeader({ onOpenInstallInfo, active, onNavigate }: AppHeaderProps) {
   const { isFocusMode } = useFocusMode();
   const isScrolled = useHeaderScroll();
   const isCompact = isScrolled || isFocusMode;
@@ -44,7 +89,7 @@ export function AppHeader({ onOpenInstallInfo }: AppHeaderProps) {
         </div>
       </div>
 
-      {/* Global Status & Actions / Right Island (Horizontal at top -> Vertical Stack when Scrolled) */}
+      {/* Global Status & Actions / Right Island (stays a horizontal capsule when scrolled) */}
       <div {...stylex.props(styles.actionsIsland, isCompact && styles.actionsIslandCompact)}>
         {showInstall && (
           <button
@@ -69,6 +114,11 @@ export function AppHeader({ onOpenInstallInfo }: AppHeaderProps) {
           </button>
         )}
         <SyncStatusPill isCompact={isCompact} />
+        <HeaderSettingsButton
+          isCompact={isCompact}
+          isActive={active === 'settings'}
+          onNavigate={onNavigate}
+        />
       </div>
     </header>
   );

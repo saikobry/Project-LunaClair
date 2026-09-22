@@ -281,7 +281,7 @@ const styles = stylex.create({
  */
 export default function AppShell() {
   const appContext = useContext(ApplicationContext);
-  const { currentRoute, navigate } = useAppRoute();
+  const { currentRoute, navigate, goBack } = useAppRoute();
   const { isFocusMode, toggleFocusMode } = useShellFocusMode();
 
   useBackgroundSync(appContext);
@@ -307,6 +307,8 @@ export default function AppShell() {
         <div {...stylex.props(styles.headerContainer)}>
           <AppHeader
             onOpenInstallInfo={canOfferInstall ? () => setInstallInfoOpen(true) : undefined}
+            active={active}
+            onNavigate={navigate}
           />
         </div>
 
@@ -331,6 +333,7 @@ export default function AppShell() {
           <ShellRoutes
             currentRoute={currentRoute}
             navigate={navigate}
+            goBack={goBack}
             bottomInset={bottomInset}
           />
         </main>

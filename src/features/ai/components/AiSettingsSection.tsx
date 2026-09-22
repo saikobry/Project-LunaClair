@@ -32,7 +32,7 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
-    padding: '12px 16px',
+    padding: '16px 20px',
   },
   rowLabel: {
     fontSize: 14,
@@ -47,7 +47,7 @@ const styles = stylex.create({
   divider: {
     height: 1,
     backgroundColor: 'var(--color-border)',
-    margin: '0 16px',
+    margin: '0 20px',
   },
 });
 
@@ -102,6 +102,7 @@ export function AiSettingsSection() {
             onSelectModel={modelSelection.selectModel}
             isOverBudget={false}
             cooldownSeconds={0}
+            layout="stacked"
           />
         </div>
         <div {...stylex.props(styles.divider)} aria-hidden="true" />
@@ -121,7 +122,17 @@ export function AiSettingsSection() {
           </SegmentedControl>
         </div>
         <div {...stylex.props(styles.divider)} aria-hidden="true" />
-        <AiSelectionThreadModeControl threadMode={threadMode} onSetThreadMode={handleSetThreadMode} />
+        <div {...stylex.props(styles.row)}>
+          <span {...stylex.props(styles.rowLabel)}>Selection replies</span>
+          <span {...stylex.props(styles.rowHint)}>
+            Where Explain, Simplify, and Example send their turn.
+          </span>
+          <AiSelectionThreadModeControl
+            threadMode={threadMode}
+            onSetThreadMode={handleSetThreadMode}
+            layout="stacked"
+          />
+        </div>
       </Card>
     </section>
   );

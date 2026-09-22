@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Home, LibraryBig, Compass, TrendingUp, Settings } from 'lucide-react';
+import { Home, LibraryBig, Compass, TrendingUp } from 'lucide-react';
 import type { AppRoute } from '../../routing/routing';
 import type { NavActiveSection } from './navigation.types';
 
 export interface PrimaryNavItem {
-  id: 'home' | 'library' | 'explore' | 'analytics' | 'settings';
+  id: 'home' | 'library' | 'explore' | 'analytics';
   /** Visible label for desktop sidebar. */
   label: string;
   /** Tooltip / accessible name. */
@@ -54,13 +54,5 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
     icon: TrendingUp,
     route: { kind: 'analytics' },
     isActive: (active) => active === 'analytics',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    title: 'Settings',
-    icon: Settings,
-    route: { kind: 'settings' },
-    isActive: (active) => active === 'settings',
   },
 ];
