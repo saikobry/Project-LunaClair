@@ -117,6 +117,7 @@ export function AiSettingsSection() {
             value={defaultMode}
             onChange={(value) => handleSetGroundingDefault(value as AiGroundingMode)}
             size="sm"
+            layout="fill"
           >
             <SegmentedControlItem value="whole" label="Whole material" />
             <SegmentedControlItem value="none" label="No material" />

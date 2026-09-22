@@ -13,6 +13,7 @@ import { useAiSelectionThreadMode } from '../hooks/queries/useAiSelectionThreadM
 import { estimateSessionContext } from '../utils/aiSessionMetrics';
 import { type AiSelectionAction } from '../utils/selectionActionPrompt';
 import { useAiSessionDeletion } from '../hooks/useAiSessionDeletion';
+import { useAiDrawerEscape } from '../hooks/useAiDrawerEscape';
 import { useAiSelectionAction } from '../hooks/useAiSelectionAction';
 import { useAiGroundingContext } from '../hooks/queries/useAiGroundingContext';
 import type { AiGroundingTarget } from '../../../application/use-cases/ai/AiGroundingResolver';
@@ -114,6 +115,15 @@ export function AiChatDrawer({
   // The workspace behind the drawer must not scroll under it — the drawer is a
   // non-modal overlay with its own backdrop, so nothing else locks the page.
   useBodyScrollLock(isOpen);
+
+  // Escape dismisses the drawer, layered so one keypress peels one surface
+  // (open dialog → history panel → drawer); the mechanics live in the hook.
+  useAiDrawerEscape({
+    isOpen,
+    isHistoryOpen,
+    onCloseHistory: () => setIsHistoryOpen(false),
+    onClose,
+  });
 
   // Which model the next message asks for. Per request, not per conversation: the thread stores no
   // model, so switching here changes the next turn and never the one already streaming.

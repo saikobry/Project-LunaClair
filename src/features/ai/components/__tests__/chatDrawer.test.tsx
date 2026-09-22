@@ -154,6 +154,80 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       expect(document.body.style.overflow).toBe('');
     });
 
+    it('closes on Escape while open, and stops listening when closed', () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const harness = createAiChatHarness(db, mockAi);
+      const onClose = vi.fn();
+
+      const { rerender } = render(
+        <AiChatDrawer isOpen={true} onClose={onClose} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <AiChatDrawer isOpen={false} onClose={onClose} materialId="material-bio" />,
+      );
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('peels one layer per Escape: history panel first, drawer second', async () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const harness = createAiChatHarness(db, mockAi);
+      const onClose = vi.fn();
+
+      render(
+        <AiChatDrawer isOpen={true} onClose={onClose} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
+      await screen.findByRole('region', { name: /Conversation history/i });
+
+      // First Escape closes only the panel stacked inside the drawer.
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('region', { name: /Conversation history/i }),
+        ).not.toBeInTheDocument();
+      });
+      expect(onClose).not.toHaveBeenCalled();
+
+      // The next one reaches the drawer itself.
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves Escape to a native dialog layered above the drawer', () => {
+      const mockAi = new MockAiAdapter({ tokens: ['Answer.'] });
+      const harness = createAiChatHarness(db, mockAi);
+      const onClose = vi.fn();
+
+      render(
+        <AiChatDrawer isOpen={true} onClose={onClose} materialId="material-bio" />,
+        { wrapper: harness.wrapper },
+      );
+
+      // Stands in for the delete confirmation (or any app dialog): while a
+      // dialog is open, Escape belongs to it — its `cancel` fires as this
+      // same keypress's default action, after our document listener runs.
+      const dialog = document.createElement('dialog');
+      dialog.setAttribute('open', '');
+      document.body.appendChild(dialog);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).not.toHaveBeenCalled();
+
+      dialog.remove();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it('shows a stalled-aware wait label while the assistant has produced no text', async () => {
       const mockAi = new MockAiAdapter({
         tokens: ['Pacemaker.'],

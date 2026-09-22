@@ -129,6 +129,7 @@ export function AiModelPicker({
         value={selectedModelId ?? ''}
         onChange={(value) => onSelectModel(value)}
         size="sm"
+        layout="fill"
       >
         {models.map((model) => (
           <SegmentedControlItem key={model.id} value={model.id} label={model.display.name} />

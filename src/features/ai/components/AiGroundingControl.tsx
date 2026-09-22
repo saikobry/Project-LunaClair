@@ -55,6 +55,7 @@ export function AiGroundingControl({
         value={grounding}
         onChange={(val) => onSetGrounding(val as AiGroundingMode)}
         size="sm"
+        layout="fill"
       >
         <SegmentedControlItem value="whole" label="Whole material" />
         <SegmentedControlItem value="none" label="No material" />

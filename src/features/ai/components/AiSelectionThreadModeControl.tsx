@@ -66,6 +66,7 @@ export function AiSelectionThreadModeControl({
         value={threadMode}
         onChange={(value) => onSetThreadMode(value as AiSelectionThreadMode)}
         size="sm"
+        layout="fill"
       >
         <SegmentedControlItem value="latest" label="Latest chat" />
         <SegmentedControlItem value="new" label="New chat" />
