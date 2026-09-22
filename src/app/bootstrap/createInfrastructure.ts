@@ -39,6 +39,7 @@ import { dexieAssetRepository } from '../../infrastructure/database/repositories
 import { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/registry/createExtractors';
+import { AiVisionExtractor } from '../../infrastructure/importer/engines/AiVisionExtractor';
 import { dexieSyncQueueRepository } from '../../infrastructure/database/repositories/DexieSyncQueueRepository';
 import { dexieSyncStateRepository } from '../../infrastructure/database/repositories/DexieSyncStateRepository';
 import { dexieConflictDraftRepository } from '../../infrastructure/database/repositories/DexieConflictDraftRepository';
@@ -118,6 +119,7 @@ export function createInfrastructure(): Infrastructure {
     );
 
     const aiService = new WorkerAiAdapter();
+    const aiVisionExtractor = new AiVisionExtractor(aiService);
     const aiModelCatalogRepository = new WorkerAiModelCatalogRepository();
 
     const repositories: Repositories = {
@@ -159,7 +161,7 @@ export function createInfrastructure(): Infrastructure {
         providers: {
             credentials: localStorageCredentialsProvider,
         },
-        importerRegistry: createDefaultImporterRegistry(),
+        importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
         syncReconciler: dexieSyncReconciler,
     };
 }

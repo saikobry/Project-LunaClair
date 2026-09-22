@@ -60,4 +60,91 @@ describe('ExtractContentUseCase', () => {
         expect(candidate.status).toBe('error');
         expect(candidate.error?.code).toBe('unsupported-file');
     });
+
+    it('preserves partial extraction results into review candidate when cancelled mid-job', async () => {
+        const partialResult: ExtractionResult = {
+            text: 'Page 1 extracted content',
+            title: 'Partial Doc',
+            pageCount: 3,
+            pages: [
+                { pageNumber: 1, text: 'Page 1 extracted content', confidence: 95, source: 'ai-vision' },
+            ],
+            stats: {
+                wordCount: 4,
+                characterCount: 24,
+                headingsDetected: 0,
+                ocrPages: 1,
+                textPages: 0,
+            },
+            isPartial: true,
+        };
+
+        const mockImporter: ContentImporter = {
+            formatLabel: 'PDF Document',
+            supports: () => true,
+            extract: async () => {
+                const abortErr = new Error('Aborted');
+                abortErr.name = 'AbortError';
+                (abortErr as any).partialResult = partialResult;
+                throw abortErr;
+            },
+        };
+
+        const mockRegistry: ImporterRegistry = {
+            importers: [mockImporter],
+            acceptedTypes: '.pdf',
+            resolve: () => mockImporter,
+        };
+
+        const useCase = new ExtractContentUseCase(mockRegistry);
+        const file = new File(['data'], 'partial.pdf', { type: 'application/pdf' });
+        const ac = new AbortController();
+        ac.abort();
+
+        const candidate = await useCase.execute(file, { signal: ac.signal });
+
+        expect(candidate.status).toBe('review');
+        expect(candidate.extraction?.isPartial).toBe(true);
+        expect(candidate.extraction?.pages).toHaveLength(1);
+        expect(candidate.markdown).toContain('Page 1 extracted content');
+    });
+
+    it('populates usedVision in importMetadata when visionPages are present', async () => {
+        const mockResult: ExtractionResult = {
+            text: 'Vision transcribed text',
+            title: 'Vision Doc',
+            pageCount: 1,
+            pages: [
+                { pageNumber: 1, text: 'Vision transcribed text', confidence: 95, source: 'ai-vision' },
+            ],
+            stats: {
+                wordCount: 3,
+                characterCount: 23,
+                headingsDetected: 0,
+                ocrPages: 0,
+                visionPages: 1,
+                textPages: 0,
+            },
+        };
+
+        const mockImporter: ContentImporter = {
+            formatLabel: 'Image (OCR)',
+            supports: () => true,
+            extract: async () => mockResult,
+        };
+
+        const mockRegistry: ImporterRegistry = {
+            importers: [mockImporter],
+            acceptedTypes: '.png',
+            resolve: () => mockImporter,
+        };
+
+        const useCase = new ExtractContentUseCase(mockRegistry);
+        const file = new File(['fake img'], 'test.png', { type: 'image/png' });
+        const candidate = await useCase.execute(file);
+
+        expect(candidate.status).toBe('review');
+        expect(candidate.importMetadata?.usedVision).toBe(true);
+        expect(candidate.importMetadata?.usedOcr).toBe(false);
+    });
 });

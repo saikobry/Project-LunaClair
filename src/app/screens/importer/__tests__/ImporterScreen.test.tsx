@@ -241,4 +241,33 @@ describe('ImporterScreen', () => {
       expect(screen.getByText('Import to Library')).toBeInTheDocument();
     });
   });
+
+  it('passes selected ocrEngine to extraction execution', async () => {
+    const { container } = render(<ImporterScreen />, { wrapper: createWrapper() });
+
+    // Switch OCR engine to AI Vision
+    const visionRadio = screen.getByRole('radio', { name: /ai vision/i });
+    fireEvent.click(visionRadio);
+    expect(visionRadio).toBeChecked();
+
+    // Add file
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['content'], 'scan.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /start extraction/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /start extraction/i }));
+
+    await waitFor(() => {
+      expect(mockExtractExecute).toHaveBeenCalledWith(
+        expect.any(File),
+        expect.objectContaining({
+          ocrEngine: 'ai-vision',
+        }),
+      );
+    });
+  });
 });

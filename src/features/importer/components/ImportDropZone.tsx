@@ -5,10 +5,17 @@ import { FileUp } from 'lucide-react';
 
 interface ImportDropZoneProps {
   onFilesAdded: (files: File[]) => void;
+  ocrEngine?: 'tesseract' | 'ai-vision';
+  onOcrEngineChange?: (engine: 'tesseract' | 'ai-vision') => void;
 }
 
-export function ImportDropZone({ onFilesAdded }: ImportDropZoneProps) {
+export function ImportDropZone({
+  onFilesAdded,
+  ocrEngine = 'tesseract',
+  onOcrEngineChange,
+}: ImportDropZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -41,26 +48,89 @@ export function ImportDropZone({ onFilesAdded }: ImportDropZoneProps) {
   }, []);
 
   return (
-    <div
-      {...stylex.props(importerStyles.dropZone)}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      aria-label="Upload files"
-    >
-      <input
-        type="file"
-        multiple
-        accept=".pdf,.png,.jpg,.jpeg,.jfif,.heic,.heif,.webp,.lcpack,.json,application/json"
-        style={{ display: 'none' }}
-        ref={fileInputRef}
-        onChange={handleFileInputChange}
-      />
-      <FileUp size={48} color='#9ca3af' />
-      <div {...stylex.props(importerStyles.dropZoneText)}>Drag & drop your study materials here, or click to browse</div>
-      <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      <div
+        {...stylex.props(importerStyles.dropZone)}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload files"
+      >
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.png,.jpg,.jpeg,.jfif,.heic,.heif,.webp,.lcpack,.json,application/json"
+          style={{ display: 'none' }}
+          ref={fileInputRef}
+          onChange={handleFileInputChange}
+        />
+        <FileUp size={48} color='#9ca3af' />
+        <div {...stylex.props(importerStyles.dropZoneText)}>Drag & drop your study materials here, or click to browse</div>
+        <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages</div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+          padding: '10px 16px',
+          borderRadius: '8px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e5e7eb',
+          alignSelf: 'center',
+        }}
+        role="group"
+        aria-label="OCR Engine Selector"
+      >
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+          Extraction Engine:
+        </span>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            cursor: 'pointer',
+            color: 'var(--color-text-primary)',
+          }}
+        >
+          <input
+            type="radio"
+            name="ocr-engine"
+            value="tesseract"
+            checked={ocrEngine !== 'ai-vision'}
+            onChange={() => onOcrEngineChange?.('tesseract')}
+          />
+          Local OCR (Tesseract)
+        </label>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            cursor: isOffline ? 'not-allowed' : 'pointer',
+            opacity: isOffline ? 0.5 : 1,
+            color: 'var(--color-text-primary)',
+          }}
+          title={isOffline ? 'AI Vision requires an active internet connection' : undefined}
+        >
+          <input
+            type="radio"
+            name="ocr-engine"
+            value="ai-vision"
+            disabled={isOffline}
+            checked={ocrEngine === 'ai-vision'}
+            onChange={() => onOcrEngineChange?.('ai-vision')}
+          />
+          AI Vision (MAX){isOffline ? ' (Offline)' : ''}
+        </label>
+      </div>
     </div>
   );
 }

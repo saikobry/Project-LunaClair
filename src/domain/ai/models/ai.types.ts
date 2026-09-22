@@ -14,12 +14,21 @@ export type AiTutorMode =
 export type AiChatRole = 'user' | 'assistant' | 'system';
 
 /**
+ * Multimodal message content parts for AI vision and text.
+ */
+export type AiContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+export type AiMessageContent = string | AiContentPart[];
+
+/**
  * Chat message model for domain interactions.
  */
 export interface AiChatMessage {
   id: string;
   role: AiChatRole;
-  content: string;
+  content: AiMessageContent;
   createdAt: string; // ISO 8601 UTC
 }
 

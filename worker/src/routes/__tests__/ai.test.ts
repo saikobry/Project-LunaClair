@@ -928,3 +928,175 @@ describe('handleAiChat telemetry', () => {
     }
   });
 });
+
+describe('handleAiChat multimodal vision', () => {
+  const sampleValidJpeg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+
+  it('rejects image requests if model does not support vision', async () => {
+    const telemetry = captureTelemetry();
+    try {
+      const response = await handleAiChat(
+        makeCtx({
+          model: 'cf-llama-3.3-70b',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Transcribe this' },
+                { type: 'image_url', image_url: { url: sampleValidJpeg } },
+              ],
+            },
+          ],
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json).toMatchObject({
+        code: 'MODEL_UNAVAILABLE',
+        error: 'Model does not support vision',
+      });
+
+      expect(telemetry.records()).toEqual([
+        expect.objectContaining({
+          status: 400,
+          outcome: 'rejected',
+          code: 'MODEL_UNAVAILABLE',
+          hasImages: true,
+          model: 'cf-llama-3.3-70b',
+        }),
+      ]);
+      // Image data must never be logged in telemetry or console
+      expect(JSON.stringify(telemetry.records())).not.toContain('base64');
+    } finally {
+      telemetry.restore();
+    }
+  });
+
+  it('rejects unsupported image format', async () => {
+    const response = await handleAiChat(
+      makeCtx({
+        model: 'ukisai-swift-max',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Transcribe this' },
+              { type: 'image_url', image_url: { url: 'data:image/bmp;base64,Qk0=' } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const json = (await response.json()) as { error: string };
+    expect(json.error).toContain('data:image/(jpeg|png|webp);base64,...');
+  });
+
+  it('rejects oversized image payloads over 3MB', async () => {
+    // 3MB binary is ~4MB base64. Create base64 of 4.5MB
+    const oversizedBase64 = 'A'.repeat(4.5 * 1024 * 1024);
+    const response = await handleAiChat(
+      makeCtx({
+        model: 'ukisai-swift-max',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${oversizedBase64}` },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const json = (await response.json()) as { error: string };
+    expect(json.error).toContain('Image exceeds 3MB limit');
+  });
+
+  it('rejects batched multiple page images in single request', async () => {
+    const response = await handleAiChat(
+      makeCtx({
+        model: 'ukisai-swift-max',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: sampleValidJpeg } },
+              { type: 'image_url', image_url: { url: sampleValidJpeg } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const json = (await response.json()) as { error: string };
+    expect(json.error).toContain('Only single-page image payloads are supported');
+  });
+
+  it('successfully passes vision payload to ukisai provider and logs hasImages in telemetry', async () => {
+    const originalFetch = globalThis.fetch;
+    const telemetry = captureTelemetry();
+    try {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: ukisaiStream(),
+      } as unknown as Response);
+      globalThis.fetch = fetchMock;
+
+      const response = await handleAiChat(
+        makeCtx({
+          model: 'ukisai-swift-max',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Transcribe this page' },
+                { type: 'image_url', image_url: { url: sampleValidJpeg } },
+              ],
+            },
+          ],
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const events = await readEvents(response);
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        model: 'ukisai-swift-max',
+      });
+
+      // Verify request payload forwarded to ukisai
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+      const sentBody = JSON.parse(init.body) as {
+        messages: Array<{ role: string; content: unknown }>;
+      };
+      const userMsg = sentBody.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).toEqual([
+        { type: 'text', text: 'Transcribe this page' },
+        { type: 'image_url', image_url: { url: sampleValidJpeg } },
+      ]);
+
+      // Telemetry records hasImages: true and DOES NOT log raw image content
+      const [record] = telemetry.records();
+      expect(record).toMatchObject({
+        hasImages: true,
+        status: 200,
+        outcome: 'ok',
+        model: 'ukisai-swift-max',
+      });
+      expect(JSON.stringify(telemetry.records())).not.toContain(sampleValidJpeg);
+    } finally {
+      globalThis.fetch = originalFetch;
+      telemetry.restore();
+    }
+  });
+});

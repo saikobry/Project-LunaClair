@@ -4,7 +4,7 @@ export interface PageExtraction {
   pageNumber: number;
   text: string;
   confidence: number;
-  source: 'pdf-text' | 'ocr';
+  source: 'pdf-text' | 'ocr' | 'ai-vision';
   warnings?: string[];
 }
 
@@ -13,6 +13,7 @@ export interface ExtractionStats {
   characterCount: number;
   headingsDetected: number;
   ocrPages: number;
+  visionPages?: number;
   textPages: number;
 }
 
@@ -22,10 +23,11 @@ export interface ExtractionResult {
   pageCount: number;
   pages: PageExtraction[];
   stats: ExtractionStats;
+  isPartial?: boolean;
 }
 
 export interface ExtractionProgress {
-  phase: 'loading' | 'extracting' | 'ocr' | 'converting';
+  phase: 'scanning' | 'loading' | 'extracting' | 'ocr' | 'ai-vision' | 'converting' | 'cooldown' | 'done';
   current: number;
   total: number;
   percent: number;
@@ -39,6 +41,7 @@ export interface ImportMetadata {
   pageCount: number;
   usedOcr: boolean;
   ocrConfidence?: number;
+  usedVision?: boolean;
 }
 
 export type ImportErrorCode =

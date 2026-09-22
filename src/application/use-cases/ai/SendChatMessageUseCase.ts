@@ -83,13 +83,23 @@ export class SendChatMessageUseCase {
     const threadId = input.threadId;
 
     const lastMessage = input.messages[input.messages.length - 1];
+    const userRecordContent =
+      typeof lastMessage?.content === 'string'
+        ? lastMessage.content
+        : Array.isArray(lastMessage?.content)
+          ? lastMessage.content
+              .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+              .map((part) => part.text)
+              .join('\n')
+          : '';
+
     const userRecord: AiMessageRecord | undefined =
       threadId && lastMessage && lastMessage.role === 'user'
         ? {
             id: lastMessage.id,
             threadId,
             role: 'user',
-            content: lastMessage.content,
+            content: userRecordContent,
             status: 'complete',
             createdAt: lastMessage.createdAt,
           }

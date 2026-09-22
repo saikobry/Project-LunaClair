@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ExtractionProgressView } from '../ExtractionProgressView';
 import type { ImportCandidate } from '../../../../domain/importer/models/importer.types';
@@ -40,5 +40,62 @@ describe('ExtractionProgressView', () => {
     expect(screen.getByText('extracting')).toBeInTheDocument();
     expect(screen.getByText('error')).toBeInTheDocument();
     expect(screen.getByText('done')).toBeInTheDocument();
+  });
+
+  it('renders cancel button and triggers onCancel callback when clicked', async () => {
+    const onCancel = vi.fn();
+    render(<ExtractionProgressView candidates={mockCandidates} onCancel={onCancel} />);
+
+    const cancelBtn = screen.getByRole('button', { name: /cancel extraction/i });
+    expect(cancelBtn).toBeInTheDocument();
+
+    cancelBtn.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders progress bar and page label including cooldown state', () => {
+    const progressMap = {
+      'cand-1': {
+        phase: 'cooldown' as const,
+        current: 1,
+        total: 3,
+        percent: 33,
+        pageLabel: 'Waiting for rate limit (cooldown 12s)...',
+      },
+    };
+
+    render(
+      <ExtractionProgressView
+        candidates={[mockCandidates[0]]}
+        progressMap={progressMap}
+      />,
+    );
+
+    expect(
+      screen.getByText('Waiting for rate limit (cooldown 12s)...'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders progress bar and page label for ai-vision phase with visual indicator', () => {
+    const progressMap = {
+      'cand-1': {
+        phase: 'ai-vision' as const,
+        current: 1,
+        total: 2,
+        percent: 50,
+        pageLabel: 'AI Vision Page 1',
+      },
+    };
+
+    const { container } = render(
+      <ExtractionProgressView
+        candidates={[mockCandidates[0]]}
+        progressMap={progressMap}
+      />,
+    );
+
+    expect(screen.getByText('AI Vision Page 1')).toBeInTheDocument();
+    const phaseElement = container.querySelector('[data-phase="ai-vision"]');
+    expect(phaseElement).toBeInTheDocument();
   });
 });

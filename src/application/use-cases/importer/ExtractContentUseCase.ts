@@ -4,6 +4,7 @@ import type {
   ImportSource,
   ImportError,
   ImportMetadata,
+  ExtractionResult,
 } from '../../../domain/importer/models/importer.types';
 import { convertToMarkdown } from '../../../domain/importer/markdownConverter';
 
@@ -46,6 +47,7 @@ export class ExtractContentUseCase {
         pageCount: result.pageCount,
         usedOcr: result.stats.ocrPages > 0,
         ocrConfidence: result.stats.ocrPages > 0 ? this.calculateAverageConfidence(result.pages) : undefined,
+        usedVision: (result.stats.visionPages ?? 0) > 0,
       };
 
       return {
@@ -65,12 +67,44 @@ export class ExtractContentUseCase {
       let message = 'Failed to extract content from file.';
       let retryable = true;
 
+      const partialResult = (err as { partialResult?: ExtractionResult })?.partialResult;
+
       if (options?.signal?.aborted) {
         code = 'cancelled';
         message = 'Extraction was cancelled.';
         retryable = false;
       } else if (err instanceof Error) {
         message = err.message;
+      }
+
+      if (partialResult && partialResult.pages.length > 0) {
+        const title = partialResult.title || file.name.replace(/\.[^/.]+$/, '');
+        const markdown = convertToMarkdown(partialResult.pages, { title });
+        const importMetadata: ImportMetadata = {
+          source: this.determineSource(file),
+          originalFilename: file.name,
+          importedAt: new Date().toISOString(),
+          pageCount: partialResult.pageCount,
+          usedOcr: partialResult.stats.ocrPages > 0,
+          ocrConfidence:
+            partialResult.stats.ocrPages > 0
+              ? this.calculateAverageConfidence(partialResult.pages)
+              : undefined,
+          usedVision: (partialResult.stats.visionPages ?? 0) > 0,
+        };
+
+        return {
+          id,
+          filename: file.name,
+          source: importMetadata.source,
+          file,
+          extraction: partialResult,
+          markdown,
+          title,
+          importMetadata,
+          status: 'review',
+          pageDetails: partialResult.pages,
+        };
       }
 
       return {

@@ -22,7 +22,12 @@ import {
   AI_STREAM_IDLE_TIMEOUT_MS,
   withIdleDeadline,
 } from '../ai/deadline';
-import type { AiErrorCode, AiProviderEvent } from '../ai/types';
+import type {
+  AiErrorCode,
+  AiMessageContent,
+  AiMessageContentPart,
+  AiProviderEvent,
+} from '../ai/types';
 
 /**
  * Normalized failure codes the client acts on instead of pattern-matching a message.
@@ -113,13 +118,20 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
    * record may contain — never prompt, document, or selection text.
    */
   let telemetryLogged = false;
+  let hasImages = false;
+
   const recordRequest = (
     outcome: AiRequestTelemetry['outcome'],
     fields: Omit<AiRequestTelemetry, 'outcome' | 'durationMs'> & { reason?: AiRequestReason },
   ): void => {
     if (telemetryLogged) return;
     telemetryLogged = true;
-    logAiRequestTelemetry({ outcome, durationMs: Date.now() - requestStartedAt, ...fields });
+    logAiRequestTelemetry({
+      outcome,
+      durationMs: Date.now() - requestStartedAt,
+      ...(hasImages ? { hasImages: true } : {}),
+      ...fields,
+    });
   };
 
   // A disconnected client leaves nobody to answer; short-circuit before parsing or spending work.
@@ -175,6 +187,44 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     return badRequest('Invalid request: messages array is required', corsHeaders);
   }
 
+  const DATA_IMAGE_REGEX = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
+  const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3MB binary limit
+
+  let totalImageCount = 0;
+  let invalidImageError: string | undefined;
+
+  for (const m of body.messages) {
+    if (m && Array.isArray(m.content)) {
+      for (const part of m.content) {
+        if (part && typeof part === 'object' && (part as { type?: unknown }).type === 'image_url') {
+          hasImages = true;
+          totalImageCount += 1;
+          const url = (part as { image_url?: { url?: unknown } }).image_url?.url;
+          if (typeof url !== 'string' || !url.trim()) {
+            invalidImageError = 'Invalid image: image_url.url is required';
+            break;
+          }
+          const match = DATA_IMAGE_REGEX.exec(url.trim());
+          if (!match) {
+            invalidImageError = 'Invalid image: must be data:image/(jpeg|png|webp);base64,...';
+            break;
+          }
+          const base64Data = match[2];
+          const approxBytes = Math.floor((base64Data.length * 3) / 4);
+          if (approxBytes > MAX_IMAGE_BYTES) {
+            invalidImageError = 'Image exceeds 3MB limit';
+            break;
+          }
+        }
+      }
+    }
+    if (invalidImageError) break;
+  }
+
+  if (totalImageCount > 1) {
+    invalidImageError = 'Only single-page image payloads are supported';
+  }
+
   const requestedModelId =
     typeof body.model === 'string' && body.model.trim() ? body.model.trim() : undefined;
   const modelRoute = resolveAiModelRoute(requestedModelId);
@@ -194,6 +244,32 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
       `Unknown AI model "${requestedModelId}". Call GET /api/ai/models for the available models.`,
       corsHeaders,
     );
+  }
+
+  if (hasImages && !modelRoute.supportsVision) {
+    recordRequest('rejected', {
+      status: 400,
+      model: modelRoute.id,
+      provider: modelRoute.provider,
+      code: 'MODEL_UNAVAILABLE',
+      stage: 'pre-stream',
+      hasImages: true,
+      emittedTokenChunks: 0,
+    });
+    return failure('MODEL_UNAVAILABLE', 'Model does not support vision', corsHeaders);
+  }
+
+  if (hasImages && invalidImageError) {
+    recordRequest('rejected', {
+      status: 400,
+      model: modelRoute.id,
+      provider: modelRoute.provider,
+      code: 'BAD_REQUEST',
+      stage: 'pre-stream',
+      hasImages: true,
+      emittedTokenChunks: 0,
+    });
+    return badRequest(invalidImageError, corsHeaders);
   }
 
   // A disabled model is a distinct case from an unknown one: the id is real, so the client should
@@ -282,18 +358,41 @@ export async function handleAiChat(ctx: RouteContext): Promise<Response> {
     body.messages,
   );
 
-  const formattedMessages: Array<{ role: string; content: string }> = [
+  const formattedMessages: Array<{ role: string; content: AiMessageContent }> = [
     { role: 'system', content: effectiveSystemPrompt },
   ];
 
   for (const m of body.messages) {
-    if (m && typeof m.content === 'string' && m.role !== 'system') {
-      const role = m.role === 'assistant' ? 'assistant' : 'user';
+    if (!m || m.role === 'system') continue;
+    const role = m.role === 'assistant' ? 'assistant' : 'user';
+
+    if (typeof m.content === 'string') {
       const lastMsg = formattedMessages[formattedMessages.length - 1];
-      if (lastMsg && lastMsg.role === role) {
+      if (lastMsg && lastMsg.role === role && typeof lastMsg.content === 'string') {
         lastMsg.content += `\n\n${m.content}`;
       } else {
         formattedMessages.push({ role, content: m.content });
+      }
+    } else if (Array.isArray(m.content)) {
+      const parts: AiMessageContentPart[] = [];
+      for (const p of m.content) {
+        if (p && typeof p === 'object') {
+          if ((p as { type?: unknown }).type === 'text' && typeof (p as { text?: unknown }).text === 'string') {
+            parts.push({ type: 'text', text: (p as { text: string }).text });
+          } else if (
+            (p as { type?: unknown }).type === 'image_url' &&
+            (p as { image_url?: { url?: unknown } }).image_url &&
+            typeof (p as { image_url: { url: unknown } }).image_url.url === 'string'
+          ) {
+            parts.push({
+              type: 'image_url',
+              image_url: { url: (p as { image_url: { url: string } }).image_url.url.trim() },
+            });
+          }
+        }
+      }
+      if (parts.length > 0) {
+        formattedMessages.push({ role, content: parts });
       }
     }
   }

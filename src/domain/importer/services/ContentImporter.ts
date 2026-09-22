@@ -1,5 +1,7 @@
 import type { ExtractionResult, ExtractionProgress } from '../models/importer.types';
 
+export type { ExtractionResult, ExtractionProgress };
+
 export interface ExtractionOptions {
   signal?: AbortSignal;
   onProgress?: (progress: ExtractionProgress) => void;
@@ -7,6 +9,8 @@ export interface ExtractionOptions {
   password?: string;
   /** OCR language code (default: 'eng') */
   language?: string;
+  /** Selected OCR engine: local Tesseract (default) or cloud AI Vision (MAX) */
+  ocrEngine?: 'tesseract' | 'ai-vision';
 }
 
 /** Provider-agnostic port for importing content from a specific file type */

@@ -495,4 +495,39 @@ describe('ImportReviewView', () => {
       expect.stringContaining('Structured Cell Biology'),
     );
   });
+
+  it('displays warning banner when active candidate extraction is partial', () => {
+    const partialCandidate: ImportCandidate = {
+      ...mockCandidates[0],
+      extraction: {
+        text: 'Partial text',
+        pageCount: 5,
+        pages: [
+          { pageNumber: 1, text: 'Page 1', confidence: 95, source: 'ai-vision' },
+          { pageNumber: 2, text: 'Page 2', confidence: 95, source: 'ai-vision' },
+        ],
+        stats: {
+          wordCount: 10,
+          characterCount: 50,
+          headingsDetected: 1,
+          ocrPages: 0,
+          textPages: 2,
+        },
+        isPartial: true,
+      },
+    };
+
+    renderWithContext(
+      <ImportReviewView
+        candidates={[partialCandidate]}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+    );
+
+    const banner = screen.getByTestId('partial-extraction-banner');
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent(/Extraction was cancelled before completion/i);
+    expect(banner).toHaveTextContent(/Displaying partial content \(2 of 5 pages\)/i);
+  });
 });

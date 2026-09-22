@@ -63,6 +63,7 @@ describe('client catalog mirror ↔ Worker registry coherence', () => {
       expect(mirror?.maxOutputTokens, route.id).toBe(route.maxOutputTokens);
       expect(mirror?.maxDocumentContextChars, route.id).toBe(route.maxDocumentContextChars);
       expect(mirror?.pricing, route.id).toEqual(route.pricing);
+      expect(mirror?.supportsVision, route.id).toBe(route.supportsVision);
       // The mirror is the only client-side home for routing facts: historic turns recorded the
       // provider's own model id, and resolving them back to their facts needs this mapping.
       expect(mirror?.provider, route.id).toBe(route.provider);
@@ -77,6 +78,7 @@ describe('client catalog mirror ↔ Worker registry coherence', () => {
       expect(mirror, model.id).toBeDefined();
       expect(mirror?.display).toEqual(model.display);
       expect(mirror?.contextWindowTokens).toBe(model.contextWindowTokens);
+      expect(mirror?.supportsVision).toBe(model.supportsVision);
     }
   });
 });

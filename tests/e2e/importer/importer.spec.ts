@@ -116,4 +116,50 @@ test.describe('Content Importer & AI Cleanup E2E', () => {
     await expect(page).toHaveURL(/\/materials\/[a-zA-Z0-9-]+\?tab=read/);
     await expect(page.getByText('Cellular respiration converts glucose into ATP.')).toBeVisible({ timeout: 10000 });
   });
+
+  test('extracts scanned PDF with AI Vision when selected', async ({ page }) => {
+    let aiChatCalled = false;
+
+    await page.route(/\/api\/ai\/chat/, async (route) => {
+      aiChatCalled = true;
+      const visionMarkdown = `# University Transcript\n\n| Course | Grade |\n|---|---|\n| Math 101 | 1.25 |`;
+      const sseBody = [
+        'data: {"type":"start","messageId":"msg-vision-1"}\n\n',
+        `data: {"type":"token","text":${JSON.stringify(visionMarkdown)}}\n\n`,
+        'data: {"type":"done","usage":{"promptTokens":800,"completionTokens":50}}\n\n',
+      ].join('');
+
+      return route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+        body: sseBody,
+      });
+    });
+
+    await page.goto('/import');
+
+    // Select AI Vision radio button
+    const aiVisionRadio = page.getByRole('radio', { name: /AI Vision/i });
+    await expect(aiVisionRadio).toBeVisible();
+    await aiVisionRadio.check();
+    await expect(aiVisionRadio).toBeChecked();
+
+    // Upload PDF
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles('C:/Users/B/Downloads/Bryan_James_Dalanon_TOR.pdf');
+
+    // Verify file card appears
+    await expect(page.getByText('Bryan_James_Dalanon_TOR.pdf')).toBeVisible();
+
+    // Click Start Extraction
+    const extractBtn = page.getByRole('button', { name: /Start Extraction/i });
+    await expect(extractBtn).toBeVisible();
+    await extractBtn.click();
+
+    // Wait for Review step
+    await expect(page.getByText('Step 3 of 5: Review Content')).toBeVisible({ timeout: 30000 });
+
+    expect(aiChatCalled).toBe(true);
+  });
 });
+

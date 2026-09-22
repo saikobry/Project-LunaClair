@@ -38,6 +38,8 @@ export interface AiModelRoute {
   /** `null` = the model is free; unknown, never guessed. */
   pricing: AiModelPricing | null;
   display: { name: string; tagline?: string };
+  /** Whether this model supports multimodal image inputs. */
+  supportsVision?: boolean;
   /** Exactly one registered route carries this; it serves requests that name no model. */
   isDefault?: boolean;
   /**
@@ -66,6 +68,7 @@ export const AI_MODEL_ROUTES: readonly AiModelRoute[] = Object.freeze([
     maxDocumentContextChars: 16_000,
     pricing: { inputPerMillionUsd: 0.293, outputPerMillionUsd: 2.253 },
     display: { name: 'Standard', tagline: 'Fast, economical everyday assistant' },
+    supportsVision: false,
     isDefault: true,
   },
   {
@@ -78,10 +81,11 @@ export const AI_MODEL_ROUTES: readonly AiModelRoute[] = Object.freeze([
     // Free for research use, so there is no rate to apply — `null` renders as tokens with no cost.
     pricing: null,
     display: { name: 'MAX', tagline: 'Extended context · shared capacity' },
+    supportsVision: true,
   },
 ]);
 
-export const AI_CATALOG_VERSION = '2026-09-20.1';
+export const AI_CATALOG_VERSION = '2026-09-22.2';
 
 const DEFAULT_ROUTE = AI_MODEL_ROUTES.find((route) => route.isDefault) ?? AI_MODEL_ROUTES[0];
 
@@ -96,6 +100,7 @@ export interface PublicAiModelDescriptor {
   maxOutputTokens: number;
   maxDocumentContextChars: number;
   pricing: AiModelPricing | null;
+  supportsVision?: boolean;
 }
 
 /** Whether this deployment is serving AI at all. */
@@ -146,6 +151,7 @@ export function toPublicAiModelCatalog(
       maxOutputTokens: route.maxOutputTokens,
       maxDocumentContextChars: route.maxDocumentContextChars,
       pricing: route.pricing ? { ...route.pricing } : null,
+      supportsVision: route.supportsVision,
     })),
   };
 }

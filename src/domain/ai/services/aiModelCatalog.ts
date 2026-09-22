@@ -44,6 +44,8 @@ export interface AiModelDescriptor {
   maxDocumentContextChars: number;
   /** `null` = free or unpriced-by-design. Never an invented rate. */
   pricing: AiModelPricing | null;
+  /** Whether this model supports multimodal vision inputs. */
+  supportsVision?: boolean;
 }
 
 export interface AiModelCatalog {
@@ -68,7 +70,7 @@ export interface AiModelCatalog {
 /** Whether the deployment is serving AI at all. */
 export type AiCatalogAvailability = 'available' | 'disabled';
 
-export const AI_CATALOG_VERSION = '2026-09-20.1';
+export const AI_CATALOG_VERSION = '2026-09-22.2';
 
 const MODELS: readonly AiModelDescriptor[] = Object.freeze([
   Object.freeze({
@@ -80,6 +82,7 @@ const MODELS: readonly AiModelDescriptor[] = Object.freeze([
     maxOutputTokens: 4_096,
     maxDocumentContextChars: 16_000,
     pricing: { inputPerMillionUsd: 0.293, outputPerMillionUsd: 2.253 },
+    supportsVision: false,
   }),
   Object.freeze({
     id: 'ukisai-swift-max',
@@ -90,6 +93,7 @@ const MODELS: readonly AiModelDescriptor[] = Object.freeze([
     maxOutputTokens: 4_096,
     maxDocumentContextChars: 160_000,
     pricing: null,
+    supportsVision: true,
   }),
 ]);
 

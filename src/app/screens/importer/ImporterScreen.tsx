@@ -22,9 +22,13 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
     currentStep,
     createdMaterials,
     activeCandidateIndex,
+    ocrEngine,
+    progressMap,
+    setOcrEngine,
     addFiles,
     removeFile,
     startExtraction,
+    cancelExtraction,
     updateCandidateMarkdown,
     updateCandidateTitle,
     commitSession,
@@ -93,7 +97,11 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
       
       {currentStep === 'selecting' && (
         <div {...stylex.props(importerStyles.content)}>
-          <ImportDropZone onFilesAdded={handleFilesAdded} />
+          <ImportDropZone
+            onFilesAdded={handleFilesAdded}
+            ocrEngine={ocrEngine}
+            onOcrEngineChange={setOcrEngine}
+          />
           {session.candidates.length > 0 && (
             <div style={{ marginTop: '24px' }}>
               <div {...stylex.props(importerStyles.fileList)}>
@@ -112,7 +120,11 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
       )}
       
       {currentStep === 'extracting' && (
-        <ExtractionProgressView candidates={session.candidates} />
+        <ExtractionProgressView
+          candidates={session.candidates}
+          progressMap={progressMap}
+          onCancel={cancelExtraction}
+        />
       )}
       
       {currentStep === 'review' && (

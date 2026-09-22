@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ImportSession, ImportCandidate } from '../../../domain/importer/models/importer.types';
+import type { ImportSession, ImportCandidate, ExtractionProgress } from '../../../domain/importer/models/importer.types';
 import { useImporterContext } from './useImporterContext';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import { materialQueryKeys } from '../../materials/queries/materialQueryKeys';
@@ -18,6 +18,8 @@ export function useImportSession() {
   
   const [createdMaterials, setCreatedMaterials] = useState<StudyMaterial[]>([]);
   const [activeCandidateIndex, setActiveCandidateIndex] = useState(0);
+  const [ocrEngine, setOcrEngine] = useState<'tesseract' | 'ai-vision'>('tesseract');
+  const [progressMap, setProgressMap] = useState<Record<string, ExtractionProgress>>({});
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
 
   const addFiles = useCallback((files: File[]) => {
@@ -55,16 +57,31 @@ export function useImportSession() {
       abortControllers.current.set(candidate.id, ac);
       
       try {
-        const result = await extractContent.execute(candidate.file, { signal: ac.signal });
+        const result = await extractContent.execute(candidate.file, {
+          signal: ac.signal,
+          ocrEngine,
+          onProgress: (progress) => {
+            setProgressMap(prev => ({ ...prev, [candidate.id]: progress }));
+          },
+        });
         
         setSession(prev => ({
           ...prev,
           candidates: prev.candidates.map(c => c.id === candidate.id ? { ...c, ...result } : c),
         }));
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Extraction failed';
         setSession(prev => ({
           ...prev,
-          candidates: prev.candidates.map(c => c.id === candidate.id ? { ...c, status: 'error', error: { code: 'extraction-failed', message: err.message, retryable: true } } : c),
+          candidates: prev.candidates.map(c =>
+            c.id === candidate.id
+              ? {
+                  ...c,
+                  status: 'error',
+                  error: { code: 'extraction-failed', message, retryable: true },
+                }
+              : c,
+          ),
         }));
       } finally {
         abortControllers.current.delete(candidate.id);
@@ -85,7 +102,7 @@ export function useImportSession() {
       }
       return prev;
     });
-  }, [session.candidates, extractContent]);
+  }, [session.candidates, extractContent, ocrEngine]);
 
   const cancelExtraction = useCallback((id?: string) => {
     if (id) {
@@ -167,5 +184,8 @@ export function useImportSession() {
     commitSession,
     resetSession,
     goToStep,
+    ocrEngine,
+    setOcrEngine,
+    progressMap,
   };
 }

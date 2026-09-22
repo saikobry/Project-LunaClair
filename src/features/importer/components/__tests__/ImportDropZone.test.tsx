@@ -84,4 +84,44 @@ describe('ImportDropZone', () => {
 
     expect(onFilesAdded).not.toHaveBeenCalled();
   });
+
+  it('renders OCR engine selector and invokes onOcrEngineChange', () => {
+    const onOcrEngineChange = vi.fn();
+    render(
+      <ImportDropZone
+        onFilesAdded={vi.fn()}
+        ocrEngine="tesseract"
+        onOcrEngineChange={onOcrEngineChange}
+      />,
+    );
+
+    const tesseractRadio = screen.getByRole('radio', { name: /local ocr/i });
+    const visionRadio = screen.getByRole('radio', { name: /ai vision/i });
+
+    expect(tesseractRadio).toBeChecked();
+    expect(visionRadio).not.toBeChecked();
+
+    fireEvent.click(visionRadio);
+    expect(onOcrEngineChange).toHaveBeenCalledWith('ai-vision');
+  });
+
+  it('disables AI Vision option when navigator is offline', () => {
+    const originalOnLine = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    try {
+      render(
+        <ImportDropZone
+          onFilesAdded={vi.fn()}
+          ocrEngine="tesseract"
+          onOcrEngineChange={vi.fn()}
+        />,
+      );
+
+      const visionRadio = screen.getByRole('radio', { name: /ai vision.*offline/i });
+      expect(visionRadio).toBeDisabled();
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: originalOnLine, configurable: true });
+    }
+  });
 });

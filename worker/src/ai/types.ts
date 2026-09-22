@@ -57,10 +57,19 @@ export type AiProviderEvent =
   | { type: 'token'; text: string }
   | { type: 'usage'; usage: AiTokenUsage };
 
+/**
+ * Multimodal message content parts.
+ */
+export type AiMessageContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+export type AiMessageContent = string | AiMessageContentPart[];
+
 export interface AiProviderRequest {
   /** The **provider's** model id, already resolved from the catalog. */
   modelId: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: Array<{ role: string; content: AiMessageContent }>;
   maxOutputTokens: number;
   temperature: number;
   /**

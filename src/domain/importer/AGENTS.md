@@ -22,7 +22,8 @@ Pure domain contracts, types, and algorithms for importing external study materi
 
 - Importers return raw `ExtractionResult` only — Markdown conversion is performed exclusively by the application layer (`ExtractContentUseCase`) via `convertToMarkdown`.
 - Multi-page extractions include `## Page N` anchors separated by `---` horizontal rules.
-- Per-page metadata (`source: 'pdf-text' | 'ocr'`, `confidence: number`) is preserved across extraction and review models.
+- Per-page metadata (`source: 'pdf-text' | 'ocr' | 'ai-vision'`, `confidence: number`) is preserved across extraction and review models.
+- Partial extractions set `isPartial: true` on `ExtractionResult` to signify incomplete processing upon cancellation.
 - Domain logic contains 0 React, 0 Dexie, and 0 browser DOM dependencies.
 
 ## Work Guidance

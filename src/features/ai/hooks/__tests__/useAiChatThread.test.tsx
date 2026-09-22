@@ -7,6 +7,7 @@ import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { createAiChatHarness } from '../../../../test/mocks/aiChatHarness';
 import { STORAGE_KEYS } from '../../../../shared/constants/storageKeys';
 import type { AiService } from '../../../../domain/ai/services/AiService';
+import type { AiMessageContent } from '../../../../domain/ai/models/ai.types';
 
 describe('useAiChatThread', () => {
   let db: LunaClairDatabase;
@@ -366,7 +367,7 @@ describe('useAiChatThread', () => {
 
   it('opens a distinct session without history when freshSession is requested', async () => {
     const mockAi = new MockAiAdapter({ tokens: ['Fresh answer.'] });
-    const received: Array<Array<{ role: string; content: string }>> = [];
+    const received: Array<Array<{ role: string; content: AiMessageContent }>> = [];
     const original = mockAi.streamChat.bind(mockAi);
     mockAi.streamChat = (request) => {
       received.push(request.messages.map((m) => ({ role: m.role, content: m.content })));

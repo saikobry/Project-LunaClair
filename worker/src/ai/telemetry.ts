@@ -104,6 +104,8 @@ export interface AiRequestTelemetry {
   durationMs: number;
   /** SSE token chunks relayed to the client. Zero on a 200 that produced no text at all. */
   emittedTokenChunks: number;
+  /** Whether the request included multimodal image parts. Never stores image data. */
+  hasImages?: boolean;
   /** The provider's own accounting, when it reported any. */
   usage?: AiTokenUsage;
 }
