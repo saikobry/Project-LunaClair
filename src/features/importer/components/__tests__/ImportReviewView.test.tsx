@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ImportReviewView } from '../ImportReviewView';
 import { ApplicationContext, type ApplicationContextValue } from '../../../../app/providers/ApplicationContext';
 import type { ImportCandidate } from '../../../../domain/importer/models/importer.types';
+import type { AiModelCatalog } from '../../../../domain/ai/services/aiModelCatalog';
+import { DEFAULT_AI_MODEL_CATALOG } from '../../../../domain/ai/services/aiModelCatalog';
+import { InMemoryPreferencesRepository } from '../../../../test/mocks/inMemoryPreferencesRepository';
+import { SetPreferredModelIdUseCase } from '../../../../application/use-cases/ai/SetPreferredModelIdUseCase';
 
 // Mock WriterEditor for isolated component testing
 vi.mock('../../../writer/components/WriterEditor', () => ({
@@ -24,6 +29,7 @@ vi.mock('../../../reader/components/MarkdownViewer', () => ({
 }));
 
 describe('ImportReviewView', () => {
+  let queryClient: QueryClient;
   let mockCleanupExecute: ReturnType<typeof vi.fn>;
 
   const mockCandidates: ImportCandidate[] = [
@@ -48,27 +54,45 @@ describe('ImportReviewView', () => {
   ];
 
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
     mockCleanupExecute = vi.fn().mockResolvedValue({
       original: '# Raw Cell Bio\n\n- Fact 1\n- Fact 2',
       cleaned: '# Structured Cell Biology\n\n### Key Concepts\n- Fact 1\n- Fact 2',
     });
   });
 
-  function renderWithContext(ui: ReactNode, executeFn = mockCleanupExecute) {
+  function renderWithContext(
+    ui: ReactNode,
+    executeFn = mockCleanupExecute,
+    catalogOverride?: () => Promise<AiModelCatalog>,
+  ) {
+    const preferences = new InMemoryPreferencesRepository();
     const mockContextValue = {
+      repositories: { preferences },
       useCases: {
         importer: {
           cleanupWithAi: {
             execute: executeFn,
           },
         },
+        ai: {
+          setPreferredModelId: new SetPreferredModelIdUseCase(preferences),
+          ...(catalogOverride ? { getModelCatalog: { execute: catalogOverride } } : {}),
+        },
       },
     } as unknown as ApplicationContextValue;
 
     return render(
-      <ApplicationContext.Provider value={mockContextValue}>
-        {ui}
-      </ApplicationContext.Provider>,
+      <QueryClientProvider client={queryClient}>
+        <ApplicationContext.Provider value={mockContextValue}>
+          {ui}
+        </ApplicationContext.Provider>
+      </QueryClientProvider>,
     );
   }
 
@@ -137,8 +161,10 @@ describe('ImportReviewView', () => {
 
     await waitFor(() => {
       expect(mockCleanupExecute).toHaveBeenCalledWith(
-        '# Raw Cell Bio\n\n- Fact 1\n- Fact 2',
-        'Cell Biology Notes',
+        expect.objectContaining({
+          markdown: '# Raw Cell Bio\n\n- Fact 1\n- Fact 2',
+          title: 'Cell Biology Notes',
+        }),
       );
     });
 
@@ -206,6 +232,103 @@ describe('ImportReviewView', () => {
     );
   });
 
+  it('does not apply cleanup if markdown was modified after cleanup started (stale-result guard)', async () => {
+    const onUpdateMarkdown = vi.fn();
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={onUpdateMarkdown}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Accept AI Cleaned')).toBeInTheDocument();
+    });
+
+    // Simulate user editing markdown while AI was generating or waiting to accept
+    const editor = screen.getByTestId('mock-writer-editor');
+    fireEvent.change(editor, { target: { value: '# Newer User Edits' } });
+
+    // Click Accept AI Cleaned
+    fireEvent.click(screen.getByRole('button', { name: /accept ai cleaned/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('AI Cleanup Diff Comparison')).not.toBeInTheDocument();
+    });
+
+    // onUpdateMarkdown should NOT have been called with the stale AI-cleaned text
+    expect(onUpdateMarkdown).not.toHaveBeenCalledWith(
+      'cand-1',
+      '# Structured Cell Biology\n\n### Key Concepts\n- Fact 1\n- Fact 2',
+    );
+  });
+
+  it('disables AI cleanup button when AI is disabled in catalog', async () => {
+    const disabledCatalog: AiModelCatalog = {
+      ...DEFAULT_AI_MODEL_CATALOG,
+      availability: 'disabled',
+      defaultModelId: null,
+      models: [],
+    };
+
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+      mockCleanupExecute,
+      async () => disabledCatalog,
+    );
+
+    await waitFor(() => {
+      const cleanupBtn = screen.getByRole('button', { name: /ai cleanup/i });
+      expect(cleanupBtn).toBeDisabled();
+    });
+  });
+
+  it('renders model picker in toolbar and forwards selected model to cleanWithAi', async () => {
+    const onUpdateMarkdown = vi.fn();
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={onUpdateMarkdown}
+      />,
+    );
+
+    // Default catalog offers 2 models (Standard and MAX)
+    expect(screen.getByRole('radio', { name: /standard/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /max/i })).toBeInTheDocument();
+
+    // Select MAX model
+    fireEvent.click(screen.getByRole('radio', { name: /max/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /max/i })).toHaveAttribute('aria-checked', 'true');
+    });
+
+    // Trigger AI cleanup
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+
+    await waitFor(() => {
+      expect(mockCleanupExecute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          markdown: '# Raw Cell Bio\n\n- Fact 1\n- Fact 2',
+          title: 'Cell Biology Notes',
+          model: 'ukisai-swift-max',
+          catalog: expect.objectContaining({
+            defaultModelId: expect.any(String),
+            models: expect.any(Array),
+          }),
+        }),
+      );
+    });
+  });
+
   it('displays error message if AI cleanup fails', async () => {
     const failingExecute = vi.fn().mockRejectedValue(new Error('Rate limit exceeded'));
     const onUpdateMarkdown = vi.fn();
@@ -224,5 +347,152 @@ describe('ImportReviewView', () => {
     await waitFor(() => {
       expect(screen.getByText('Rate limit exceeded')).toBeInTheDocument();
     });
+  });
+
+  it('aborts in-flight cleanup and resets editor when candidate switches', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    mockCleanupExecute.mockImplementation(({ signal }) => {
+      capturedSignal = signal;
+      return new Promise(() => {}); // never resolves
+    });
+
+    function TestCandidateSwitcher() {
+      const [activeIndex, setActiveIndex] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setActiveIndex(1)}>
+            Switch to Candidate 2
+          </button>
+          <ImportReviewView
+            candidates={mockCandidates}
+            activeIndex={activeIndex}
+            onUpdateMarkdown={vi.fn()}
+          />
+        </div>
+      );
+    }
+
+    renderWithContext(<TestCandidateSwitcher />);
+
+    // Start cleanup on candidate 0
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    expect(screen.getByText('Cleaning with AI...')).toBeInTheDocument();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Switch candidate
+    fireEvent.click(screen.getByRole('button', { name: /switch to candidate 2/i }));
+
+    // In-flight request is aborted and button returns to idle
+    expect(capturedSignal?.aborted).toBe(true);
+    await waitFor(() => {
+      expect(screen.queryByText('Cleaning with AI...')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /ai cleanup/i })).toBeInTheDocument();
+    });
+
+    // Content is updated to Candidate 2's markdown
+    const editor = screen.getByTestId('mock-writer-editor') as HTMLTextAreaElement;
+    expect(editor.value).toBe('# Genetics Notes');
+  });
+
+  it('clears active diff modal when candidate switches', async () => {
+    function TestCandidateSwitcher() {
+      const [activeIndex, setActiveIndex] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setActiveIndex(1)}>
+            Switch to Candidate 2
+          </button>
+          <ImportReviewView
+            candidates={mockCandidates}
+            activeIndex={activeIndex}
+            onUpdateMarkdown={vi.fn()}
+          />
+        </div>
+      );
+    }
+
+    renderWithContext(<TestCandidateSwitcher />);
+
+    // Open diff modal on candidate 0
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    await waitFor(() => {
+      expect(screen.getByText('AI Cleanup Diff Comparison')).toBeInTheDocument();
+    });
+
+    // Switch candidate
+    fireEvent.click(screen.getByRole('button', { name: /switch to candidate 2/i }));
+
+    // Diff modal is closed
+    await waitFor(() => {
+      expect(screen.queryByText('AI Cleanup Diff Comparison')).not.toBeInTheDocument();
+    });
+  });
+
+  it('disables AI cleanup button and shows countdown when cooldown is active', async () => {
+    const rateLimitError = Object.assign(new Error('Rate limited: please try again in 12s'), {
+      retryAfterSeconds: 12,
+    });
+    const failingExecute = vi.fn().mockRejectedValue(rateLimitError);
+
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+      failingExecute,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Rate limited: please try again in 12s/i)).toBeInTheDocument();
+    });
+
+    // Button is disabled and displays countdown
+    const cleanupBtn = screen.getByRole('button', { name: /ai cleanup \(12s\)/i });
+    expect(cleanupBtn).toBeDisabled();
+
+    // Model picker displays cooldown notice
+    expect(screen.getByText(/Shared capacity is busy — try again in 12s/i)).toBeInTheDocument();
+  });
+
+  it('rejects cleanup and does not apply changes if diff candidateId does not match active candidate', async () => {
+    const onUpdateMarkdown = vi.fn();
+
+    // We render candidate 0 and generate diff
+    function StaleCandidateTest() {
+      const [activeIndex, setActiveIndex] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setActiveIndex(1)}>
+            Direct Switch
+          </button>
+          <ImportReviewView
+            candidates={mockCandidates}
+            activeIndex={activeIndex}
+            onUpdateMarkdown={onUpdateMarkdown}
+          />
+        </div>
+      );
+    }
+
+    renderWithContext(<StaleCandidateTest />);
+
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Accept AI Cleaned')).toBeInTheDocument();
+    });
+
+    // Directly change candidate index without letting diff apply
+    fireEvent.click(screen.getByRole('button', { name: /direct switch/i }));
+
+    // In-flight/open diff was cleared so Accept AI Cleaned is not present
+    expect(screen.queryByText('Accept AI Cleaned')).not.toBeInTheDocument();
+    expect(onUpdateMarkdown).not.toHaveBeenCalledWith(
+      'cand-2',
+      expect.stringContaining('Structured Cell Biology'),
+    );
   });
 });

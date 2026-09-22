@@ -11,23 +11,22 @@ User-facing 5-step import wizard allowing learners to ingest external study mate
   - `ImportDropZone.tsx` — Drag-and-drop file ingestion zone with format pill hints and file validation.
   - `ImportFileCard.tsx` — File queue card with status badges, size, progress %, and remove/retry actions.
   - `ExtractionProgressView.tsx` — Multi-file extraction progress bar with active phase labels and cancellation.
-  - `ImportReviewView.tsx` — Adaptive dual-pane review layout embedding Lexical `WriterEditor` and `MarkdownViewer` with per-page confidence badges.
-  - `AiCleanupDiffView.tsx` — Opt-in AI cleanup diff comparison with side-by-side or stacked views and Accept/Reject actions.
+  - `ImportReviewView.tsx` — Adaptive dual-pane review layout embedding Lexical `WriterEditor` and `MarkdownViewer` with per-page confidence badges, toolbar AI model picker, and inline diff comparison modal with Accept/Reject actions.
   - `MaterialDetailsView.tsx` — Title assignment step.
   - `ImportResultView.tsx` — Success confirmation with "Open Material" links and failed retry options.
   - `PasswordPromptDialog.tsx` — Dialog handling encrypted / password-protected PDFs.
 - `hooks/`
   - `useImportSession.ts` — 5-step state machine with bounded concurrency (max 2 concurrent extraction jobs) and `AbortController` cancellation per candidate.
-  - `useAiCleanup.ts` — Opt-in AI markdown cleanup hook managing clean, accept, and reject states.
+  - `useAiCleanup.ts` — Opt-in AI markdown cleanup hook managing clean, accept, reject, candidate-switching abort, and rate-limit cooldown states.
   - `useImporterContext.ts` — Dependency injection consumer for application use cases.
 - `styles/importer.stylex.ts` — StyleX styles for wizard, drop zone, review layout, cards, and diff modals.
 
 ## Local Contracts
 
 - Importer is code-split and lazy-loaded via `React.lazy` behind `/import` route to keep main app bundle lean.
-- Direct-path feature contracts only (ADR-010): consumes `WriterEditor` from `src/features/writer/components/WriterEditor`, `MarkdownViewer` from `src/features/reader/components/MarkdownViewer`, and catalog query hooks from `src/features/catalog/`.
+- Direct-path feature contracts only (ADR-010): consumes `WriterEditor` from `src/features/writer/components/WriterEditor`, `MarkdownViewer` from `src/features/reader/components/MarkdownViewer`, and `useAiModelSelection`/`AiModelPicker` from `src/features/ai/`.
 - Concurrency limit: extraction queue runs with a maximum of 2 parallel worker jobs to avoid browser memory pressure.
-- User-in-the-loop: AI cleanup is strictly opt-in and generates a visual diff; AI never silently modifies extracted text without explicit Accept.
+- User-in-the-loop: AI cleanup is strictly opt-in and generates a visual diff; AI never silently modifies extracted text without explicit Accept. Candidate switching cancels in-flight cleanup and clears diff state; candidateId and original text must match upon acceptance.
 
 ## Work Guidance
 

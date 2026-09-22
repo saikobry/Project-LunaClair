@@ -20,8 +20,12 @@ export interface AiModelSelection {
    * sending on it; nothing is ever substituted.
    */
   selectedModel: AiModelDescriptor | null;
+  /** Currently selected catalog id, or `null` when nothing is selected. */
+  selectedModelId: string | null;
   /** `true` when the deployment has switched the assistant off entirely. */
   isAiDisabled: boolean;
+  /** `true` when nothing may be sent: the assistant is switched off, or no model resolves. */
+  isAiUnavailable: boolean;
   /** Selects the model for the next request and remembers it on this device. */
   selectModel: (modelId: string) => void;
   /**
@@ -62,11 +66,14 @@ export function useAiModelSelection(): AiModelSelection {
   // and a catalog with no default to fall back to resolves to nothing at all — so no render can
   // offer, or send, a model the catalog does not have.
   const selectedModel = resolveAiModelSelection(catalog, preferredModelId ?? undefined);
+  const isAiDisabled = isAiCatalogDisabled(catalog);
 
   return {
     catalog,
     selectedModel,
-    isAiDisabled: isAiCatalogDisabled(catalog),
+    selectedModelId: selectedModel?.id ?? null,
+    isAiDisabled,
+    isAiUnavailable: isAiDisabled || selectedModel === null,
     selectModel,
     refreshCatalog,
   };

@@ -96,7 +96,6 @@ describe('useImportSession', () => {
 
     expect(result.current.currentStep).toBe('selecting');
     expect(result.current.session.candidates).toEqual([]);
-    expect(result.current.session.aiCleanupEnabled).toBe(false);
     expect(result.current.createdMaterials).toEqual([]);
     expect(result.current.activeCandidateIndex).toBe(0);
   });

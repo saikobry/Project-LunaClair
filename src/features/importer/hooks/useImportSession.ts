@@ -13,7 +13,6 @@ export function useImportSession() {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     candidates: [],
-    aiCleanupEnabled: false,
     status: 'selecting',
   });
   
@@ -143,7 +142,6 @@ export function useImportSession() {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       candidates: [],
-      aiCleanupEnabled: false,
       status: 'selecting',
     });
     setCreatedMaterials([]);

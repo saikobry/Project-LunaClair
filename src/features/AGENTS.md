@@ -46,6 +46,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `package` depends on `materials`.
   - `collections` has **no feature dependencies**. Membership reads go through the `LibraryRepository` **domain** port, not the `materials` feature. It carries a type-only dependency on `quiz` (`QuizLaunchRequest` launch contract for `CollectionQuizExplorer`; no runtime quiz imports).
   - `ai` depends on `quiz` and never on `quiz-management`.
+  - `importer` depends on `writer`, `reader`, and `ai`.
   - `analytics` and `sync` have zero feature-to-feature dependencies.
   - Enforced by `src/__tests__/architecture/featureBoundary.test.ts`.
 - **Single ownership.** Every business capability (including UI, dialogs, hooks, query keys, and feature types) has one owning feature.
@@ -68,6 +69,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `screens/collection-workspace/*` → `features/collections/hooks/queries/useCollection`, `features/collections/hooks/queries/useCollectionMaterials`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/queries/useCollectionQuizTree`, `features/collections/components/CollectionQuizExplorer`, `features/collections/types/collectionQuizTree.types`, `features/collections/hooks/mutations/useUpdateCollection`, `features/collections/hooks/mutations/useRemoveMaterialFromCollection`, `features/collections/hooks/mutations/useDeleteCollection`, `features/collections/modals/EditCollectionModal`, `features/collections/modals/collectionAppearance`, `features/materials/components/MaterialCard`, `features/quiz/types/quizFeature.types`
     - `layouts/desktop-sidebar` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
     - `layouts/navigation/*` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/modals/collectionAppearance`
+    - `importer/components/ImportReviewView` → `features/ai/hooks/useAiModelSelection`, `features/ai/components/AiModelPicker`, `features/writer/components/WriterEditor`, `features/reader/components/MarkdownViewer`
     - `screens/settings/*` → `features/ai/components/AiSettingsSection`
 
 ## Work Guidance

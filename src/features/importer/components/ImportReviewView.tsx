@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { importerStyles } from '../styles/importer.stylex';
@@ -6,6 +6,8 @@ import type { ImportCandidate } from '../../../domain/importer/models/importer.t
 import { WriterEditor } from '../../writer/components/WriterEditor';
 import MarkdownViewer from '../../reader/components/MarkdownViewer';
 import { useAiCleanup } from '../hooks/useAiCleanup';
+import { useAiModelSelection } from '../../ai/hooks/useAiModelSelection';
+import { AiModelPicker } from '../../ai/components/AiModelPicker';
 
 interface ImportReviewViewProps {
   candidates: ImportCandidate[];
@@ -16,21 +18,59 @@ interface ImportReviewViewProps {
 export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: ImportReviewViewProps) {
   const activeCandidate = candidates[activeIndex];
   const [markdown, setMarkdown] = useState(activeCandidate?.markdown || '');
-  const { isCleaning, diffResult, error, cleanWithAi, acceptCleanup, rejectCleanup } = useAiCleanup();
+  const {
+    isCleaning,
+    diffResult,
+    error,
+    cleanWithAi,
+    acceptCleanup,
+    rejectCleanup,
+    abortCleanup,
+    cooldownSeconds,
+  } = useAiCleanup();
+  const modelSelection = useAiModelSelection();
+
+  const [prevCandidateId, setPrevCandidateId] = useState(activeCandidate?.id);
+  if (activeCandidate && activeCandidate.id !== prevCandidateId) {
+    setPrevCandidateId(activeCandidate.id);
+    setMarkdown(activeCandidate.markdown || '');
+  }
+
+  const activeCandidateId = activeCandidate?.id;
+  const isFirstMount = useRef(true);
+
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    abortCleanup();
+  }, [activeCandidateId, abortCleanup]);
 
   if (!activeCandidate) return null;
 
   const handleTriggerAiCleanup = async () => {
-    await cleanWithAi(markdown, activeCandidate.title);
+    await cleanWithAi(markdown, activeCandidate.id, activeCandidate.title, {
+      model: modelSelection.selectedModelId ?? undefined,
+      catalog: modelSelection.catalog,
+    });
   };
 
   const handleAcceptCleanup = () => {
+    if (!diffResult || diffResult.candidateId !== activeCandidate.id || diffResult.original !== markdown) {
+      rejectCleanup();
+      return;
+    }
     const cleaned = acceptCleanup();
     if (cleaned) {
       setMarkdown(cleaned);
       onUpdateMarkdown(activeCandidate.id, cleaned);
     }
   };
+
+  const isOverBudget = modelSelection.selectedModel
+    ? markdown.length > modelSelection.selectedModel.maxDocumentContextChars
+    : false;
 
   return (
     <div {...stylex.props(importerStyles.reviewLayout)}>
@@ -45,24 +85,41 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
       <div {...stylex.props(importerStyles.reviewCenter)}>
         <div {...stylex.props(importerStyles.toolbar)}>
           <span>Edit Content</span>
-          <button
-            type="button"
-            {...stylex.props(importerStyles.button, importerStyles.buttonSecondary)}
-            onClick={handleTriggerAiCleanup}
-            disabled={isCleaning}
-          >
-            {isCleaning ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Cleaning with AI...
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} />
-                AI Cleanup
-              </>
-            )}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AiModelPicker
+              models={modelSelection.catalog.models}
+              defaultModelId={modelSelection.catalog.defaultModelId}
+              isAiDisabled={modelSelection.isAiDisabled}
+              selectedModelId={modelSelection.selectedModelId}
+              onSelectModel={modelSelection.selectModel}
+              isOverBudget={isOverBudget}
+              cooldownSeconds={cooldownSeconds}
+            />
+            <button
+              type="button"
+              {...stylex.props(importerStyles.button, importerStyles.buttonSecondary)}
+              onClick={handleTriggerAiCleanup}
+              disabled={isCleaning || cooldownSeconds > 0 || modelSelection.isAiDisabled || modelSelection.isAiUnavailable || isOverBudget}
+              title={isOverBudget ? `Document exceeds ${modelSelection.selectedModel?.display.name || 'model'} context limit` : undefined}
+            >
+              {isCleaning ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Cleaning with AI...
+                </>
+              ) : cooldownSeconds > 0 ? (
+                <>
+                  <Sparkles size={16} />
+                  AI Cleanup ({cooldownSeconds}s)
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  AI Cleanup
+                </>
+              )}
+            </button>
+          </div>
         </div>
         {error && (
           <div style={{ color: '#dc2626', padding: '8px 16px', fontSize: '13px', backgroundColor: '#fee2e2' }}>

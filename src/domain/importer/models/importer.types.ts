@@ -77,6 +77,5 @@ export interface ImportSession {
   id: string;
   createdAt: string;
   candidates: ImportCandidate[];
-  aiCleanupEnabled: boolean;
   status: 'selecting' | 'extracting' | 'review' | 'details' | 'saving' | 'completed';
 }
