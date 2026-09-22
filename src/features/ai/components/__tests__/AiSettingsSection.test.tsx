@@ -5,7 +5,6 @@ import { AiSettingsSection } from '../AiSettingsSection';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { MockAiAdapter } from '../../../../test/mocks/MockAiAdapter';
 import { createAiChatHarness } from '../../../../test/mocks/aiChatHarness';
-import { STORAGE_KEYS } from '../../../../shared/constants/storageKeys';
 
 describe('AiSettingsSection', () => {
   let db: LunaClairDatabase;
@@ -78,12 +77,14 @@ describe('AiSettingsSection', () => {
   });
 
   it('remembers the preferred model on this device', async () => {
-    renderSection();
+    const harness = renderSection();
 
     fireEvent.click(screen.getByRole('radio', { name: 'MAX' }));
     await waitFor(() => {
       expect(screen.getByRole('radio', { name: 'MAX' })).toBeChecked();
     });
-    expect(localStorage.getItem(STORAGE_KEYS.ai.modelId)).toBe('ukisai-swift-max');
+    expect(await harness.contextValue.repositories.preferences.getPreferredModelId()).toBe(
+      'ukisai-swift-max',
+    );
   });
 });

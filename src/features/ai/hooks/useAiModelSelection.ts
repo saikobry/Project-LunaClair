@@ -1,5 +1,4 @@
-import { useCallback, useState } from 'react';
-import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
+import { useCallback } from 'react';
 import {
   isAiCatalogDisabled,
   resolveAiModelSelection,
@@ -7,6 +6,7 @@ import {
   type AiModelDescriptor,
 } from '../../../domain/ai/services/aiModelCatalog';
 import { useAiModelCatalog } from './queries/useAiModelCatalog';
+import { usePreferredModelId } from './queries/usePreferredModelId';
 
 export interface AiModelSelection {
   /** Best-known catalog: the served one when a fetch succeeded, otherwise the bundled mirror. */
@@ -34,51 +34,34 @@ export interface AiModelSelection {
   refreshCatalog: () => void;
 }
 
-/** A stored preference is a hint, not a contract: it is validated against the catalog on read. */
-function readStoredModelId(): string | undefined {
-  try {
-    return localStorage.getItem(STORAGE_KEYS.ai.modelId) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function writeStoredModelId(modelId: string): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.ai.modelId, modelId);
-  } catch {
-    // A full or unavailable storage must not deprive the user of the choice they just made.
-  }
-}
-
 /**
  * Owns which model the next request uses, on top of the shared catalog query.
  *
  * The choice is **per request and device-local**, not a property of a conversation: `AiThread`
  * stores no model, every turn records the model that served it, and a conversation may mix models.
- * That is what keeps the change additive — no Dexie migration, no session pinned to a model that
- * may later be retired.
- *
- * The preference is stored as an id only; it is **resolved through the catalog on every read**, so a
- * retired or unknown id quietly becomes the catalog default instead of being sent and refused. The
- * catalog itself is not this hook's to own (see `useAiModelCatalog`), so a second consumer shares
- * one entry rather than fetching a second copy.
+ * The preference itself lives in the Dexie-backed `PreferencesRepository` (read through the shared
+ * `preferred-model` cache entry); it is stored as an id only and **resolved through the catalog on
+ * every read**, so a retired or unknown id quietly becomes the catalog default instead of being
+ * sent and refused.
  */
 export function useAiModelSelection(): AiModelSelection {
   const { catalog, refreshCatalog } = useAiModelCatalog();
-  const [preferredModelId, setPreferredModelId] = useState<string | undefined>(() =>
-    readStoredModelId(),
-  );
+  const { preferredModelId, setPreferredModelId } = usePreferredModelId();
 
-  const selectModel = useCallback((modelId: string) => {
-    setPreferredModelId(modelId);
-    writeStoredModelId(modelId);
-  }, []);
+  const selectModel = useCallback(
+    (modelId: string) => {
+      // A failed write degrades to the catalog default through the unchanged
+      // cache entry — the rejection is consumed here so it never surfaces as
+      // an unhandled rejection in the drawer or settings.
+      setPreferredModelId(modelId).catch(() => undefined);
+    },
+    [setPreferredModelId],
+  );
 
   // Resolved rather than validated in an effect: an unknown id falls back to the catalog's default,
   // and a catalog with no default to fall back to resolves to nothing at all — so no render can
   // offer, or send, a model the catalog does not have.
-  const selectedModel = resolveAiModelSelection(catalog, preferredModelId);
+  const selectedModel = resolveAiModelSelection(catalog, preferredModelId ?? undefined);
 
   return {
     catalog,

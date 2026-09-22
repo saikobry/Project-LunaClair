@@ -15,8 +15,6 @@ export const STORAGE_KEYS = {
     onboardingDone: 'lunaclair.settings.onboarding_done',
   },
   ai: {
-    /** Preferred AI model id — a per-request choice, device-local, never a conversation property. */
-    modelId: 'lunaclair.ai.model_id',
     /**
      * Absolute epoch-ms deadline of an active rate-limit cooldown.
      *

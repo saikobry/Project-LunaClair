@@ -11,6 +11,7 @@ import { GetAiGroundingContextUseCase } from '../../../application/use-cases/ai/
 import { SetThreadGroundingUseCase } from '../../../application/use-cases/ai/SetThreadGroundingUseCase';
 import { SetGroundingDefaultUseCase } from '../../../application/use-cases/ai/SetGroundingDefaultUseCase';
 import { SetSelectionThreadModeUseCase } from '../../../application/use-cases/ai/SetSelectionThreadModeUseCase';
+import { SetPreferredModelIdUseCase } from '../../../application/use-cases/ai/SetPreferredModelIdUseCase';
 import { GenerateQuestionsUseCase } from '../../../application/use-cases/generator/GenerateQuestionsUseCase';
 import { BatchCreateQuestionsUseCase } from '../../../application/use-cases/generator/BatchCreateQuestionsUseCase';
 import { GenerateFlashcardsUseCase } from '../../../application/use-cases/generator/GenerateFlashcardsUseCase';
@@ -35,6 +36,7 @@ export function createAiUseCases(infrastructure: Infrastructure) {
             setThreadGrounding: new SetThreadGroundingUseCase(repositories.aiChat),
             setGroundingDefault: new SetGroundingDefaultUseCase(repositories.preferences),
             setSelectionThreadMode: new SetSelectionThreadModeUseCase(repositories.preferences),
+            setPreferredModelId: new SetPreferredModelIdUseCase(repositories.preferences),
             resolveThread: new ResolveAiThreadUseCase(repositories.aiChat),
             createThread: new CreateAiThreadUseCase(repositories.aiChat, repositories.preferences),
             renameThread: new RenameAiThreadUseCase(repositories.aiChat),

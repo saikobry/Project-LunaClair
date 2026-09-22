@@ -14,4 +14,5 @@ export const aiQueryKeys = {
     ['ai', 'grounding-context', target, model ?? ''] as const,
   groundingDefault: () => ['ai', 'grounding-default'] as const,
   selectionThreadMode: () => ['ai', 'selection-thread-mode'] as const,
+  preferredModel: () => ['ai', 'preferred-model'] as const,
 };

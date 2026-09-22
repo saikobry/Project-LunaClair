@@ -36,4 +36,17 @@ export interface PreferencesRepository {
 
   /** Persists where reader selection actions should send their turn. */
   setAiSelectionThreadMode(mode: AiSelectionThreadMode): Promise<void>;
+
+  /**
+   * The preferred AI model id for the next request.
+   *
+   * A stored value is a hint, not a contract: it is resolved through the model
+   * catalog on every read (`resolveAiModelSelection`), so a retired or unknown
+   * id quietly becomes the catalog default. Device-local like its siblings —
+   * never synced, never packaged.
+   */
+  getPreferredModelId(): Promise<string | null>;
+
+  /** Persists the preferred AI model id for the next request. */
+  setPreferredModelId(modelId: string): Promise<void>;
 }

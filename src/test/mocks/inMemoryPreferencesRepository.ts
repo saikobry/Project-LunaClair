@@ -11,10 +11,12 @@ import type { PreferencesRepository } from '../../domain/preferences/repositorie
 export class InMemoryPreferencesRepository implements PreferencesRepository {
   private groundingDefault: AiGroundingMode;
   private selectionThreadMode: AiSelectionThreadMode;
+  private preferredModelId: string | null;
 
   constructor(initial: AiGroundingMode = 'whole') {
     this.groundingDefault = initial;
     this.selectionThreadMode = 'latest';
+    this.preferredModelId = null;
   }
 
   async getAiGroundingDefault(): Promise<AiGroundingMode> {
@@ -31,5 +33,13 @@ export class InMemoryPreferencesRepository implements PreferencesRepository {
 
   async setAiSelectionThreadMode(mode: AiSelectionThreadMode): Promise<void> {
     this.selectionThreadMode = mode;
+  }
+
+  async getPreferredModelId(): Promise<string | null> {
+    return this.preferredModelId;
+  }
+
+  async setPreferredModelId(modelId: string): Promise<void> {
+    this.preferredModelId = modelId;
   }
 }

@@ -18,6 +18,13 @@ export const AI_GROUNDING_DEFAULT_KEY = 'ai.groundingDefault';
 export const AI_SELECTION_THREAD_MODE_KEY = 'ai.selectionThreadMode';
 
 /**
+ * The `preferences` row key holding the preferred AI model id for the next request.
+ *
+ * Exported for the same test-only reason as the keys above.
+ */
+export const AI_PREFERRED_MODEL_KEY = 'ai.preferredModelId';
+
+/**
  * Dexie-backed `PreferencesRepository`.
  *
  * The `preferences` store has existed in the schema since an early version and was never written
@@ -49,6 +56,17 @@ export class DexiePreferencesRepository implements PreferencesRepository {
 
   async setAiSelectionThreadMode(mode: AiSelectionThreadMode): Promise<void> {
     await this.database.preferences.put({ key: AI_SELECTION_THREAD_MODE_KEY, value: mode });
+  }
+
+  async getPreferredModelId(): Promise<string | null> {
+    const row = await this.database.preferences.get(AI_PREFERRED_MODEL_KEY);
+    // A stored id is a hint, not a contract: catalog resolution downstream turns
+    // an unusable value into the catalog default.
+    return typeof row?.value === 'string' ? row.value : null;
+  }
+
+  async setPreferredModelId(modelId: string): Promise<void> {
+    await this.database.preferences.put({ key: AI_PREFERRED_MODEL_KEY, value: modelId });
   }
 }
 

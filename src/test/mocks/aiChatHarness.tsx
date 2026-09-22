@@ -18,6 +18,7 @@ import { GetAiGroundingContextUseCase } from '../../application/use-cases/ai/Get
 import { SetThreadGroundingUseCase } from '../../application/use-cases/ai/SetThreadGroundingUseCase';
 import { SetGroundingDefaultUseCase } from '../../application/use-cases/ai/SetGroundingDefaultUseCase';
 import { SetSelectionThreadModeUseCase } from '../../application/use-cases/ai/SetSelectionThreadModeUseCase';
+import { SetPreferredModelIdUseCase } from '../../application/use-cases/ai/SetPreferredModelIdUseCase';
 import { InMemoryPreferencesRepository } from './inMemoryPreferencesRepository';
 import type { UseCases } from '../../app/bootstrap/createUseCases';
 import type { Infrastructure, Repositories } from '../../app/bootstrap/createInfrastructure';
@@ -79,6 +80,7 @@ export function createAiChatHarness(db: LunaClairDatabase, aiService: AiService)
         setThreadGrounding: new SetThreadGroundingUseCase(aiChatRepository),
         setGroundingDefault: new SetGroundingDefaultUseCase(preferencesRepository),
         setSelectionThreadMode: new SetSelectionThreadModeUseCase(preferencesRepository),
+        setPreferredModelId: new SetPreferredModelIdUseCase(preferencesRepository),
         resolveThread: new ResolveAiThreadUseCase(aiChatRepository),
         createThread: new CreateAiThreadUseCase(aiChatRepository, preferencesRepository),
         renameThread: new RenameAiThreadUseCase(aiChatRepository),
