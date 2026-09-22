@@ -92,7 +92,8 @@ export function AiSettingsSection() {
         <div {...stylex.props(styles.row)}>
           <span {...stylex.props(styles.rowLabel)}>Preferred model</span>
           <span {...stylex.props(styles.rowHint)}>
-            Used for the next message everywhere — chat, selection actions, and generators.
+            Used for chat and selection actions. Generators start from it, and each batch can pick its
+            own.
           </span>
           <AiModelPicker
             models={modelSelection.catalog.models}

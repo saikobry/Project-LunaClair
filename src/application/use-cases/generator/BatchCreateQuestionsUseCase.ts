@@ -28,7 +28,7 @@ export class BatchCreateQuestionsUseCase {
     }
 
     const createInputs: CreateQuestionInput[] = input.questions.map((draft) => {
-      const tags = Array.from(new Set(['ai-generated', ...(draft.tags || [])]));
+      // Tags are whatever classification the draft carries — persistence adds no provenance marker.
       return {
         materialId: input.materialId,
         type: draft.type,
@@ -37,7 +37,7 @@ export class BatchCreateQuestionsUseCase {
         difficulty: draft.difficulty,
         points: draft.points,
         explanation: draft.explanation,
-        tags,
+        tags: draft.tags ?? [],
         status: input.status ?? 'draft',
       };
     });

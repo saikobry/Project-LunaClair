@@ -67,6 +67,14 @@ export interface AiModelPickerProps {
    * the geometry, so inline insets would double up).
    */
   layout?: 'inline' | 'stacked';
+  /**
+   * Accessible name for the control.
+   *
+   * Defaults to the chat drawer's wording. A surface whose next request is not a
+   * chat message names its own — the generators pick a model for one batch, and
+   * "for the next message" would describe the wrong thing.
+   */
+  controlLabel?: string;
 }
 
 /**
@@ -92,6 +100,7 @@ export function AiModelPicker({
   isOverBudget,
   cooldownSeconds,
   layout = 'inline',
+  controlLabel = 'AI model for the next message',
 }: AiModelPickerProps) {
   const stacked = layout === 'stacked';
   const unavailableNotice = resolvePickerUnavailableNotice(isAiDisabled, models.length > 0);
@@ -116,7 +125,7 @@ export function AiModelPicker({
   return (
     <div {...stylex.props(styles.row, stacked && styles.rowStacked)}>
       <SegmentedControl
-        label="AI model for the next message"
+        label={controlLabel}
         value={selectedModelId ?? ''}
         onChange={(value) => onSelectModel(value)}
         size="sm"

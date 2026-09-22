@@ -7,6 +7,8 @@ import { Button } from '../../../../shared/ui/Button/Button';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input/Input';
 import { GeneratedQuestionPreviewCard } from './GeneratedQuestionPreviewCard';
+import { GeneratedBatchHeader } from './GeneratedBatchHeader';
+import { SynthesisModelControl } from './SynthesisModelControl';
 import { useAiQuestionGenerator } from '../hooks/useAiQuestionGenerator';
 
 const styles = stylex.create({
@@ -114,7 +116,6 @@ export interface AiQuestionGeneratorDialogProps {
   onClose: () => void;
   materialId: string;
   materialTitle: string;
-  documentMarkdown: string;
   onSuccess?: (createdCount: number) => void;
 }
 
@@ -131,7 +132,6 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
   onClose,
   materialId,
   materialTitle,
-  documentMarkdown,
   onSuccess,
 }) => {
   const [count, setCount] = useState<number>(5);
@@ -148,6 +148,13 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
     selectedIndices,
     savedQuestions,
     errorMessage,
+    isAiUnavailable,
+    models,
+    defaultModelId,
+    isAiDisabled,
+    selectedModelId,
+    selectModel,
+    rejectedCount,
     generate,
     toggleSelect,
     selectAll,
@@ -172,9 +179,10 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
   };
 
   const handleGenerate = async () => {
+    // Belt-and-braces with the disabled button: nothing is sent when there is no model to send on.
+    if (isAiUnavailable) return;
     await generate({
       materialId,
-      documentMarkdown,
       count,
       difficulty,
       types: Array.from(selectedTypes),
@@ -213,7 +221,12 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
               <Button label="Cancel" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button label="Generate Questions" variant="primary" onClick={handleGenerate}>
+              <Button
+                label="Generate Questions"
+                variant="primary"
+                onClick={handleGenerate}
+                isDisabled={isAiUnavailable}
+              >
                 <Sparkles size={14} style={{ marginRight: 6 }} />
                 Generate Questions
               </Button>
@@ -247,7 +260,12 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
               <Button label="Cancel" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button label="Retry Generation" variant="primary" onClick={handleGenerate}>
+              <Button
+                label="Retry Generation"
+                variant="primary"
+                onClick={handleGenerate}
+                isDisabled={isAiUnavailable}
+              >
                 Retry Generation
               </Button>
             </>
@@ -262,6 +280,16 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
               Synthesize questions from <strong>{materialTitle}</strong> directly into your
               Question Bank in <strong>Draft</strong> status.
             </div>
+
+            <SynthesisModelControl
+              isAiUnavailable={isAiUnavailable}
+              models={models}
+              defaultModelId={defaultModelId}
+              isAiDisabled={isAiDisabled}
+              selectedModelId={selectedModelId}
+              onSelectModel={selectModel}
+              noun="questions"
+            />
 
             {/* Count selection */}
             <div {...stylex.props(styles.formSection)}>
@@ -346,9 +374,13 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
         {status === 'review' && (
           <>
             <div {...stylex.props(styles.reviewHeader)}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Generated {drafts.length} questions ({selectedIndices.size} selected)
-              </div>
+              <GeneratedBatchHeader
+                generatedCount={drafts.length}
+                selectedCount={selectedIndices.size}
+                rejectedCount={rejectedCount}
+                singular="question"
+                plural="questions"
+              />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button label="Select All" variant="secondary" onClick={selectAll}>
                   Select All

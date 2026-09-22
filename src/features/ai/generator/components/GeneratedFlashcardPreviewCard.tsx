@@ -4,6 +4,7 @@ import { Check, Edit2, AlertCircle, Layers } from 'lucide-react';
 import type { GeneratedFlashcardDraft } from '../../../../domain/generator/models/generator.types';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { Input } from '../../../../shared/ui/Input/Input';
+import { DraftTagList } from './DraftTagList';
 
 const styles = stylex.create({
   card: {
@@ -277,6 +278,8 @@ export const GeneratedFlashcardPreviewCard: React.FC<GeneratedFlashcardPreviewCa
           💡 {draft.explanation}
         </div>
       )}
+
+      <DraftTagList tags={draft.tags} />
     </div>
   );
 };

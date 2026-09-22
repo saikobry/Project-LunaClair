@@ -46,9 +46,11 @@ export function createAiUseCases(infrastructure: Infrastructure) {
             getModelCatalog: new GetAiModelCatalogUseCase(repositories.aiModelCatalog),
         },
         generator: {
-            generateQuestions: new GenerateQuestionsUseCase(services.ai),
+            // Synthesis resolves its source document through the same resolver the chat path uses,
+            // so "what was actually sent" has one implementation for both surfaces.
+            generateQuestions: new GenerateQuestionsUseCase(services.ai, aiGroundingResolver),
             batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.question),
-            generateFlashcards: new GenerateFlashcardsUseCase(services.ai),
+            generateFlashcards: new GenerateFlashcardsUseCase(services.ai, aiGroundingResolver),
             batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.question),
         },
     };

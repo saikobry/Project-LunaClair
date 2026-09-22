@@ -7,7 +7,6 @@ import { useQuizzes } from '../quiz/hooks/queries/useQuizzes';
 import { useFlashcardReviews } from './hooks/queries/useFlashcardReviews';
 import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
 import { useMaterial } from '../materials/hooks/queries/useMaterial';
-import { useDocument } from '../reader/hooks/useDocument';
 import { useToast } from '../../app/providers/ToastContext';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/engines/deck';
 import type { Flashcard } from '../../domain/flashcards/models/Flashcard';
@@ -55,7 +54,6 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
     const { reviews, isLoading: loadingReviews } = useFlashcardReviews(materialId);
     const { recordRating } = useFlashcardRating(materialId);
     const { material, isLoading: loadingMaterial } = useMaterial(materialId);
-    const { data: doc, isLoading: loadingDoc } = useDocument(material);
 
     const [step, setStep] = useState<FlashcardViewStep>('setup');
     const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
@@ -63,7 +61,7 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [summary, setSummary] = useState<FlashcardSessionSummary>(INITIAL_SUMMARY);
 
-    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews || loadingMaterial || loadingDoc;
+    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews || loadingMaterial;
 
     const handleStartSession = (selectedQuizId?: string, studyMode?: DeckStudyMode) => {
         let pool = questions.filter((q) => q.status !== 'archived');
@@ -162,7 +160,6 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     onClose={() => setAiGeneratorOpen(false)}
                     materialId={materialId}
                     materialTitle={material?.title || 'Study Material'}
-                    documentMarkdown={doc?.content || ''}
                     onSuccess={(count) => {
                         showToast(`Added ${count} flashcards to your deck`, { intent: 'success' });
                         queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });

@@ -5,6 +5,7 @@ import type { GeneratedQuestionDraft } from '../../../../domain/generator/models
 import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { Input } from '../../../../shared/ui/Input/Input';
+import { DraftTagList } from './DraftTagList';
 import {
   DIFFICULTY_APPEARANCE,
   QUESTION_TYPE_APPEARANCE,
@@ -376,6 +377,8 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
       )}
 
       <PayloadPreview payload={draft.payload} explanation={draft.explanation} />
+
+      <DraftTagList tags={draft.tags} />
     </div>
   );
 };

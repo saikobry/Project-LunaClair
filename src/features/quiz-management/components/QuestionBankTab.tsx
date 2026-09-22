@@ -705,7 +705,6 @@ export function QuestionBankTab({
                     onClose={() => setAiGeneratorOpen(false)}
                     materialId={materialId}
                     materialTitle={materialTitle || 'Study Material'}
-                    documentMarkdown={documentMarkdown || ''}
                     onSuccess={(createdCount) => {
                         showToast(`Added ${createdCount} questions to Question Bank in Draft status`, { intent: 'success' });
                         if (onRefresh) {

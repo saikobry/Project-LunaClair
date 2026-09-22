@@ -4,12 +4,15 @@ import type { QuestionAnswerPayload } from '../../quiz/models/AnswerPayload';
 
 /**
  * Request specification for generating assessment questions from study materials.
+ *
+ * The source document is deliberately **not** a field: it is resolved from `materialId` by the use
+ * case, through the same grounding resolver the chat path uses. A caller-supplied document is an
+ * unverifiable second source of truth — it lets a generation run against content the reader would not
+ * have offered, and it forces every caller to load the whole document just to open a dialog.
  */
 export interface GenerateQuestionsRequest {
-  /** Target study material ID. */
+  /** Target study material ID; the source document is resolved from it. */
   materialId: string;
-  /** Document markdown content from which to synthesize questions. */
-  documentMarkdown: string;
   /** Target number of questions to generate (1..10, default: 5). */
   count?: number;
   /** Target difficulty level or 'all' for mixed difficulty. */
@@ -18,6 +21,11 @@ export interface GenerateQuestionsRequest {
   types?: QuestionType[];
   /** Optional custom topic or section focus (e.g. "Focus on cardiac conduction"). */
   focusTopic?: string;
+  /**
+   * App-facing model id from the catalog. Omitted = the catalog default.
+   * The model also decides the document cap and the output budget the request runs under.
+   */
+  model?: string;
   /** Optional abort signal. */
   signal?: AbortSignal;
 }
@@ -41,14 +49,14 @@ export interface GeneratedQuestionDraft {
  * Request specification for generating flashcards from study materials.
  */
 export interface GenerateFlashcardsRequest {
-  /** Target study material ID. */
+  /** Target study material ID; the source document is resolved from it. */
   materialId: string;
-  /** Document markdown content. */
-  documentMarkdown: string;
   /** Target number of flashcards to generate (1..15, default: 8). */
   count?: number;
   /** Optional custom topic or section focus. */
   focusTopic?: string;
+  /** App-facing model id from the catalog. Omitted = the catalog default. */
+  model?: string;
   /** Optional abort signal. */
   signal?: AbortSignal;
 }

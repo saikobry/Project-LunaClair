@@ -16,7 +16,7 @@ describe('BatchCreateFlashcardsUseCase', () => {
             difficulty: 'medium',
             version: 1,
             status: 'draft',
-            tags: ['flashcard', 'ai-generated', 'organelles'],
+            tags: ['organelles', 'cell biology'],
             explanation: 'Mitochondria generate ATP.',
             createdAt: '2026-09-01T00:00:00.000Z',
             updatedAt: '2026-09-01T00:00:00.000Z',
@@ -62,7 +62,7 @@ describe('BatchCreateFlashcardsUseCase', () => {
                 difficulty: 'medium',
                 points: 1,
                 explanation: 'Mitochondria generate ATP.',
-                tags: ['flashcard', 'ai-generated', 'organelles'],
+                tags: ['organelles'],
                 status: 'draft',
             },
         ]);

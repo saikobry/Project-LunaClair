@@ -5,6 +5,8 @@ import { Button } from '../../../../shared/ui/Button/Button';
 import { Dialog } from '../../../../shared/ui/Dialog/Dialog';
 import { Input } from '../../../../shared/ui/Input/Input';
 import { GeneratedFlashcardPreviewCard } from './GeneratedFlashcardPreviewCard';
+import { GeneratedBatchHeader } from './GeneratedBatchHeader';
+import { SynthesisModelControl } from './SynthesisModelControl';
 import { useAiFlashcardGenerator } from '../hooks/useAiFlashcardGenerator';
 
 const styles = stylex.create({
@@ -112,7 +114,6 @@ export interface AiFlashcardGeneratorDialogProps {
   onClose: () => void;
   materialId: string;
   materialTitle: string;
-  documentMarkdown: string;
   onSuccess?: (createdCount: number) => void;
 }
 
@@ -121,7 +122,6 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
   onClose,
   materialId,
   materialTitle,
-  documentMarkdown,
   onSuccess,
 }) => {
   const [count, setCount] = useState<number>(8);
@@ -134,6 +134,13 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
     selectedIndices,
     savedCards,
     errorMessage,
+    isAiUnavailable,
+    models,
+    defaultModelId,
+    isAiDisabled,
+    selectedModelId,
+    selectModel,
+    rejectedCount,
     generate,
     toggleSelect,
     selectAll,
@@ -146,9 +153,10 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
+    // Belt-and-braces with the disabled button: nothing is sent when there is no model to send on.
+    if (isAiUnavailable) return;
     await generate({
       materialId,
-      documentMarkdown,
       count,
       focusTopic: focusTopic.trim() || undefined,
     });
@@ -185,7 +193,12 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
               <Button label="Cancel" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button label="Generate Flashcards" variant="primary" onClick={handleGenerate}>
+              <Button
+                label="Generate Flashcards"
+                variant="primary"
+                onClick={handleGenerate}
+                isDisabled={isAiUnavailable}
+              >
                 <Sparkles size={14} style={{ marginRight: 6 }} />
                 Generate Flashcards
               </Button>
@@ -219,7 +232,12 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
               <Button label="Cancel" variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button label="Retry Generation" variant="primary" onClick={handleGenerate}>
+              <Button
+                label="Retry Generation"
+                variant="primary"
+                onClick={handleGenerate}
+                isDisabled={isAiUnavailable}
+              >
                 Retry Generation
               </Button>
             </>
@@ -233,6 +251,16 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
             <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
               Synthesize key definitions and conceptual flashcards from <strong>{materialTitle}</strong>.
             </div>
+
+            <SynthesisModelControl
+              isAiUnavailable={isAiUnavailable}
+              models={models}
+              defaultModelId={defaultModelId}
+              isAiDisabled={isAiDisabled}
+              selectedModelId={selectedModelId}
+              onSelectModel={selectModel}
+              noun="flashcards"
+            />
 
             {/* Count selection */}
             <div {...stylex.props(styles.formSection)}>
@@ -280,9 +308,13 @@ export const AiFlashcardGeneratorDialog: React.FC<AiFlashcardGeneratorDialogProp
         {status === 'review' && (
           <>
             <div {...stylex.props(styles.reviewHeader)}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Generated {drafts.length} flashcards ({selectedIndices.size} selected)
-              </div>
+              <GeneratedBatchHeader
+                generatedCount={drafts.length}
+                selectedCount={selectedIndices.size}
+                rejectedCount={rejectedCount}
+                singular="flashcard"
+                plural="flashcards"
+              />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button label="Select All" variant="secondary" onClick={selectAll}>
                   Select All

@@ -28,7 +28,7 @@ export class BatchCreateFlashcardsUseCase {
     }
 
     const createInputs: CreateQuestionInput[] = input.flashcards.map((draft) => {
-      const tags = Array.from(new Set(['flashcard', 'ai-generated', ...(draft.tags || [])]));
+      // Tags are whatever classification the draft carries — persistence adds no marker of its own.
       return {
         materialId: input.materialId,
         type: 'identification',
@@ -40,7 +40,7 @@ export class BatchCreateFlashcardsUseCase {
         difficulty: 'medium',
         points: 1,
         explanation: draft.explanation,
-        tags,
+        tags: draft.tags ?? [],
         status: input.status ?? 'draft',
       };
     });

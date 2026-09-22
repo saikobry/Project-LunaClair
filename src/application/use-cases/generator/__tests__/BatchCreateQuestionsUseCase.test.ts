@@ -21,7 +21,7 @@ describe('BatchCreateQuestionsUseCase', () => {
     },
   ];
 
-  it('persists drafts in batch defaulting to draft status and adding ai-generated tag', async () => {
+  it('persists drafts in batch defaulting to draft status without stamping a provenance tag', async () => {
     let capturedInputs: CreateQuestionInput[] = [];
 
     const mockRepo: QuestionRepository = {
@@ -56,8 +56,8 @@ describe('BatchCreateQuestionsUseCase', () => {
     expect(capturedInputs).toHaveLength(1);
     expect(capturedInputs[0].materialId).toBe('mat-cell-1');
     expect(capturedInputs[0].status).toBe('draft');
-    expect(capturedInputs[0].tags).toContain('ai-generated');
-    expect(capturedInputs[0].tags).toContain('bio');
+    // Persistence adds no marker: the draft's own classification tags are what is stored.
+    expect(capturedInputs[0].tags).toEqual(['bio']);
   });
 
   it('returns empty array when input array is empty without invoking repository', async () => {
