@@ -109,7 +109,7 @@ describe('ImportReviewView', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders dual-pane review layout with candidate files, editor, and preview', () => {
+  it('renders the split review layout with the toolbar file selector, editor, and preview', () => {
     const onUpdateMarkdown = vi.fn();
     renderWithContext(
       <ImportReviewView
@@ -119,9 +119,12 @@ describe('ImportReviewView', () => {
       />,
     );
 
-    expect(screen.getByText('Files')).toBeInTheDocument();
-    expect(screen.getByText('cell_bio.pdf')).toBeInTheDocument();
-    expect(screen.getByText('genetics.pdf')).toBeInTheDocument();
+    // The 220px sidebar is gone: every pixel of the body goes to the panes.
+    expect(screen.queryByRole('heading', { name: 'Files' })).not.toBeInTheDocument();
+    // Only the active filename is in the DOM while the selector is closed.
+    expect(screen.getAllByText('cell_bio.pdf')).toHaveLength(1);
+    expect(screen.queryByText('genetics.pdf')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /\(1 of 2\)/ })).toBeInTheDocument();
     expect(screen.getByText('Edit Content')).toBeInTheDocument();
     expect(screen.getByText('Live Rendered Preview')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ai cleanup/i })).toBeInTheDocument();
@@ -129,6 +132,138 @@ describe('ImportReviewView', () => {
     const editor = screen.getByTestId('mock-writer-editor') as HTMLTextAreaElement;
     expect(editor.value).toBe('# Raw Cell Bio\n\n- Fact 1\n- Fact 2');
   });
+
+  it('renders a static filename without a selector when there is only one candidate', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={[mockCandidates[0]]}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('cell_bio.pdf')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /of 1\)/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('opens the toolbar file selector, lists every candidate, and selects one', () => {
+    const onSelectCandidate = vi.fn();
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+        onSelectCandidate={onSelectCandidate}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: /\(1 of 2\)/ });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(trigger);
+
+    const listbox = screen.getByRole('listbox', { name: 'Select file to review' });
+    expect(listbox).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /cell_bio\.pdf/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('option', { name: /genetics\.pdf/ })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    );
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('option', { name: /genetics\.pdf/ }));
+
+    expect(onSelectCandidate).toHaveBeenCalledWith(1);
+    // The popover closes itself once a file is picked.
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getAllByText('cell_bio.pdf')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /\(1 of 2\)/ })).toHaveFocus();
+  });
+
+  it('dismisses the file selector on an outside pointerdown', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+        onSelectCandidate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /\(1 of 2\)/ }));
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body);
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('dismisses the file selector on Escape and returns focus to the trigger', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+        onSelectCandidate={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: /\(1 of 2\)/ });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('keeps the file selector open while interacting inside the popover', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+        onSelectCandidate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /\(1 of 2\)/ }));
+    const listbox = screen.getByRole('listbox');
+
+    fireEvent.pointerDown(listbox);
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
+  it('switches between Split, Editor, and Preview without unmounting the switcher', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Preview' }));
+    expect(screen.queryByTestId('mock-writer-editor')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-markdown-viewer')).toBeInTheDocument();
+    // The switcher lives above the panes, so it survives leaving Split.
+    expect(screen.getByRole('radio', { name: 'Editor' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Editor' }));
+    expect(screen.getByTestId('mock-writer-editor')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-markdown-viewer')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Split' }));
+    expect(screen.getByTestId('mock-writer-editor')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-markdown-viewer')).toBeInTheDocument();
+  });
+
 
   it('updates markdown when user edits within WriterEditor', () => {
     const onUpdateMarkdown = vi.fn();

@@ -2,6 +2,8 @@ import * as stylex from '@stylexjs/stylex';
 import { Loader2, Clock, Sparkles } from 'lucide-react';
 import { importerStyles } from '../styles/importer.stylex';
 import type { ImportCandidate, ExtractionProgress } from '../../../domain/importer/models/importer.types';
+import { Button } from '../../../shared/ui/Button/Button';
+import { ImportStatusBadge } from './ImportStatusBadge';
 
 interface ExtractionProgressViewProps {
   candidates: ImportCandidate[];
@@ -19,13 +21,7 @@ export function ExtractionProgressView({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ margin: 0 }}>Extracting Content...</h3>
         {onCancel && (
-          <button
-            type="button"
-            {...stylex.props(importerStyles.button, importerStyles.buttonSecondary)}
-            onClick={onCancel}
-          >
-            Cancel Extraction
-          </button>
+          <Button variant="secondary" label="Cancel Extraction" onClick={onCancel} />
         )}
       </div>
       <div {...stylex.props(importerStyles.fileList)}>
@@ -60,7 +56,7 @@ export function ExtractionProgressView({
                     ) : isAiVision ? (
                       <Sparkles size={12} />
                     ) : c.status === 'extracting' ? (
-                      <Loader2 size={12} className="animate-spin" />
+                      <Loader2 size={12} {...stylex.props(importerStyles.iconSpin)} aria-hidden="true" />
                     ) : null}
                     <span>{progress.pageLabel}</span>
                   </div>
@@ -81,18 +77,7 @@ export function ExtractionProgressView({
                   </div>
                 )}
               </div>
-              <div
-                {...stylex.props(
-                  importerStyles.statusBadge,
-                  c.status === 'extracting'
-                    ? importerStyles.statusExtracting
-                    : c.status === 'error'
-                    ? importerStyles.statusError
-                    : importerStyles.statusDone,
-                )}
-              >
-                {c.status}
-              </div>
+              <ImportStatusBadge status={c.status} />
             </div>
           );
         })}

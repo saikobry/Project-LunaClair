@@ -110,16 +110,21 @@ describe('ImportDropZone', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
 
     try {
+      const onOcrEngineChange = vi.fn();
       render(
         <ImportDropZone
           onFilesAdded={vi.fn()}
           ocrEngine="tesseract"
-          onOcrEngineChange={vi.fn()}
+          onOcrEngineChange={onOcrEngineChange}
         />,
       );
 
+      // Segmented segments are `<button role="radio">`, so the disabled state
+      // is expressed as `aria-disabled` rather than the native attribute.
       const visionRadio = screen.getByRole('radio', { name: /ai vision.*offline/i });
-      expect(visionRadio).toBeDisabled();
+      expect(visionRadio).toHaveAttribute('aria-disabled', 'true');
+      fireEvent.click(visionRadio);
+      expect(onOcrEngineChange).not.toHaveBeenCalled();
     } finally {
       Object.defineProperty(navigator, 'onLine', { value: originalOnLine, configurable: true });
     }

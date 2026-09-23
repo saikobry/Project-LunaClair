@@ -9,10 +9,22 @@ describe('MaterialDetailsView', () => {
       id: 'cand-1',
       filename: 'cell_bio.pdf',
       source: 'pdf',
-      file: new File([''], 'cell_bio.pdf', { type: 'application/pdf' }),
+      file: new File([new ArrayBuffer(2 * 1024 * 1024)], 'cell_bio.pdf', { type: 'application/pdf' }),
       status: 'review',
       title: 'Introduction to Cell Biology',
-      markdown: '# Cell Bio',
+      markdown: '# Cell Bio today',
+      extraction: {
+        text: '# Cell Bio today',
+        pageCount: 3,
+        pages: [],
+        stats: {
+          wordCount: 4,
+          characterCount: 20,
+          headingsDetected: 1,
+          ocrPages: 0,
+          textPages: 3,
+        },
+      },
     },
     {
       id: 'cand-2',
@@ -27,13 +39,11 @@ describe('MaterialDetailsView', () => {
 
   it('renders title input fields populated with existing candidate titles', () => {
     const onUpdateTitle = vi.fn();
-    const onCommit = vi.fn();
 
     render(
       <MaterialDetailsView
         candidates={mockCandidates}
         onUpdateTitle={onUpdateTitle}
-        onCommit={onCommit}
       />,
     );
 
@@ -48,13 +58,11 @@ describe('MaterialDetailsView', () => {
 
   it('invokes onUpdateTitle when title input is edited', () => {
     const onUpdateTitle = vi.fn();
-    const onCommit = vi.fn();
 
     render(
       <MaterialDetailsView
         candidates={mockCandidates}
         onUpdateTitle={onUpdateTitle}
-        onCommit={onCommit}
       />,
     );
 
@@ -65,21 +73,26 @@ describe('MaterialDetailsView', () => {
     expect(onUpdateTitle).toHaveBeenCalledWith('cand-1', 'Advanced Cell Biology');
   });
 
-  it('invokes onCommit when Save to Library button is clicked', () => {
-    const onUpdateTitle = vi.fn();
-    const onCommit = vi.fn();
+  it('renders the document summary metadata for each candidate', () => {
+    render(<MaterialDetailsView candidates={mockCandidates} onUpdateTitle={vi.fn()} />);
 
-    render(
-      <MaterialDetailsView
-        candidates={mockCandidates}
-        onUpdateTitle={onUpdateTitle}
-        onCommit={onCommit}
-      />,
-    );
+    expect(screen.getByText('2.00 MB')).toBeInTheDocument();
+    expect(screen.getByText('4 words')).toBeInTheDocument();
+    expect(screen.getByText('3 pages')).toBeInTheDocument();
+  });
 
-    const saveButton = screen.getByRole('button', { name: /save to library/i });
-    fireEvent.click(saveButton);
+  it('degrades the metadata row when extraction data is absent', () => {
+    render(<MaterialDetailsView candidates={[mockCandidates[1]]} onUpdateTitle={vi.fn()} />);
 
-    expect(onCommit).toHaveBeenCalledTimes(1);
+    // No extraction result => no page claim, and the word count is estimated
+    // from the markdown rather than rendering an empty badge.
+    expect(screen.queryByText(/pages?$/)).not.toBeInTheDocument();
+    expect(screen.getByText('1 word')).toBeInTheDocument();
+  });
+
+  it('owns no commit action — the wizard footer owns Save to Library', () => {
+    render(<MaterialDetailsView candidates={mockCandidates} onUpdateTitle={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /save to library/i })).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Sparkles,
+  Loader2,
+  AlertTriangle,
+  ChevronDown,
+  FileText,
+  Image as ImageIcon,
+} from 'lucide-react';
 import { importerStyles } from '../styles/importer.stylex';
 import type { ImportCandidate } from '../../../domain/importer/models/importer.types';
 import { WriterEditor } from '../../writer/components/WriterEditor';
@@ -8,11 +15,19 @@ import MarkdownViewer from '../../reader/components/MarkdownViewer';
 import { useAiCleanup } from '../hooks/useAiCleanup';
 import { useAiModelSelection } from '../../ai/hooks/useAiModelSelection';
 import { AiModelPicker } from '../../ai/components/AiModelPicker';
+import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Button } from '../../../shared/ui/Button/Button';
+import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
+import { ImportStatusBadge } from './ImportStatusBadge';
+
+type ReviewViewMode = 'split' | 'edit' | 'preview';
 
 interface ImportReviewViewProps {
   candidates: ImportCandidate[];
   activeIndex: number;
   onUpdateMarkdown: (id: string, markdown: string) => void;
+  /** Optional so the view stays usable standalone; the wizard always supplies it. */
+  onSelectCandidate?: (index: number) => void;
 }
 
 interface ImportDiffModalProps {
@@ -23,66 +38,77 @@ interface ImportDiffModalProps {
 
 function ImportDiffModal({ diffResult, onReject, onAccept }: ImportDiffModalProps) {
   return (
-    <div {...stylex.props(importerStyles.diffModal)}>
-      <div {...stylex.props(importerStyles.diffCard)}>
-        <div {...stylex.props(importerStyles.diffHeader)}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} color="var(--color-accent)" /> AI Cleanup Diff Comparison
-          </h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              {...stylex.props(importerStyles.button, importerStyles.buttonSecondary)}
-              onClick={onReject}
-            >
-              Keep Original
-            </button>
-            <button
-              type="button"
-              {...stylex.props(importerStyles.button, importerStyles.buttonPrimary)}
-              onClick={onAccept}
-            >
-              Accept AI Cleaned
-            </button>
-          </div>
+    <Dialog
+      isOpen
+      onClose={onReject}
+      title="AI Cleanup Diff Comparison"
+      width={900}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <Button variant="secondary" label="Keep Original" onClick={onReject}>
+            Keep Original
+          </Button>
+          <Button variant="primary" label="Accept AI Cleaned" onClick={onAccept}>
+            Accept AI Cleaned
+          </Button>
         </div>
-        <div {...stylex.props(importerStyles.diffContent)}>
-          <div {...stylex.props(importerStyles.diffPane)}>
-            <h4 style={{ marginTop: 0, color: '#6b7280' }}>Original Extracted Text</h4>
-            <MarkdownViewer text={diffResult.original} />
-          </div>
-          <div {...stylex.props(importerStyles.diffPane)}>
-            <h4 style={{ marginTop: 0, color: 'var(--color-accent)' }}>AI Cleaned Structure</h4>
-            <MarkdownViewer text={diffResult.cleaned} />
-          </div>
+      }
+    >
+      <div style={{ display: 'flex', gap: '16px', minHeight: '400px' }}>
+        <div
+          style={{
+            flex: 1,
+            border: '1px solid var(--color-border)',
+            borderRadius: '8px',
+            padding: '16px',
+            overflowY: 'auto',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--color-text-secondary)' }}>Original Extracted Text</h4>
+          <MarkdownViewer text={diffResult.original} />
+        </div>
+        <div
+          style={{
+            flex: 1,
+            border: '1px solid var(--color-border)',
+            borderRadius: '8px',
+            padding: '16px',
+            overflowY: 'auto',
+          }}
+        >
+          <h4 style={{ marginTop: 0, color: 'var(--color-accent)' }}>AI Cleaned Structure</h4>
+          <MarkdownViewer text={diffResult.cleaned} />
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
-function AiCleanupButtonContent({ isCleaning, cooldownSeconds }: { isCleaning: boolean; cooldownSeconds: number }) {
-  if (isCleaning) {
-    return (
-      <>
-        <Loader2 size={16} className="animate-spin" />
-        Cleaning with AI...
-      </>
-    );
-  }
-  if (cooldownSeconds > 0) {
-    return (
-      <>
-        <Sparkles size={16} />
-        AI Cleanup ({cooldownSeconds}s)
-      </>
-    );
-  }
+// The accessible name is the dynamic label: the countdown and the in-flight
+// state are the information a screen-reader user needs, not just the action.
+function aiCleanupLabel(isCleaning: boolean, cooldownSeconds: number): string {
+  if (isCleaning) return 'Cleaning with AI...';
+  if (cooldownSeconds > 0) return `AI Cleanup (${cooldownSeconds}s)`;
+  return 'AI Cleanup';
+}
+
+/** Page count is an extraction artifact — degrade to nothing when it is absent. */
+function PageTag({ candidate }: { candidate: ImportCandidate }) {
+  const pageCount = candidate.extraction?.pageCount ?? 0;
+  if (pageCount <= 0) return null;
+
   return (
-    <>
-      <Sparkles size={16} />
-      AI Cleanup
-    </>
+    <span {...stylex.props(importerStyles.pageTag)}>
+      {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+    </span>
+  );
+}
+
+function FileKindIcon({ source }: { source: ImportCandidate['source'] }) {
+  return (
+    <span {...stylex.props(importerStyles.fileKindIcon)} aria-hidden="true">
+      {source === 'pdf' ? <FileText size={14} /> : <ImageIcon size={14} />}
+    </span>
   );
 }
 
@@ -97,14 +123,14 @@ function PartialExtractionBanner({
     <div
       data-testid="partial-extraction-banner"
       style={{
-        backgroundColor: 'var(--color-warning-muted, #fef3c7)',
-        color: 'var(--color-warning, #d97706)',
+        backgroundColor: 'var(--color-warning-muted)',
+        color: 'var(--color-warning)',
         padding: '8px 16px',
         fontSize: '13px',
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        borderBottom: '1px solid var(--color-warning-muted, #fde68a)',
+        borderBottom: '1px solid var(--color-warning)',
       }}
     >
       <AlertTriangle size={16} />
@@ -115,49 +141,72 @@ function PartialExtractionBanner({
   );
 }
 
-function CandidateFilesList({
-  candidates,
-  activeCandidateId,
-}: {
-  candidates: ImportCandidate[];
-  activeCandidateId?: string;
-}) {
-  return (
-    <div {...stylex.props(importerStyles.reviewLeft)}>
-      <h4>Files</h4>
-      {candidates.map((c) => {
-        const isActive = c.id === activeCandidateId;
-        return (
-          <div
-            key={c.id}
-            style={{
-              padding: '8px',
-              borderRadius: '4px',
-              backgroundColor: isActive ? 'var(--color-accent-muted)' : 'transparent',
-              fontWeight: isActive ? 600 : 400,
-            }}
-          >
-            {c.filename}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
+/**
+ * The review-level toolbar. It sits above the panes and is rendered in every
+ * view mode on purpose: mounted inside a pane it would unmount the moment the
+ * user switched away from Split, stranding them in the mode they picked.
+ *
+ * It also owns file switching (Option B): the sidebar that used to hold the
+ * candidate queue is gone, so the whole width goes to the editor and preview.
+ * With one candidate the filename is static; with several it becomes a
+ * listbox popover anchored to this toolbar.
+ */
 function ReviewToolbar({
+  activeCandidate,
+  candidates,
+  activeIndex,
+  onSelectCandidate,
+  viewMode,
+  onViewModeChange,
   modelSelection,
   isOverBudget,
   cooldownSeconds,
   isCleaning,
   onTriggerAiCleanup,
 }: {
+  activeCandidate: ImportCandidate;
+  candidates: ImportCandidate[];
+  activeIndex: number;
+  onSelectCandidate?: (index: number) => void;
+  viewMode: ReviewViewMode;
+  onViewModeChange: (mode: ReviewViewMode) => void;
   modelSelection: ReturnType<typeof useAiModelSelection>;
   isOverBudget: boolean;
   cooldownSeconds: number;
   isCleaning: boolean;
   onTriggerAiCleanup: () => void;
 }) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // A single candidate has nothing to switch to: render a static filename so the
+  // toolbar costs no extra chrome at all.
+  const canSwitchFiles = candidates.length > 1;
+
+  useEffect(() => {
+    if (!popoverOpen) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setPopoverOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPopoverOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [popoverOpen]);
+
   const isButtonDisabled =
     isCleaning ||
     cooldownSeconds > 0 ||
@@ -170,9 +219,87 @@ function ReviewToolbar({
     : undefined;
 
   return (
-    <div {...stylex.props(importerStyles.toolbar)}>
-      <span>Edit Content</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div {...stylex.props(importerStyles.reviewToolbar)}>
+      <div {...stylex.props(importerStyles.reviewToolbarInfo)}>
+        {canSwitchFiles ? (
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded={popoverOpen}
+            onClick={() => setPopoverOpen((open) => !open)}
+            {...stylex.props(importerStyles.fileSelectorTrigger)}
+          >
+            <FileKindIcon source={activeCandidate.source} />
+            <span {...stylex.props(importerStyles.reviewToolbarFilename)}>
+              {activeCandidate.filename}
+            </span>
+            <span {...stylex.props(importerStyles.fileIndex)}>
+              ({activeIndex + 1} of {candidates.length})
+            </span>
+            <ChevronDown size={12} aria-hidden="true" />
+          </button>
+        ) : (
+          <>
+            <FileKindIcon source={activeCandidate.source} />
+            <span {...stylex.props(importerStyles.reviewToolbarFilename)}>
+              {activeCandidate.filename}
+            </span>
+          </>
+        )}
+        <ImportStatusBadge status={activeCandidate.status} />
+        <PageTag candidate={activeCandidate} />
+
+        {popoverOpen && canSwitchFiles && (
+          <div
+            ref={popoverRef}
+            {...stylex.props(importerStyles.popover)}
+            role="listbox"
+            aria-label="Select file to review"
+          >
+            {candidates.map((candidate, index) => {
+              const isSelected = candidate.id === activeCandidate.id;
+              return (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => {
+                    onSelectCandidate?.(index);
+                    setPopoverOpen(false);
+                    triggerRef.current?.focus();
+                  }}
+                  {...stylex.props(
+                    importerStyles.popoverItem,
+                    isSelected && importerStyles.popoverItemSelected,
+                  )}
+                >
+                  <FileKindIcon source={candidate.source} />
+                  <span {...stylex.props(importerStyles.popoverFilename)}>
+                    {candidate.filename}
+                  </span>
+                  <ImportStatusBadge status={candidate.status} />
+                  <PageTag candidate={candidate} />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <SegmentedControl
+        value={viewMode}
+        onChange={(value) => onViewModeChange(value as ReviewViewMode)}
+        label="Review view mode"
+        size="sm"
+      >
+        <SegmentedControlItem value="split" label="Split" />
+        <SegmentedControlItem value="edit" label="Editor" />
+        <SegmentedControlItem value="preview" label="Preview" />
+      </SegmentedControl>
+
+      <div {...stylex.props(importerStyles.reviewToolbarActions)}>
         <AiModelPicker
           models={modelSelection.catalog.models}
           defaultModelId={modelSelection.catalog.defaultModelId}
@@ -182,16 +309,29 @@ function ReviewToolbar({
           isOverBudget={isOverBudget}
           cooldownSeconds={cooldownSeconds}
         />
-        <button
-          type="button"
-          {...stylex.props(importerStyles.button, importerStyles.buttonSecondary)}
+        <Button
+          variant="secondary"
+          label={aiCleanupLabel(isCleaning, cooldownSeconds)}
+          icon={
+            isCleaning ? (
+              <Loader2 size={16} {...stylex.props(importerStyles.iconSpin)} aria-hidden="true" />
+            ) : (
+              <Sparkles size={16} />
+            )
+          }
+          isDisabled={isButtonDisabled}
+          tooltip={tooltipTitle}
           onClick={onTriggerAiCleanup}
-          disabled={isButtonDisabled}
-          title={tooltipTitle}
-        >
-          <AiCleanupButtonContent isCleaning={isCleaning} cooldownSeconds={cooldownSeconds} />
-        </button>
+        />
       </div>
+    </div>
+  );
+}
+
+function PaneHeader({ title }: { title: string }) {
+  return (
+    <div {...stylex.props(importerStyles.toolbar)}>
+      <span>{title}</span>
     </div>
   );
 }
@@ -199,17 +339,21 @@ function ReviewToolbar({
 function ReviewPreviewPane({ text }: { text: string }) {
   return (
     <div {...stylex.props(importerStyles.reviewRight)}>
-      <div {...stylex.props(importerStyles.toolbar)}>
-        <span>Live Rendered Preview</span>
-      </div>
+      <PaneHeader title="Live Rendered Preview" />
       <MarkdownViewer text={text} />
     </div>
   );
 }
 
-export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: ImportReviewViewProps) {
+export function ImportReviewView({
+  candidates,
+  activeIndex,
+  onUpdateMarkdown,
+  onSelectCandidate,
+}: ImportReviewViewProps) {
   const activeCandidate = candidates[activeIndex];
   const [markdown, setMarkdown] = useState(activeCandidate?.markdown || '');
+  const [viewMode, setViewMode] = useState<ReviewViewMode>('split');
   const {
     isCleaning,
     diffResult,
@@ -221,6 +365,8 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
     cooldownSeconds,
   } = useAiCleanup();
   const modelSelection = useAiModelSelection();
+
+  const [editorKey, setEditorKey] = useState(0);
 
   const [prevCandidateId, setPrevCandidateId] = useState(activeCandidate?.id);
   if (activeCandidate && activeCandidate.id !== prevCandidateId) {
@@ -257,6 +403,7 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
     if (cleaned) {
       setMarkdown(cleaned);
       onUpdateMarkdown(activeCandidate.id, cleaned);
+      setEditorKey((k) => k + 1);
     }
   };
 
@@ -264,37 +411,61 @@ export function ImportReviewView({ candidates, activeIndex, onUpdateMarkdown }: 
     ? markdown.length > modelSelection.selectedModel.maxDocumentContextChars
     : false;
 
+  const showEditor = viewMode === 'split' || viewMode === 'edit';
+  const showPreview = viewMode === 'split' || viewMode === 'preview';
+
   return (
-    <div {...stylex.props(importerStyles.reviewLayout)}>
-      <CandidateFilesList candidates={candidates} activeCandidateId={activeCandidate.id} />
-      <div {...stylex.props(importerStyles.reviewCenter)}>
-        <ReviewToolbar
-          modelSelection={modelSelection}
-          isOverBudget={isOverBudget}
-          cooldownSeconds={cooldownSeconds}
-          isCleaning={isCleaning}
-          onTriggerAiCleanup={handleTriggerAiCleanup}
+    <div {...stylex.props(importerStyles.reviewShell)}>
+      <ReviewToolbar
+        activeCandidate={activeCandidate}
+        candidates={candidates}
+        activeIndex={activeIndex}
+        onSelectCandidate={onSelectCandidate}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        modelSelection={modelSelection}
+        isOverBudget={isOverBudget}
+        cooldownSeconds={cooldownSeconds}
+        isCleaning={isCleaning}
+        onTriggerAiCleanup={handleTriggerAiCleanup}
+      />
+
+      {error && (
+        <div
+          style={{
+            color: 'var(--color-error)',
+            padding: '8px 16px',
+            fontSize: '13px',
+            backgroundColor: 'var(--color-error-muted)',
+          }}
+        >
+          {error}
+        </div>
+      )}
+      {activeCandidate.extraction?.isPartial && (
+        <PartialExtractionBanner
+          pagesCount={activeCandidate.extraction.pages.length}
+          totalPages={activeCandidate.extraction.pageCount}
         />
-        {error && (
-          <div style={{ color: '#dc2626', padding: '8px 16px', fontSize: '13px', backgroundColor: '#fee2e2' }}>
-            {error}
+      )}
+
+      <div {...stylex.props(importerStyles.reviewBody)}>
+        {showEditor && (
+          <div {...stylex.props(importerStyles.reviewCenter)}>
+            <PaneHeader title="Edit Content" />
+            <WriterEditor
+              key={`${activeCandidate.id}-${editorKey}`}
+              initialMarkdown={markdown}
+              onChange={(md) => {
+                setMarkdown(md);
+                onUpdateMarkdown(activeCandidate.id, md);
+              }}
+            />
           </div>
         )}
-        {activeCandidate.extraction?.isPartial && (
-          <PartialExtractionBanner
-            pagesCount={activeCandidate.extraction.pages.length}
-            totalPages={activeCandidate.extraction.pageCount}
-          />
-        )}
-        <WriterEditor
-          initialMarkdown={markdown}
-          onChange={(md) => {
-            setMarkdown(md);
-            onUpdateMarkdown(activeCandidate.id, md);
-          }}
-        />
+
+        {showPreview && <ReviewPreviewPane text={markdown} />}
       </div>
-      <ReviewPreviewPane text={markdown} />
 
       {diffResult && (
         <ImportDiffModal

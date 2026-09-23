@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { importerStyles } from '../styles/importer.stylex';
 import { FileUp } from 'lucide-react';
+import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 interface ImportDropZoneProps {
   onFilesAdded: (files: File[]) => void;
@@ -66,7 +67,7 @@ export function ImportDropZone({
           ref={fileInputRef}
           onChange={handleFileInputChange}
         />
-        <FileUp size={48} color='#9ca3af' />
+        <FileUp size={48} color="var(--color-text-secondary)" />
         <div {...stylex.props(importerStyles.dropZoneText)}>Drag & drop your study materials here, or click to browse</div>
         <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages</div>
       </div>
@@ -79,57 +80,28 @@ export function ImportDropZone({
           gap: '16px',
           padding: '10px 16px',
           borderRadius: '8px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #e5e7eb',
+          backgroundColor: 'var(--color-background-surface)',
+          border: '1px solid var(--color-border)',
           alignSelf: 'center',
+          flexWrap: 'wrap',
         }}
-        role="group"
-        aria-label="OCR Engine Selector"
       >
         <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
           Extraction Engine:
         </span>
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            cursor: 'pointer',
-            color: 'var(--color-text-primary)',
-          }}
+        <SegmentedControl
+          value={ocrEngine}
+          onChange={(val) => onOcrEngineChange?.(val as 'tesseract' | 'ai-vision')}
+          label="Extraction Engine"
+          size="sm"
         >
-          <input
-            type="radio"
-            name="ocr-engine"
-            value="tesseract"
-            checked={ocrEngine !== 'ai-vision'}
-            onChange={() => onOcrEngineChange?.('tesseract')}
-          />
-          Local OCR (Tesseract)
-        </label>
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            cursor: isOffline ? 'not-allowed' : 'pointer',
-            opacity: isOffline ? 0.5 : 1,
-            color: 'var(--color-text-primary)',
-          }}
-          title={isOffline ? 'AI Vision requires an active internet connection' : undefined}
-        >
-          <input
-            type="radio"
-            name="ocr-engine"
+          <SegmentedControlItem value="tesseract" label="Local OCR (Tesseract)" />
+          <SegmentedControlItem
             value="ai-vision"
-            disabled={isOffline}
-            checked={ocrEngine === 'ai-vision'}
-            onChange={() => onOcrEngineChange?.('ai-vision')}
+            label={`AI Vision (MAX)${isOffline ? ' (Offline)' : ''}`}
+            isDisabled={isOffline}
           />
-          AI Vision (MAX){isOffline ? ' (Offline)' : ''}
-        </label>
+        </SegmentedControl>
       </div>
     </div>
   );

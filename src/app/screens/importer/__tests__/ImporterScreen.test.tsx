@@ -127,16 +127,17 @@ describe('ImporterScreen', () => {
     );
   }
 
-  it('renders Step 1 (Select Files) initially with drop zone and cancel button', () => {
+  it('renders Step 1 (Select Files) initially with the Page header, stepper, drop zone, and back affordance', () => {
     const onCancel = vi.fn();
     render(<ImporterScreen onCancel={onCancel} />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Import Content')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Import Material' })).toBeInTheDocument();
     expect(screen.getByText('Step 1 of 5: Select Files')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /upload files/i })).toBeInTheDocument();
 
-    const cancelBtn = screen.getByRole('button', { name: /cancel/i });
-    fireEvent.click(cancelBtn);
+    // The Page back affordance is the screen's cancel path before completion.
+    const backBtn = screen.getByRole('button', { name: /back/i });
+    fireEvent.click(backBtn);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -179,18 +180,24 @@ describe('ImporterScreen', () => {
       expect(screen.getByText('Live Rendered Preview')).toBeInTheDocument();
     });
 
-    // Test back button from Review to Files
+    // Test back button from Review to Files. Everything is already extracted,
+    // so the primary action must offer a plain return to Review instead of
+    // re-running extraction over the reviewed candidate.
     const backToFilesBtn = screen.getByRole('button', { name: /back: files/i });
     fireEvent.click(backToFilesBtn);
     expect(screen.getByText('Step 1 of 5: Select Files')).toBeInTheDocument();
 
-    // Advance back to Review
-    const reStartExtractionBtn = screen.getByRole('button', { name: /start extraction/i });
-    fireEvent.click(reStartExtractionBtn);
+    expect(screen.getByRole('button', { name: /continue to review/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start extraction/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue to review/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Step 3 of 5: Review Content')).toBeInTheDocument();
     });
+
+    // The reviewed candidate was never re-extracted.
+    expect(mockExtractExecute).toHaveBeenCalledTimes(1);
 
     // Step 4: Advance from Review to Material Details
     const nextDetailsBtn = screen.getByRole('button', { name: /next: material details/i });
@@ -239,6 +246,37 @@ describe('ImporterScreen', () => {
       expect(screen.getByText('Biochemistry Pack')).toBeInTheDocument();
       expect(screen.getByText('Package Contents')).toBeInTheDocument();
       expect(screen.getByText('Import to Library')).toBeInTheDocument();
+    });
+  });
+
+  it('offers Extract New Files when a pending file joins already-extracted candidates', async () => {
+    const { container } = render(<ImporterScreen />, { wrapper: createWrapper() });
+
+    const addFile = async (name: string) => {
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+      const file = new File(['content'], name, { type: 'application/pdf' });
+      fireEvent.change(input, { target: { files: [file] } });
+      await waitFor(() => {
+        expect(screen.getByText(name)).toBeInTheDocument();
+      });
+    };
+
+    await addFile('lecture_notes.pdf');
+    fireEvent.click(screen.getByRole('button', { name: /start extraction/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Step 3 of 5: Review Content')).toBeInTheDocument();
+    });
+
+    // Back to Files, then add a second, still-pending document.
+    fireEvent.click(screen.getByRole('button', { name: /back: files/i }));
+    await addFile('appendix.pdf');
+
+    const extractNewBtn = screen.getByRole('button', { name: /extract new files/i });
+    fireEvent.click(extractNewBtn);
+
+    await waitFor(() => {
+      expect(mockExtractExecute).toHaveBeenCalledTimes(2);
     });
   });
 

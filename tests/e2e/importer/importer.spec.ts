@@ -117,6 +117,45 @@ test.describe('Content Importer & AI Cleanup E2E', () => {
     await expect(page.getByText('Cellular respiration converts glucose into ATP.')).toBeVisible({ timeout: 10000 });
   });
 
+  test('switches the reviewed file from the toolbar file selector', async ({ page }) => {
+    await page.goto('/import');
+
+    // Real-browser check for the Option B selector: the popover is absolutely
+    // positioned inside the step body's scroll container, so this is where
+    // clipping or stacking problems would actually show up.
+    const pngBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles([
+      { name: 'notes-page-1.png', mimeType: 'image/png', buffer: pngBuffer },
+      { name: 'notes-page-2.png', mimeType: 'image/png', buffer: pngBuffer },
+    ]);
+
+    await expect(page.getByText('notes-page-1.png')).toBeVisible();
+    await expect(page.getByText('notes-page-2.png')).toBeVisible();
+
+    await page.getByRole('button', { name: /Start Extraction/i }).click();
+    await expect(page.getByText('Step 3 of 5: Review Content')).toBeVisible({ timeout: 30000 });
+
+    // The permanent Files sidebar is gone; the toolbar trigger replaces it.
+    await expect(page.getByRole('heading', { name: 'Files' })).toHaveCount(0);
+    const trigger = page.getByRole('button', { name: /\(1 of 2\)/ });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+
+    const listbox = page.getByRole('listbox', { name: 'Select file to review' });
+    await expect(listbox).toBeVisible();
+    await expect(listbox.getByRole('option')).toHaveCount(2);
+
+    await page.getByRole('option', { name: /notes-page-2\.png/ }).click();
+
+    await expect(listbox).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /\(2 of 2\)/ })).toBeVisible();
+  });
+
   test('extracts scanned PDF with AI Vision when selected', async ({ page }) => {
     let aiChatCalled = false;
 
