@@ -1,11 +1,8 @@
-import * as stylex from '@stylexjs/stylex';
 import { useEffect } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { DEFAULT_COLLECTION_COLOR, type Collection } from '../../../domain/collections/models/Collection';
-import { getCollectionIcon } from '../modals/collectionAppearance';
+import type { Collection } from '../../../domain/collections/models/Collection';
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery';
-import { shelfStyles } from './collectionShelf.stylex';
+import { CollectionCard } from './CollectionCard';
 
 /** Shelf estimate: 14px vertical padding pair + 40px icon row + borders. */
 const ESTIMATED_ROW_HEIGHT = 70;
@@ -75,42 +72,15 @@ export function VirtualShelfGrid({ collections, counts, onOpen }: VirtualShelfGr
                 gap: 12,
               }}
             >
-              {rowCollections.map((collection) => {
-                const Icon = getCollectionIcon(collection.icon);
-                const color = collection.color ?? 'var(--color-accent)';
-                const count = counts[collection.id] ?? 0;
-                return (
-                  <div key={collection.id} style={{ minWidth: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(collection.id)}
-                      {...stylex.props(shelfStyles.card)}
-                      title={`Open collection: ${collection.title}`}
-                    >
-                      <span
-                        {...stylex.props(shelfStyles.cardIcon)}
-                        style={{
-                          backgroundColor: `${collection.color ?? DEFAULT_COLLECTION_COLOR}12`,
-                          border: `1px solid ${collection.color ?? DEFAULT_COLLECTION_COLOR}25`,
-                          color,
-                        }}
-                        aria-hidden="true"
-                      >
-                        <Icon size={18} />
-                      </span>
-                      <span {...stylex.props(shelfStyles.cardBody)}>
-                        <span {...stylex.props(shelfStyles.cardTitle)}>{collection.title}</span>
-                        <span {...stylex.props(shelfStyles.cardMeta)}>
-                          {count} {count === 1 ? 'material' : 'materials'}
-                        </span>
-                      </span>
-                      <span {...stylex.props(shelfStyles.chevron)} aria-hidden="true">
-                        <ChevronRight size={18} />
-                      </span>
-                    </button>
-                  </div>
-                );
-              })}
+              {rowCollections.map((collection) => (
+                <div key={collection.id} style={{ minWidth: 0 }}>
+                  <CollectionCard
+                    collection={collection}
+                    count={counts[collection.id] ?? 0}
+                    onOpen={onOpen}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         );

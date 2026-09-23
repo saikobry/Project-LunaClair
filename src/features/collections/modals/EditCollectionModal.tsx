@@ -1,10 +1,10 @@
-import { useState, type ComponentType, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Trash2 } from 'lucide-react';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { Collection } from '../../../domain/collections/models/Collection';
-import { COLLECTION_COLOR_PRESETS, COLLECTION_ICON_NAMES, getCollectionIcon } from './collectionAppearance';
+import { CollectionAppearancePicker } from '../components/CollectionAppearancePicker';
 import { collectionModalStyles as styles } from './collectionModal.stylex';
 
 export interface EditCollectionModalProps {
@@ -81,58 +81,13 @@ export function EditCollectionModal({ collection, isOpen, onSave, onClose, onDel
             }
         >
             <form onSubmit={handleSubmit} {...stylex.props(styles.form)}>
-                <div {...stylex.props(styles.fieldGroup)}>
-                    <span id="edit-collection-color-label" {...stylex.props(styles.fieldLabel)}>
-                        Color
-                    </span>
-                    <div
-                        role="radiogroup"
-                        aria-labelledby="edit-collection-color-label"
-                        {...stylex.props(styles.swatchRow)}
-                    >
-                        {COLLECTION_COLOR_PRESETS.map((preset) => (
-                            <button
-                                key={preset.hex}
-                                type="button"
-                                role="radio"
-                                aria-checked={color === preset.hex}
-                                aria-label={`${preset.name} color`}
-                                {...stylex.props(styles.swatch, color === preset.hex && styles.swatchSelected)}
-                                style={{ backgroundColor: preset.hex }}
-                                onClick={() => setColor(color === preset.hex ? undefined : preset.hex)}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                <div {...stylex.props(styles.fieldGroup)}>
-                    <span id="edit-collection-icon-label" {...stylex.props(styles.fieldLabel)}>
-                        Icon
-                    </span>
-                    <div
-                        role="radiogroup"
-                        aria-labelledby="edit-collection-icon-label"
-                        {...stylex.props(styles.iconRow)}
-                    >
-                        {COLLECTION_ICON_NAMES.map((name) => {
-                            const IconComponent: ComponentType<{ size?: number | string }> = getCollectionIcon(name);
-                            const isSelected = icon === name;
-                            return (
-                                <button
-                                    key={name}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={isSelected}
-                                    aria-label={`${name} icon`}
-                                    {...stylex.props(styles.iconButton, isSelected && styles.iconButtonSelected)}
-                                    onClick={() => setIcon(isSelected ? undefined : name)}
-                                >
-                                    <IconComponent size={18} />
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                <CollectionAppearancePicker
+                    color={color}
+                    icon={icon}
+                    onColorChange={setColor}
+                    onIconChange={setIcon}
+                    labelIds={{ color: 'edit-collection-color-label', icon: 'edit-collection-icon-label' }}
+                />
 
             </form>
         </Dialog>

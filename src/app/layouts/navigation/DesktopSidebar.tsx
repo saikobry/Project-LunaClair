@@ -13,7 +13,7 @@ import { useCollections } from '../../../features/collections/hooks/queries/useC
 import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
 import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
-import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
+import { CollectionNavItem } from '../../../features/collections/components/CollectionNavItem';
 import { Button } from '../../../shared/ui/Button/Button';
 import { APP_VERSION } from '../../../shared/constants/appInfo';
 import { VIRTUALIZE_AFTER_ITEM_COUNT } from '../../../shared/constants/listRendering';
@@ -34,29 +34,17 @@ function CollectionNavButton({
   isActive: boolean;
   onNavigate: ViewportNavProps['onNavigate'];
 }) {
-  const Icon = getCollectionIcon(collection.icon);
   return (
-    <button
-      type="button"
-      {...stylex.props(styles.navItem, isActive && styles.navItemActive)}
-      onClick={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
-      aria-current={isActive ? 'page' : undefined}
-      title={`Collection: ${collection.title}`}
-    >
-      <span
-        {...stylex.props(styles.collectionIcon)}
-        style={collection.color ? { color: collection.color } : undefined}
-      >
-        {/* eslint-disable-next-line react/static-components -- `Icon` is a stable registry lookup from above, not a render-created component. */}
-        <Icon size={18} />
-      </span>
-      <span {...stylex.props(styles.navLabel)}>{collection.title}</span>
-      {count > 0 && (
-        <span {...stylex.props(styles.countBadge)} aria-hidden="true">
-          {count}
-        </span>
-      )}
-    </button>
+    <CollectionNavItem
+      collection={collection}
+      count={count}
+      isActive={isActive}
+      onSelect={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
+      buttonProps={stylex.props(styles.navItem, isActive && styles.navItemActive)}
+      iconWrapProps={stylex.props(styles.collectionIcon)}
+      labelProps={stylex.props(styles.navLabel)}
+      badgeProps={stylex.props(styles.countBadge)}
+    />
   );
 }
 

@@ -9,7 +9,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, X } from 'lucide-react';
 import { useModalDialog } from '../../../shared/hooks/useModalDialog';
 import { styles } from './compactCollectionsPopover.stylex';
-import { getCollectionIcon } from '../../../features/collections/modals/collectionAppearance';
+import { CollectionNavItem } from '../../../features/collections/components/CollectionNavItem';
 import type { Collection } from '../../../domain/collections/models/Collection';
 
 /** Anchored-panel geometry computed from the trigger's bounding rect. */
@@ -77,31 +77,25 @@ export function CompactCollectionsRailPanel({
         ) : (
           collections.map((collection) => {
             const isRowActive = activeCollectionId === collection.id;
-            const Icon = getCollectionIcon(collection.icon);
             const count = counts[collection.id] ?? 0;
             return (
-              <button
+              <CollectionNavItem
                 key={collection.id}
-                type="button"
+                collection={collection}
+                count={count}
+                isActive={isRowActive}
+                onSelect={() => onSelect(collection.id)}
                 role="menuitem"
-                onClick={() => onSelect(collection.id)}
-                aria-current={isRowActive ? 'page' : undefined}
-                {...stylex.props(
+                iconSize={16}
+                tintTarget="button"
+                buttonProps={stylex.props(
                   styles.collectionRow,
                   isRowActive && styles.collectionRowActive,
                 )}
-                style={collection.color ? { color: collection.color } : undefined}
-              >
-                <span {...stylex.props(styles.collectionIcon)}>
-                  <Icon size={16} />
-                </span>
-                <span {...stylex.props(styles.collectionLabel)}>{collection.title}</span>
-                {count > 0 && (
-                  <span {...stylex.props(styles.countBadge)} aria-hidden="true">
-                    {count}
-                  </span>
-                )}
-              </button>
+                iconWrapProps={stylex.props(styles.collectionIcon)}
+                labelProps={stylex.props(styles.collectionLabel)}
+                badgeProps={stylex.props(styles.countBadge)}
+              />
             );
           })
         )}
@@ -217,36 +211,27 @@ export function CompactCollectionsDockDrawer({
         ) : (
           collections.map((collection) => {
             const isRowActive = activeCollectionId === collection.id;
-            const Icon = getCollectionIcon(collection.icon);
             const count = counts[collection.id] ?? 0;
             return (
-              <button
+              <CollectionNavItem
                 key={collection.id}
-                type="button"
+                collection={collection}
+                count={count}
+                isActive={isRowActive}
+                onSelect={() => onSelect(collection.id)}
                 role="menuitem"
-                onClick={() => onSelect(collection.id)}
-                aria-current={isRowActive ? 'page' : undefined}
-                {...stylex.props(
+                iconSize={18}
+                buttonProps={stylex.props(
                   styles.drawerRow,
                   isRowActive && styles.drawerRowActive,
                 )}
-              >
-                <span
-                  {...stylex.props(
-                    styles.drawerRowIconWrapper,
-                    isRowActive && styles.drawerRowIconWrapperActive,
-                  )}
-                  style={collection.color ? { color: collection.color } : undefined}
-                >
-                  <Icon size={18} />
-                </span>
-                <span {...stylex.props(styles.drawerRowLabel)}>{collection.title}</span>
-                {count > 0 && (
-                  <span {...stylex.props(styles.countBadge)} aria-hidden="true">
-                    {count}
-                  </span>
+                iconWrapProps={stylex.props(
+                  styles.drawerRowIconWrapper,
+                  isRowActive && styles.drawerRowIconWrapperActive,
                 )}
-              </button>
+                labelProps={stylex.props(styles.drawerRowLabel)}
+                badgeProps={stylex.props(styles.countBadge)}
+              />
             );
           })
         )}

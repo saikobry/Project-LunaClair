@@ -2,11 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
   BookOpen,
-  HelpCircle,
-  Award,
-  Layers,
-  Image as ImageIcon,
-  Sparkles,
   Loader2,
   Calendar,
   User,
@@ -31,6 +26,9 @@ import { useToast } from '../../providers/ToastContext';
 import { useLocalOriginMaterials } from '../../../features/discovery/hooks/useLocalOriginMaterials';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import type { StudyPackageSummary } from '../../../domain/package/models/package.types';
+import { PackageStatsGrid } from '../../../features/package/components/PackageStatsGrid';
+import { QuestionTypeBreakdown } from '../../../features/package/components/QuestionTypeBreakdown';
+import { formatPackageDate } from '../../../features/package/utils/packageFormat';
 import { serializePackageToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
 import { sanitizeFilename, triggerBlobDownload } from '../../../shared/utils/fileDownload';
 import type { AppRoute } from '../../routing/routing';
@@ -210,50 +208,6 @@ const styles = stylex.create({
     backgroundColor: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
     color: 'var(--color-accent)',
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 12,
-    '@media (max-width: 680px)': {
-      gridTemplateColumns: 'repeat(2, 1fr)',
-    },
-  },
-  statCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '14px 16px',
-    backgroundColor: 'var(--color-background-muted)',
-    borderRadius: 10,
-    border: '1px solid var(--color-border)',
-    gap: 6,
-  },
-  statCardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 12,
-    color: 'var(--color-text-secondary)',
-    fontWeight: 500,
-  },
-  statCardValue: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-  },
-  typeBadgesList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeBadge: {
-    fontSize: 12,
-    fontWeight: 500,
-    padding: '4px 10px',
-    borderRadius: 6,
-    backgroundColor: 'var(--color-background-muted)',
-    border: '1px solid var(--color-border)',
-    color: 'var(--color-text-primary)',
-  },
   destinationGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -330,38 +284,6 @@ const styles = stylex.create({
     flexWrap: 'wrap',
   },
 });
-
-function formatQuestionType(type: string): string {
-  switch (type) {
-    case 'multiple_choice':
-      return 'Multiple Choice';
-    case 'multiple_select':
-      return 'Multiple Select';
-    case 'true_false':
-      return 'True/False';
-    case 'identification':
-      return 'Identification';
-    case 'fill_in_blank':
-      return 'Fill in Blank';
-    default:
-      return type.replace(/_/g, ' ');
-  }
-}
-
-function formatPackageDate(dateStr?: string): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 /** Classifies a fetch/unlock failure into a passcode challenge vs a terminal error with a user-facing message. */
 function classifyFetchError(err: unknown): { isPasscode: boolean; message: string } {
@@ -597,50 +519,6 @@ function CloneSuccessBanner({
   );
 }
 
-function PackageStatsGrid({ summary }: { summary: StudyPackageSummary }) {
-  const stats: Array<{ label: string; value: number; icon: React.ReactNode }> = [
-    { label: 'Materials', value: summary.materialCount, icon: <BookOpen size={15} /> },
-    { label: 'Questions', value: summary.questionCount, icon: <HelpCircle size={15} /> },
-    { label: 'Quizzes', value: summary.quizCount, icon: <Award size={15} /> },
-    { label: 'Flashcards', value: summary.flashcardCount, icon: <Layers size={15} /> },
-    { label: 'Assets', value: summary.assetCount, icon: <ImageIcon size={15} /> },
-    { label: 'Total Points', value: summary.totalPoints, icon: <Sparkles size={15} /> },
-  ];
-
-  return (
-    <div {...stylex.props(styles.statsGrid)}>
-      {stats.map((stat) => (
-        <div key={stat.label} {...stylex.props(styles.statCard)}>
-          <div {...stylex.props(styles.statCardHeader)}>
-            {stat.icon}
-            <span>{stat.label}</span>
-          </div>
-          <span {...stylex.props(styles.statCardValue)}>{stat.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function QuestionTypesCard({
-  entries,
-}: {
-  entries: Array<[string, number]>;
-}) {
-  if (entries.length === 0) return null;
-  return (
-    <div {...stylex.props(styles.card)}>
-      <h3 {...stylex.props(styles.sectionTitle)}>Question Types</h3>
-      <div {...stylex.props(styles.typeBadgesList)}>
-        {entries.map(([type, count]) => (
-          <span key={type} {...stylex.props(styles.typeBadge)}>
-            {formatQuestionType(type)}: <strong>{count}</strong>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 interface SharedPackageActionsBarProps {
   isCloning: boolean;
@@ -1033,7 +911,7 @@ export function SharedPackageScreen({
         </div>
 
         {/* Question Type Breakdown */}
-        <QuestionTypesCard entries={questionTypeEntries} />
+        <QuestionTypeBreakdown entries={questionTypeEntries} />
 
         {/* Actions Bar */}
         <SharedPackageActionsBar

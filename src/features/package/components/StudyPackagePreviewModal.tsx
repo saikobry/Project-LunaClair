@@ -1,21 +1,14 @@
 import { useMemo, useCallback } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import {
-  BookOpen,
-  HelpCircle,
-  Award,
-  Layers,
-  Image as ImageIcon,
-  Sparkles,
-  Loader2,
-  Calendar,
-  User,
-} from 'lucide-react';
+import { Loader2, Calendar, User } from 'lucide-react';
 import type { StudyPackage } from '../../../domain/package/models/package.types';
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Chip } from '../../../shared/ui/Chip/Chip';
 import { Button } from '../../../shared/ui/Button/Button';
+import { formatPackageDate } from '../utils/packageFormat';
+import { PackageStatsGrid } from './PackageStatsGrid';
+import { QuestionTypeBreakdown } from './QuestionTypeBreakdown';
 
 export interface StudyPackagePreviewModalProps {
   isOpen: boolean;
@@ -69,56 +62,6 @@ const styles = stylex.create({
     color: 'var(--color-text-secondary)',
     margin: 0,
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 12,
-    '@media (max-width: 600px)': {
-      gridTemplateColumns: 'repeat(2, 1fr)',
-    },
-  },
-  statCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '12px 14px',
-    backgroundColor: 'var(--color-background-muted)',
-    borderRadius: 10,
-    border: '1px solid var(--color-border)',
-    gap: 4,
-  },
-  statCardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 12,
-    color: 'var(--color-text-secondary)',
-    fontWeight: 500,
-  },
-  statCardValue: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-  },
-  typeBadgesContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    marginTop: 4,
-  },
-  typeBadgesList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  typeBadge: {
-    fontSize: 11,
-    fontWeight: 500,
-    padding: '3px 8px',
-    borderRadius: 6,
-    backgroundColor: 'var(--color-background-surface)',
-    border: '1px solid var(--color-border)',
-    color: 'var(--color-text-primary)',
-  },
   destinationSection: {
     display: 'flex',
     flexDirection: 'column',
@@ -171,38 +114,6 @@ const styles = stylex.create({
   },
 });
 
-
-function formatQuestionType(type: string): string {
-  switch (type) {
-    case 'multiple_choice':
-      return 'Multiple Choice';
-    case 'multiple_select':
-      return 'Multiple Select';
-    case 'true_false':
-      return 'True/False';
-    case 'identification':
-      return 'Identification';
-    case 'fill_in_blank':
-      return 'Fill in Blank';
-    default:
-      return type.replace(/_/g, ' ');
-  }
-}
-
-function formatPackageDate(dateStr?: string): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 export function StudyPackagePreviewModal({
   isOpen,
@@ -294,70 +205,13 @@ export function StudyPackagePreviewModal({
         {/* Summary Stat Cards */}
         <div>
           <h3 {...stylex.props(styles.sectionTitle)}>Package Contents</h3>
-          <div {...stylex.props(styles.statsGrid)} style={{ marginTop: 10 }}>
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <BookOpen size={15} />
-                <span>Materials</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.materialCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <HelpCircle size={15} />
-                <span>Questions</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.questionCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Award size={15} />
-                <span>Quizzes</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.quizCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Layers size={15} />
-                <span>Flashcards</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.flashcardCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <ImageIcon size={15} />
-                <span>Assets</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.assetCount}</span>
-            </div>
-
-            <div {...stylex.props(styles.statCard)}>
-              <div {...stylex.props(styles.statCardHeader)}>
-                <Sparkles size={15} />
-                <span>Total Points</span>
-              </div>
-              <span {...stylex.props(styles.statCardValue)}>{summary.totalPoints}</span>
-            </div>
+          <div style={{ marginTop: 10 }}>
+            <PackageStatsGrid summary={summary} />
           </div>
         </div>
 
         {/* Question Type Breakdown */}
-        {questionTypeEntries.length > 0 && (
-          <div {...stylex.props(styles.typeBadgesContainer)}>
-            <span {...stylex.props(styles.sectionTitle)}>Question Types</span>
-            <div {...stylex.props(styles.typeBadgesList)}>
-              {questionTypeEntries.map(([type, count]) => (
-                <span key={type} {...stylex.props(styles.typeBadge)}>
-                  {formatQuestionType(type)}: <strong>{count}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <QuestionTypeBreakdown entries={questionTypeEntries} variant="plain" />
       </div>
     </Dialog>
   );
