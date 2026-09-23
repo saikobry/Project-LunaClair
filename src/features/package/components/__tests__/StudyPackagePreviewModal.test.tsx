@@ -216,7 +216,7 @@ describe('StudyPackagePreviewModal', () => {
     const { onClose } = renderModal({ isImporting: true });
 
     expect(screen.getByText('Importing...')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
 
     // Close (header X / Escape / backdrop) is guarded while importing
     fireEvent.click(screen.getByLabelText('Close'));

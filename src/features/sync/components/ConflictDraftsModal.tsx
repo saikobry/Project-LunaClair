@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Button } from '../../../shared/ui/Button/Button';
 import { useConflictDrafts } from '../hooks/useConflictDrafts';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 
@@ -112,9 +113,9 @@ const styles = stylex.create({
     color: 'var(--color-accent)',
   },
   localBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    color: '#d97706',
+    backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
+    borderColor: 'color-mix(in srgb, var(--color-warning) 30%, transparent)',
+    color: 'var(--color-warning)',
   },
   contentPre: {
     margin: 0,
@@ -168,38 +169,6 @@ const styles = stylex.create({
     gap: 10,
     flexWrap: 'wrap',
   },
-  actionButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 14px',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    border: '1px solid transparent',
-    transition: 'all 0.15s ease',
-    outline: 'none',
-    ':disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed',
-    },
-  },
-  btnSecondary: {
-    backgroundColor: 'var(--color-background-muted)',
-    borderColor: 'var(--color-border)',
-    color: 'var(--color-text-primary)',
-    ':hover:not(:disabled)': {
-      backgroundColor: 'var(--color-border)',
-    },
-  },
-  btnPrimary: {
-    backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
-    ':hover:not(:disabled)': {
-      opacity: 0.9,
-    },
-  },
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
@@ -246,7 +215,7 @@ function DiffContent({
         <div {...stylex.props(styles.versionCard)}>
           <div {...stylex.props(styles.versionHeader)}>
             <div {...stylex.props(styles.versionTitleGroup)}>
-              <Laptop size={16} color="#d97706" />
+              <Laptop size={16} color="var(--color-warning)" />
               <span>Your Local Version (Divergent)</span>
             </div>
             <span {...stylex.props(styles.badge, styles.localBadge)}>
@@ -337,13 +306,13 @@ function ResolutionFooter({
   onCancelMerge: () => void;
 }) {
   const closeButton = (
-    <button
-      type="button"
-      {...stylex.props(styles.actionButton, styles.btnPrimary)}
+    <Button
+      label="Close"
+      variant="primary"
       onClick={onClose}
     >
       Close
-    </button>
+    </Button>
   );
 
   if (!activeDraft) {
@@ -353,52 +322,53 @@ function ResolutionFooter({
   if (isMerging) {
     return (
       <>
-        <button
-          type="button"
-          {...stylex.props(styles.actionButton, styles.btnSecondary)}
-          disabled={isResolving}
+        <Button
+          label="Cancel Merge"
+          variant="secondary"
+          isDisabled={isResolving}
           onClick={onCancelMerge}
         >
           Cancel Merge
-        </button>
-        <button
-          type="button"
-          {...stylex.props(styles.actionButton, styles.btnPrimary)}
-          disabled={isResolving}
+        </Button>
+        <Button
+          label="Save Merged Version"
+          variant="primary"
+          isDisabled={isResolving}
           onClick={() => onResolve('merge')}
         >
           Save Merged Version
-        </button>
+        </Button>
       </>
     );
   }
 
   return (
     <>
-      <button
-        type="button"
-        {...stylex.props(styles.actionButton, styles.btnSecondary)}
-        disabled={isResolving}
+      <Button
+        label="Keep Server Version"
+        variant="secondary"
+        isDisabled={isResolving}
         onClick={() => onResolve('keep_server')}
       >
         Keep Server Version
-      </button>
-      <button
-        type="button"
-        {...stylex.props(styles.actionButton, styles.btnSecondary)}
-        disabled={isResolving}
+      </Button>
+      <Button
+        label="Keep My Version"
+        variant="secondary"
+        isDisabled={isResolving}
         onClick={() => onResolve('keep_local')}
       >
         Keep My Version
-      </button>
-      <button
-        type="button"
-        {...stylex.props(styles.actionButton, styles.btnPrimary)}
-        disabled={isResolving}
+      </Button>
+      <Button
+        label="Edit & Merge"
+        variant="primary"
+        isDisabled={isResolving}
         onClick={onStartMerge}
+        icon={<GitMerge size={14} />}
       >
-        <GitMerge size={14} /> Edit & Merge
-      </button>
+        Edit & Merge
+      </Button>
     </>
   );
 }

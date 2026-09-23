@@ -22,6 +22,7 @@ import { Page } from '../../../shared/ui/Page/Page';
 import { Button } from '../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { CardGridSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
+import { formatRelativeTime } from '../../../shared/utils/date';
 import { useRecentMaterials } from './hooks/useRecentMaterials';
 import { useHomeStats } from './hooks/useHomeStats';
 import { styles } from './styles/home.stylex';
@@ -32,20 +33,6 @@ export interface HomeScreenProps {
   onNavigateToLibrary: () => void;
   onNavigateToExplore: () => void;
   onNavigateToImport: () => void;
-}
-
-/** Compact "last opened" label for the continue hero and recent shelf. */
-function formatLastOpened(iso: string | undefined): string {
-  if (!iso) return 'Never opened';
-  const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffHours < 1) return 'Just now';
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 /**
@@ -165,7 +152,7 @@ export function HomeScreen({
                   {hero.title}
                 </h2>
                 <p {...stylex.props(styles.heroMeta)}>
-                  Last opened {formatLastOpened(hero.lastOpenedAt)}
+                  Last opened {formatRelativeTime(hero.lastOpenedAt)}
                 </p>
               </div>
             </div>
@@ -254,7 +241,7 @@ export function HomeScreen({
                   <span {...stylex.props(styles.recentBody)}>
                     <span {...stylex.props(styles.recentTitle)}>{material.title}</span>
                     <span {...stylex.props(styles.recentMeta)}>
-                      {formatLastOpened(material.lastOpenedAt)}
+                      {formatRelativeTime(material.lastOpenedAt)}
                     </span>
                   </span>
                   <ChevronRight size={18} style={{ color: 'var(--color-text-disabled)' }} aria-hidden="true" />

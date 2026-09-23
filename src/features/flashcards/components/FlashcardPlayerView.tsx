@@ -115,12 +115,12 @@ const styles = stylex.create({
         color: 'var(--color-success)',
     },
     difficultyMedium: {
-        backgroundColor: 'rgba(245, 158, 11, 0.12)',
-        color: '#d97706',
+        backgroundColor: 'var(--color-warning-muted)',
+        color: 'var(--color-warning)',
     },
     difficultyHard: {
-        backgroundColor: 'rgba(239, 68, 68, 0.12)',
-        color: '#dc2626',
+        backgroundColor: 'var(--color-error-muted)',
+        color: 'var(--color-error)',
     },
     contentBox: {
         display: 'flex',
@@ -200,17 +200,17 @@ const styles = stylex.create({
         },
     },
     ratingBtnAgain: {
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        color: '#dc2626',
+        borderColor: 'color-mix(in srgb, var(--color-error) 30%, transparent)',
+        color: 'var(--color-error)',
         ':hover': {
-            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            backgroundColor: 'var(--color-error-muted)',
         },
     },
     ratingBtnHard: {
-        borderColor: 'rgba(245, 158, 11, 0.3)',
-        color: '#d97706',
+        borderColor: 'color-mix(in srgb, var(--color-warning) 30%, transparent)',
+        color: 'var(--color-warning)',
         ':hover': {
-            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            backgroundColor: 'var(--color-warning-muted)',
         },
     },
     ratingBtnGood: {

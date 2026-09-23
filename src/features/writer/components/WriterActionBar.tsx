@@ -47,7 +47,7 @@ const styles = stylex.create({
   },
   statusDirty: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    color: '#d97706',
+    color: 'var(--color-warning)',
     border: '1px solid rgba(245, 158, 11, 0.3)',
   },
   statusSaving: {
@@ -57,7 +57,7 @@ const styles = stylex.create({
   },
   statusError: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    color: '#dc2626',
+    color: 'var(--color-error)',
     border: '1px solid rgba(239, 68, 68, 0.3)',
   },
   retryBtn: {
@@ -65,7 +65,7 @@ const styles = stylex.create({
     fontSize: 11,
     fontWeight: 600,
     borderRadius: 4,
-    backgroundColor: '#dc2626',
+    backgroundColor: 'var(--color-error)',
     color: '#ffffff',
     border: 'none',
     cursor: 'pointer',
@@ -166,7 +166,7 @@ function SaveStatusBadge({ saveStatus, onRetry }: { saveStatus: SaveStatus; onRe
       )}
       {saveStatus === 'error' && (
         <>
-          <AlertCircle size={13} color="#dc2626" />
+          <AlertCircle size={13} color="var(--color-error)" />
           Save failed
           <button
             type="button"
@@ -181,7 +181,7 @@ function SaveStatusBadge({ saveStatus, onRetry }: { saveStatus: SaveStatus; onRe
       {saveStatus === 'unsaved' && <>● Unsaved changes</>}
       {saveStatus === 'saved' && (
         <>
-          <Check size={13} color="#16a34a" /> Saved to Library
+          <Check size={13} color="var(--color-success)" /> Saved to Library
         </>
       )}
     </span>
@@ -223,7 +223,7 @@ export function WriterActionBar({
           onClick={onCopy}
           title="Copy Markdown"
         >
-          {copied ? <Check size={13} color="#16a34a" /> : <Copy size={13} />}
+          {copied ? <Check size={13} color="var(--color-success)" /> : <Copy size={13} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
 

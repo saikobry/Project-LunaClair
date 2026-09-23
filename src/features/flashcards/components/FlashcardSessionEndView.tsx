@@ -108,14 +108,14 @@ export function FlashcardSessionEndView({
 
                 <div {...stylex.props(styles.summaryGrid)}>
                     <div {...stylex.props(styles.statItem)}>
-                        <span {...stylex.props(styles.statCount)} style={{ color: '#dc2626' }}>
+                        <span {...stylex.props(styles.statCount)} style={{ color: 'var(--color-error)' }}>
                             {summary.againCount}
                         </span>
                         <span {...stylex.props(styles.statLabel)}>Again</span>
                     </div>
 
                     <div {...stylex.props(styles.statItem)}>
-                        <span {...stylex.props(styles.statCount)} style={{ color: '#d97706' }}>
+                        <span {...stylex.props(styles.statCount)} style={{ color: 'var(--color-warning)' }}>
                             {summary.hardCount}
                         </span>
                         <span {...stylex.props(styles.statLabel)}>Hard</span>

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
+import { Button } from '../../../shared/ui/Button/Button';
 import { usePublishStudyPackage } from '../hooks/usePublishStudyPackage';
 import type { ShareAccessType, PublishShareResult } from '../../../domain/sharing/models/sharing.types';
 
@@ -151,44 +152,8 @@ const styles = stylex.create({
     justifyContent: 'flex-end',
     gap: 10,
   },
-  actionButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '9px 16px',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    border: '1px solid transparent',
-    transition: 'all 0.15s ease',
-    outline: 'none',
-    fontFamily: 'inherit',
-    ':disabled': {
-      opacity: 0.6,
-      cursor: 'not-allowed',
-    },
-  },
-  btnSecondary: {
-    backgroundColor: 'var(--color-background-muted)',
-    borderColor: 'var(--color-border)',
-    color: 'var(--color-text-primary)',
-    ':hover:not(:disabled)': {
-      backgroundColor: 'var(--color-border)',
-    },
-  },
-  btnPrimary: {
-    backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
-    ':hover:not(:disabled)': {
-      opacity: 0.9,
-    },
-  },
-  btnSuccess: {
-    backgroundColor: 'var(--color-success)',
-    color: '#ffffff',
-  },
   // Success View Styles
+
   successContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -323,18 +288,26 @@ function PublishedSharePanel({
             value={fullShareUrl}
             {...stylex.props(styles.linkInput)}
           />
-          <button
+          <Button
             type="button"
-            {...stylex.props(
-              styles.actionButton,
-              copied ? styles.btnSuccess : styles.btnPrimary,
-            )}
+            variant="primary"
             onClick={onCopy}
+            label={copied ? 'Copied!' : 'Copy Link'}
+            icon={copied ? <Check size={15} /> : <Copy size={15} />}
             aria-label={copied ? 'Link copied' : 'Copy link to clipboard'}
+            style={
+              copied
+                ? {
+                    backgroundColor: 'var(--color-success)',
+                    borderColor: 'transparent',
+                    color: '#ffffff',
+                  }
+                : undefined
+            }
           >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-          </button>
+            {copied ? 'Copied!' : 'Copy Link'}
+          </Button>
+
         </div>
       </div>
 
@@ -595,44 +568,42 @@ export function ShareStudyPackageModal({
       footer={
         <div {...stylex.props(styles.footer)}>
           {publishResult ? (
-            <button
-              type="button"
-              {...stylex.props(styles.actionButton, styles.btnPrimary)}
+            <Button
+              label="Done"
+              variant="primary"
               onClick={handleClose}
             >
               Done
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnSecondary)}
+              <Button
+                label="Cancel"
+                variant="secondary"
                 onClick={handleClose}
-                disabled={isPublishing}
+                isDisabled={isPublishing}
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                {...stylex.props(styles.actionButton, styles.btnPrimary)}
+              </Button>
+              <Button
+                label={isPublishing ? 'Publishing...' : 'Publish to Cloud'}
+                variant="primary"
                 onClick={handlePublish}
-                disabled={isPublishing || isPasscodeInvalid}
-              >
-                {isPublishing ? (
-                  <>
+                isDisabled={isPublishing || isPasscodeInvalid}
+                icon={
+                  isPublishing ? (
                     <Loader2 size={15} className="lucide-spin" />
-                    <span>Publishing...</span>
-                  </>
-                ) : (
-                  <>
+                  ) : (
                     <Globe size={15} />
-                    <span>Publish to Cloud</span>
-                  </>
-                )}
-              </button>
+                  )
+                }
+              >
+                {isPublishing ? 'Publishing...' : 'Publish to Cloud'}
+              </Button>
             </>
           )}
         </div>
+
       }
     >
       <div {...stylex.props(styles.body)}>

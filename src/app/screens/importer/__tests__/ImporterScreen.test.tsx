@@ -397,4 +397,3 @@ describe('ImporterScreen', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
-

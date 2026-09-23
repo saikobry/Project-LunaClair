@@ -10,6 +10,7 @@ import { Chip } from '../../../shared/ui/Chip/Chip';
 import { cardStyles } from './materialCard.stylex';
 import { ActionMenu } from '../../../shared/components/ActionMenu/ActionMenu';
 import { ActionMenuItem } from '../../../shared/components/ActionMenu/ActionMenuItem';
+import { formatRelativeTime } from '../../../shared/utils/date';
 
 import { useMaterialCollections } from '../../../features/collections/hooks/queries/useMaterialCollections';
 import { useCollections } from '../../../features/collections/hooks/queries/useCollections';
@@ -31,21 +32,6 @@ export interface MaterialCardProps {
   selectedTags?: string[];
 }
 
-/** Compact "last opened" label for the card footer:
- * clock + relative time, no `Last opened:` prefix. */
-function formatDate(iso: string | undefined): string {
-  if (!iso) return 'Never opened';
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffHours < 1) return 'Just now';
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 
 interface MaterialCollectionsPopoverProps {
   popoverRef: RefObject<HTMLDivElement | null>;
@@ -526,9 +512,9 @@ interface MaterialCardFooterProps {
 function MaterialCardFooter({ material, onStartQuiz }: MaterialCardFooterProps) {
   return (
     <div {...stylex.props(cardStyles.footer)}>
-      <div {...stylex.props(cardStyles.metaRow)} title={`Last opened: ${formatDate(material.lastOpenedAt)}`}>
+      <div {...stylex.props(cardStyles.metaRow)} title={`Last opened: ${formatRelativeTime(material.lastOpenedAt)}`}>
         <BookOpen size={12} aria-hidden="true" />
-        <span>{formatDate(material.lastOpenedAt)}</span>
+        <span>{formatRelativeTime(material.lastOpenedAt)}</span>
       </div>
       {onStartQuiz && (
         <button

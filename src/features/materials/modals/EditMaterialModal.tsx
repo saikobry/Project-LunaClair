@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
-import { Input } from '../../../shared/ui/Input/Input';
 import { Button } from '../../../shared/ui/Button/Button';
-import { TagInput } from '../../../shared/ui/TagInput/TagInput';
+import { MaterialFormFields } from '../components/MaterialFormFields';
 import { styles } from '../styles/library.stylex';
-import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../domain/quiz/utils/tags';
 
 interface EditMaterialModalProps {
   initialTitle: string;
@@ -51,37 +50,13 @@ export default function EditMaterialModal({
           marginTop: 16,
         }}
       >
-        <div {...stylex.props(styles.fieldGroup)}>
-          <Input
-            label="Title"
-            value={title}
-            onChange={(value) => setTitle(value)}
-            placeholder="Enter material title"
-            autoFocus
-          />
-        </div>
-
-        <div {...stylex.props(styles.fieldGroup)}>
-          <label {...stylex.props(styles.label)} htmlFor="edit-desc">
-            Description
-          </label>
-          <textarea
-            id="edit-desc"
-            {...stylex.props(styles.textarea)}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Brief description (optional)"
-            rows={3}
-          />
-        </div>
-
-        <TagInput
+        <MaterialFormFields
+          title={title}
+          onTitleChange={setTitle}
+          description={description}
+          onDescriptionChange={setDescription}
           tags={tags}
-          onChange={setTags}
-          splitInput={splitTagInput}
-          mergeTags={mergeTags}
-          tagKey={tagKey}
-          normalizeTags={(list) => normalizeTags(list) ?? []}
+          onTagsChange={setTags}
         />
 
         <div {...stylex.props(styles.modalActions)}>

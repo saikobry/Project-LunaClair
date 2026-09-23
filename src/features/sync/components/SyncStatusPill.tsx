@@ -86,19 +86,19 @@ const styles = stylex.create({
     },
   },
   error: {
-    color: '#ef4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    color: 'var(--color-error)',
+    backgroundColor: 'var(--color-error-muted)',
+    borderColor: 'color-mix(in srgb, var(--color-error) 25%, transparent)',
     ':hover': {
-      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+      backgroundColor: 'color-mix(in srgb, var(--color-error) 15%, transparent)',
     },
   },
   conflict: {
-    color: '#d97706',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderColor: 'rgba(245, 158, 11, 0.35)',
+    color: 'var(--color-warning)',
+    backgroundColor: 'var(--color-warning-muted)',
+    borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)',
     ':hover': {
-      backgroundColor: 'rgba(245, 158, 11, 0.22)',
+      backgroundColor: 'color-mix(in srgb, var(--color-warning) 22%, transparent)',
     },
   },
   iconSpin: {
@@ -126,7 +126,7 @@ const styles = stylex.create({
     paddingLeft: 5,
     paddingRight: 5,
     borderRadius: 999,
-    backgroundColor: '#d97706',
+    backgroundColor: 'var(--color-warning)',
     color: '#ffffff',
     marginLeft: 2,
   },
@@ -172,7 +172,7 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
     if (hasConflicts) {
       return (
         <>
-          <AlertTriangle size={14} color="#d97706" />
+          <AlertTriangle size={14} color="var(--color-warning)" />
           <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
             {conflictCount} conflict{conflictCount > 1 ? 's' : ''}
           </span>
@@ -209,7 +209,7 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
       case 'error':
         return (
           <>
-            <AlertCircle size={14} color="#ef4444" />
+            <AlertCircle size={14} color="var(--color-error)" />
             <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
               Sync error
             </span>

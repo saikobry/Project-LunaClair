@@ -15,6 +15,7 @@ import type { StudyPackage } from '../../../domain/package/models/package.types'
 import { inspectStudyPackage } from '../../../domain/package/engines/inspectStudyPackage';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Chip } from '../../../shared/ui/Chip/Chip';
+import { Button } from '../../../shared/ui/Button/Button';
 
 export interface StudyPackagePreviewModalProps {
   isOpen: boolean;
@@ -168,39 +169,8 @@ const styles = stylex.create({
     justifyContent: 'flex-end',
     gap: 10,
   },
-  actionButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '9px 16px',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    border: '1px solid transparent',
-    transition: 'all 0.15s ease',
-    outline: 'none',
-    ':disabled': {
-      opacity: 0.6,
-      cursor: 'not-allowed',
-    },
-  },
-  btnSecondary: {
-    backgroundColor: 'var(--color-background-muted)',
-    borderColor: 'var(--color-border)',
-    color: 'var(--color-text-primary)',
-    ':hover:not(:disabled)': {
-      backgroundColor: 'var(--color-border)',
-    },
-  },
-  btnPrimary: {
-    backgroundColor: 'var(--color-accent)',
-    color: '#ffffff',
-    ':hover:not(:disabled)': {
-      opacity: 0.9,
-    },
-  },
 });
+
 
 function formatQuestionType(type: string): string {
   switch (type) {
@@ -270,30 +240,23 @@ export function StudyPackagePreviewModal({
       width={640}
       footer={
         <div {...stylex.props(styles.footer)}>
-          <button
-            type="button"
-            {...stylex.props(styles.actionButton, styles.btnSecondary)}
+          <Button
+            label="Cancel"
+            variant="secondary"
             onClick={onClose}
-            disabled={isImporting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            {...stylex.props(styles.actionButton, styles.btnPrimary)}
+            isDisabled={isImporting}
+          />
+          <Button
+            label={isImporting ? 'Importing...' : 'Import to Library'}
+            variant="primary"
             onClick={handleConfirm}
-            disabled={isImporting}
+            isDisabled={isImporting}
+            icon={isImporting ? <Loader2 size={16} className="lucide-spin" /> : undefined}
           >
-            {isImporting ? (
-              <>
-                <Loader2 size={16} className="lucide-spin" />
-                <span>Importing...</span>
-              </>
-            ) : (
-              <span>Import to Library</span>
-            )}
-          </button>
+            {isImporting ? 'Importing...' : 'Import to Library'}
+          </Button>
         </div>
+
       }
     >
       <div {...stylex.props(styles.body)}>
