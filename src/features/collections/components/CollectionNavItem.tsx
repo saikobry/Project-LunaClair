@@ -45,6 +45,17 @@ export interface CollectionNavItemProps {
     children?: ReactNode;
 }
 
+/**
+ * The four style slots every caller must bind (via `stylex.props(...)`).
+ *
+ * Call sites should pre-bind them through a local factory so the row JSX stays
+ * declarative — e.g. `{...sidebarNavItemSlots(isActive)}` in `DesktopSidebar`.
+ */
+export type CollectionNavItemSlots = Pick<
+    CollectionNavItemProps,
+    'buttonProps' | 'iconWrapProps' | 'labelProps' | 'badgeProps'
+>;
+
 export function CollectionNavItem({
     collection,
     count,

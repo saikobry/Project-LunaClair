@@ -488,12 +488,15 @@ function ShareStudyPackageBody({
   );
 }
 
-export function ShareStudyPackageModal({
-  isOpen,
-  onClose,
+/**
+ * Owns the share form's draft state, publish lifecycle, and derived links so the
+ * modal component stays a render shell with easy-to-follow control flow. Runs
+ * unconditionally (all hooks above the modal's `!isOpen` early return).
+ */
+function useShareStudyPackageForm({
   materialId,
-  materialTitle,
-}: ShareStudyPackageModalProps) {
+  onClose,
+}: Pick<ShareStudyPackageModalProps, 'materialId' | 'onClose'>) {
   const [accessType, setAccessType] = useState<ShareAccessType>('public');
   const [passcode, setPasscode] = useState('');
   const [expiration, setExpiration] = useState<ExpirationOption>('never');
@@ -511,10 +514,6 @@ export function ShareStudyPackageModal({
     reset();
     onClose();
   }, [isPublishing, reset, onClose]);
-
-  if (!isOpen) {
-    return null;
-  }
 
   const handlePublish = async () => {
     let expiresAt: string | undefined;
@@ -559,73 +558,119 @@ export function ShareStudyPackageModal({
 
   const isPasscodeInvalid = accessType === 'passcode' && !passcode.trim();
 
+  return {
+    accessType,
+    setAccessType,
+    passcode,
+    setPasscode,
+    expiration,
+    setExpiration,
+    copied,
+    isPublishing,
+    publishResult,
+    handleClose,
+    handlePublish,
+    handleCopy,
+    fullShareUrl,
+    shortShareUrl,
+    isPasscodeInvalid,
+  };
+}
+
+/** Dialog footer: Done after publishing, Cancel + Publish (gated) before. */
+function ShareModalFooter({
+  publishResult,
+  isPublishing,
+  isPasscodeInvalid,
+  onClose,
+  onPublish,
+}: {
+  publishResult: PublishShareResult | null;
+  isPublishing: boolean;
+  isPasscodeInvalid: boolean;
+  onClose: () => void;
+  onPublish: () => void;
+}) {
+  return (
+    <div {...stylex.props(styles.footer)}>
+      {publishResult ? (
+        <Button label="Done" variant="primary" onClick={onClose}>
+          Done
+        </Button>
+      ) : (
+        <>
+          <Button label="Cancel" variant="secondary" onClick={onClose} isDisabled={isPublishing}>
+            Cancel
+          </Button>
+          <Button
+            label={isPublishing ? 'Publishing...' : 'Publish to Cloud'}
+            variant="primary"
+            onClick={onPublish}
+            isDisabled={isPublishing || isPasscodeInvalid}
+            icon={
+              isPublishing ? (
+                <Loader2 size={15} className="lucide-spin" />
+              ) : (
+                <Globe size={15} />
+              )
+            }
+          >
+            {isPublishing ? 'Publishing...' : 'Publish to Cloud'}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ShareStudyPackageModal({
+  isOpen,
+  onClose,
+  materialId,
+  materialTitle,
+}: ShareStudyPackageModalProps) {
+  const form = useShareStudyPackageForm({ materialId, onClose });
+
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={handleClose}
-      title={publishResult ? 'Package Published!' : 'Share Study Package'}
+      onClose={form.handleClose}
+      title={form.publishResult ? 'Package Published!' : 'Share Study Package'}
       width={520}
       footer={
-        <div {...stylex.props(styles.footer)}>
-          {publishResult ? (
-            <Button
-              label="Done"
-              variant="primary"
-              onClick={handleClose}
-            >
-              Done
-            </Button>
-          ) : (
-            <>
-              <Button
-                label="Cancel"
-                variant="secondary"
-                onClick={handleClose}
-                isDisabled={isPublishing}
-              >
-                Cancel
-              </Button>
-              <Button
-                label={isPublishing ? 'Publishing...' : 'Publish to Cloud'}
-                variant="primary"
-                onClick={handlePublish}
-                isDisabled={isPublishing || isPasscodeInvalid}
-                icon={
-                  isPublishing ? (
-                    <Loader2 size={15} className="lucide-spin" />
-                  ) : (
-                    <Globe size={15} />
-                  )
-                }
-              >
-                {isPublishing ? 'Publishing...' : 'Publish to Cloud'}
-              </Button>
-            </>
-          )}
-        </div>
-
+        <ShareModalFooter
+          publishResult={form.publishResult}
+          isPublishing={form.isPublishing}
+          isPasscodeInvalid={form.isPasscodeInvalid}
+          onClose={form.handleClose}
+          onPublish={form.handlePublish}
+        />
       }
     >
       <div {...stylex.props(styles.body)}>
         <p {...stylex.props(styles.description)}>
-          {publishResult
+          {form.publishResult
             ? `"${materialTitle}" is now published and accessible in the cloud.`
             : `Publish an immutable snapshot of "${materialTitle}" to the cloud.`}
         </p>
 
         <ShareStudyPackageBody
-          publishResult={publishResult}
-          accessType={accessType}
-          passcode={passcode}
-          expiration={expiration}
-          copied={copied}
-          isPublishing={isPublishing}
-          fullShareUrl={fullShareUrl}
-          shortShareUrl={shortShareUrl}
-          onAccessTypeChange={setAccessType}
-          onPasscodeChange={setPasscode}
-          onExpirationChange={setExpiration}
-          onCopy={handleCopy}
+          publishResult={form.publishResult}
+          accessType={form.accessType}
+          passcode={form.passcode}
+          expiration={form.expiration}
+          copied={form.copied}
+          isPublishing={form.isPublishing}
+          fullShareUrl={form.fullShareUrl}
+          shortShareUrl={form.shortShareUrl}
+          onAccessTypeChange={form.setAccessType}
+          onPasscodeChange={form.setPasscode}
+          onExpirationChange={form.setExpiration}
+          onCopy={form.handleCopy}
         />
       </div>
     </Dialog>

@@ -211,7 +211,7 @@ export function StudyPackagePreviewModal({
         </div>
 
         {/* Question Type Breakdown */}
-        <QuestionTypeBreakdown entries={questionTypeEntries} variant="plain" />
+        <QuestionTypeBreakdown entries={questionTypeEntries} chrome="none" />
       </div>
     </Dialog>
   );

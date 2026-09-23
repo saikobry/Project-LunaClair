@@ -6,9 +6,9 @@ Feature-level presentation, reactive hooks, and interactive modal dialogs for po
 
 ## Ownership
 
-- `components/StudyPackagePreviewModal.tsx` — Shared `<Dialog>`-based modal for inspecting package metadata, the package's **material tags** as shared `Chip` pills (`summary.tags` — what the imported material will carry), summary metrics via `PackageStatsGrid` and `QuestionTypeBreakdown` (`variant="plain"`, derived purely via `inspectStudyPackage`) and import confirmation.
+- `components/StudyPackagePreviewModal.tsx` — Shared `<Dialog>`-based modal for inspecting package metadata, the package's **material tags** as shared `Chip` pills (`summary.tags` — what the imported material will carry), summary metrics via `PackageStatsGrid` and `QuestionTypeBreakdown` (`chrome="none"`, derived purely via `inspectStudyPackage`) and import confirmation.
 - `components/PackageStatsGrid.tsx` — Package metric stat cards (`{summary}` pre-fetched only) unifying the preview modal grid and the share landing surface; owns `packageStatsGrid.stylex.ts`.
-- `components/QuestionTypeBreakdown.tsx` — Question-type badge list (`{entries}` pre-derived only, `variant: 'card' | 'plain'`) unifying the preview modal badges (`QuestionTypesCard` renamed: it renders badges, not a quiz card); owns `questionTypeBreakdown.stylex.ts`.
+- `components/QuestionTypeBreakdown.tsx` — Question-type badge list (`{entries}` pre-derived only, `chrome: 'card' | 'none'` — the host decides who owns the card frame) unifying the preview modal badges (`QuestionTypesCard` renamed: it renders badges, not a quiz card); owns `questionTypeBreakdown.stylex.ts`.
 - `utils/packageFormat.ts` — Canonical `formatQuestionType` / `formatPackageDate` (single ownership; verbatim copies removed from both callers).
 - `components/ShareStudyPackageModal.tsx` — Shared `<Dialog>`-based modal for publishing portable study packages to the cloud, configuring access types (public, unlisted, passcode), optional expiration, and copying generated full/short share links.
 - `SharedPackageScreen.tsx` — Feature-root screen for shared study packages (`/share/:shareId`, `/s/:code`), managing loading, passcode challenge unlock, error states, package inspection metrics, atomic "Clone to Library" with subsequent download telemetry tracking, and ".lcpack" file download.

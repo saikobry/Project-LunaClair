@@ -8,10 +8,11 @@ export interface QuestionTypeBreakdownProps {
   /** Pre-derived `Object.entries(summary.questionsByType)`; no fetching here. */
   entries: QuestionTypeEntry[];
   /**
-   * Card chrome. The screen renders the section as a card; the modal owns its
-   * own chrome and renders a plain stacked section instead.
+   * Whether this component renders its own card frame. `card` (default) is for
+   * screens with bare backgrounds; `none` renders a plain stacked section for
+   * hosts that supply their own chrome (the preview modal).
    */
-  variant?: 'card' | 'plain';
+  chrome?: 'card' | 'none';
 }
 
 /**
@@ -19,15 +20,15 @@ export interface QuestionTypeBreakdownProps {
  * badges with the `SharedPackageScreen` local `QuestionTypesCard` (renamed:
  * it renders badges, not a quiz card). Returns null on an empty list.
  */
-export function QuestionTypeBreakdown({ entries, variant = 'card' }: QuestionTypeBreakdownProps) {
+export function QuestionTypeBreakdown({ entries, chrome = 'card' }: QuestionTypeBreakdownProps) {
   if (entries.length === 0) return null;
-  if (variant === 'plain') {
+  if (chrome === 'none') {
     return (
-      <div {...stylex.props(styles.plainContainer)}>
+      <div {...stylex.props(styles.noChromeContainer)}>
         <span {...stylex.props(styles.sectionTitle)}>Question Types</span>
         <div {...stylex.props(styles.badgesList)}>
           {entries.map(([type, count]) => (
-            <span key={type} {...stylex.props(styles.plainBadge)}>
+            <span key={type} {...stylex.props(styles.noChromeBadge)}>
               {formatQuestionType(type)}: <strong>{count}</strong>
             </span>
           ))}

@@ -9,8 +9,38 @@ import * as stylex from '@stylexjs/stylex';
 import { Plus, X } from 'lucide-react';
 import { useModalDialog } from '../../../shared/hooks/useModalDialog';
 import { styles } from './compactCollectionsPopover.stylex';
-import { CollectionNavItem } from '../../../features/collections/components/CollectionNavItem';
+import { CollectionNavItem, type CollectionNavItemSlots } from '../../../features/collections/components/CollectionNavItem';
 import type { Collection } from '../../../domain/collections/models/Collection';
+
+/**
+ * Pre-binds the tablet rail row's four `CollectionNavItem` style slots. The rail
+ * tints the whole button (`tintTarget="button"`) so the collection color
+ * cascades to icon and label.
+ */
+function railNavItemSlots(isActive: boolean): CollectionNavItemSlots {
+  return {
+    buttonProps: stylex.props(styles.collectionRow, isActive && styles.collectionRowActive),
+    iconWrapProps: stylex.props(styles.collectionIcon),
+    labelProps: stylex.props(styles.collectionLabel),
+    badgeProps: stylex.props(styles.countBadge),
+  };
+}
+
+/**
+ * Pre-binds the dock drawer row's four `CollectionNavItem` style slots (its icon
+ * wrapper, not the button, carries the collection color).
+ */
+function drawerNavItemSlots(isActive: boolean): CollectionNavItemSlots {
+  return {
+    buttonProps: stylex.props(styles.drawerRow, isActive && styles.drawerRowActive),
+    iconWrapProps: stylex.props(
+      styles.drawerRowIconWrapper,
+      isActive && styles.drawerRowIconWrapperActive,
+    ),
+    labelProps: stylex.props(styles.drawerRowLabel),
+    badgeProps: stylex.props(styles.countBadge),
+  };
+}
 
 /** Anchored-panel geometry computed from the trigger's bounding rect. */
 export interface PanelPosition {
@@ -88,13 +118,7 @@ export function CompactCollectionsRailPanel({
                 role="menuitem"
                 iconSize={16}
                 tintTarget="button"
-                buttonProps={stylex.props(
-                  styles.collectionRow,
-                  isRowActive && styles.collectionRowActive,
-                )}
-                iconWrapProps={stylex.props(styles.collectionIcon)}
-                labelProps={stylex.props(styles.collectionLabel)}
-                badgeProps={stylex.props(styles.countBadge)}
+                {...railNavItemSlots(isRowActive)}
               />
             );
           })
@@ -221,16 +245,7 @@ export function CompactCollectionsDockDrawer({
                 onSelect={() => onSelect(collection.id)}
                 role="menuitem"
                 iconSize={18}
-                buttonProps={stylex.props(
-                  styles.drawerRow,
-                  isRowActive && styles.drawerRowActive,
-                )}
-                iconWrapProps={stylex.props(
-                  styles.drawerRowIconWrapper,
-                  isRowActive && styles.drawerRowIconWrapperActive,
-                )}
-                labelProps={stylex.props(styles.drawerRowLabel)}
-                badgeProps={stylex.props(styles.countBadge)}
+                {...drawerNavItemSlots(isRowActive)}
               />
             );
           })

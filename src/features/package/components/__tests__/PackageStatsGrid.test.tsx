@@ -43,8 +43,8 @@ describe('QuestionTypeBreakdown', () => {
     expect(screen.getByText(/True\/False/)).toBeInTheDocument();
   });
 
-  it('renders the plain section variant for the preview modal', () => {
-    render(<QuestionTypeBreakdown entries={Object.entries(summary.questionsByType)} variant="plain" />);
+  it('renders the chrome-less section for the preview modal', () => {
+    render(<QuestionTypeBreakdown entries={Object.entries(summary.questionsByType)} chrome="none" />);
 
     expect(screen.getByText('Question Types')).toBeInTheDocument();
     expect(screen.getByText(/Multiple Choice/)).toBeInTheDocument();

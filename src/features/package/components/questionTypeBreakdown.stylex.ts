@@ -33,15 +33,15 @@ export const questionTypeBreakdownStyles = stylex.create({
     border: '1px solid var(--color-border)',
     color: 'var(--color-text-primary)',
   },
-  /** Modal-context overrides: the modal owns its own card chrome, so the
-   * breakdown renders as a plain stacked section there. */
-  plainContainer: {
+  /** `chrome="none"` overrides: the host owns its own card, so the breakdown
+   * renders as a plain stacked section there. */
+  noChromeContainer: {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
     marginTop: 4,
   },
-  plainBadge: {
+  noChromeBadge: {
     fontSize: 11,
     fontWeight: 500,
     padding: '3px 8px',

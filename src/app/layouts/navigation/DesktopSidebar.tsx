@@ -13,7 +13,7 @@ import { useCollections } from '../../../features/collections/hooks/queries/useC
 import { useCollectionMaterialCounts } from '../../../features/collections/hooks/queries/useCollectionMaterialCounts';
 import { useCreateCollection } from '../../../features/collections/hooks/mutations/useCreateCollection';
 import { CreateCollectionModal } from '../../../features/collections/modals/CreateCollectionModal';
-import { CollectionNavItem } from '../../../features/collections/components/CollectionNavItem';
+import { CollectionNavItem, type CollectionNavItemSlots } from '../../../features/collections/components/CollectionNavItem';
 import { Button } from '../../../shared/ui/Button/Button';
 import { APP_VERSION } from '../../../shared/constants/appInfo';
 import { VIRTUALIZE_AFTER_ITEM_COUNT } from '../../../shared/constants/listRendering';
@@ -22,6 +22,19 @@ import type { Collection } from '../../../domain/collections/models/Collection';
 
 /** Sidebar estimate: 20px vertical padding + one text/icon row. */
 const ESTIMATED_NAV_ROW_HEIGHT = 40;
+
+/**
+ * Pre-binds the sidebar's four `CollectionNavItem` style slots, so the row JSX
+ * stays declarative and per-surface styling lives in exactly one place.
+ */
+function sidebarNavItemSlots(isActive: boolean): CollectionNavItemSlots {
+  return {
+    buttonProps: stylex.props(styles.navItem, isActive && styles.navItemActive),
+    iconWrapProps: stylex.props(styles.collectionIcon),
+    labelProps: stylex.props(styles.navLabel),
+    badgeProps: stylex.props(styles.countBadge),
+  };
+}
 
 function CollectionNavButton({
   collection,
@@ -40,10 +53,7 @@ function CollectionNavButton({
       count={count}
       isActive={isActive}
       onSelect={() => onNavigate({ kind: 'collection', collectionId: collection.id })}
-      buttonProps={stylex.props(styles.navItem, isActive && styles.navItemActive)}
-      iconWrapProps={stylex.props(styles.collectionIcon)}
-      labelProps={stylex.props(styles.navLabel)}
-      badgeProps={stylex.props(styles.countBadge)}
+      {...sidebarNavItemSlots(isActive)}
     />
   );
 }
