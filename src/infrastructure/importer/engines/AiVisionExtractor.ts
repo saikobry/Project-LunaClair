@@ -15,7 +15,11 @@ export interface AiVisionExtractorOptions {
 }
 
 export const AI_VISION_SYSTEM_PROMPT =
-  'You are an expert document digitization system. Transcribe the document page image into clean, accurate Markdown. Preserve all visible text, headings, numbers, lists, and tables verbatim. Output ONLY the extracted Markdown content with no commentary, no conversational preamble, and no outer code fences.';
+  'You are an expert document digitization system. Transcribe the document page image into clean, accurate Markdown. Preserve all visible text, headings, numbers, lists, and tables verbatim.\n\n' +
+  'Format all tabular data and multi-column forms as standard GitHub-Flavored Markdown tables with pipes (|) and header separator rows (| --- | --- |). Escape literal pipe characters (\\|), leave empty cells blank, and do not invent columns or values. If a complex layout cannot be faithfully represented as a table, format it as clean structured text.\n\n' +
+  'Preserve all numbers and list markers. Distinguish concise section titles (e.g. # 1. TITLE) from numbered policy clauses or regulations (e.g. 1. Student trainees shall...). Do NOT convert numbered policy clauses or list items into Markdown headings (##). Format them as standard Markdown ordered lists (1. , 2. ) or unordered lists (- ). Never drop or strip list numbers.\n\n' +
+  "Omit obvious recurring document-control running headers (such as repeated document numbers, effectivity dates, page counters like 'Page X of Y') and repetitive quality-policy signature stamps. Strictly preserve the primary cover page / main approvals table and any text whose status is uncertain.\n\n" +
+  'Output ONLY the extracted Markdown content with no commentary, no conversational preamble, and no outer code fences.';
 
 /**
  * AI-powered multimodal vision document extractor using hosted multimodal models (e.g. MAX / swift).

@@ -9,6 +9,7 @@ Pure domain contracts, types, and algorithms for importing external study materi
 - `ContentImporter.ts` — `ContentImporter` port, `ImporterRegistry` port, `ExtractionOptions` interface.
 - `importer.types.ts` — Domain types (`ExtractionResult`, `PageExtraction`, `ExtractionStats`, `ExtractionProgress`, `ImportMetadata`, `ImportCandidate`, `ImportSession`, `ImportError`, `ImportErrorCode`).
 - `ImportAssetRepository.ts` — write-only `ImportAssetRepository` port (`put`) and `ImportedAsset` contract for preserving original imported binary files (PDF/images). Stays deliberately single-asset-per-material (an import owns exactly one original file), so on this write path `materialId` IS the asset identity; `DexieImportAssetRepository` writes `assetId = materialId` into the shared `localAssets` store. Reads are the generic `AssetRepository` port's job (`domain/assets`), and removal is `DexieLibraryImportService.removeMaterial`'s job (it must commit inside the material-delete transaction), so this port never becomes a second read or delete path over the same store.
+- `services/DocumentChunker.ts` — Pure domain service (`chunkDocument`, `extractDocumentOutline`, `splitTextRun`) for semantically slicing large markdown documents into bounded chunks (~8,000 chars) along heading seams and paragraph breaks, strictly guarding fenced code blocks, tables, and blockquotes without crossing syntax boundaries. Implements hierarchical boundary search in `splitTextRun` within an elastic target window (target -20% / +25%: min 0.80 * target, max 1.25 * target; paragraph double newline -> list item marker -> sentence punctuation -> newline/whitespace fallback -> hard cut at target) ensuring cuts never land mid-sentence or mid-list-item when higher-priority breaks exist.
 - `markdownConverter/` — Multi-pass Markdown conversion pipeline:
   - `normalizationPass.ts`: Line ending normalization, Unicode space cleaning, page break artifact removal.
   - `structurePass.ts`: Heading detection (ALL CAPS, numbered sections, chapters).
@@ -24,6 +25,7 @@ Pure domain contracts, types, and algorithms for importing external study materi
 - Multi-page extractions include `## Page N` anchors separated by `---` horizontal rules.
 - Per-page metadata (`source: 'pdf-text' | 'ocr' | 'ai-vision'`, `confidence: number`) is preserved across extraction and review models.
 - Partial extractions set `isPartial: true` on `ExtractionResult` to signify incomplete processing upon cancellation.
+- Document chunking in `splitTextRun` strictly prioritizes paragraph boundaries (double newlines), list-item starts, and sentence boundaries over mid-sentence line breaks within an elastic window (min 0.80 * target, max 1.25 * target), preventing sentence fragmentation across OCR page transitions.
 - Domain logic contains 0 React, 0 Dexie, and 0 browser DOM dependencies.
 
 ## Work Guidance

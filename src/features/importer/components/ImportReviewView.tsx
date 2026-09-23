@@ -1,18 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import {
   Sparkles,
   Loader2,
   AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   FileText,
   Image as ImageIcon,
 } from 'lucide-react';
 import { importerStyles } from '../styles/importer.stylex';
 import type { ImportCandidate } from '../../../domain/importer/models/importer.types';
-import { WriterEditor } from '../../writer/components/WriterEditor';
+import type { AiModelDescriptor } from '../../../domain/ai/services/aiModelCatalog';
+import { DEFAULT_FAST_PATH_THRESHOLD } from '../../../domain/importer/services/DocumentChunker';
+import {
+  WriterEditor,
+  type WriterEditorHandle,
+  type WriterSelection,
+} from '../../writer/components/WriterEditor';
 import MarkdownViewer from '../../reader/components/MarkdownViewer';
-import { useAiCleanup } from '../hooks/useAiCleanup';
+import { useAiCleanup, type AiCleanupProgress } from '../hooks/useAiCleanup';
 import { useAiModelSelection } from '../../ai/hooks/useAiModelSelection';
 import { AiModelPicker } from '../../ai/components/AiModelPicker';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
@@ -84,12 +91,43 @@ function ImportDiffModal({ diffResult, onReject, onAccept }: ImportDiffModalProp
   );
 }
 
-// The accessible name is the dynamic label: the countdown and the in-flight
-// state are the information a screen-reader user needs, not just the action.
-function aiCleanupLabel(isCleaning: boolean, cooldownSeconds: number): string {
-  if (isCleaning) return 'Cleaning with AI...';
-  if (cooldownSeconds > 0) return `AI Cleanup (${cooldownSeconds}s)`;
-  return 'AI Cleanup';
+/** How long the selection-cleanup confirmation stays on screen. */
+const SELECTION_NOTICE_MS = 2_500;
+
+/** Section position for the action label, e.g. `Cleaning section 2 of 4 (50%)...`. */
+function progressLabel(progress: AiCleanupProgress): string {
+  if (progress.phase === 'cooldown') return progress.label;
+  return `Cleaning section ${progress.current} of ${progress.total} (${progress.percent}%)...`;
+}
+
+// The accessible name is the dynamic label: the countdown, the section being
+// cleaned, and the in-flight state are the information a screen-reader user
+// needs, not just the action.
+function aiCleanupLabel(state: {
+  isCleaning: boolean;
+  cooldownSeconds: number;
+  hasSelection: boolean;
+  progress: AiCleanupProgress | null;
+}): string {
+  if (state.isCleaning) {
+    if (state.progress) return progressLabel(state.progress);
+    return state.hasSelection ? 'Cleaning selection...' : 'Cleaning with AI...';
+  }
+  if (state.cooldownSeconds > 0) return `AI Cleanup (${state.cooldownSeconds}s)`;
+  return state.hasSelection ? 'Clean Selection' : 'AI Cleanup';
+}
+
+/**
+ * Whether the next cleanup would be one oversized request.
+ *
+ * Only the single-request path can ask a model for more than it accepts: a longer document is sent
+ * section by section, and each section's size is derived from the model's own output reservation.
+ * The guard is therefore narrow on purpose — "the document is longer than the model's document cap"
+ * would block exactly the documents chunking exists to clean.
+ */
+function isOverBudgetFor(chars: number, model: AiModelDescriptor | null): boolean {
+  if (!model || chars <= 0 || chars > DEFAULT_FAST_PATH_THRESHOLD) return false;
+  return chars > model.maxDocumentContextChars;
 }
 
 /** Page count is an extraction artifact — degrade to nothing when it is absent. */
@@ -162,6 +200,8 @@ function ReviewToolbar({
   isOverBudget,
   cooldownSeconds,
   isCleaning,
+  hasSelection,
+  progress,
   onTriggerAiCleanup,
 }: {
   activeCandidate: ImportCandidate;
@@ -174,6 +214,9 @@ function ReviewToolbar({
   isOverBudget: boolean;
   cooldownSeconds: number;
   isCleaning: boolean;
+  /** A text selection is available to clean in place instead of the whole document. */
+  hasSelection: boolean;
+  progress: AiCleanupProgress | null;
   onTriggerAiCleanup: () => void;
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -216,7 +259,9 @@ function ReviewToolbar({
 
   const tooltipTitle = isOverBudget
     ? `Document exceeds ${modelSelection.selectedModel?.display.name || 'model'} context limit`
-    : undefined;
+    : hasSelection
+      ? 'Clean only the selected text'
+      : undefined;
 
   return (
     <div {...stylex.props(importerStyles.reviewToolbar)}>
@@ -311,7 +356,7 @@ function ReviewToolbar({
         />
         <Button
           variant="secondary"
-          label={aiCleanupLabel(isCleaning, cooldownSeconds)}
+          label={aiCleanupLabel({ isCleaning, cooldownSeconds, hasSelection, progress })}
           icon={
             isCleaning ? (
               <Loader2 size={16} {...stylex.props(importerStyles.iconSpin)} aria-hidden="true" />
@@ -345,33 +390,89 @@ function ReviewPreviewPane({ text }: { text: string }) {
   );
 }
 
-export function ImportReviewView({
-  candidates,
-  activeIndex,
-  onUpdateMarkdown,
-  onSelectCandidate,
-}: ImportReviewViewProps) {
-  const activeCandidate = candidates[activeIndex];
+interface ReviewBannersProps {
+  error: string | null;
+  canRetryRemaining: boolean;
+  onRetryRemaining: () => void;
+  onAbortCleanup: () => void;
+  selectionNotice: { tone: 'success' | 'error'; text: string } | null;
+  isPartial: boolean | undefined;
+  pagesCount?: number;
+  totalPages?: number;
+}
+
+function ReviewBanners({
+  error,
+  canRetryRemaining,
+  onRetryRemaining,
+  onAbortCleanup,
+  selectionNotice,
+  isPartial,
+  pagesCount,
+  totalPages,
+}: ReviewBannersProps) {
+  return (
+    <>
+      {error && (
+        <div
+          role="alert"
+          {...stylex.props(importerStyles.bannerRow, importerStyles.bannerError)}
+        >
+          <span {...stylex.props(importerStyles.bannerText)}>{error}</span>
+          <div {...stylex.props(importerStyles.bannerActions)}>
+            {canRetryRemaining && (
+              <Button
+                variant="secondary"
+                label="Retry Remaining"
+                onClick={onRetryRemaining}
+              />
+            )}
+            <Button variant="ghost" label="Cancel" onClick={onAbortCleanup} />
+          </div>
+        </div>
+      )}
+      {selectionNotice && (
+        <div
+          role="status"
+          {...stylex.props(
+            importerStyles.bannerRow,
+            selectionNotice.tone === 'success'
+              ? importerStyles.bannerSuccess
+              : importerStyles.bannerError,
+          )}
+        >
+          {selectionNotice.tone === 'success' && <CheckCircle2 size={16} aria-hidden="true" />}
+          <span {...stylex.props(importerStyles.bannerText)}>{selectionNotice.text}</span>
+        </div>
+      )}
+      {isPartial && pagesCount !== undefined && totalPages !== undefined && (
+        <PartialExtractionBanner
+          pagesCount={pagesCount}
+          totalPages={totalPages}
+        />
+      )}
+    </>
+  );
+}
+
+function useCandidateReviewSync(
+  activeCandidate: ImportCandidate | undefined,
+  abortCleanup: () => void,
+) {
   const [markdown, setMarkdown] = useState(activeCandidate?.markdown || '');
-  const [viewMode, setViewMode] = useState<ReviewViewMode>('split');
-  const {
-    isCleaning,
-    diffResult,
-    error,
-    cleanWithAi,
-    acceptCleanup,
-    rejectCleanup,
-    abortCleanup,
-    cooldownSeconds,
-  } = useAiCleanup();
-  const modelSelection = useAiModelSelection();
-
   const [editorKey, setEditorKey] = useState(0);
-
   const [prevCandidateId, setPrevCandidateId] = useState(activeCandidate?.id);
+  const [selection, setSelection] = useState<WriterSelection | null>(null);
+  const [selectionNotice, setSelectionNotice] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
   if (activeCandidate && activeCandidate.id !== prevCandidateId) {
     setPrevCandidateId(activeCandidate.id);
     setMarkdown(activeCandidate.markdown || '');
+    setSelection(null);
+    setSelectionNotice(null);
   }
 
   const activeCandidateId = activeCandidate?.id;
@@ -385,13 +486,103 @@ export function ImportReviewView({
     abortCleanup();
   }, [activeCandidateId, abortCleanup]);
 
+  useEffect(() => {
+    if (!selectionNotice) return;
+    const timer = setTimeout(() => setSelectionNotice(null), SELECTION_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [selectionNotice]);
+
+  return {
+    markdown,
+    setMarkdown,
+    editorKey,
+    setEditorKey,
+    selection,
+    setSelection,
+    selectionNotice,
+    setSelectionNotice,
+  };
+}
+
+export function ImportReviewView({
+  candidates,
+  activeIndex,
+  onUpdateMarkdown,
+  onSelectCandidate,
+}: ImportReviewViewProps) {
+  const activeCandidate = candidates[activeIndex];
+  const [viewMode, setViewMode] = useState<ReviewViewMode>('split');
+  const editorRef = useRef<WriterEditorHandle>(null);
+  const {
+    isCleaning,
+    diffResult,
+    error,
+    progress,
+    canRetryRemaining,
+    cleanWithAi,
+    cleanSelection,
+    retryRemaining,
+    acceptCleanup,
+    rejectCleanup,
+    abortCleanup,
+    cooldownSeconds,
+  } = useAiCleanup();
+  const modelSelection = useAiModelSelection();
+
+  const {
+    markdown,
+    setMarkdown,
+    editorKey,
+    setEditorKey,
+    selection,
+    setSelection,
+    selectionNotice,
+    setSelectionNotice,
+  } = useCandidateReviewSync(activeCandidate, abortCleanup);
+
+  const handleSelectionChange = useCallback((next: WriterSelection | null) => {
+    setSelection(next);
+  }, [setSelection]);
+
   if (!activeCandidate) return null;
 
+  const hasSelection = selection !== null;
+  const requestChars = selection ? selection.markdown.length : markdown.length;
+  const isOverBudget = isOverBudgetFor(requestChars, modelSelection.selectedModel ?? null);
+  const cleanupOptions = {
+    model: modelSelection.selectedModelId ?? undefined,
+    catalog: modelSelection.catalog,
+  };
+
   const handleTriggerAiCleanup = async () => {
-    await cleanWithAi(markdown, activeCandidate.id, activeCandidate.title, {
-      model: modelSelection.selectedModelId ?? undefined,
-      catalog: modelSelection.catalog,
-    });
+    const activeSelection = selection;
+    if (activeSelection) {
+      const cleaned = await cleanSelection(
+        activeSelection.markdown.trim() || activeSelection.text,
+        activeCandidate.title,
+        cleanupOptions,
+      );
+      if (!cleaned) return;
+
+      if (editorRef.current?.replaceSelection(cleaned)) {
+        setSelectionNotice({
+          tone: 'success',
+          text: 'Selection cleaned. Press Ctrl+Z (Cmd+Z) to undo.',
+        });
+      } else {
+        setSelectionNotice({
+          tone: 'error',
+          text: 'The selection was lost before the cleaned text could be applied. Select the text again and retry.',
+        });
+      }
+      return;
+    }
+
+    await cleanWithAi(markdown, activeCandidate.id, activeCandidate.title, cleanupOptions);
+  };
+
+  const handleRetryRemaining = async () => {
+    await retryRemaining(activeCandidate.id);
   };
 
   const handleAcceptCleanup = () => {
@@ -406,10 +597,6 @@ export function ImportReviewView({
       setEditorKey((k) => k + 1);
     }
   };
-
-  const isOverBudget = modelSelection.selectedModel
-    ? markdown.length > modelSelection.selectedModel.maxDocumentContextChars
-    : false;
 
   const showEditor = viewMode === 'split' || viewMode === 'edit';
   const showPreview = viewMode === 'split' || viewMode === 'preview';
@@ -427,27 +614,21 @@ export function ImportReviewView({
         isOverBudget={isOverBudget}
         cooldownSeconds={cooldownSeconds}
         isCleaning={isCleaning}
+        hasSelection={hasSelection}
+        progress={progress}
         onTriggerAiCleanup={handleTriggerAiCleanup}
       />
 
-      {error && (
-        <div
-          style={{
-            color: 'var(--color-error)',
-            padding: '8px 16px',
-            fontSize: '13px',
-            backgroundColor: 'var(--color-error-muted)',
-          }}
-        >
-          {error}
-        </div>
-      )}
-      {activeCandidate.extraction?.isPartial && (
-        <PartialExtractionBanner
-          pagesCount={activeCandidate.extraction.pages.length}
-          totalPages={activeCandidate.extraction.pageCount}
-        />
-      )}
+      <ReviewBanners
+        error={error}
+        canRetryRemaining={canRetryRemaining}
+        onRetryRemaining={handleRetryRemaining}
+        onAbortCleanup={abortCleanup}
+        selectionNotice={selectionNotice}
+        isPartial={activeCandidate.extraction?.isPartial}
+        pagesCount={activeCandidate.extraction?.pages.length}
+        totalPages={activeCandidate.extraction?.pageCount}
+      />
 
       <div {...stylex.props(importerStyles.reviewBody)}>
         {showEditor && (
@@ -456,6 +637,8 @@ export function ImportReviewView({
             <WriterEditor
               key={`${activeCandidate.id}-${editorKey}`}
               initialMarkdown={markdown}
+              editorRef={editorRef}
+              onSelectionChange={handleSelectionChange}
               onChange={(md) => {
                 setMarkdown(md);
                 onUpdateMarkdown(activeCandidate.id, md);

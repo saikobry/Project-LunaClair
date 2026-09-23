@@ -160,4 +160,10 @@ describe('AiVisionExtractor', () => {
     const request = streamChatSpy.mock.calls[0]?.[0];
     expect(request?.messages[0]?.content).toBe(AI_VISION_SYSTEM_PROMPT);
   });
+
+  it('includes table formatting, list preservation, and page furniture rules in system prompt', () => {
+    expect(AI_VISION_SYSTEM_PROMPT).toContain('standard GitHub-Flavored Markdown tables with pipes (|)');
+    expect(AI_VISION_SYSTEM_PROMPT).toContain('Do NOT convert numbered policy clauses or list items into Markdown headings');
+    expect(AI_VISION_SYSTEM_PROMPT).toContain('Omit obvious recurring document-control running headers');
+  });
 });

@@ -340,6 +340,35 @@ export const importerStyles = stylex.create({
     borderBottomColor: 'var(--color-border)',
     backgroundColor: 'var(--color-background-muted)',
   },
+  // ── Review banners ──────────────────────────────────────────────────────
+  // Status strips above the panes (AI failure + retry, selection-cleanup
+  // confirmation). The hue carries the meaning; the text always states it, so
+  // nothing rests on colour alone — the same rule the status badge follows.
+  bannerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '8px 16px',
+    fontSize: 13,
+  },
+  bannerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bannerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexShrink: 0,
+  },
+  bannerError: {
+    backgroundColor: 'var(--color-error-muted)',
+    color: 'var(--color-error)',
+  },
+  bannerSuccess: {
+    backgroundColor: 'var(--color-success-muted)',
+    color: 'var(--color-success)',
+  },
   // ── Details step ────────────────────────────────────────────────────────
   detailsHeading: {
     margin: '0 0 16px',

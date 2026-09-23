@@ -19,12 +19,22 @@ describe('useAiCleanup', () => {
     vi.useRealTimers();
   });
 
-  function createWrapper(executeFn = mockCleanupExecute) {
+  function createWrapper(
+    executeFn = mockCleanupExecute,
+    extraMethods: {
+      retryCleanupRemaining?: any;
+      hasPendingCleanupResume?: any;
+      clearPendingCleanupResume?: any;
+    } = {},
+  ) {
     const mockContextValue = {
       useCases: {
         importer: {
           cleanupWithAi: {
             execute: executeFn,
+            retryCleanupRemaining: extraMethods.retryCleanupRemaining,
+            hasPendingCleanupResume: extraMethods.hasPendingCleanupResume,
+            clearPendingCleanupResume: extraMethods.clearPendingCleanupResume,
           },
         },
       },
@@ -64,6 +74,7 @@ describe('useAiCleanup', () => {
       model: undefined,
       catalog: undefined,
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
     expect(res).toEqual({
       candidateId: 'cand-1',
@@ -103,6 +114,7 @@ describe('useAiCleanup', () => {
       model: 'ukisai-swift-max',
       catalog: dummyCatalog,
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
     expect(result.current.diffResult?.candidateId).toBe('cand-99');
     expect(result.current.diffResult?.original).toBe('# Raw Text');
@@ -312,5 +324,53 @@ describe('useAiCleanup', () => {
     });
 
     expect(result.current.diffResult).toBeNull();
+  });
+
+  it('cleanSelection returns cleaned string directly without modifying diffResult', async () => {
+    const { result } = renderHook(() => useAiCleanup(), {
+      wrapper: createWrapper(),
+    });
+
+    let res: string | null = null;
+    await act(async () => {
+      res = await result.current.cleanSelection('Selected markdown snippet', 'Title');
+    });
+
+    expect(res).toBe('# Formatted Clean Heading\n\n- Point 1\n- Point 2');
+    expect(result.current.diffResult).toBeNull();
+    expect(result.current.isCleaning).toBe(false);
+    expect(result.current.canRetryRemaining).toBe(false);
+  });
+
+  it('retryRemaining resumes remaining chunks when pending resume exists', async () => {
+    const mockRetry = vi.fn().mockResolvedValue({
+      original: 'Full original text',
+      cleaned: 'Full cleaned text with all sections',
+    });
+    const mockHasResume = vi.fn().mockReturnValue(true);
+
+    const { result } = renderHook(() => useAiCleanup(), {
+      wrapper: createWrapper(mockCleanupExecute, {
+        retryCleanupRemaining: mockRetry,
+        hasPendingCleanupResume: mockHasResume,
+      }),
+    });
+
+    let res: AiCleanupDiffResult | null = null;
+    await act(async () => {
+      res = await result.current.retryRemaining('cand-42');
+    });
+
+    expect(mockRetry).toHaveBeenCalledWith({
+      signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
+    });
+    expect(res).toEqual({
+      candidateId: 'cand-42',
+      original: 'Full original text',
+      cleaned: 'Full cleaned text with all sections',
+    });
+    expect(result.current.diffResult).toEqual(res);
+    expect(result.current.isCleaning).toBe(false);
   });
 });

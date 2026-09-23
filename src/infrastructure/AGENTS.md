@@ -58,7 +58,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `ImageImporter.ts` → Image extractor supporting local Tesseract OCR and opt-in multimodal AI vision extraction (`ocrEngine === 'ai-vision'`) via canvas/FileReader conversion
   - `engines/` — Raw processing engines:
     - `TesseractExtractor.ts` → OCR worker pool management via `tesseract.js`
-    - `AiVisionExtractor.ts` → Multimodal vision page extractor wrapping `AiService.streamChat` with capability checks, verbatim visual transcription prompt (`AI_VISION_SYSTEM_PROMPT`: Perception stage — faithful pixel-to-text recognition; Markdown structuring and cleanup belong to Stage 2 Review), and output truncation detection
+    - `AiVisionExtractor.ts` → Multimodal vision page extractor wrapping `AiService.streamChat` with capability checks, verbatim visual transcription prompt (`AI_VISION_SYSTEM_PROMPT`: Perception stage — faithful pixel-to-text recognition; formats tables/forms into standard GFM pipe tables with header separators, preserves list numbering and bullet hierarchy without converting numbered policy clauses into `##` headings, omits obvious recurring document-control running headers/footers and stamps while strictly preserving cover/approval tables; Markdown structuring and cleanup belong to Stage 2 Review), and output truncation detection
 - `ai/` — Worker AI gateway:
   - `adapters/` — Model gateway implementations:
     - `WorkerAiAdapter.ts` → `AiService` (streaming SSE client for `/api/ai/chat`; forwards the request's optional catalog model id and surfaces the Worker's failure `code` and `retryAfterSeconds` verbatim instead of flattening every failure to `HTTP_<status>` — the cooldown depends on the provider's own wait)
