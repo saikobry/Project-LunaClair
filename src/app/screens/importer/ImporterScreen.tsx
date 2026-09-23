@@ -31,6 +31,7 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
     setOcrEngine,
     addFiles,
     removeFile,
+    retryCandidate,
     startExtraction,
     cancelExtraction,
     updateCandidateMarkdown,
@@ -102,11 +103,39 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
   // between Save and the Completed step.
   const isDetailsStep = currentStep === 'details' || currentStep === 'saving';
 
+  const handlePageBack = useCallback(() => {
+    if (currentStep === 'details') {
+      goToStep('review');
+      return;
+    }
+    if (currentStep === 'review') {
+      goToStep('selecting');
+      return;
+    }
+    if (currentStep === 'extracting') {
+      cancelExtraction();
+      return;
+    }
+    if (currentStep === 'selecting') {
+      onCancel?.();
+    }
+  }, [currentStep, goToStep, cancelExtraction, onCancel]);
+
+  const pageBackLabel =
+    currentStep === 'details'
+      ? 'Back to Review'
+      : currentStep === 'review'
+        ? 'Back to Files'
+        : currentStep === 'extracting'
+          ? 'Cancel Extraction'
+          : 'Back';
+
   return (
     <Page
       title="Import Material"
       description="Upload course slides, notes, or study packages to expand your library."
-      onBack={currentStep !== 'completed' ? onCancel : undefined}
+      onBack={currentStep !== 'completed' && currentStep !== 'saving' ? handlePageBack : undefined}
+      backLabel={pageBackLabel}
     >
       {/* Three-part column: stepper, scrolling step body, pinned action bar. */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -119,11 +148,23 @@ export function ImporterScreen({ onOpenMaterial, onCancel }: ImporterScreenProps
                 onFilesAdded={handleFilesAdded}
                 ocrEngine={ocrEngine}
                 onOcrEngineChange={setOcrEngine}
+                showEngineConfig={session.candidates.some(
+                  (c) => c.status === 'pending' || c.status === 'error',
+                )}
               />
               {session.candidates.length > 0 && (
                 <div {...stylex.props(importerStyles.fileList)}>
-                  {session.candidates.map(c => (
-                    <ImportFileCard key={c.id} candidate={c} onRemove={removeFile} />
+                  {session.candidates.map((c, index) => (
+                    <ImportFileCard
+                      key={c.id}
+                      candidate={c}
+                      onRemove={removeFile}
+                      onRetry={retryCandidate}
+                      onReview={() => {
+                        setActiveCandidateIndex(index);
+                        goToStep('review');
+                      }}
+                    />
                   ))}
                 </div>
               )}

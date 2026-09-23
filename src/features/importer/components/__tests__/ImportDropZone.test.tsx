@@ -53,9 +53,7 @@ describe('ImportDropZone', () => {
     const packFile = new File(['{"format":"lcpack"}'], 'deck.lcpack', { type: 'application/octet-stream' });
     const ignoredFile = new File(['exe data'], 'app.exe', { type: 'application/x-msdownload' });
 
-    // Drag over should prevent default
-    const dragOverEvent = new Event('dragover', { bubbles: true, cancelable: true });
-    dropZone.dispatchEvent(dragOverEvent);
+    fireEvent.dragOver(dropZone);
 
     fireEvent.drop(dropZone, {
       dataTransfer: {
@@ -128,5 +126,50 @@ describe('ImportDropZone', () => {
     } finally {
       Object.defineProperty(navigator, 'onLine', { value: originalOnLine, configurable: true });
     }
+  });
+
+  it('renders extraction engine header, hint, and radiogroup', () => {
+    render(<ImportDropZone onFilesAdded={vi.fn()} />);
+
+    expect(screen.getByText('Extraction Engine')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Choose between local on-device OCR or cloud AI vision/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Extraction Engine' })).toBeInTheDocument();
+  });
+
+  it('triggers file input click when Enter or Space is pressed on drop zone', () => {
+    const { container } = render(<ImportDropZone onFilesAdded={vi.fn()} />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const clickSpy = vi.spyOn(input, 'click');
+
+    const dropZone = screen.getByRole('button', { name: /upload files/i });
+    fireEvent.keyDown(dropZone, { key: 'Enter' });
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(dropZone, { key: ' ' });
+    expect(clickSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('updates text feedback on dragover and restores it on dragleave', () => {
+    render(<ImportDropZone onFilesAdded={vi.fn()} />);
+    const dropZone = screen.getByRole('button', { name: /upload files/i });
+
+    expect(
+      screen.getByText('Drag & drop your study materials here, or click to browse'),
+    ).toBeInTheDocument();
+
+    fireEvent.dragOver(dropZone);
+    expect(screen.getByText('Drop study materials here to upload')).toBeInTheDocument();
+
+    fireEvent.dragLeave(dropZone);
+    expect(
+      screen.getByText('Drag & drop your study materials here, or click to browse'),
+    ).toBeInTheDocument();
+  });
+
+  it('hides extraction engine when showEngineConfig is false', () => {
+    render(<ImportDropZone onFilesAdded={vi.fn()} showEngineConfig={false} />);
+    expect(screen.queryByText('Extraction Engine')).not.toBeInTheDocument();
   });
 });

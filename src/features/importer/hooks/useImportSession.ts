@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ImportSession, ImportCandidate, ExtractionProgress } from '../../../domain/importer/models/importer.types';
 import { useImporterContext } from './useImporterContext';
@@ -21,6 +21,13 @@ export function useImportSession() {
   const [ocrEngine, setOcrEngine] = useState<'tesseract' | 'ai-vision'>('tesseract');
   const [progressMap, setProgressMap] = useState<Record<string, ExtractionProgress>>({});
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
+  const isCancelledRef = useRef(false);
+  const queueRef = useRef<ImportCandidate[]>([]);
+  const candidatesRef = useRef<ImportCandidate[]>(session.candidates);
+
+  useEffect(() => {
+    candidatesRef.current = session.candidates;
+  }, [session.candidates]);
 
   const addFiles = useCallback((files: File[]) => {
     const newCandidates: ImportCandidate[] = files.map(file => ({
@@ -45,17 +52,35 @@ export function useImportSession() {
   }, []);
 
   const startExtraction = useCallback(async () => {
+    isCancelledRef.current = false;
     setSession(prev => ({ ...prev, status: 'extracting' }));
     
     const candidates = session.candidates.filter(c => c.status === 'pending' || c.status === 'error');
-    const queue = [...candidates];
+    if (candidates.length === 0) {
+      const hasReview = session.candidates.some(c => c.status === 'review');
+      setSession(prev => ({ ...prev, status: hasReview ? 'review' : 'selecting' }));
+      return;
+    }
+
+    queueRef.current = [...candidates];
+
     const processNext = async (): Promise<void> => {
-      if (queue.length === 0) return;
-      const candidate = queue.shift()!;
+      if (isCancelledRef.current || queueRef.current.length === 0) return;
+      const candidate = queueRef.current.shift()!;
       
       const ac = new AbortController();
       abortControllers.current.set(candidate.id, ac);
-      
+
+      candidatesRef.current = candidatesRef.current.map(c =>
+        c.id === candidate.id ? { ...c, status: 'extracting' } : c,
+      );
+      setSession(prev => ({
+        ...prev,
+        candidates: prev.candidates.map(c =>
+          c.id === candidate.id ? { ...c, status: 'extracting' } : c,
+        ),
+      }));
+
       try {
         const result = await extractContent.execute(candidate.file, {
           signal: ac.signal,
@@ -65,52 +90,95 @@ export function useImportSession() {
           },
         });
         
+        candidatesRef.current = candidatesRef.current.map(c =>
+          c.id === candidate.id ? { ...c, ...result } : c,
+        );
         setSession(prev => ({
           ...prev,
-          candidates: prev.candidates.map(c => c.id === candidate.id ? { ...c, ...result } : c),
+          candidates: prev.candidates.map(c => (c.id === candidate.id ? { ...c, ...result } : c)),
         }));
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Extraction failed';
+        const isAborted = ac.signal.aborted || (err instanceof Error && err.name === 'AbortError');
+        const message = isAborted
+          ? 'Extraction was cancelled.'
+          : err instanceof Error
+          ? err.message
+          : 'Extraction failed';
+        const errorCandidate: ImportCandidate = {
+          ...candidate,
+          status: 'error',
+          error: {
+            code: isAborted ? 'cancelled' : 'extraction-failed',
+            message,
+            retryable: !isAborted,
+          },
+        };
+        candidatesRef.current = candidatesRef.current.map(c =>
+          c.id === candidate.id ? errorCandidate : c,
+        );
         setSession(prev => ({
           ...prev,
-          candidates: prev.candidates.map(c =>
-            c.id === candidate.id
-              ? {
-                  ...c,
-                  status: 'error',
-                  error: { code: 'extraction-failed', message, retryable: true },
-                }
-              : c,
-          ),
+          candidates: prev.candidates.map(c => (c.id === candidate.id ? errorCandidate : c)),
         }));
       } finally {
         abortControllers.current.delete(candidate.id);
-        if (queue.length > 0) {
+        if (!isCancelledRef.current && queueRef.current.length > 0) {
           await processNext();
         }
       }
     };
 
-    const workers = Array(Math.min(2, queue.length)).fill(null).map(() => processNext());
+    const workers = Array(Math.min(2, queueRef.current.length)).fill(null).map(() => processNext());
     await Promise.all(workers);
     
-    setSession(prev => {
-      const hasErrors = prev.candidates.some(c => c.status === 'error');
-      const allDone = prev.candidates.every(c => c.status === 'review' || c.status === 'error');
-      if (allDone && !hasErrors && prev.candidates.length > 0) {
-        return { ...prev, status: 'review' };
-      }
-      return prev;
-    });
-  }, [session.candidates, extractContent, ocrEngine]);
+    const wasCancelled = isCancelledRef.current;
+    const currentCandidates = candidatesRef.current;
+    const hasReview = currentCandidates.some(c => c.status === 'review');
+    const firstReviewIdx = currentCandidates.findIndex(c => c.status === 'review');
+
+    if (!wasCancelled && hasReview && firstReviewIdx !== -1) {
+      setActiveCandidateIndex(firstReviewIdx);
+    }
+
+    setSession(prev => ({
+      ...prev,
+      status: (!wasCancelled && hasReview) ? 'review' : 'selecting',
+    }));
+  }, [session.candidates, extractContent, ocrEngine, setActiveCandidateIndex]);
 
   const cancelExtraction = useCallback((id?: string) => {
     if (id) {
+      queueRef.current = queueRef.current.filter(c => c.id !== id);
       const ac = abortControllers.current.get(id);
       if (ac) ac.abort();
     } else {
+      isCancelledRef.current = true;
+      queueRef.current = [];
       abortControllers.current.forEach(ac => ac.abort());
+      // If no controllers were active, transition to selecting immediately
+      if (abortControllers.current.size === 0) {
+        setSession(prev => (prev.status === 'extracting' ? { ...prev, status: 'selecting' } : prev));
+      }
     }
+  }, []);
+
+  const retryCandidate = useCallback((id: string) => {
+    setSession(prev => ({
+      ...prev,
+      candidates: prev.candidates.map(c =>
+        c.id === id
+          ? {
+              ...c,
+              status: 'pending' as const,
+              extraction: undefined,
+              markdown: undefined,
+              title: undefined,
+              error: undefined,
+              pageDetails: undefined,
+            }
+          : c,
+      ),
+    }));
   }, []);
 
   const updateCandidateMarkdown = useCallback((id: string, markdown: string) => {
@@ -177,6 +245,7 @@ export function useImportSession() {
     setActiveCandidateIndex,
     addFiles,
     removeFile,
+    retryCandidate,
     startExtraction,
     cancelExtraction,
     updateCandidateMarkdown,

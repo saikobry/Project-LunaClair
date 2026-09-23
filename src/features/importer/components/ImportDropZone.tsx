@@ -1,25 +1,29 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { importerStyles } from '../styles/importer.stylex';
-import { FileUp } from 'lucide-react';
+import { FileUp, Cpu, Sparkles } from 'lucide-react';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 
 interface ImportDropZoneProps {
   onFilesAdded: (files: File[]) => void;
   ocrEngine?: 'tesseract' | 'ai-vision';
   onOcrEngineChange?: (engine: 'tesseract' | 'ai-vision') => void;
+  showEngineConfig?: boolean;
 }
 
 export function ImportDropZone({
   onFilesAdded,
   ocrEngine = 'tesseract',
   onOcrEngineChange,
+  showEngineConfig = true,
 }: ImportDropZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    setIsDraggingOver(false);
     const files = Array.from(e.dataTransfer.files).filter(f => 
       f.type.startsWith('image/') ||
       f.type === 'application/pdf' ||
@@ -35,6 +39,12 @@ export function ImportDropZone({
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    setIsDraggingOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
   }, []);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,17 +54,30 @@ export function ImportDropZone({
     }
   }, [onFilesAdded]);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === fileInputRef.current) return;
     fileInputRef.current?.click();
   }, []);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
+  }, []);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+    <div {...stylex.props(importerStyles.dropZoneWrapper)}>
       <div
-        {...stylex.props(importerStyles.dropZone)}
+        {...stylex.props(
+          importerStyles.dropZone,
+          isDraggingOver && importerStyles.dropZoneActive,
+        )}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
         aria-label="Upload files"
@@ -67,42 +90,51 @@ export function ImportDropZone({
           ref={fileInputRef}
           onChange={handleFileInputChange}
         />
-        <FileUp size={48} color="var(--color-text-secondary)" />
-        <div {...stylex.props(importerStyles.dropZoneText)}>Drag & drop your study materials here, or click to browse</div>
-        <div {...stylex.props(importerStyles.dropZoneHint)}>Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages</div>
+        <FileUp
+          size={48}
+          color={isDraggingOver ? 'var(--color-accent)' : 'var(--color-text-secondary)'}
+        />
+        <div {...stylex.props(importerStyles.dropZoneText)}>
+          {isDraggingOver
+            ? 'Drop study materials here to upload'
+            : 'Drag & drop your study materials here, or click to browse'}
+        </div>
+        <div {...stylex.props(importerStyles.dropZoneHint)}>
+          Supports PDF, PNG, JPG, JPEG, JFIF, WEBP, and .lcpack / JSON study packages
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '16px',
-          padding: '10px 16px',
-          borderRadius: '8px',
-          backgroundColor: 'var(--color-background-surface)',
-          border: '1px solid var(--color-border)',
-          alignSelf: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-          Extraction Engine:
-        </span>
-        <SegmentedControl
-          value={ocrEngine}
-          onChange={(val) => onOcrEngineChange?.(val as 'tesseract' | 'ai-vision')}
-          label="Extraction Engine"
-          size="sm"
-        >
-          <SegmentedControlItem value="tesseract" label="Local OCR (Tesseract)" />
-          <SegmentedControlItem
-            value="ai-vision"
-            label={`AI Vision (MAX)${isOffline ? ' (Offline)' : ''}`}
-            isDisabled={isOffline}
-          />
-        </SegmentedControl>
-      </div>
+      {showEngineConfig && (
+        <div {...stylex.props(importerStyles.engineCard)}>
+          <div {...stylex.props(importerStyles.engineInfo)}>
+            <span {...stylex.props(importerStyles.engineLabel)}>Extraction Engine</span>
+            <span {...stylex.props(importerStyles.engineHint)}>
+              Choose between local on-device OCR or cloud AI vision for text transcription.
+            </span>
+          </div>
+          <div {...stylex.props(importerStyles.engineControlWrapper)}>
+            <SegmentedControl
+              value={ocrEngine}
+              onChange={(val) => onOcrEngineChange?.(val as 'tesseract' | 'ai-vision')}
+              label="Extraction Engine"
+              size="sm"
+              layout="fill"
+            >
+              <SegmentedControlItem
+                value="tesseract"
+                label="Local OCR (Tesseract)"
+                icon={<Cpu size={14} aria-hidden="true" />}
+              />
+              <SegmentedControlItem
+                value="ai-vision"
+                label={`AI Vision (MAX)${isOffline ? ' (Offline)' : ''}`}
+                icon={<Sparkles size={14} aria-hidden="true" />}
+                isDisabled={isOffline}
+              />
+            </SegmentedControl>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -28,9 +28,11 @@ const styles = stylex.create({
     lineHeight: 1.35,
     textAlign: 'right',
     color: 'var(--color-text-secondary)',
+    whiteSpace: 'nowrap',
   },
   noticeStacked: {
     textAlign: 'left',
+    whiteSpace: 'normal',
   },
   noticeWarning: {
     color: 'var(--color-warning)',

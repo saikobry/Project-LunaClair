@@ -40,6 +40,8 @@ export interface InputProps {
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
   /** Paste handler (Astryx TextInput forwards it to the native input). */
   onPaste?: (e: ClipboardEvent<HTMLInputElement>) => void;
+  /** ARIA label (overrides the visible label for screen readers). */
+  'aria-label'?: string;
 }
 
 /**
@@ -69,6 +71,7 @@ export function Input({
   size = 'md',
   onKeyDown,
   onPaste,
+  'aria-label': ariaLabel,
 }: InputProps) {
   return (
     <TextInput
@@ -95,6 +98,7 @@ export function Input({
       style={style}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
+      {...(ariaLabel ? { 'aria-label': ariaLabel } : undefined)}
       {...(statusMessage
         ? { status: { type: 'error' as const, message: statusMessage } }
         : undefined)}

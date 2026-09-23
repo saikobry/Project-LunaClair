@@ -77,6 +77,7 @@ describe('PdfjsImporter', () => {
     });
 
     expect(result.pageCount).toBe(1);
+    expect(result.title).toBe('digital');
     expect(result.text).toBe(longText);
     expect(result.pages[0].source).toBe('pdf-text');
     expect(result.pages[0].confidence).toBe(1.0);

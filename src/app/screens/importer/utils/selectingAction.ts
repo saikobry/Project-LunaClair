@@ -47,7 +47,14 @@ export function getSelectingAction(candidates: ImportCandidate[]): SelectingActi
   }
 
   if (hasExtracted) {
-    return { label: 'Continue to Review', disabled: false, action: 'review' };
+    const hasOnlyPartial = candidates.every(
+      (c) => c.status === 'review' && c.extraction?.isPartial,
+    );
+    return {
+      label: hasOnlyPartial ? 'Review Partial Extraction' : 'Continue to Review',
+      disabled: false,
+      action: 'review',
+    };
   }
 
   // Candidates exist but none is extractable or reviewable (e.g. every file

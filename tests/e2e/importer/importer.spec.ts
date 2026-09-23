@@ -72,10 +72,14 @@ test.describe('Content Importer & AI Cleanup E2E', () => {
 
     // After extraction completes, wizard transitions to Review step
     await expect(page.getByText('Step 3 of 5: Review Content')).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole('button', { name: /AI Cleanup/i })).toBeVisible();
+    const aiToggleBtn = page.getByRole('button', { name: /AI Cleanup/i });
+    await expect(aiToggleBtn).toBeVisible();
 
-    // Trigger AI Cleanup
-    await page.getByRole('button', { name: /AI Cleanup/i }).click();
+    // Open AI Cleanup accordion panel and trigger cleanup
+    await aiToggleBtn.click();
+    const runBtn = page.getByRole('button', { name: /Run AI Cleanup/i });
+    await expect(runBtn).toBeVisible();
+    await runBtn.click();
 
     // Diff modal should open with Original and AI Cleaned columns
     await expect(page.getByText('AI Cleanup Diff Comparison')).toBeVisible({ timeout: 10000 });
@@ -177,18 +181,18 @@ test.describe('Content Importer & AI Cleanup E2E', () => {
 
     await page.goto('/import');
 
-    // Select AI Vision radio button
-    const aiVisionRadio = page.getByRole('radio', { name: /AI Vision/i });
-    await expect(aiVisionRadio).toBeVisible();
-    await aiVisionRadio.check();
-    await expect(aiVisionRadio).toBeChecked();
-
     // Upload PDF
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles('C:/Users/B/Downloads/Bryan_James_Dalanon_TOR.pdf');
 
     // Verify file card appears
     await expect(page.getByText('Bryan_James_Dalanon_TOR.pdf')).toBeVisible();
+
+    // Select AI Vision radio button (now visible since a file is staged)
+    const aiVisionRadio = page.getByRole('radio', { name: /AI Vision/i });
+    await expect(aiVisionRadio).toBeVisible();
+    await aiVisionRadio.check();
+    await expect(aiVisionRadio).toBeChecked();
 
     // Click Start Extraction
     const extractBtn = page.getByRole('button', { name: /Start Extraction/i });

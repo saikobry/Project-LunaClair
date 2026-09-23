@@ -35,6 +35,7 @@ describe('TesseractExtractor', () => {
     const result = await extractor.extract(file);
 
     expect(result.text).toBe('Extracted OCR content');
+    expect(result.title).toBe('scan');
     expect(result.pageCount).toBe(1);
     expect(result.pages[0].confidence).toBe(0.85); // 85 / 100
     expect(result.pages[0].source).toBe('ocr');

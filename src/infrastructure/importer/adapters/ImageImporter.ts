@@ -49,7 +49,7 @@ export class ImageImporter implements ContentImporter {
 
       return {
         text,
-        title: file.name,
+        title: file.name.replace(/\.[^/.]+$/, ''),
         pageCount: 1,
         pages: [pageExtraction],
         stats: {

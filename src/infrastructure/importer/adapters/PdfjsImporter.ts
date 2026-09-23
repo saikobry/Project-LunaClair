@@ -85,7 +85,7 @@ export class PdfjsImporter implements ContentImporter {
       const wordCount = fullText.split(/\s+/).filter(Boolean).length;
       return {
         text: fullText,
-        title: file.name,
+        title: file.name.replace(/\.[^/.]+$/, ''),
         pageCount: pdf.numPages,
         pages: [...pages],
         stats: {

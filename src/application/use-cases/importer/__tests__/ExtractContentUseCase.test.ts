@@ -147,4 +147,32 @@ describe('ExtractContentUseCase', () => {
         expect(candidate.importMetadata?.usedVision).toBe(true);
         expect(candidate.importMetadata?.usedOcr).toBe(false);
     });
+
+    it('strips file extensions from candidate title', async () => {
+        const mockResult: ExtractionResult = {
+            text: 'Content',
+            title: 'biology_notes.pdf',
+            pageCount: 1,
+            pages: [{ pageNumber: 1, text: 'Content', confidence: 1, source: 'pdf-text' }],
+            stats: { wordCount: 1, characterCount: 7, headingsDetected: 0, ocrPages: 0, textPages: 1 },
+        };
+
+        const mockImporter: ContentImporter = {
+            formatLabel: 'PDF Document',
+            supports: () => true,
+            extract: async () => mockResult,
+        };
+
+        const mockRegistry: ImporterRegistry = {
+            importers: [mockImporter],
+            acceptedTypes: '.pdf',
+            resolve: () => mockImporter,
+        };
+
+        const useCase = new ExtractContentUseCase(mockRegistry);
+        const file = new File(['fake'], 'biology_notes.pdf', { type: 'application/pdf' });
+        const candidate = await useCase.execute(file);
+
+        expect(candidate.title).toBe('biology_notes');
+    });
 });

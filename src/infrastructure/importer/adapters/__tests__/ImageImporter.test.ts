@@ -65,6 +65,7 @@ describe('ImageImporter', () => {
     });
 
     expect(result.pageCount).toBe(1);
+    expect(result.title).toBe('photo');
     expect(result.text).toBe(mockVisionResult.text);
     expect(result.pages[0].source).toBe('ai-vision');
     expect(result.stats.visionPages).toBe(1);

@@ -189,6 +189,8 @@ describe('ImporterScreen', () => {
 
     expect(screen.getByRole('button', { name: /continue to review/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /start extraction/i })).not.toBeInTheDocument();
+    // Engine config is hidden because there are zero pending or error candidates
+    expect(screen.queryByText('Extraction Engine')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /continue to review/i }));
 
@@ -283,15 +285,15 @@ describe('ImporterScreen', () => {
   it('passes selected ocrEngine to extraction execution', async () => {
     const { container } = render(<ImporterScreen />, { wrapper: createWrapper() });
 
-    // Switch OCR engine to AI Vision
-    const visionRadio = screen.getByRole('radio', { name: /ai vision/i });
-    fireEvent.click(visionRadio);
-    expect(visionRadio).toBeChecked();
-
-    // Add file
+    // Add file so engine configuration appears
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['content'], 'scan.pdf', { type: 'application/pdf' });
     fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Switch OCR engine to AI Vision
+    const visionRadio = await screen.findByRole('radio', { name: /ai vision/i });
+    fireEvent.click(visionRadio);
+    expect(visionRadio).toBeChecked();
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /start extraction/i })).toBeInTheDocument();
@@ -308,4 +310,91 @@ describe('ImporterScreen', () => {
       );
     });
   });
+
+  it('reveals Extraction Engine when a reviewed candidate is re-extracted back to pending', async () => {
+    const { container } = render(<ImporterScreen />, { wrapper: createWrapper() });
+
+    // 1. Stage file
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['content'], 'lecture.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // File is pending -> Engine config is visible
+    expect(screen.getByText('Extraction Engine')).toBeInTheDocument();
+
+    // 2. Run extraction
+    fireEvent.click(screen.getByRole('button', { name: /start extraction/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Step 3 of 5: Review Content')).toBeInTheDocument();
+    });
+
+    // 3. Return to files view
+    fireEvent.click(screen.getByRole('button', { name: /back: files/i }));
+    expect(screen.getByText('Step 1 of 5: Select Files')).toBeInTheDocument();
+
+    // All candidates are in review -> Engine config is hidden
+    expect(screen.queryByText('Extraction Engine')).not.toBeInTheDocument();
+
+    // 4. Click "Re-extract" on the file card
+    const reExtractBtn = screen.getByRole('button', { name: /re-extract/i });
+    fireEvent.click(reExtractBtn);
+
+    // Candidate is reset to pending -> Engine config immediately reappears
+    await waitFor(() => {
+      expect(screen.getByText('Extraction Engine')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /start extraction/i })).toBeInTheDocument();
+    });
+  });
+
+  it('steps backwards through the wizard using the Page header back button instead of exiting to library', async () => {
+    const onCancel = vi.fn();
+    const { container } = render(<ImporterScreen onCancel={onCancel} />, { wrapper: createWrapper() });
+
+    // 1. Stage and extract
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['content'], 'lecture.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /start extraction/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /start extraction/i }));
+
+    // Reaches Step 3 (Review)
+    await waitFor(() => {
+      expect(screen.getByText('Step 3 of 5: Review Content')).toBeInTheDocument();
+    });
+
+    // Advance to Step 4 (Details)
+    fireEvent.click(screen.getByRole('button', { name: /next: material details/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Step 4 of 5: Material Details')).toBeInTheDocument();
+    });
+
+    // Click the Page header back button: "Back to Review"
+    const headerBackToReview = screen.getByRole('button', { name: /back to review/i });
+    fireEvent.click(headerBackToReview);
+
+    // Returns to Step 3 (Review), does NOT cancel or exit
+    await waitFor(() => {
+      expect(screen.getByText('Step 3 of 5: Review Content')).toBeInTheDocument();
+    });
+    expect(onCancel).not.toHaveBeenCalled();
+
+    // Click the Page header back button: "Back to Files"
+    const headerBackToFiles = screen.getByRole('button', { name: /back to files/i });
+    fireEvent.click(headerBackToFiles);
+
+    // Returns to Step 1 (Files), does NOT cancel or exit
+    await waitFor(() => {
+      expect(screen.getByText('Step 1 of 5: Select Files')).toBeInTheDocument();
+    });
+    expect(onCancel).not.toHaveBeenCalled();
+
+    // On Step 1, clicking the Page header back button ("Back") calls onCancel to exit
+    const headerExitBack = screen.getByRole('button', { name: /^back$/i });
+    fireEvent.click(headerExitBack);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
 });
+

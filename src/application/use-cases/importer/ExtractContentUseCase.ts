@@ -36,7 +36,8 @@ export class ExtractContentUseCase {
 
     try {
       const result = await importer.extract(file, options);
-      const title = result.title || file.name.replace(/\.[^/.]+$/, '');
+      const rawTitle = result.title || file.name;
+      const title = rawTitle.replace(/\.[^/.]+$/, '');
       
       const markdown = convertToMarkdown(result.pages, { title });
       
@@ -78,7 +79,8 @@ export class ExtractContentUseCase {
       }
 
       if (partialResult && partialResult.pages.length > 0) {
-        const title = partialResult.title || file.name.replace(/\.[^/.]+$/, '');
+        const rawTitle = partialResult.title || file.name;
+        const title = rawTitle.replace(/\.[^/.]+$/, '');
         const markdown = convertToMarkdown(partialResult.pages, { title });
         const importMetadata: ImportMetadata = {
           source: this.determineSource(file),

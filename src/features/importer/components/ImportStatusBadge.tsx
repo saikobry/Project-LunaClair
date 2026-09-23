@@ -24,7 +24,13 @@ function isInFlight(status: ImportCandidate['status']): boolean {
   return status === 'extracting' || status === 'saving';
 }
 
-export function ImportStatusBadge({ status }: { status: ImportCandidate['status'] }) {
+export function ImportStatusBadge({
+  status,
+  isPartial = false,
+}: {
+  status: ImportCandidate['status'];
+  isPartial?: boolean;
+}) {
   const appearance = STATUS_APPEARANCE[status];
 
   if (isInFlight(status)) {
@@ -40,10 +46,12 @@ export function ImportStatusBadge({ status }: { status: ImportCandidate['status'
     );
   }
 
+  const label = isPartial && status === 'review' ? 'partial' : status;
+
   return (
     <span {...stylex.props(importerStyles.badgedot, appearance.badge)}>
       <span {...stylex.props(importerStyles.dot, appearance.dot)} aria-hidden="true" />
-      {status}
+      {label}
     </span>
   );
 }

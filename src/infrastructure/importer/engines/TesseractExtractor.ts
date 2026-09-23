@@ -123,7 +123,7 @@ export class TesseractExtractor {
 
     return {
       text,
-      title: file.name,
+      title: file.name.replace(/\.[^/.]+$/, ''),
       pageCount: 1,
       pages: [page],
       stats: {

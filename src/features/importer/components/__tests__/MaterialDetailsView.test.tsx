@@ -48,8 +48,15 @@ describe('MaterialDetailsView', () => {
     );
 
     expect(screen.getByText('Material Details')).toBeInTheDocument();
-    expect(screen.getByText('Title (cell_bio.pdf)')).toBeInTheDocument();
-    expect(screen.getByText('Title (genetics.pdf)')).toBeInTheDocument();
+    expect(
+      screen.getByText('Review metadata and customize how your materials will appear in your library.'),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('Material Title')).toHaveLength(2);
+    expect(screen.getByRole('textbox', { name: 'Material Title for cell_bio.pdf' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Material Title for genetics.pdf' })).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Displayed in your library, search, and study sessions'),
+    ).toHaveLength(2);
 
     const inputs = screen.getAllByRole('textbox') as HTMLInputElement[];
     expect(inputs[0].value).toBe('Introduction to Cell Biology');

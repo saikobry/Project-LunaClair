@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ExtractionProgressView } from '../ExtractionProgressView';
 import type { ImportCandidate } from '../../../../domain/importer/models/importer.types';
 
@@ -49,8 +49,9 @@ describe('ExtractionProgressView', () => {
     const cancelBtn = screen.getByRole('button', { name: /cancel extraction/i });
     expect(cancelBtn).toBeInTheDocument();
 
-    cancelBtn.click();
+    fireEvent.click(cancelBtn);
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /cancelling/i })).toBeDisabled();
   });
 
   it('renders progress bar and page label including cooldown state', () => {

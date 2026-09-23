@@ -193,8 +193,78 @@ describe('useImportSession', () => {
       message: 'Corrupted PDF header',
       retryable: true,
     });
-    // Status should not transition to review if errors occurred
-    expect(result.current.session.status).toBe('extracting');
+    // When all candidates fail, status transitions back to selecting so user can retry or adjust
+    expect(result.current.session.status).toBe('selecting');
+  });
+
+  it('marks candidate status as extracting while in flight', async () => {
+    let candidateStatusDuringExtraction: string | undefined;
+
+    mockExtractExecute.mockImplementation(async () => {
+      // Small tick so we can observe the extracting status
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return {
+        status: 'review',
+        markdown: '# Title',
+        title: 'Title',
+      };
+    });
+
+    const { result } = renderHook(() => useImportSession(), {
+      wrapper: createWrapper(),
+    });
+
+    const file = new File(['data'], 'test.pdf', { type: 'application/pdf' });
+    act(() => {
+      result.current.addFiles([file]);
+    });
+
+    let extractionPromise: Promise<void>;
+    act(() => {
+      extractionPromise = result.current.startExtraction();
+    });
+
+    // Right after starting, candidate status should be 'extracting'
+    candidateStatusDuringExtraction = result.current.session.candidates[0]?.status;
+    expect(candidateStatusDuringExtraction).toBe('extracting');
+
+    await act(async () => {
+      await extractionPromise;
+    });
+
+    expect(result.current.session.candidates[0]?.status).toBe('review');
+    expect(result.current.session.status).toBe('review');
+  });
+
+  it('transitions to review when at least one candidate succeeds despite another failing', async () => {
+    mockExtractExecute
+      .mockResolvedValueOnce({
+        status: 'review',
+        markdown: '# Good',
+        title: 'Good Doc',
+      })
+      .mockRejectedValueOnce(new Error('Corrupted File'));
+
+    const { result } = renderHook(() => useImportSession(), {
+      wrapper: createWrapper(),
+    });
+
+    const file1 = new File(['good'], 'good.pdf', { type: 'application/pdf' });
+    const file2 = new File(['bad'], 'bad.pdf', { type: 'application/pdf' });
+
+    act(() => {
+      result.current.addFiles([file1, file2]);
+    });
+
+    await act(async () => {
+      await result.current.startExtraction();
+    });
+
+    expect(result.current.session.candidates[0].status).toBe('review');
+    expect(result.current.session.candidates[1].status).toBe('error');
+    // Partial success transitions to review so user can review the valid material
+    expect(result.current.session.status).toBe('review');
+    expect(result.current.activeCandidateIndex).toBe(0);
   });
 
   it('supports cancelling ongoing extraction via cancelExtraction', async () => {
@@ -231,6 +301,89 @@ describe('useImportSession', () => {
 
     await act(async () => {
       await extractionPromise!;
+    });
+
+    expect(result.current.session.status).toBe('selecting');
+  });
+
+  it('returns cleanly to selecting on cancellation even when partial results exist and does not auto-navigate to review', async () => {
+    mockExtractExecute.mockImplementation(async (_file, options) => {
+      // Wait for abort signal
+      await new Promise<void>((resolve) => {
+        if (options?.signal?.aborted) return resolve();
+        options?.signal?.addEventListener('abort', () => resolve());
+      });
+      return {
+        status: 'review',
+        markdown: '# Partial Page 1',
+        title: 'Partial Doc',
+        extraction: {
+          text: '# Partial Page 1',
+          pageCount: 5,
+          pages: [{ pageNumber: 1, text: 'P1', confidence: 1, source: 'pdf-text' }],
+          stats: { wordCount: 3, characterCount: 16, headingsDetected: 1, ocrPages: 0, textPages: 1 },
+          isPartial: true,
+        },
+      };
+    });
+
+    const { result } = renderHook(() => useImportSession(), {
+      wrapper: createWrapper(),
+    });
+
+    const file = new File(['content'], 'partial.pdf', { type: 'application/pdf' });
+    act(() => {
+      result.current.addFiles([file]);
+    });
+
+    let extractionPromise: Promise<void>;
+    act(() => {
+      extractionPromise = result.current.startExtraction();
+    });
+
+    expect(result.current.session.status).toBe('extracting');
+
+    // User cancels extraction
+    act(() => {
+      result.current.cancelExtraction();
+    });
+
+    await act(async () => {
+      await extractionPromise!;
+    });
+
+    // Must return to selecting so user explicitly chooses whether to review partial or retry
+    expect(result.current.session.status).toBe('selecting');
+    expect(result.current.session.candidates[0].status).toBe('review');
+    expect(result.current.session.candidates[0].extraction?.isPartial).toBe(true);
+  });
+
+  it('resets candidate to pending when retryCandidate is called', () => {
+    const { result } = renderHook(() => useImportSession(), {
+      wrapper: createWrapper(),
+    });
+
+    const file = new File(['data'], 'failed.pdf', { type: 'application/pdf' });
+    act(() => {
+      result.current.addFiles([file]);
+    });
+
+    const candidateId = result.current.session.candidates[0].id;
+
+    // Simulate an errored candidate
+    act(() => {
+      result.current.updateCandidateMarkdown(candidateId, '# Temp');
+    });
+
+    act(() => {
+      result.current.retryCandidate(candidateId);
+    });
+
+    expect(result.current.session.candidates[0]).toMatchObject({
+      id: candidateId,
+      status: 'pending',
+      markdown: undefined,
+      extraction: undefined,
     });
   });
 

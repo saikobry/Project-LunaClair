@@ -96,6 +96,15 @@ describe('ImportReviewView', () => {
     );
   }
 
+  function triggerAiCleanup() {
+    const toggle = screen.queryByRole('button', { name: /^ai cleanup/i });
+    if (toggle) {
+      fireEvent.click(toggle);
+    }
+    const runBtn = screen.getByRole('button', { name: /run ai cleanup/i });
+    fireEvent.click(runBtn);
+  }
+
   it('returns null if candidate at activeIndex is not found', () => {
     const onUpdateMarkdown = vi.fn();
     const { container } = renderWithContext(
@@ -291,8 +300,7 @@ describe('ImportReviewView', () => {
       />,
     );
 
-    const cleanupBtn = screen.getByRole('button', { name: /ai cleanup/i });
-    fireEvent.click(cleanupBtn);
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(mockCleanupExecute).toHaveBeenCalledWith(
@@ -308,6 +316,14 @@ describe('ImportReviewView', () => {
       expect(screen.getByText('Original Extracted Text')).toBeInTheDocument();
       expect(screen.getByText('AI Cleaned Structure')).toBeInTheDocument();
     });
+
+    // Review toolbar right buttons are hidden during active diff
+    expect(screen.queryByLabelText('Review view mode')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^AI Cleanup/i })).not.toBeInTheDocument();
+    // File selector is locked (renders static text, no popover trigger)
+    expect(screen.queryByRole('button', { name: /Cell Biology Notes/i })).not.toBeInTheDocument();
+    expect(screen.getByText('cell_bio.pdf')).toBeInTheDocument();
+    expect(screen.getByText('(1 of 2)')).toBeInTheDocument();
   });
 
   it('accepts AI cleanup result, updates editor content, calls onUpdateMarkdown, and closes diff modal', async () => {
@@ -320,7 +336,7 @@ describe('ImportReviewView', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText('Accept AI Cleaned')).toBeInTheDocument();
@@ -348,7 +364,7 @@ describe('ImportReviewView', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText('Keep Original')).toBeInTheDocument();
@@ -377,7 +393,7 @@ describe('ImportReviewView', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText('Accept AI Cleaned')).toBeInTheDocument();
@@ -435,6 +451,9 @@ describe('ImportReviewView', () => {
       />,
     );
 
+    // Open AI Cleanup accordion panel
+    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+
     // Default catalog offers 2 models (Standard and MAX)
     expect(screen.getByRole('radio', { name: /standard/i })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /max/i })).toBeInTheDocument();
@@ -447,7 +466,7 @@ describe('ImportReviewView', () => {
     });
 
     // Trigger AI cleanup
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    fireEvent.click(screen.getByRole('button', { name: /run ai cleanup/i }));
 
     await waitFor(() => {
       expect(mockCleanupExecute).toHaveBeenCalledWith(
@@ -477,7 +496,7 @@ describe('ImportReviewView', () => {
       failingExecute,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText('Rate limit exceeded')).toBeInTheDocument();
@@ -510,7 +529,7 @@ describe('ImportReviewView', () => {
     renderWithContext(<TestCandidateSwitcher />);
 
     // Start cleanup on candidate 0
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
     expect(screen.getByText('Cleaning with AI...')).toBeInTheDocument();
     expect(capturedSignal?.aborted).toBe(false);
 
@@ -549,7 +568,7 @@ describe('ImportReviewView', () => {
     renderWithContext(<TestCandidateSwitcher />);
 
     // Open diff modal on candidate 0
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
     await waitFor(() => {
       expect(screen.getByText('AI Cleanup Diff Comparison')).toBeInTheDocument();
     });
@@ -578,7 +597,7 @@ describe('ImportReviewView', () => {
       failingExecute,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText(/Rate limited: please try again in 12s/i)).toBeInTheDocument();
@@ -614,7 +633,7 @@ describe('ImportReviewView', () => {
 
     renderWithContext(<StaleCandidateTest />);
 
-    fireEvent.click(screen.getByRole('button', { name: /ai cleanup/i }));
+    triggerAiCleanup();
 
     await waitFor(() => {
       expect(screen.getByText('Accept AI Cleaned')).toBeInTheDocument();
@@ -664,5 +683,65 @@ describe('ImportReviewView', () => {
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveTextContent(/Extraction was cancelled before completion/i);
     expect(banner).toHaveTextContent(/Displaying partial content \(2 of 5 pages\)/i);
+  });
+
+  it('defaults to edit mode on mobile viewport (<= 768px)', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 768px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      renderWithContext(
+        <ImportReviewView
+          candidates={mockCandidates}
+          activeIndex={0}
+          onUpdateMarkdown={vi.fn()}
+        />,
+      );
+
+      // In mobile edit mode, the editor is visible while preview is hidden
+      expect(screen.getByText('Edit Content')).toBeInTheDocument();
+      expect(screen.queryByText('Live Rendered Preview')).not.toBeInTheDocument();
+
+      // Clicking Preview in the segmented control switches to preview mode
+      fireEvent.click(screen.getByRole('radio', { name: 'Preview' }));
+      expect(screen.queryByText('Edit Content')).not.toBeInTheDocument();
+      expect(screen.getByText('Live Rendered Preview')).toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('expands and collapses the AI cleanup accordion panel from the toolbar toggle button', () => {
+    renderWithContext(
+      <ImportReviewView
+        candidates={mockCandidates}
+        activeIndex={0}
+        onUpdateMarkdown={vi.fn()}
+      />,
+    );
+
+    // Initially collapsed
+    expect(screen.queryByRole('button', { name: /run ai cleanup/i })).not.toBeInTheDocument();
+    const toggleBtn = screen.getByRole('button', { name: /ai cleanup/i });
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+
+    // Click to expand
+    fireEvent.click(toggleBtn);
+    expect(screen.getByRole('button', { name: /run ai cleanup/i })).toBeInTheDocument();
+    expect(screen.getByText(/AI Cleanup & Formatting/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hide ai tools/i })).toHaveAttribute('aria-expanded', 'true');
+
+    // Click to collapse
+    fireEvent.click(screen.getByRole('button', { name: /hide ai tools/i }));
+    expect(screen.queryByRole('button', { name: /run ai cleanup/i })).not.toBeInTheDocument();
   });
 });

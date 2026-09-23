@@ -74,6 +74,24 @@ describe('getSelectingAction', () => {
       action: 'review',
     });
   });
+
+  it('displays Review Partial Extraction when all extracted candidates are partial', () => {
+    const partialCandidate: ImportCandidate = {
+      ...candidate('a', 'review'),
+      extraction: {
+        text: 'Partial text',
+        pageCount: 5,
+        pages: [{ pageNumber: 1, text: 'P1', confidence: 1, source: 'pdf-text' }],
+        stats: { wordCount: 2, characterCount: 12, headingsDetected: 0, ocrPages: 0, textPages: 1 },
+        isPartial: true,
+      },
+    };
+    expect(getSelectingAction([partialCandidate])).toEqual({
+      label: 'Review Partial Extraction',
+      disabled: false,
+      action: 'review',
+    });
+  });
 });
 
 describe('firstReviewableIndex', () => {

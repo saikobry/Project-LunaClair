@@ -203,7 +203,7 @@ export function ShellRoutes({ currentRoute, navigate, goBack, bottomInset }: She
         <Suspense fallback={<WorkspaceSkeleton />}>
           <ImporterScreen
             onOpenMaterial={handleOpenMaterial}
-            onCancel={() => navigate({ kind: 'library' })}
+            onCancel={goBack}
           />
         </Suspense>
       )}

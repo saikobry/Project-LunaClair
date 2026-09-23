@@ -32,6 +32,9 @@ export function MaterialDetailsView({ candidates, onUpdateTitle }: MaterialDetai
   return (
     <div {...stylex.props(importerStyles.content)}>
       <h3 {...stylex.props(importerStyles.detailsHeading)}>Material Details</h3>
+      <p {...stylex.props(importerStyles.detailsSubtitle)}>
+        Review metadata and customize how your materials will appear in your library.
+      </p>
       {candidates.map(candidate => {
         const wordCount = estimateWordCount(candidate);
         const pageCount = candidate.extraction?.pageCount ?? 0;
@@ -61,11 +64,17 @@ export function MaterialDetailsView({ candidates, onUpdateTitle }: MaterialDetai
                 </div>
               </div>
             </div>
+            <div {...stylex.props(importerStyles.detailsDivider)} aria-hidden="true" />
             <Input
-              label={`Title (${candidate.filename})`}
+              label="Material Title"
               value={candidate.title || ''}
+              placeholder="Enter material title..."
+              aria-label={`Material Title for ${candidate.filename}`}
               onChange={val => onUpdateTitle(candidate.id, val)}
             />
+            <span {...stylex.props(importerStyles.detailsHint)}>
+              Displayed in your library, search, and study sessions
+            </span>
           </div>
         );
       })}
