@@ -40,7 +40,7 @@ describe('QuestionTypeBreakdown', () => {
 
     expect(screen.getByText('Question Types')).toBeInTheDocument();
     expect(screen.getByText(/Multiple Choice/)).toBeInTheDocument();
-    expect(screen.getByText(/True\/False/)).toBeInTheDocument();
+    expect(screen.getByText(/True \/ False/)).toBeInTheDocument();
   });
 
   it('renders the chrome-less section for the preview modal', () => {
@@ -59,7 +59,7 @@ describe('QuestionTypeBreakdown', () => {
 describe('packageFormat', () => {
   it('canonicalizes question-type labels and package dates', () => {
     expect(formatQuestionType('multiple_choice')).toBe('Multiple Choice');
-    expect(formatQuestionType('true_false')).toBe('True/False');
+    expect(formatQuestionType('true_false')).toBe('True / False');
     expect(formatQuestionType('custom_type')).toBe('custom type');
     expect(formatPackageDate('2026-08-28T00:00:00.000Z')).toMatch(/2026/);
     expect(formatPackageDate('not-a-date')).toBe('not-a-date');

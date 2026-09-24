@@ -14,9 +14,10 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `components/QuestionEditorDialog.tsx` | Modal form for creating/editing questions — metadata inputs (tags via shared `TagInput` chip entry, case-preserving) + type-specific editor |
 | `components/QuizCatalogTab.tsx` | Quiz list with visible card containers (1px border, radius 10, status accent strip on the left edge, hover accent border + subtle lift), status badges, chip-styled question-count / pass-rate metadata, publish/archive controls (archive requires confirmation dialog), Create/Edit buttons navigate to the dedicated `quiz-canvas` route (`onNavigate({ kind: 'quiz-canvas', materialId, quizId? })`) |
 | `canvas/` | Quiz canvas authoring sub-feature — self-contained subsystem (state `useQuizCanvas`, lifecycle `useQuizCanvasEditor`, motion engine, debug tooling). Public contract: exports `QuizCanvasBuilder` only, consumed by `AppShell` via the direct path (`canvas/QuizCanvasBuilder`). Full contracts in `canvas/AGENTS.md` |
-| `editors/QuestionEditorRegistry.ts` | Registry mapping `QuestionType` → editor component; default payload factory; `QUESTION_TYPE_OPTIONS` labels |
-| `editors/MultipleChoiceEditor.tsx` | Choice inputs + radio for correctIndex |
-| `editors/MultipleSelectEditor.tsx` | Choice inputs + checkboxes for correctIndices |
+| `editors/QuestionEditorRegistry.ts` | Registry mapping `QuestionType` → editor component; default payload factory; `QUESTION_TYPE_OPTIONS` derived from the domain's `QUESTION_TYPE_LABELS` (no local label list) |
+| `editors/MultipleChoiceEditor.tsx` | Single-correct wrapper over `ChoiceListRow` — owns `correctIndex`, choice index management, and the min-2 guard |
+| `editors/MultipleSelectEditor.tsx` | Multi-correct wrapper over `ChoiceListRow` — owns the `correctIndices` membership toggle and the index-shift-on-remove reduce |
+| `editors/ChoiceListRow.tsx` | Shared choice row (correct-answer indicator, choice input, remove button); owns `editors/choiceList.stylex.ts` and holds no selection-model knowledge |
 | `editors/TrueFalseEditor.tsx` | Radio toggle for True/False |
 | `editors/IdentificationEditor.tsx` | Primary answer + accepted alternatives |
 | `editors/FillBlankEditor.tsx` | Template textarea + blank answer inputs |
@@ -29,6 +30,7 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 ## Local Contracts
 
 - No cross-feature imports — this feature does not import from `src/features/quiz/`
+- **The two choice editors are two wrappers over one row — never a `selection` variant prop.** The divergence is data shape (`correctIndex: number` vs `correctIndices: number[]`), so each wrapper keeps its own selection and index logic while `ChoiceListRow` takes `shape` + `isSelected` and callbacks only. A presentation-only divergence may justify a variant prop; a data-shape divergence does not.
 - Query repository access via application context; mutations call `context.useCases.quizManagement`
 - **Quiz Draft Repository Exception (CQRS):** `useQuizCanvasEditor` directly calls `context.repositories.quizDraft.saveDraft()` and `.deleteDraft()` for crash-recovery draft autosaving. This is an intentional architectural exception — quiz drafts are ephemeral editor state, not business entities. Creating `SaveQuizDraftUseCase` / `DeleteQuizDraftUseCase` wrappers would add no meaningful domain behavior. The primary save path (`handleSave`) correctly routes through `SaveQuizUseCase`.
 - Query keys match the assessment namespace: `['assessment', 'questions', materialId]` and `['assessment', 'quizzes', materialId]`

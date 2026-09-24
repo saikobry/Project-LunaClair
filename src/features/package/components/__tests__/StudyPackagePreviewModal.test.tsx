@@ -180,7 +180,7 @@ describe('StudyPackagePreviewModal', () => {
 
     // Question type badges
     expect(screen.getByText(/Multiple Choice/)).toBeInTheDocument();
-    expect(screen.getByText(/True\/False/)).toBeInTheDocument();
+    expect(screen.getByText(/True \/ False/)).toBeInTheDocument();
   });
 
   it('confirms import without mutating packageData', async () => {

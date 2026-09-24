@@ -1,24 +1,15 @@
+import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
+import { QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
+
 /**
  * Canonical package display formatters.
  *
- * Moved verbatim from `StudyPackagePreviewModal` and `SharedPackageScreen`,
- * which each carried identical copies. Single ownership from here on.
+ * Question-type labels come from the domain's `questionMetadata` — this is a
+ * safe accessor over that canonical vocabulary (unknown ids degrade to the
+ * id with underscores spaced), not a second label list.
  */
 export function formatQuestionType(type: string): string {
-  switch (type) {
-    case 'multiple_choice':
-      return 'Multiple Choice';
-    case 'multiple_select':
-      return 'Multiple Select';
-    case 'true_false':
-      return 'True/False';
-    case 'identification':
-      return 'Identification';
-    case 'fill_in_blank':
-      return 'Fill in Blank';
-    default:
-      return type.replace(/_/g, ' ');
-  }
+  return QUESTION_TYPE_LABELS[type as QuestionType] ?? type.replace(/_/g, ' ');
 }
 
 export function formatPackageDate(dateStr?: string): string {

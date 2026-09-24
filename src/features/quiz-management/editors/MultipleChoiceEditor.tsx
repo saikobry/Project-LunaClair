@@ -1,45 +1,23 @@
 import * as stylex from '@stylexjs/stylex';
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { MultipleChoicePayload } from '../../../domain/quiz/models/AnswerPayload';
 import { useStableListKeys } from '../../../shared/hooks/useStableListKeys';
 import { Button } from '../../../shared/ui/Button/Button';
-import { CorrectAnswerIndicator } from '../components/CorrectAnswerIndicator';
-import { Input } from '../../../shared/ui/Input/Input';
-
-const styles = stylex.create({
-    container: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-    },
-    choiceRow: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '4px 6px',
-        borderRadius: 8,
-        border: '1px solid transparent',
-        transition: 'background-color 0.15s ease, border-color 0.15s ease',
-    },
-    choiceRowActive: {
-        backgroundColor: 'var(--color-success-muted)',
-        borderColor: 'transparent',
-    },
-    choiceInput: {
-        flex: 1,
-    },
-    hint: {
-        fontSize: 12,
-        color: 'var(--color-text-secondary)',
-        margin: 0,
-    },
-});
+import { ChoiceListRow } from './ChoiceListRow';
+import { styles } from './choiceList.stylex';
 
 interface MultipleChoiceEditorProps {
     value: MultipleChoicePayload;
     onChange: (payload: MultipleChoicePayload) => void;
 }
 
+/**
+ * Single-correct choice editor: owns the scalar `correctIndex` selection
+ * logic, index management, and the min-2 guard. Row presentation lives in
+ * `ChoiceListRow` — this wrapper deliberately does NOT share a variant-prop
+ * component with MultipleSelectEditor, because the data shapes diverge in
+ * every handler.
+ */
 export function MultipleChoiceEditor({ value, onChange }: MultipleChoiceEditorProps) {
     const choices = value.choices.length > 0 ? value.choices : ['', ''];
     const choiceKeys = useStableListKeys(choices);
@@ -69,37 +47,17 @@ export function MultipleChoiceEditor({ value, onChange }: MultipleChoiceEditorPr
         <div {...stylex.props(styles.container)}>
             <p {...stylex.props(styles.hint)}>Select the green check button next to the correct answer.</p>
             {choices.map((choice, i) => (
-                <div
+                <ChoiceListRow
                     key={choiceKeys[i]}
-                    {...stylex.props(
-                        styles.choiceRow,
-                        value.correctIndex === i && styles.choiceRowActive,
-                    )}
-                >
-                    <CorrectAnswerIndicator
-                        isSelected={value.correctIndex === i}
-                        onToggle={() => setCorrect(i)}
-                        ariaLabel={`Mark choice ${i + 1} as correct`}
-                        shape="circle"
-                    />
-                    <div {...stylex.props(styles.choiceInput)}>
-                        <Input
-                            label={`Choice ${i + 1}`}
-                            labelHidden
-                            value={choice}
-                            onChange={(v) => updateChoice(i, v)}
-                            placeholder={`Choice ${i + 1}`}
-                        />
-                    </div>
-                    <Button
-                        label={`Remove choice ${i + 1}`}
-                        variant="ghost"
-                        icon={<X size={14} />}
-                        isIconOnly
-                        isDisabled={choices.length <= 2}
-                        onClick={() => removeChoice(i)}
-                    />
-                </div>
+                    index={i}
+                    choice={choice}
+                    isSelected={value.correctIndex === i}
+                    shape="circle"
+                    onToggle={() => setCorrect(i)}
+                    onChange={(text) => updateChoice(i, text)}
+                    onRemove={() => removeChoice(i)}
+                    isRemoveDisabled={choices.length <= 2}
+                />
             ))}
             <Button
                 label="Add choice"

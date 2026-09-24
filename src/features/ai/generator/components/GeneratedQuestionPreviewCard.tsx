@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Check, Edit2, AlertCircle } from 'lucide-react';
 import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
 import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
+import { QUESTION_TYPE_LABELS } from '../../../../domain/quiz/models/questionMetadata';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { Input } from '../../../../shared/ui/Input/Input';
 import { DraftTagList } from './DraftTagList';
@@ -128,14 +129,6 @@ export interface GeneratedQuestionPreviewCardProps {
   onToggleSelect: () => void;
   onUpdateDraft: (updated: GeneratedQuestionDraft) => void;
 }
-
-const TYPE_LABELS: Record<string, string> = {
-  multiple_choice: 'Multiple Choice',
-  multiple_select: 'Multiple Select',
-  true_false: 'True / False',
-  identification: 'Identification',
-  fill_in_blank: 'Fill in Blank',
-};
 
 interface EditQuestionFormProps {
   initialPrompt: string;
@@ -347,7 +340,7 @@ export const GeneratedQuestionPreviewCard: React.FC<GeneratedQuestionPreviewCard
             {...stylex.props(styles.badge)}
             style={{ backgroundColor: typeMeta.bg, color: typeMeta.fg }}
           >
-            {TYPE_LABELS[draft.type] ?? draft.type}
+            {QUESTION_TYPE_LABELS[draft.type]}
           </span>
           <span
             {...stylex.props(styles.badge)}

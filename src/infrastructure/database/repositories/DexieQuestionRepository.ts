@@ -4,7 +4,7 @@ import type {
     CreateQuestionInput,
     UpdateQuestionInput,
 } from '../../../domain/quiz/repositories/QuestionRepository';
-import { normalizeTags } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../shared/utils/tags';
 import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {

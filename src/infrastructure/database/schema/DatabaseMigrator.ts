@@ -2,7 +2,7 @@ import type { LunaClairDatabase, HighlightRecord, DrawingRecord } from './LunaCl
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
-import { normalizeTags } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../shared/utils/tags';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
 
 const MIGRATION_KEY = 'lunaclair.migration.v1.complete';

@@ -15,6 +15,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 | `hooks/repositories/` | Context repository access adapters: `useQuestionRepository`, `useQuizRepository`. |
 | `queries/` | Assessment query key factory (`assessmentQueryKeys.ts`). |
 | `types/` | Feature contracts: `quizFeature.types.ts` (`QuizLaunchRequest`). |
+| `utils/` | `quizBadgeAppearance.ts` — the semantic badge palette shared by every quiz surface (runner, authoring canvas, question bank, AI generator): `QUESTION_TYPE_APPEARANCE` typed `Record<QuestionType, {bg,fg}>` for exhaustiveness, plus `DIFFICULTY_APPEARANCE` and `POINTS_APPEARANCE`, all expressed as `var(--color-badge-*)` / role-token references. The literals live in `src/shared/theme/lunaclairTheme.ts`, never here. |
 
 ## Local Contracts
 

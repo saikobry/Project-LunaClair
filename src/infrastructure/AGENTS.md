@@ -22,7 +22,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieDocumentContentRepository.ts` → `DocumentContentRepository`
     - `DexieFlashcardReviewRepository.ts` → `FlashcardReviewRepository`
     - `DexieImportAssetRepository.ts` → `ImportAssetRepository` (write-only: `put`)
-    - `DexieLibraryRepository.ts` → `LibraryRepository` (normalizes material `tags` through the domain `normalizeTags` helper at both write boundaries — `undefined` leaves tags unchanged, empty array clears; declares no material delete — removal is `DexieLibraryImportService`'s atomic cascade)
+    - `DexieLibraryRepository.ts` → `LibraryRepository` (normalizes material `tags` through the shared `normalizeTags` helper in `shared/utils/tags.ts` at both write boundaries — `undefined` leaves tags unchanged, empty array clears; declares no material delete — removal is `DexieLibraryImportService`'s atomic cascade)
     - `DexiePreferencesRepository.ts` → `PreferencesRepository` (owns the `ai.*` preference keys, which never leave this adapter; validates the stored value on read and falls back to the default — a stored preference is a hint, not a contract. The `preferences` store has existed unused since an early schema version and is now live; it needs no schema change)
     - `DexieQuestionRepository.ts` → `QuestionRepository`
     - `DexieQuizDraftRepository.ts` → `QuizDraftRepository`

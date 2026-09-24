@@ -5,7 +5,7 @@ import type {
     SaveQuizToRepositoryInput,
     SaveQuizToRepositoryResult,
 } from '../../../domain/quiz/services/QuizEditorService';
-import { normalizeTags } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../shared/utils/tags';
 import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function generateQuestionId(): string {

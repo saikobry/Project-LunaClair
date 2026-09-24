@@ -137,7 +137,7 @@ function getSeedToken(customToken) {
 }
 
 /**
- * Normalizes a tag list the way the app does (`src/domain/quiz/utils/tags.ts`,
+ * Normalizes a tag list the way the app does (`src/shared/utils/tags.ts`,
  * mirrored here because this script is plain ESM and cannot import app TS):
  * trims, strips a leading '#', drops empties, and dedupes case-insensitively
  * while keeping the first casing seen.

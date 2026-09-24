@@ -27,7 +27,7 @@ export const styles = stylex.create({
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'var(--color-border)',
-    backgroundColor: 'var(--color-background-surface, #17181d)',
+    backgroundColor: 'var(--color-background-surface)',
     transition: 'border-color 0.16s, background-color 0.16s',
     ':hover': {
       borderColor: 'var(--color-accent)',

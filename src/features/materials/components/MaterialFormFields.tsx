@@ -2,7 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { Input } from '../../../shared/ui/Input/Input';
 import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
-import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../domain/quiz/utils/tags';
+import { splitTagInput, normalizeTags, mergeTags, tagKey } from '../../../shared/utils/tags';
 
 export interface MaterialFormFieldsProps {
   title: string;

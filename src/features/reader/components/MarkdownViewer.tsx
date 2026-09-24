@@ -189,14 +189,14 @@ const styles = stylex.create({
   },
   // Inline code (e.g. `var`) inside paragraph text.
   inlineCode: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'var(--color-background-code-inline)',
     padding: '2px 6px',
     borderRadius: 4,
     fontSize: '0.9em',
   },
   pre: {
-    backgroundColor: '#282c34',
-    color: '#abb2bf',
+    backgroundColor: 'var(--color-background-code)',
+    color: 'var(--color-text-code)',
     padding: 16,
     borderRadius: 8,
     overflowX: 'auto',
@@ -210,7 +210,7 @@ const styles = stylex.create({
     marginBottom: 4,
   },
   link: {
-    color: '#0366d6',
+    color: 'var(--color-text-code-link)',
     textDecoration: 'none',
     ':hover': {
       textDecoration: 'underline',

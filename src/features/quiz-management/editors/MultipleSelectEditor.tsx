@@ -1,45 +1,23 @@
 import * as stylex from '@stylexjs/stylex';
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { MultipleSelectPayload } from '../../../domain/quiz/models/AnswerPayload';
 import { useStableListKeys } from '../../../shared/hooks/useStableListKeys';
 import { Button } from '../../../shared/ui/Button/Button';
-import { CorrectAnswerIndicator } from '../components/CorrectAnswerIndicator';
-import { Input } from '../../../shared/ui/Input/Input';
-
-const styles = stylex.create({
-    container: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-    },
-    choiceRow: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '4px 6px',
-        borderRadius: 8,
-        border: '1px solid transparent',
-        transition: 'background-color 0.15s ease, border-color 0.15s ease',
-    },
-    choiceRowActive: {
-        backgroundColor: 'var(--color-success-muted)',
-        borderColor: 'transparent',
-    },
-    choiceInput: {
-        flex: 1,
-    },
-    hint: {
-        fontSize: 12,
-        color: 'var(--color-text-secondary)',
-        margin: 0,
-    },
-});
+import { ChoiceListRow } from './ChoiceListRow';
+import { styles } from './choiceList.stylex';
 
 interface MultipleSelectEditorProps {
     value: MultipleSelectPayload;
     onChange: (payload: MultipleSelectPayload) => void;
 }
 
+/**
+ * Multi-correct choice editor: owns the `correctIndices` set logic —
+ * membership toggle plus the index-shift-on-remove reduce — the min-2 guard,
+ * and hint copy. Row presentation lives in `ChoiceListRow`; the divergence
+ * from MultipleChoiceEditor is data shape, so the two stay separate wrappers
+ * rather than one `selection` variant-prop component.
+ */
 export function MultipleSelectEditor({ value, onChange }: MultipleSelectEditorProps) {
     const choices = value.choices.length > 0 ? value.choices : ['', ''];
     const choiceKeys = useStableListKeys(choices);
@@ -80,39 +58,19 @@ export function MultipleSelectEditor({ value, onChange }: MultipleSelectEditorPr
     return (
         <div {...stylex.props(styles.container)}>
             <p {...stylex.props(styles.hint)}>Check all correct answers.</p>
-            {choices.map((choice, i) => {
-                const isSelected = correctSet.has(i);
-                return (
-                    <div
-                        key={choiceKeys[i]}
-                        {...stylex.props(styles.choiceRow, isSelected && styles.choiceRowActive)}
-                    >
-                        <CorrectAnswerIndicator
-                            isSelected={isSelected}
-                            onToggle={() => toggleCorrect(i)}
-                            ariaLabel={`Mark choice ${i + 1} as correct`}
-                            shape="square"
-                        />
-                        <div {...stylex.props(styles.choiceInput)}>
-                            <Input
-                                label={`Choice ${i + 1}`}
-                                labelHidden
-                                value={choice}
-                                onChange={(v) => updateChoice(i, v)}
-                                placeholder={`Choice ${i + 1}`}
-                            />
-                        </div>
-                        <Button
-                            label={`Remove choice ${i + 1}`}
-                            variant="ghost"
-                            icon={<X size={14} />}
-                            isIconOnly
-                            isDisabled={choices.length <= 2}
-                            onClick={() => removeChoice(i)}
-                        />
-                    </div>
-                );
-            })}
+            {choices.map((choice, i) => (
+                <ChoiceListRow
+                    key={choiceKeys[i]}
+                    index={i}
+                    choice={choice}
+                    isSelected={correctSet.has(i)}
+                    shape="square"
+                    onToggle={() => toggleCorrect(i)}
+                    onChange={(text) => updateChoice(i, text)}
+                    onRemove={() => removeChoice(i)}
+                    isRemoveDisabled={choices.length <= 2}
+                />
+            ))}
             <Button
                 label="Add choice"
                 variant="secondary"

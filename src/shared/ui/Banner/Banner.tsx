@@ -1,9 +1,9 @@
-import { type ReactNode } from 'react';
+import { type HTMLAttributes, type ReactNode } from 'react';
 import { Banner as AstryxBanner } from '@astryxdesign/core/Banner';
 
 export type BannerVariant = 'info' | 'warning' | 'success' | 'error';
 
-export interface BannerProps {
+export interface BannerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   /** Banner title (text or rich content). */
   title: ReactNode;
   /** Optional description below the title. */
@@ -32,6 +32,10 @@ export interface BannerProps {
  * Exposes the LunaClair-owned `variant` prop (mapped to Astryx's `status`)
  * and an `action` slot (mapped to Astryx's `endContent`). The banner sets
  * `role="alert"` for warning/error and `role="status"` for info/success.
+ *
+ * Every other standard `<div>` attribute (`data-*`, `aria-*`, event handlers,
+ * `id`, …) passes straight through to the banner root, so a surface can keep
+ * its own test id or wiring without restyling the banner.
  */
 export function Banner({
   title,
@@ -44,9 +48,11 @@ export function Banner({
   children,
   className,
   style,
+  ...rest
 }: BannerProps) {
   return (
     <AstryxBanner
+      {...rest}
       status={variant}
       title={title}
       description={description}

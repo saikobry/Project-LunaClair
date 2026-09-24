@@ -4,7 +4,7 @@ import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Button } from '../../../shared/ui/Button/Button';
 import { MaterialFormFields } from '../components/MaterialFormFields';
 import { styles } from '../styles/library.stylex';
-import { normalizeTags } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../shared/utils/tags';
 
 interface EditMaterialModalProps {
   initialTitle: string;

@@ -9,7 +9,28 @@ import { neutralTheme } from '@astryxdesign/theme-neutral';
 type CustomRoleTokens =
   | '--color-on-success-muted'
   | '--color-on-warning-muted'
-  | '--color-success-border';
+  | '--color-success-border'
+  | '--color-warning-border'
+  | '--color-error-border'
+  // Code surfaces (dark reading/writing chrome + light inline chip)
+  | '--color-background-code'
+  | '--color-text-code'
+  | '--color-text-code-link'
+  | '--color-background-code-inline'
+  // AI chat transcript code blocks — deliberately NOT the code family
+  | '--color-background-chat-assistant'
+  | '--color-text-chat-assistant'
+  // Question-type badge hues (visual categories, reused across quiz surfaces)
+  | '--color-badge-blue-bg'
+  | '--color-badge-blue-fg'
+  | '--color-badge-violet-bg'
+  | '--color-badge-violet-fg'
+  | '--color-badge-teal-bg'
+  | '--color-badge-teal-fg'
+  | '--color-badge-amber-bg'
+  | '--color-badge-amber-fg'
+  | '--color-badge-pink-bg'
+  | '--color-badge-pink-fg';
 
 /**
  * LunaClair custom Astryx theme.
@@ -67,8 +88,42 @@ export const lunaclairTheme = defineTheme({
       // medium difficulty). Chosen over #854d0e for higher contrast on #fef3c7
       // (6.37:1 vs 6.15:1) and canonical amber-800.
       '--color-on-warning-muted': '#92400e',
-      // Border role of the success-muted surface (explanation box outline).
+      // Border roles of the muted sentiment surfaces (outlines). The success
+      // pair is the model — a 100-shade fill with a 200-shade outline
+      // (#dcfce7 / #bbf7d0, Astryx's own pair). Error's fill is a 50-shade
+      // (#fef2f2), so its 100-shade would be invisible at 1px; red-200 is the
+      // first visible step. These exist so an outline never borrows the
+      // `-muted` fill role.
       '--color-success-border': '#bbf7d0',
+      '--color-warning-border': '#fde68a',
+      '--color-error-border': '#fecaca',
+      // Dark code surfaces: one canonical One Dark pair shared by the reader's
+      // fenced blocks and the writer's raw-markdown editor (their drifted
+      // #0f172a/#e2e8f0 and #282c34/#abb2bf converged here).
+      '--color-background-code': '#282c34',
+      '--color-text-code': '#abb2bf',
+      // Link color inside the reading surface (was the bare #0366d6).
+      '--color-text-code-link': '#0366d6',
+      // Light inline-code chip in the reader (was the bare #f0f0f0).
+      '--color-background-code-inline': '#f0f0f0',
+      // AI transcript code blocks — a chat-context surface, deliberately kept
+      // out of the code family (a chat bubble and a code editor are different
+      // semantic contexts and must not move together).
+      '--color-background-chat-assistant': '#1e293b',
+      '--color-text-chat-assistant': '#f8fafc',
+      // Question-type badge palette — hue-named (visual categories, not type
+      // names), so a future feature can reuse a hue. Sourced from the old
+      // literal QUESTION_TYPE_APPEARANCE pairs; see quizBadgeAppearance.ts.
+      '--color-badge-blue-bg': '#dbeafe',
+      '--color-badge-blue-fg': '#1d4ed8',
+      '--color-badge-violet-bg': '#ede9fe',
+      '--color-badge-violet-fg': '#6d28d9',
+      '--color-badge-teal-bg': '#ccfbf1',
+      '--color-badge-teal-fg': '#0f766e',
+      '--color-badge-amber-bg': '#fef3c7',
+      '--color-badge-amber-fg': '#b45309',
+      '--color-badge-pink-bg': '#fce7f3',
+      '--color-badge-pink-fg': '#be185d',
     } as Record<CustomRoleTokens, string>),
 
     // =========================================================================

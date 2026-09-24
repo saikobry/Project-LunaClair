@@ -5,7 +5,7 @@ import type {
     UpdateMaterialInput,
 } from '../../../domain/library/repositories/LibraryRepository';
 import { db } from '../schema/LunaClairDatabase';
-import { normalizeTags } from '../../../domain/quiz/utils/tags';
+import { normalizeTags } from '../../../shared/utils/tags';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);

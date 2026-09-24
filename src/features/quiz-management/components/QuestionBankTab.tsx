@@ -5,6 +5,7 @@ import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } fr
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
+import { QUESTION_TYPES, QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
 import { Button } from '../../../shared/ui/Button/Button';
 import { SearchInput } from '../../../shared/ui/SearchInput/SearchInput';
 import { Card } from '../../../shared/ui/Card/Card';
@@ -213,21 +214,9 @@ const styles = stylex.create({
     },
 });
 
-const TYPE_LABELS: Record<QuestionType, string> = {
-    multiple_choice: 'Multiple Choice',
-    multiple_select: 'Multiple Select',
-    true_false: 'True / False',
-    identification: 'Identification',
-    fill_in_blank: 'Fill in the Blank',
-};
-
 const TYPE_OPTIONS: SelectorOption[] = [
     { value: '', label: 'All types' },
-    { value: 'multiple_choice', label: 'Multiple Choice' },
-    { value: 'multiple_select', label: 'Multiple Select' },
-    { value: 'true_false', label: 'True / False' },
-    { value: 'identification', label: 'Identification' },
-    { value: 'fill_in_blank', label: 'Fill in the Blank' },
+    ...QUESTION_TYPES.map((value) => ({ value, label: QUESTION_TYPE_LABELS[value] })),
 ];
 
 const DIFFICULTY_OPTIONS: SelectorOption[] = [
@@ -332,7 +321,7 @@ function QuestionBankCard({
                             color: QUESTION_TYPE_APPEARANCE[q.type].fg,
                         }}
                     >
-                        {TYPE_LABELS[q.type]}
+                        {QUESTION_TYPE_LABELS[q.type]}
                     </span>
                 </div>
 

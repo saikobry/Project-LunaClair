@@ -12,11 +12,11 @@ export const POINTS_APPEARANCE: { bg: string; fg: string } = {
 };
 
 export const QUESTION_TYPE_APPEARANCE: Record<QuestionType, { bg: string; fg: string }> = {
-  multiple_choice: { bg: '#dbeafe', fg: '#1d4ed8' },
-  multiple_select: { bg: '#ede9fe', fg: '#6d28d9' },
-  true_false: { bg: '#ccfbf1', fg: '#0f766e' },
-  identification: { bg: '#fef3c7', fg: '#b45309' },
-  fill_in_blank: { bg: '#fce7f3', fg: '#be185d' },
+  multiple_choice: { bg: 'var(--color-badge-blue-bg)', fg: 'var(--color-badge-blue-fg)' },
+  multiple_select: { bg: 'var(--color-badge-violet-bg)', fg: 'var(--color-badge-violet-fg)' },
+  true_false: { bg: 'var(--color-badge-teal-bg)', fg: 'var(--color-badge-teal-fg)' },
+  identification: { bg: 'var(--color-badge-amber-bg)', fg: 'var(--color-badge-amber-fg)' },
+  fill_in_blank: { bg: 'var(--color-badge-pink-bg)', fg: 'var(--color-badge-pink-fg)' },
 };
 
 export const DIFFICULTY_APPEARANCE: Record<QuestionDifficulty, { bg: string; fg: string }> = {

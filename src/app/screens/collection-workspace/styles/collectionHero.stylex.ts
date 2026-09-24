@@ -80,7 +80,7 @@ export const styles = stylex.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.42)',
     backdropFilter: 'blur(3px)',
-    color: '#ffffff',
+    color: 'var(--color-on-dark)',
     opacity: 0,
     pointerEvents: 'none',
     transition: 'opacity 0.18s ease',

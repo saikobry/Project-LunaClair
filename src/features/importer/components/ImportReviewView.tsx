@@ -3,7 +3,6 @@ import * as stylex from '@stylexjs/stylex';
 import {
   Sparkles,
   Loader2,
-  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -28,6 +27,7 @@ import { Button } from '../../../shared/ui/Button/Button';
 import { SegmentedControl, SegmentedControlItem } from '../../../shared/ui/SegmentedControl/SegmentedControl';
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery';
 import { ImportStatusBadge } from './ImportStatusBadge';
+import { Banner } from '../../../shared/ui/Banner/Banner';
 
 type ReviewViewMode = 'split' | 'edit' | 'preview';
 
@@ -106,24 +106,13 @@ function PartialExtractionBanner({
   totalPages: number;
 }) {
   return (
-    <div
+    <Banner
       data-testid="partial-extraction-banner"
-      style={{
-        backgroundColor: 'var(--color-warning-muted)',
-        color: 'var(--color-warning)',
-        padding: '8px 16px',
-        fontSize: '13px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        borderBottom: '1px solid var(--color-warning)',
-      }}
-    >
-      <AlertTriangle size={16} />
-      <span>
-        Extraction was cancelled before completion. Displaying partial content ({pagesCount} of {totalPages} pages).
-      </span>
-    </div>
+      variant="warning"
+      container="section"
+      title="Extraction was cancelled before completion"
+      description={`Displaying partial content (${pagesCount} of ${totalPages} pages).`}
+    />
   );
 }
 

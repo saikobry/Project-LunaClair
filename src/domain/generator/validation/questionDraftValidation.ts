@@ -2,14 +2,7 @@ import type { GeneratedQuestionDraft, GeneratedFlashcardDraft } from '../models/
 import type { QuestionType } from '../../quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../quiz/models/Question';
 import type { QuestionAnswerPayload } from '../../quiz/models/AnswerPayload';
-
-const VALID_QUESTION_TYPES: Set<QuestionType> = new Set([
-  'multiple_choice',
-  'multiple_select',
-  'true_false',
-  'identification',
-  'fill_in_blank',
-]);
+import { VALID_QUESTION_TYPES } from '../../quiz/models/questionMetadata';
 
 const VALID_DIFFICULTIES: Set<QuestionDifficulty> = new Set(['easy', 'medium', 'hard']);
 

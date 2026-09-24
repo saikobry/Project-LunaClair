@@ -308,7 +308,7 @@ describe('SharedPackageScreen', () => {
 
     // Badges for question types
     expect(screen.getByText(/Multiple Choice/)).toBeInTheDocument();
-    expect(screen.getByText(/True\/False/)).toBeInTheDocument();
+    expect(screen.getByText(/True \/ False/)).toBeInTheDocument();
   });
 
   it('clones package to library, tracks download only after commit, and allows opening cloned material', async () => {

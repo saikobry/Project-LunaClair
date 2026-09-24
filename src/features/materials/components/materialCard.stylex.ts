@@ -201,7 +201,7 @@ export const cardStyles = stylex.create({
     transition: 'background-color 0.15s, color 0.15s',
     ':hover': {
       backgroundColor: 'var(--color-accent)',
-      color: '#ffffff',
+      color: 'var(--color-on-accent)',
     },
     ':focus-visible': {
       outline: '2px solid var(--color-accent)',

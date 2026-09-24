@@ -13,7 +13,8 @@ import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
-import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../domain/quiz/utils/tags';
+import { QUESTION_TYPES, QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
+import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../shared/utils/tags';
 
 const styles = stylex.create({
     form: {
@@ -37,13 +38,9 @@ const styles = stylex.create({
     },
 });
 
-const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
-    { value: 'multiple_choice', label: 'Multiple Choice' },
-    { value: 'multiple_select', label: 'Multiple Select' },
-    { value: 'true_false', label: 'True / False' },
-    { value: 'identification', label: 'Identification' },
-    { value: 'fill_in_blank', label: 'Fill in the Blank' },
-];
+const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = QUESTION_TYPES.map(
+    (value) => ({ value, label: QUESTION_TYPE_LABELS[value] }),
+);
 
 const DIFFICULTIES: { value: QuestionDifficulty; label: string }[] = [
     { value: 'easy', label: 'Easy' },
@@ -187,7 +184,7 @@ export function QuestionEditorDialog({
                     {!isEditing && (
                         <Selector
                             label="Question type"
-                            options={QUESTION_TYPES}
+                            options={QUESTION_TYPE_OPTIONS}
                             value={type}
                             onChange={(v) => handleTypeChangeRequest(v as QuestionType)}
                         />

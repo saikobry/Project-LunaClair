@@ -7,7 +7,7 @@ import type { StudyPackage, StudyPackageSummary } from '../models/package.types'
  * accepted by the format but never populated by the app, and a preview must show
  * what the imported material will actually carry.
  *
- * Tags are cleaned the way the app cleans tag tokens (`domain/quiz/utils/tags`):
+ * Tags are cleaned the way the app cleans tag tokens (`shared/utils/tags`):
  * trimmed and stripped of a leading '#', so a hand-edited package cannot render
  * as `##cells`. Order is first-seen material order — stable, and it keeps the
  * author's own ordering instead of imposing an alphabetical one.

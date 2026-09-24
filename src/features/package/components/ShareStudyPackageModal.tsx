@@ -300,7 +300,7 @@ function PublishedSharePanel({
                 ? {
                     backgroundColor: 'var(--color-success)',
                     borderColor: 'transparent',
-                    color: '#ffffff',
+                    color: 'var(--color-on-success)',
                   }
                 : undefined
             }

@@ -1,14 +1,7 @@
 import type { PackageValidationResult, StudyPackage } from '../models/package.types';
 import type { QuestionType } from '../../quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../quiz/models/Question';
-
-const VALID_QUESTION_TYPES: ReadonlySet<QuestionType> = new Set([
-    'multiple_choice',
-    'multiple_select',
-    'true_false',
-    'identification',
-    'fill_in_blank',
-]);
+import { VALID_QUESTION_TYPES } from '../../quiz/models/questionMetadata';
 
 const VALID_DIFFICULTIES: ReadonlySet<QuestionDifficulty> = new Set([
     'easy',
