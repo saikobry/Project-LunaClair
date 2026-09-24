@@ -1,6 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { Search } from 'lucide-react';
-import { Input } from '../../../../shared/ui/Input/Input';
+import { SearchInput } from '../../../../shared/ui/SearchInput/SearchInput';
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -29,15 +28,11 @@ export function ExploreFilterBar({
   return (
     <div {...stylex.props(styles.filterBar)}>
       <div {...stylex.props(styles.searchField)}>
-        <Input
+        <SearchInput
           label="Search explore content"
-          labelHidden
           value={search}
           onChange={onSearchChange}
           placeholder="Search study packages, authors..."
-          startIcon={<Search size={16} />}
-          clearable
-          size="md"
         />
       </div>
 

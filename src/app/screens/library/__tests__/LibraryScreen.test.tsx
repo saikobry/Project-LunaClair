@@ -164,13 +164,16 @@ describe('LibraryScreen', () => {
 
     // The switcher resolves with the collections query — wait for it.
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Collections' })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: 'Collections' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Collections' }));
+    // The switcher is the shared SegmentedControl, so its options expose
+    // radiogroup/radio semantics (mutually exclusive choice) rather than
+    // toggle-button semantics.
+    fireEvent.click(screen.getByRole('radio', { name: 'Collections' }));
     expect(mockViewChange).toHaveBeenCalledWith('collections');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Materials' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Materials' }));
     expect(mockViewChange).toHaveBeenCalledWith('materials');
   });
 

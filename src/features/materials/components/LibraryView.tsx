@@ -4,7 +4,7 @@ import { BookHeart, Inbox, LibraryBig, Search, X } from 'lucide-react';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { MaterialMembershipFilter } from '../types/libraryFilter.types';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Input } from '../../../shared/ui/Input/Input';
+import { SearchInput } from '../../../shared/ui/SearchInput/SearchInput';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import MaterialGrid from './MaterialGrid';
 import { CardGridSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
@@ -231,16 +231,11 @@ function LibraryFilterBar({
   return (
     <div {...stylex.props(localStyles.filterContainer)}>
       <div {...stylex.props(localStyles.searchContainer)}>
-        <Input
-          label=""
-          labelHidden
+        <SearchInput
+          label="Search your materials"
           value={searchQuery}
           onChange={onSearchChange}
           placeholder="Search your materials, ideas, or tags..."
-          startIcon={
-            <Search size={15} style={{ color: 'var(--color-text-secondary)' }} />
-          }
-          clearable
         />
       </div>
 

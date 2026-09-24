@@ -95,11 +95,6 @@ export const styles = stylex.create({
     overflowY: 'auto',
     padding: 16,
   },
-  listEmpty: {
-    textAlign: 'center',
-    color: 'var(--color-text-secondary)',
-    fontSize: 14,
-  },
   materialItem: {
     display: 'flex',
     alignItems: 'center',

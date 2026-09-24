@@ -2,40 +2,12 @@ import * as stylex from '@stylexjs/stylex';
 
 export const screenStyles = stylex.create({
   /** Overview | Collections | Materials switcher — one group, mutually exclusive. */
-  viewSwitcher: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: 3,
+  /**
+   * Layout slot for the shared `SegmentedControl` used by `LibraryViewSwitcher`.
+   * The component owns its own chrome; this carries only the screen's spacing.
+   */
+  viewSwitcherSlot: {
     marginBottom: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'var(--color-border)',
-    backgroundColor: 'var(--color-background-surface)',
-  },
-  viewOption: {
-    padding: '6px 14px',
-    borderRadius: 8,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--color-text-secondary)',
-    whiteSpace: 'nowrap',
-    transition: 'background-color 0.15s, color 0.15s',
-    ':hover': {
-      color: 'var(--color-text-primary)',
-    },
-    ':focus-visible': {
-      outline: '2px solid var(--color-accent)',
-      outlineOffset: '2px',
-    },
-  },
-  viewOptionActive: {
-    backgroundColor: 'var(--color-accent-muted)',
-    color: 'var(--color-text-primary)',
   },
   /** Minimal centered stepper footer under a capped overview preview. */
   stepper: {

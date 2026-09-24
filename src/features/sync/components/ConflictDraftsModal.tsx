@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Dialog } from '../../../shared/ui/Dialog/Dialog';
 import { Button } from '../../../shared/ui/Button/Button';
+import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { useConflictDrafts } from '../hooks/useConflictDrafts';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 
@@ -143,25 +144,6 @@ const styles = stylex.create({
     alignItems: 'center',
     gap: 6,
   },
-  mergeTextarea: {
-    width: '100%',
-    minHeight: 180,
-    padding: 12,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: 13,
-    lineHeight: '1.5',
-    color: 'var(--color-text-primary)',
-    backgroundColor: 'var(--color-background-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 8,
-    boxSizing: 'border-box',
-    resize: 'vertical',
-    outline: 'none',
-    ':focus': {
-      borderColor: 'var(--color-accent)',
-      boxShadow: '0 0 0 2px rgba(99, 102, 241, 0.2)',
-    },
-  },
   footer: {
     display: 'flex',
     alignItems: 'center',
@@ -231,15 +213,26 @@ function DiffContent({
       {/* Editable Merge Textarea */}
       {isMerging && (
         <div {...stylex.props(styles.mergeSection)}>
-          <label htmlFor="merge-content-input" {...stylex.props(styles.mergeLabel)}>
+          <span {...stylex.props(styles.mergeLabel)}>
             <GitMerge size={16} /> Edit & Merge Content:
-          </label>
-          <textarea
-            id="merge-content-input"
-            {...stylex.props(styles.mergeTextarea)}
+          </span>
+          {/* `autoGrow` is off deliberately: the adapter's auto-grow forces
+              `resize: none` plus a computed height, while Astryx's own textarea
+              style already offers native vertical resize — which is exactly
+              what a large merge blob wants. The old bespoke rule's other two
+              points (monospace, a ~180px floor) are preserved here. */}
+          <TextArea
+            label="Edit and merge content"
+            labelHidden
             value={mergedText}
-            onChange={(e) => onMergedTextChange(e.target.value)}
+            onChange={onMergedTextChange}
             placeholder="Combine or edit your document content here..."
+            rows={9}
+            autoGrow={false}
+            style={{
+              fontFamily:
+                'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            }}
           />
         </div>
       )}

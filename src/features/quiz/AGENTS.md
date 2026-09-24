@@ -9,7 +9,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 | Path | Responsibility |
 |---|---|
 | `QuizScreen.tsx` | Feature-root screen orchestrator. Manages quiz launch requests (exam vs practice mode, single quiz vs virtual composite), wraps session flow, and handles completion transitions. |
-| `components/` | Presentational views: `QuestionRenderer` (MC, MS, TF, Identification, FillBlank), `QuizStartView`, `QuizView`, `QuizResultView`, `QuestionSkeleton`. |
+| `components/` | Presentational views: `QuestionRenderer` (MC, MS, TF, Identification, FillBlank), `QuizStartView`, `QuizView`, `QuizResultView`, `QuestionSkeleton`. `IdentificationQuestion` renders the shared `<Input>` with the question prompt as its label (no hand-wired `useId`/`htmlFor`); `FillBlankQuestion` deliberately keeps raw inline `<input>`s because each blank sits inside a sentence template where field chrome would break the prose flow — it only tokenizes its border. |
 | `hooks/session/` | Active session state machine hooks: `useQuizSessionFlow` (master orchestrator), `useQuizProgress` (index bounds & answer map), `useQuizPersistence` (start/submit/abandon dispatches), `useQuizLoader` (single quiz, virtual quiz composite, or material questions). |
 | `hooks/queries/` | Read queries: `useQuestions`, `useQuizzes`. |
 | `hooks/repositories/` | Context repository access adapters: `useQuestionRepository`, `useQuizRepository`. |

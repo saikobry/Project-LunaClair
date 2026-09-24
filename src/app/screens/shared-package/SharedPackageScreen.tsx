@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Page } from '../../../shared/ui/Page/Page';
+import { Banner } from '../../../shared/ui/Banner/Banner';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Chip } from '../../../shared/ui/Chip/Chip';
 import { Breadcrumbs, type BreadcrumbItem } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
@@ -242,25 +243,6 @@ const styles = stylex.create({
       borderColor: 'var(--color-accent)',
       boxShadow: '0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent)',
     },
-  },
-  successBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderRadius: 12,
-    backgroundColor: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
-    border: '1px solid color-mix(in srgb, var(--color-success) 30%, transparent)',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  successBannerInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    color: 'var(--color-success)',
-    fontWeight: 600,
-    fontSize: 14,
   },
   actionsBar: {
     position: 'sticky',
@@ -500,22 +482,22 @@ function CloneSuccessBanner({
   onOpenMaterial: (materialId: string) => void;
 }) {
   return (
-    <div {...stylex.props(styles.successBanner)}>
-      <div {...stylex.props(styles.successBannerInfo)}>
-        <CheckCircle2 size={20} />
-        <span>Study package successfully cloned to your library!</span>
-      </div>
-      {firstMaterialId && (
-        <Button
-          variant="primary"
-          label="Open Cloned Material"
-          icon={<BookOpen size={15} />}
-          onClick={() => onOpenMaterial(firstMaterialId)}
-        >
-          Open Cloned Material
-        </Button>
-      )}
-    </div>
+    <Banner
+      variant="success"
+      title="Study package successfully cloned to your library!"
+      action={
+        firstMaterialId ? (
+          <Button
+            variant="primary"
+            label="Open Cloned Material"
+            icon={<BookOpen size={15} />}
+            onClick={() => onOpenMaterial(firstMaterialId)}
+          >
+            Open Cloned Material
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 

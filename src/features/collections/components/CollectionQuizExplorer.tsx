@@ -6,7 +6,7 @@ import type { QuizLaunchRequest } from '../../quiz/types/quizFeature.types';
 import { useCollectionQuizTree } from '../hooks/queries/useCollectionQuizTree';
 import { useFocusMode } from '../../../app/providers/FocusModeContext';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
-import { Input } from '../../../shared/ui/Input/Input';
+import { SearchInput } from '../../../shared/ui/SearchInput/SearchInput';
 import { Checkbox } from '../../../shared/ui/Checkbox/Checkbox';
 import { Button } from '../../../shared/ui/Button/Button';
 import { Chip } from '../../../shared/ui/Chip/Chip';
@@ -382,14 +382,11 @@ export function CollectionQuizExplorer({
     <div {...stylex.props(styles.container, selectedCount > 0 && styles.containerWithBar)}>
       <div {...stylex.props(styles.toolbar)}>
         <div {...stylex.props(styles.searchSlot)}>
-          <Input
+          <SearchInput
             label="Search quizzes"
-            labelHidden
             value={search}
             onChange={(value) => setSearch(value)}
             placeholder="Search materials and quizzes…"
-            startIcon={<Search size={15} />}
-            clearable
           />
         </div>
         <div {...stylex.props(styles.selectAllRow)}>

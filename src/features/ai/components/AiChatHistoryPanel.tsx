@@ -2,6 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { History, MessageSquarePlus, Trash2, X } from 'lucide-react';
 import type { AiThread } from '../../../domain/ai/models/ai.types';
 import { Button } from '../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { IconButton } from '../../../shared/ui/IconButton/IconButton';
 import { formatSessionTime } from '../utils/formatSessionTime';
 
@@ -98,16 +99,6 @@ const styles = stylex.create({
     fontSize: 11,
     color: 'var(--color-text-secondary)',
   },
-  emptyState: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    textAlign: 'center',
-    fontSize: 13,
-    color: 'var(--color-text-secondary)',
-  },
   footer: {
     padding: '10px 16px',
     borderTop: '1px solid var(--color-border)',
@@ -175,9 +166,14 @@ export function AiChatHistoryPanel({
       </div>
 
       {sessions.length === 0 ? (
-        <p {...stylex.props(styles.emptyState)}>
-          No conversations yet. Ask something to start one.
-        </p>
+        <EmptyState
+          size="compact"
+          icon={<MessageSquarePlus size={28} />}
+          title="No conversations yet"
+          description="Ask something to start one."
+          headingLevel="h4"
+          style={{ flex: 1 }}
+        />
       ) : (
         <ul {...stylex.props(styles.list)}>
           {sessions.map((session) => {

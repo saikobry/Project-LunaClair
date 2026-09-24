@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Search, Filter, Sparkles } from 'lucide-react';
+import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Filter, Sparkles } from 'lucide-react';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../utils/quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
 import { Button } from '../../../shared/ui/Button/Button';
-import { Input } from '../../../shared/ui/Input/Input';
+import { SearchInput } from '../../../shared/ui/SearchInput/SearchInput';
 import { Card } from '../../../shared/ui/Card/Card';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import { Selector, type SelectorOption } from '../../../shared/ui/Selector/Selector';
@@ -517,14 +517,11 @@ export function QuestionBankTab({
         <div {...stylex.props(styles.container)}>
             <div {...stylex.props(styles.filterBar)}>
                 <div {...stylex.props(styles.searchField)}>
-                    <Input
+                    <SearchInput
                         label="Search questions"
-                        labelHidden
-                        startIcon={<Search size={16} />}
                         placeholder="Search prompts and tags…"
                         value={search}
                         onChange={setSearch}
-                        clearable
                         size="sm"
                     />
                 </div>

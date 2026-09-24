@@ -41,6 +41,15 @@ export interface WorkspaceModeSwitchProps {
  * Two-tier workspace mode switch: Study (everyday surface) vs Manage
  * (back office). Switching modes returns to the mode's last-visited tab —
  * that memory lives in the screen, this switch only reports intent.
+ *
+ * Deliberately NOT the shared `SegmentedControl` (unlike `LibraryViewSwitcher`),
+ * even though the two look alike. This is a genuine `tablist`/`tab` pair: it
+ * switches which content panel is visible and therefore owes assistive tech the
+ * tab contract — tab-key navigation within the list, `aria-selected`, and the
+ * "selected tab reveals its panel" expectation. A segmented control announces
+ * "pick one option" instead, so the swap would be an accessibility regression
+ * for identical pixels. Sharing *chrome* with the segmented control is a fine
+ * future alignment; sharing the component is not.
  */
 export function WorkspaceModeSwitch({ mode, onModeChange }: WorkspaceModeSwitchProps) {
   return (

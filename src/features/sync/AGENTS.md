@@ -9,7 +9,7 @@ Feature-level presentation, reactive subscription hooks, status pill UI, and int
 - `hooks/useSyncStatus.ts` — React subscription hook querying `SyncStatusStore`, `pendingCount`, `lastSyncedAt`, `lastError`, and `conflictCount` from `useCases.sync.getConflictDrafts()`, exposing `triggerSync()`.
 - `hooks/useConflictDrafts.ts` — Hook for querying and resolving divergent document drafts via `useCases.sync.getConflictDrafts()` and `useCases.sync.resolveConflictDraft()`.
 - `components/SyncStatusPill.tsx` — Accessible, StyleX-styled status pill rendered in `AppSidebar` footer. Displays real-time states (🟢 `Synced`, 🔄 `Syncing...`, 🟡 `Offline`, ⚠️ `Sync error`, 🚨 `${conflictCount} conflict(s)`) and opens `ConflictDraftsModal` on conflict click or triggers manual sync on idle click.
-- `components/ConflictDraftsModal.tsx` — Shared `<Dialog>`-based modal for side-by-side diff comparison between canonical server version and divergent local draft, offering `[Keep Server Version]`, `[Keep My Version]`, and `[Edit & Merge]` resolution workflows.
+- `components/ConflictDraftsModal.tsx` — Shared `<Dialog>`-based modal for side-by-side diff comparison between canonical server version and divergent local draft, offering `[Keep Server Version]`, `[Keep My Version]`, and `[Edit & Merge]` resolution workflows. The `[Edit & Merge]` editor is the shared `<TextArea>` with `autoGrow={false}` **on purpose** — the adapter's auto-grow forces `resize: none` plus a computed height, while Astryx's own textarea style keeps native vertical resize, which a large merge blob needs; monospace is supplied via `style` and inherits into the inner textarea.
 - `utils/formatSyncTime.ts` — Relative time formatting utility for last synchronized timestamps.
 
 ## Local Contracts

@@ -4,7 +4,7 @@ import type { Collection } from '../../../../domain/collections/models/Collectio
 import { CollectionShelf } from '../../../../features/collections/components/CollectionShelf';
 import { Button } from '../../../../shared/ui/Button/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState/EmptyState';
-import { Input } from '../../../../shared/ui/Input/Input';
+import { SearchInput } from '../../../../shared/ui/SearchInput/SearchInput';
 import { screenStyles } from '../styles/libraryScreen.stylex';
 import { PreviewStepper } from './PreviewStepper';
 import { OVERVIEW_STEPS } from '../utils/overviewSteps';
@@ -57,16 +57,11 @@ export function LibraryCollectionsSection({
     <>
       {showSearch && (
         <div {...stylex.props(screenStyles.collectionSearch)}>
-          <Input
-            label=""
-            labelHidden
+          <SearchInput
+            label="Search collections"
             value={collectionSearch}
             onChange={onCollectionSearchChange}
             placeholder="Search collections..."
-            startIcon={
-              <Search size={15} style={{ color: 'var(--color-text-secondary)' }} />
-            }
-            clearable
           />
         </div>
       )}

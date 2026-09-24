@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import * as stylex from "@stylexjs/stylex";
-import { X, Search, Check, Plus, BookOpen } from "lucide-react";
+import { X, Check, Plus, BookOpen } from "lucide-react";
 import { useLibrary } from "../../../../features/materials/hooks/queries/useLibrary";
 import { useAddMaterialToCollection } from "../../../../features/collections/hooks/mutations/useAddMaterialToCollection";
 import { useToast } from "../../../../app/providers/ToastContext";
@@ -9,7 +9,8 @@ import { useModalDialog } from "../../../../shared/hooks/useModalDialog";
 import { Button } from "../../../../shared/ui/Button/Button";
 import { Chip } from "../../../../shared/ui/Chip/Chip";
 import { IconButton } from "../../../../shared/ui/IconButton/IconButton";
-import { Input } from "../../../../shared/ui/Input/Input";
+import { EmptyState } from "../../../../shared/ui/EmptyState/EmptyState";
+import { SearchInput } from "../../../../shared/ui/SearchInput/SearchInput";
 import type { Collection } from "../../../../domain/collections/models/Collection";
 import type { StudyMaterial } from "../../../../domain/library/models/StudyMaterial";
 import { styles } from "../styles/addMaterialsDrawer.stylex";
@@ -181,22 +182,23 @@ export function AddMaterialsDrawer({
       </div>
 
       <div {...stylex.props(styles.searchContainer)}>
-        <Input
+        <SearchInput
           label="Search materials"
-          labelHidden
           value={searchTerm}
           onChange={(value) => setSearchTerm(value)}
           placeholder="Search titles or tags..."
-          startIcon={
-            <Search size={15} style={{ color: "var(--color-text-secondary)" }} />
-          }
-          clearable
         />
       </div>
 
       <div {...stylex.props(styles.materialsList)}>
         {visibleMaterials.length === 0 ? (
-          <p {...stylex.props(styles.listEmpty)}>No materials found.</p>
+          <EmptyState
+            size="compact"
+            icon={<BookOpen size={28} />}
+            title="No materials found"
+            description="Try a different search term, or add another material to your library first."
+            headingLevel="h3"
+          />
         ) : (
           visibleMaterials.map((material) => (
             <MaterialPickerRow

@@ -109,7 +109,9 @@ describe('QuestionRenderer & Question Types', () => {
         const input = screen.getByPlaceholderText('Type your answer…');
         fireEvent.change(input, { target: { value: 'SA node' } });
 
-        expect(onChange).toHaveBeenCalledWith('SA node');
+        // The shared `Input` forwards Astryx's `(value, event)` callback shape,
+        // so the value is the first argument.
+        expect(onChange).toHaveBeenCalledWith('SA node', expect.anything());
     });
 
     it('renders FillBlankQuestion and emits updated array of blank values', () => {

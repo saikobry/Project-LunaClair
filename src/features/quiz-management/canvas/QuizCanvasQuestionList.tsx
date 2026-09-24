@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatc
 import type { QuestionDraft, QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizDraftErrors } from '../../../application/quiz-management/drafts/quizDraftValidation';
 import { Button } from '../../../shared/ui/Button/Button';
+import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
 import type { QuizCanvas } from './hooks/useQuizCanvas';
 import { QuizCanvasMetaCard } from './QuizCanvasMetaCard';
 import { QuizCanvasQuestionCard } from './QuizCanvasQuestionCard';
@@ -117,25 +118,6 @@ const styles = stylex.create({
     },
     cardWrapperActive: {
         zIndex: 2,
-    },
-    emptyCanvas: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 8,
-        padding: '40px 24px',
-        color: 'var(--color-text-secondary)',
-        textAlign: 'center',
-    },
-    emptyTitle: {
-        fontSize: 15,
-        fontWeight: 600,
-        color: 'var(--color-text-primary)',
-        margin: 0,
-    },
-    emptyHint: {
-        fontSize: 13,
-        margin: 0,
     },
 });
 
@@ -763,19 +745,20 @@ export function QuizCanvasQuestionList({
                     </div>
 
                     {items.length === 0 ? (
-                        <div {...stylex.props(styles.emptyCanvas)}>
-                            <p {...stylex.props(styles.emptyTitle)}>No questions yet</p>
-                            <p {...stylex.props(styles.emptyHint)}>
-                                Add your first question to start building this quiz.
-                            </p>
-                            <Button
-                                label="Add first question"
-                                variant="primary"
-                                onClick={() => onFocusCard(canvas.addItemAt())}
-                            >
-                                + Add First Question
-                            </Button>
-                        </div>
+                        <EmptyState
+                            title="No questions yet"
+                            description="Add your first question to start building this quiz."
+                            headingLevel="h3"
+                            action={
+                                <Button
+                                    label="Add first question"
+                                    variant="primary"
+                                    onClick={() => onFocusCard(canvas.addItemAt())}
+                                >
+                                    + Add First Question
+                                </Button>
+                            }
+                        />
                     ) : (
                         <>
                             <div
