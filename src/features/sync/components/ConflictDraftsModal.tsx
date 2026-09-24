@@ -82,7 +82,7 @@ const styles = stylex.create({
     border: '1px solid var(--color-border)',
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: 'var(--color-background)',
+    backgroundColor: 'var(--color-background-surface)',
   },
   versionHeader: {
     display: 'flex',

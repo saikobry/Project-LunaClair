@@ -56,7 +56,7 @@ const styles = stylex.create({
         gap: 10,
         width: '100%',
         padding: 12,
-        backgroundColor: 'var(--color-background-surface, #ffffff)',
+        backgroundColor: 'var(--color-background-surface)',
         border: '1px solid var(--color-border)',
         borderRadius: 8,
         boxSizing: 'border-box',

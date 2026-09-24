@@ -19,7 +19,7 @@ const styles = stylex.create({
       WebkitOverflowScrolling: 'touch',
       scrollbarWidth: 'none',
       msOverflowStyle: 'none',
-      borderRadius: 'var(--radius-element, 8px)',
+      borderRadius: 'var(--radius-element)',
       '::-webkit-scrollbar': {
         display: 'none',
       },

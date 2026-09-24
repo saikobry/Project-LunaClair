@@ -23,6 +23,11 @@ const styles = stylex.create({
     appearance: 'none',
     borderStyle: 'solid',
     borderWidth: 1.5,
+    // Ink role on purpose. This ring is the unselected control's only visual
+    // affordance, so it must clear WCAG 1.4.11's 3:1 non-text contrast — and
+    // the border scale cannot: `--color-border` measures 1.27:1 on white and
+    // `--color-border-emphasized` 1.47:1, which renders the indicator
+    // invisible. `--color-text-secondary` measures 5.73:1.
     borderColor: 'var(--color-text-secondary)',
     padding: 0,
     font: 'inherit',

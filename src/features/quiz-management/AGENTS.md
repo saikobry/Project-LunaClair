@@ -21,7 +21,7 @@ Authoring feature for creating, editing, publishing, and archiving questions and
 | `editors/TrueFalseEditor.tsx` | Radio toggle for True/False |
 | `editors/IdentificationEditor.tsx` | Primary answer + accepted alternatives |
 | `editors/FillBlankEditor.tsx` | Template textarea + blank answer inputs |
-| `components/CorrectAnswerIndicator.tsx` | Reusable circle/square correct answer indicator for question editors |
+| `components/CorrectAnswerIndicator.tsx` | Reusable circle/square correct answer indicator for question editors. Its unselected ring deliberately borrows an ink role (`--color-text-secondary`, 5.73:1 on white): the ring is the control's only visual affordance, so it must clear WCAG 1.4.11's 3:1 non-text contrast, which no border role reaches (1.27:1 / 1.47:1) |
 | `utils/quizBadgeAppearance.ts` | Single source of truth for semantic badge palette (difficulty, question type, points) |
 | `hooks/useQuestionManagement.ts` | Thin mutation adapter for application question use cases |
 | `hooks/useQuizBuilder.ts` | Thin mutation adapter for application quiz use cases — publish/archive/unarchive (`createQuiz`/`updateQuiz` mutations remain in the hook but are unused since the dialog's removal) |

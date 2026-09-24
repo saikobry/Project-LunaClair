@@ -20,7 +20,7 @@ const styles = stylex.create({
     flexWrap: 'wrap',
     gap: 12,
     padding: '10px 14px',
-    backgroundColor: 'var(--color-background-surface, #ffffff)',
+    backgroundColor: 'var(--color-background-surface)',
     borderRadius: 10,
     borderWidth: 1,
     borderStyle: 'solid',

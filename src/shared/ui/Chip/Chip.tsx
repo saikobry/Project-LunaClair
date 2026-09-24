@@ -8,7 +8,7 @@ const styles = stylex.create({
     textTransform: 'capitalize',
     letterSpacing: 0.4,
     padding: '2px 8px',
-    borderRadius: 'var(--radius-full, 9999px)',
+    borderRadius: 'var(--radius-full)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',

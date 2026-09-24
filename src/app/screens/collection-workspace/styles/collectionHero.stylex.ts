@@ -152,7 +152,7 @@ export const styles = stylex.create({
     outline: 'none',
     transition: 'border-color 0.16s ease',
     ':hover': {
-      borderColor: 'var(--color-border, rgba(120, 115, 140, 0.25))',
+      borderColor: 'var(--color-border)',
     },
     ':focus': {
       borderColor: 'var(--color-accent)',
@@ -176,7 +176,7 @@ export const styles = stylex.create({
     outline: 'none',
     transition: 'border-color 0.16s ease',
     ':hover': {
-      borderColor: 'var(--color-border, rgba(120, 115, 140, 0.25))',
+      borderColor: 'var(--color-border)',
     },
     ':focus': {
       borderColor: 'var(--color-accent)',

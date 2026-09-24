@@ -284,7 +284,7 @@ const styles = stylex.create({
   },
   strong: {
     fontWeight: 700,
-    color: 'var(--color-text-primary, #111827)',
+    color: 'var(--color-text-primary)',
   },
   em: {
     fontStyle: 'italic',

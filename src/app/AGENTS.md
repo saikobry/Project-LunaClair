@@ -53,7 +53,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
   - `layouts/useShellFocusMode.ts` — Focus Mode state hook (`STORAGE_KEYS.settings.focusMode`, `Cmd/Ctrl+B` toggle).
 
 - `overlays/` — Transient System UI (Out of Document Flow):
-  - `overlays/OfflineBanner.tsx` — Global connectivity status indicator (`zIndex: 200`). Draggable, auto-collapsing offline pill with magnetic screen border snapping.
+  - `overlays/OfflineBanner.tsx` — Global connectivity status indicator (`zIndex: 200`). Draggable, auto-collapsing offline pill with magnetic screen border snapping. Its colours are role tokens with **no** hex fallbacks: an undefined token must be visibly broken rather than silently substituted.
   - `overlays/OnboardingTutorial.tsx` — First-run welcome tutorial full-screen takeover rendered as a native `<dialog>` opened through the shared `useModalDialog` hook (open promotion + body scroll lock; Escape stays on the dialog's own `cancel` event, which carries Skip semantics).
   - `overlays/InstallPrompt.tsx` — PWA install surfaces: one-time iOS install card (`InstallPrompt`) and platform-aware instructions dialog (`InstallInstructionsDialog`).
   - `overlays/installDetection.ts` — Pure PWA detection helpers: `isIOS()` and `isStandalone()`.

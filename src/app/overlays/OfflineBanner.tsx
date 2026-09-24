@@ -311,7 +311,7 @@ const styles = stylex.create({
     backgroundColor: 'var(--color-background-surface)',
     borderStyle: 'solid',
     borderWidth: 1,
-    borderColor: 'var(--color-warning-muted, var(--color-border))',
+    borderColor: 'var(--color-warning-muted)',
     boxShadow: '0 4px 14px rgba(0, 0, 0, 0.14)',
     transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
   },
