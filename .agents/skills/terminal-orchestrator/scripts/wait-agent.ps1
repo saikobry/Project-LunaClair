@@ -8,7 +8,7 @@ param(
 )
 
 function Resolve-HerdrTarget([string]$target) {
-    if ($target -match "^w\d+:p\d+$") { return $target }
+    if ($target -match "^w\d+:p[0-9a-fA-F]+$") { return $target }
     try {
         $raw = herdr agent list 2>$null
         if ($raw) {

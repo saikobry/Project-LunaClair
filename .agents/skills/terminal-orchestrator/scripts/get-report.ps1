@@ -188,7 +188,7 @@ function Get-SingleReport {
         # If agent read failed, resolve pane ID from Herdr inventory
         if (-not $herdrLines) {
             $resolvedPaneId = $null
-            if ($TargetWorker -match "^w\d+:p\d+$") {
+            if ($TargetWorker -match "^w\d+:p[0-9a-fA-F]+$") {
                 $resolvedPaneId = $TargetWorker
             } else {
                 $matched = $herdrAgents | Where-Object {

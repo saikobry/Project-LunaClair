@@ -96,7 +96,7 @@ foreach ($workerItem in $dispatchPlan.Keys) {
     $specPath = $dispatchPlan[$workerItem]
 
     # Resolve target in Herdr
-    $isPane = ($workerItem -match "^w\d+:p\d+$")
+    $isPane = ($workerItem -match "^w\d+:p[0-9a-fA-F]+$")
     $matchedAgent = $null
     $matchedPane = $null
 
