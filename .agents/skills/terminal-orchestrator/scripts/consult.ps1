@@ -221,19 +221,30 @@ $defaultPrompt = if ($AllowTools) {
 }
 $promptToDispatch = if ($InstructionPrompt) { $InstructionPrompt } else { $defaultPrompt }
 
+# Freshness bound: recorded BEFORE dispatch so the extracted report can only ever be a turn
+# that completed after this instant. Without it, an unsubmitted prompt (or an in-flight turn)
+# silently yields the worker's previous turn as this consultation's verdict.
+$dispatchSinceIso = [DateTime]::UtcNow.ToString("o")
+
 & "$PSScriptRoot/dispatch.ps1" -Worker $Worker -Spec $specPath -Wait -TimeoutSeconds $TimeoutSeconds -InstructionPrompt $promptToDispatch
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Dispatch failed or timed out for worker '$Worker'."
     exit $LASTEXITCODE
 }
 
-# 4. Extract structured report via AgentsView
-& "$PSScriptRoot/get-report.ps1" -Workers $Worker -OutputFile $OutputFile -Limit $Limit
+# 4. Extract structured report via AgentsView, bounded to turns newer than the dispatch
+& "$PSScriptRoot/get-report.ps1" -Workers $Worker -OutputFile $OutputFile -Limit $Limit -SinceIso $dispatchSinceIso
 if ($LASTEXITCODE -ne 0) {
     Write-Warning "Report extraction had warnings or fallback to terminal buffer."
 }
 
-# 5. Output completion summary
+# 5. A no-new-turn report means the consultation produced NO answer -- say so instead of
+# letting the caller read a previous turn as the verdict.
+if ((Test-Path $OutputFile) -and (Select-String -Path $OutputFile -Pattern 'TERMINAL_ORCHESTRATOR_NO_NEW_TURN' -Quiet)) {
+    Write-Warning "Worker '$Worker' produced no assistant turn after the dispatch timestamp ($dispatchSinceIso). The consultation has NO verdict -- check the pane (the prompt may be pasted but unsubmitted) or re-run once the turn is in flight."
+}
+
+# 6. Output completion summary
 if (Test-Path $OutputFile) {
     Write-Host "`n=== Consultation Complete ===" -ForegroundColor Green
     Write-Host "Report saved to: $OutputFile`n"

@@ -40,6 +40,7 @@ Supported agents include: **Codex**, **Kilo**, **OpenCode**, **Freebuff**, **Cli
 > - **PRAGMATIC DISPATCH CONTRACT FOR AI ASSISTANTS**:
 >   1. **Default Posture — Chill & Prioritize the Script**: Upon dispatching a task or sending an agent prompt, launch `wait-agent.ps1` (or use `-Wait`). If running in the background, yield your turn and let the OS socket do the waiting. Do not routinely poll or step-monitor panes.
 >   2. **Bounded Diagnostic Peeking (Rare Exceptions Only)**: Peeking is not dogmatically banned, but must be strictly limited. If `wait-agent.ps1` times out, throws an error, or Herdr reports an agent is `[BLOCKED]`, take a single, targeted look (e.g. `herdr pane read <pane> --lines 30`) to diagnose or unblock, then return to waiting. Never loop or spam inspection tools across normal working turns.
+>   3. **Trust Delivery Confirmation, Not Speed**: `dispatch.ps1` verifies that the worker actually entered `working` before reporting success, and exits non-zero otherwise. A worker that goes idle immediately therefore means "the prompt never landed" (check the pane) — not "the task finished instantly". Reports are freshness-bounded (`get-report.ps1 -SinceIso`, set automatically by `consult.ps1`), so a turn older than the dispatch is never presented as the answer; `TERMINAL_ORCHESTRATOR_NO_NEW_TURN` means "no verdict yet", never "here is the previous one".
 
 ---
 
@@ -133,11 +134,16 @@ All ephemeral orchestration files are staged in `.orchestrator/` (automatically 
 Located in: `.agents/skills/terminal-orchestrator/scripts/`
 
 - **`dispatch.ps1`**:
-  Verifies targets (Herdr agent name or pane ID, e.g. `kilo-scout`, `cline`, `w3:p5`), stages the spec, formats a clean task prompt, and delivers via Herdr (`herdr agent prompt` or `herdr pane send-text`).
+  Verifies targets (Herdr agent name or pane ID, e.g. `kilo-scout`, `cline`, `w3:p5`), stages the spec, formats a clean task prompt, and delivers via a three-step transport ladder, then **confirms delivery**.
+  - **Transport ladder**: (1) any prompt up to the **20,000-char inline budget** goes through `herdr agent prompt <pane-id> <text> --wait --until working --until blocked`, which owns paste *and* submit and surfaces Herdr's own `agent_prompt_stalled`; (2) if that transport rejects or stalls, `herdr pane send-text` + Enter is used as a fallback; (3) anything larger is **refused** with an actionable warning (see Platform Limits below). Pane ids are preferred over agent names, which some Herdr builds reject (`agent target codex not found`).
+  - **Hand-built command line**: the prompt is passed to `herdr` through a `ProcessStartInfo` argument string that quotes the text per `CommandLineToArgvW` rules (`ConvertTo-WindowsCommandLineArg`), not through PowerShell's native argument passing, which re-splits large multi-line prompts into stray options.
+  - **Delivery confirmation**: after sending, dispatch polls for a `working`/`blocked` transition. The paste fallback keeps re-pressing Enter every 2.5s for up to ~45s, because a multi-KB paste can take tens of seconds to absorb before an Enter counts at all. An unconfirmed delivery is a hard failure (`exit 1`) rather than a success — otherwise the follow-up wait returns instantly and its report shows the worker's previous turn as this task's answer.
+  - **Never clears a composer.** Dispatch does not send `ctrl+c` or `Escape` to a worker pane under any circumstance; on an unconfirmed delivery it warns and leaves clearing to the operator.
   - **Dynamic On-Demand Auto-Spawning**: If a requested worker (e.g. `kilo-scout`, `codex`, `opencode`) is not currently running in Herdr, `dispatch.ps1` automatically creates a new pane to the right (`herdr pane split --current --direction right --no-focus`), boots the agent (`herdr agent start <name> --kind <kind> --pane <id>`), awaits interactive readiness, and proceeds with dispatch.
   - `-Worker <name|pane_id> -Spec <path>`: Single worker dispatch.
   - `-Workers "w3:p5,codex" -Spec <path>`: Broadcast spec to multiple workers.
   - `-Target @{ "w3:p5" = "spec1.md"; cline = "spec2.md" }`: Parallel dispatch with distinct specs.
+  - `-InstructionPrompt "<text>"`: Inline prompt body, used instead of the default "read <spec> and implement" prompt.
   - `-Wait`: Synchronously blocks until the worker completes its turn in Herdr.
   - `-TimeoutSeconds <sec>`: Maximum wait duration (default 300s).
 
@@ -147,6 +153,7 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
   - `-Mode All` (default): Wakes up when **all** specified workers return to `idle` or `done`.
   - `-Mode Any`: Wakes up when **any** specified worker completes (first-responder).
   - Actively inspects `herdr agent list` during polling; alerts immediately if any worker transitions to `blocked` (waiting on human input/approval).
+  - `-RequireActivity` (passed automatically by `dispatch.ps1 -Wait`): refuses to treat a never-observed-`working` agent's first stable `idle` as completion. A prompt that was pasted but never submitted leaves the agent idle forever, and accepting that as "finished" is how a stale turn reaches a report.
 
 - **`get-report.ps1`**:
   **Primarily uses AgentsView** to extract the worker's structured assistant conclusion with explicit source attribution (`Source: AgentsView` vs `Source: Herdr Terminal Buffer`).
@@ -157,7 +164,9 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
     3. **Windowed AgentsView Query**: Scans recent sessions within the last 4 hours matching worker name.
     4. **Herdr Buffer Fallback**: Takes an 80-line terminal viewport snapshot only if AgentsView hasn't indexed the session.
   - `-Workers "codex,kilo-scout,cline"`: Resolves and formats reports side-by-side.
-  - `-Limit <int>`: Max assistant turns to retrieve (default: 3).
+  - `-SinceIso <iso-utc>`: **Freshness bound** — only assistant turns whose timestamp is at or after this instant are reported, and the report is then exactly the newest such turn. Set it to a timestamp captured immediately before dispatch. Under a freshness bound the alternate-session search and the terminal-buffer fallback are both skipped (a viewport cannot be time-filtered), so a missing turn cannot be masked by older content.
+  - `TERMINAL_ORCHESTRATOR_NO_NEW_TURN` in the output means no qualifying turn was indexed yet; the worker's previous turn is deliberately withheld. It retries the AgentsView sync ~4x (~4s) first, because a turn that just went idle may not be flushed to JSONL yet.
+  - `-Limit <int>`: Max assistant turns to retrieve (default: 3; ignored when `-SinceIso` narrows the report to one turn).
   - `-NoSync`: Skips the initial incremental `agentsview sync` step.
   - `-OutputFile <path>`: Optionally saves combined markdown report.
 
@@ -169,13 +178,36 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
   - `consult.ps1 <worker> -Prompt "<question>"`: Quick consultation with an inline question, auto-generating a spec.
   - **Natural Language Triggers**:
     - **Review Changes**: When asked to *"check our current changes with <worker>"* or *"consult <worker>"*: simply run `consult.ps1 <worker> -Changes`. It automatically handles all context packaging, prompt sanitization, tool restriction, reactive socket wait, and report extraction.
-    - **Plan Review / Second Opinion**: When asked to *"consult <worker> about our plan"* or *"get a second opinion on this implementation"*: save the discussed plan into `.orchestrator/specs/<topic>-plan.md` and run `consult.ps1 <worker> .orchestrator/specs/<topic>-plan.md`. The target agent receives the full plan, reviews the architecture, and returns feedback in pure prose without executing any tools.
+    - **Plan Review / Second Opinion**: When asked to *"consult <worker> about our plan"* or *"get a second opinion on this implementation"*: save the prompt into `.orchestrator/specs/<topic>[-roundN].md` and run `consult-inline.ps1 <worker> .orchestrator/specs/<topic>.md -Topic "<title>"`. **Do not use `consult.ps1 <worker> <specPath>` for a no-tools review**: dispatch delivers only the *prompt text*, never the spec's contents, so a tool-less reviewer cannot read the staged file and will refuse (observed: "I couldn't read the plan under the constraints given"). `consult-inline.ps1` reads the prompt in-process and inlines it, so the reviewer needs no tools at all. The target agent receives the full prompt, reviews the architecture, and returns feedback in pure prose.
   - **Automatic Diff Size-Guard**: Diffs >150KB or >1500 lines automatically filter out lockfiles (`package-lock.json`, `pnpm-lock.yaml`), prepend `git diff --stat` (capped at 100 files), and truncate the diff body to the first 1,000 lines with an informative measurement notice. Use `-FullDiff` to bypass when the full raw diff is explicitly required.
+  - **Freshness-bound verdicts**: consult records an ISO timestamp immediately before dispatch and passes it to `get-report.ps1 -SinceIso`, so the extracted verdict can only be a turn that completed after the dispatch. If the worker produces no such turn, consult warns that the consultation has **no verdict** instead of letting a previous turn stand in for it.
   - Fully agent-agnostic: `<worker>` can be `codex`, `kilo`, `cline`, `freebuff`, `opencode`, or any active pane ID (e.g. `w5:p2`).
+
+- **`consult-inline.ps1`**:
+  One-shot consultation whose prompt is **read from a file and inlined**, which is the supported way to run a no-tools review of a long prompt.
+  - `consult-inline.ps1 <worker> <promptFile> [-Topic "<title>"] [-TimeoutSeconds <sec>] [-Limit <int>]`: reads the prompt with `Get-Content -Raw`, normalizes line endings, checks it against the inline delivery budget, then delegates to `consult.ps1 -InstructionPrompt`.
+  - **Why the file indirection exists**: the text must never cross a shell argument boundary. Handing a long multi-line prompt to PowerShell as an argument re-splits it (observed: a 19KB prompt reaching Herdr as `unknown option: by`), so the read has to happen inside PowerShell. A small bespoke runner script per consultation is no longer needed -- that was the workaround this script replaces.
+  - **Budget guard**: prompts above **20,000 chars** are refused up front with guidance (condense into rounds, or consult a self-contained spec with `-AllowTools`), and prompts within 10% of the budget warn. The dispatcher enforces the same limit independently.
+  - `-AllowTools`: lets the worker read the staged file itself, for cases where the content genuinely cannot be inlined.
 
 - **`clean.ps1`**:
   Wipes temporary specs and reports in `.orchestrator/`.
   - `-All`: Clears all temporary staging files.
+
+---
+
+## Platform Limits & Failure Modes (verified Sep 2026, Herdr on Windows)
+
+These are observed constraints of the Herdr CLI + terminal agent TUIs. They explain why the scripts are shaped the way they are; do not "simplify" the delivery ladder without re-verifying them.
+
+- **Inline text travels in argv.** `herdr agent prompt <target> <text>` and `herdr pane send-text <pane> <text>` both carry the payload as a command-line argument, so roughly 32K is a hard launch ceiling: a 35KB prompt dies with `ApplicationFailedException` / exit 2, and PowerShell's re-splitting of a large argument can even make Herdr misread it as options (`unknown option: by`). Hence the 20,000-char inline budget and the refusal above it.
+- **Paste submission is a race. Prefer Herdr's prompt API.** A multi-KB bracketed paste can take tens of seconds to be absorbed by an agent TUI, and any Enter sent before that is silently swallowed: a 12KB paste sat as `[Pasted Content 12417 chars]` with the agent `idle` through eight Enter attempts spaced 700ms apart, and submitted only after a much later Enter. `herdr agent prompt` pastes *and* submits in one call, which is why it is the primary transport and the paste+Enter path is only a fallback.
+- **A single paste per prompt.** A ~19KB paste is delivery-proven; splitting the same text across several `send-text` calls does **not** concatenate reliably in an agent TUI (the first paste registers, later ones are dropped or partially absorbed).
+- **A pending paste blocks the composer.** While an unsubmitted paste sits in the input line, further input may be ignored — so a failed delivery must be cleared before the next dispatch.
+- **NEVER clear a composer with `ctrl+c` or `Escape`.** In Codex CLI a single `ctrl+c` may clear the input, but a second press **exits the agent** (this killed a live Codex session during development), and a bare `Escape` means "edit previous message", silently re-opening the previous turn. Clearing a stuck composer is the operator's job.
+- **Herdr writes failures to stderr while the exit code stays 0.** Capture stderr to a file and scan it for `"error"` / `agent_prompt_stalled` / `agent_blocked`; `2>&1` in PowerShell turns those lines into `ErrorRecord`s that abort the calling statement.
+- **Target form matters.** Agent-scoped commands may reject agent names (`agent target codex not found`) while accepting pane ids (`herdr agent get w6:pB` works). Always keep a pane id in hand.
+- **Keep `.ps1` sources ASCII-only.** Without a UTF-8 BOM PowerShell 5.1 reads scripts as ANSI, so a single non-ASCII byte (an em dash's `0x94`) decodes into a stray quote and produces cascading, misleading parse errors.
 
 ---
 

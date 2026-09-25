@@ -3,7 +3,11 @@ param(
     [string]$SessionId,
     [string]$OutputFile,
     [int]$Limit = 3,
-    [switch]$NoSync
+    [switch]$NoSync,
+    # ISO-8601 UTC instant captured immediately before dispatch. Assistant turns older than
+    # this are never reported: without it, a worker whose prompt was never submitted (or whose
+    # turn is still in flight) yields its PREVIOUS turn as if it were this task's answer.
+    [string]$SinceIso
 )
 
 # 0. Fast incremental sync to ensure AgentsView database has ingested latest WAL/JSONL frames
@@ -130,25 +134,64 @@ function Get-SingleReport {
 
     $reportText = $null
     $effectiveSessionId = $TargetSessionId
+    $noNewTurn = $false
 
     if ($TargetSessionId) {
-        try {
-            $rawMsgs = agentsview session messages $TargetSessionId --role assistant --direction desc --limit $Limit 2>$null
-            $meaningful = @()
-            foreach ($line in $rawMsgs) {
-                if ($line -notmatch '^---\s*#\d+' -and -not [string]::IsNullOrWhiteSpace($line)) {
-                    $meaningful += $line
+        # A turn that has just gone idle may not be flushed to JSONL and indexed yet, so retry
+        # briefly when a freshness bound is in force.
+        $attempts = if ($SinceIso) { 4 } else { 1 }
+        for ($attempt = 1; $attempt -le $attempts -and -not $reportText; $attempt++) {
+            if ($attempt -gt 1) {
+                Start-Sleep -Milliseconds 1200
+                try { agentsview sync 2>$null | Out-Null } catch {}
+            }
+            try {
+                $fetchLimit = [Math]::Max($Limit, 10)
+                $rawJson = agentsview session messages $TargetSessionId --role assistant --direction desc --limit $fetchLimit --json 2>$null
+                if ($rawJson) {
+                    $parsed = $rawJson | ConvertFrom-Json
+                    $msgs = @()
+                    if ($parsed.messages) { $msgs = @($parsed.messages) }
+                    elseif ($parsed -is [System.Array]) { $msgs = @($parsed) }
+
+                    $msgs = @($msgs | Where-Object {
+                        $_.role -eq "assistant" -and -not [string]::IsNullOrWhiteSpace($_.content)
+                    })
+
+                    if ($SinceIso -and $msgs.Count -gt 0) {
+                        $since = [DateTime]::Parse($SinceIso, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal)
+                        $msgs = @($msgs | Where-Object {
+                            $ts = [DateTime]::MinValue
+                            if ($_.timestamp -and [DateTime]::TryParse($_.timestamp, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$ts)) {
+                                $ts -ge $since
+                            } else { $false }
+                        })
+                    }
+
+                    if ($msgs.Count -gt 0) {
+                        $ordered = @($msgs | Sort-Object {
+                            $ts = [DateTime]::MinValue
+                            [void][DateTime]::TryParse($_.timestamp, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$ts)
+                            $ts
+                        })
+                        if ($SinceIso) {
+                            # A freshness-bound report is exactly one turn: the newest after dispatch.
+                            $reportText = ($ordered | Select-Object -Last 1).content
+                        } else {
+                            $reportText = ((@($ordered | Select-Object -Last ([Math]::Min($Limit, $ordered.Count))) | ForEach-Object { $_.content }) -join ([Environment]::NewLine + [Environment]::NewLine))
+                        }
+                        $usedAgentsView = $true
+                    } elseif ($SinceIso) {
+                        $noNewTurn = $true
+                    }
                 }
-            }
-            if ($meaningful.Count -gt 0) {
-                $reportText = ($meaningful -join [Environment]::NewLine)
-                $usedAgentsView = $true
-            }
-        } catch {}
+            } catch {}
+        }
     }
 
-    # If the initial session ID failed or was stale, query AgentsView for any valid session for this agent
-    if (-not $reportText) {
+    # If the initial session ID failed or was stale, query AgentsView for any valid session for this agent.
+    # With a freshness bound this is skipped: another session's older turn is not this task's answer.
+    if (-not $reportText -and -not $SinceIso) {
         try {
             $raw = agentsview session list --agent $agentName --include-one-shot --limit 5 --json 2>$null
             if ($raw) {
@@ -181,8 +224,9 @@ function Get-SingleReport {
         } catch {}
     }
 
-    # Strategy 4: Fallback to direct Herdr terminal buffer capture
-    if (-not $reportText) {
+    # Strategy 4: Fallback to direct Herdr terminal buffer capture. Never used under a
+    # freshness bound (a viewport cannot be time-filtered), and never used to mask a missing turn.
+    if (-not $reportText -and -not $SinceIso) {
         $herdrLines = herdr agent read $TargetWorker --source recent-unwrapped --lines 80 2>$null
 
         # If agent read failed, resolve pane ID from Herdr inventory
@@ -215,20 +259,30 @@ function Get-SingleReport {
     }
 
     if (-not $reportText) {
-        Write-Warning "Could not retrieve report or terminal buffer for worker '$TargetWorker'."
-        return $null
+        if ($SinceIso) {
+            $reportText = "(no assistant turn indexed after $SinceIso)" + [Environment]::NewLine +
+                "The worker's previous turn is deliberately not reported. Either the prompt was never submitted" + [Environment]::NewLine +
+                "(check the pane's composer) or the turn is still in flight. Re-read with: " + [Environment]::NewLine +
+                "  agentsview session messages $effectiveSessionId --role assistant --direction desc --limit 1"
+        } else {
+            Write-Warning "Could not retrieve report or terminal buffer for worker '$TargetWorker'."
+            return $null
+        }
     }
 
     if (-not $effectiveSessionId) { $effectiveSessionId = $TargetSessionId }
     if (-not $effectiveSessionId) { $effectiveSessionId = "herdr-pane" }
 
-    $source = if ($usedAgentsView) { "AgentsView" } else { "Herdr Terminal Buffer" }
+    $source = if ($noNewTurn) { "AgentsView (no turn after dispatch)" }
+              elseif ($usedAgentsView) { "AgentsView" }
+              else { "Herdr Terminal Buffer" }
 
     return [PSCustomObject]@{
         Worker = $TargetWorker
         SessionId = $effectiveSessionId
         Source = $source
         Report = $reportText
+        NoNewTurn = $noNewTurn
     }
 }
 
@@ -248,6 +302,10 @@ $outputLines += "Generated at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') via Her
 $outputLines += ""
 
 foreach ($r in $reports) {
+    if ($r.NoNewTurn) {
+        Write-Warning "'$($r.Worker)': no assistant turn was indexed after $SinceIso. The previous turn is deliberately withheld -- the prompt may be unsubmitted (check the pane) or the turn is still in flight."
+        $outputLines += "TERMINAL_ORCHESTRATOR_NO_NEW_TURN: $($r.Worker)"
+    }
     $outputLines += "## Worker: $($r.Worker) (Session: $($r.SessionId) | Source: $($r.Source))"
     $outputLines += '```text'
     $outputLines += $r.Report

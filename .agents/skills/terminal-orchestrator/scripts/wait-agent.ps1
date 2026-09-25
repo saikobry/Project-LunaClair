@@ -4,7 +4,11 @@ param(
     [ValidateSet("All", "Any")]
     [string]$Mode = "All",
     [int]$TimeoutSeconds = 600,
-    [int]$DebounceMilliseconds = 3600
+    [int]$DebounceMilliseconds = 3600,
+    # Set by dispatch.ps1: refuse to treat an never-worked agent's first stable 'idle' as
+    # task completion. A pasted-but-unsubmitted prompt leaves the agent idle forever, and
+    # accepting that as 'finished' is how a stale turn ends up in a report.
+    [switch]$RequireActivity
 )
 
 function Resolve-HerdrTarget([string]$target) {
@@ -93,18 +97,31 @@ function Ensure-AgentStartedWorking([string]$targetAgent) {
         if ($chkRaw) {
             $chkJson = $chkRaw | ConvertFrom-Json
             $curStatus = $chkJson.result.agent.agent_status
-            if ($curStatus -ne "working" -and $curStatus -ne "blocked") {
-                # Wait up to 6s for the newly dispatched agent to transition to working or blocked
-                $null = herdr agent wait $targetAgent --until working --until blocked --timeout 6000 2>$null
+            if ($curStatus -eq "working" -or $curStatus -eq "blocked") { return $true }
+
+            # Wait up to 6s for the newly dispatched agent to transition to working or blocked
+            $null = herdr agent wait $targetAgent --until working --until blocked --timeout 6000 2>$null
+
+            $afterRaw = herdr agent get $targetAgent 2>$null
+            if ($afterRaw) {
+                $afterStatus = ($afterRaw | ConvertFrom-Json).result.agent.agent_status
+                return ($afterStatus -eq "working" -or $afterStatus -eq "blocked")
             }
         }
     } catch {}
+    return $false
 }
 
 # Fast path: Single worker - 100% reactive socket wait with zero polling delay
 if ($workerList.Count -eq 1) {
     $target = $workerList[0]
-    Ensure-AgentStartedWorking $target
+    $activitySeen = Ensure-AgentStartedWorking $target
+
+    if (-not $activitySeen -and $RequireActivity) {
+        Write-Warning "'$target' never transitioned to 'working' after dispatch -- the prompt may be pasted but unsubmitted. Nudging Enter and allowing a second window."
+        herdr pane send-keys $target enter 2>$null
+        $activitySeen = Ensure-AgentStartedWorking $target
+    }
 
     while ((Get-RemainingTimeoutMs) -gt 100) {
         $curTimeout = Get-RemainingTimeoutMs
@@ -116,7 +133,13 @@ if ($workerList.Count -eq 1) {
                 $status = $agent.agent_status
                 $pane = $agent.pane_id
 
+                if ($status -eq "working") {
+                    $activitySeen = $true
+                    continue
+                }
+
                 if ($status -eq "blocked") {
+                    $activitySeen = $true
                     Write-Warning "[BLOCKED] Worker '$target' is BLOCKED waiting on human input or approval at pane $pane!"
                     Start-Sleep -Milliseconds 500
                     continue
@@ -124,6 +147,9 @@ if ($workerList.Count -eq 1) {
 
                 if ($status -eq "done" -or $status -eq "idle") {
                     if (Test-AgentStableIdle $target) {
+                        if ($RequireActivity -and -not $activitySeen) {
+                            Write-Warning "'$target' reported completion without ever being observed 'working' -- this may be a stale idle state (prompt pasted but unsubmitted). Verify the pane before trusting the report."
+                        }
                         Write-Host "  -> Worker '$target' finished! (Status: $status, Pane: $pane)" -ForegroundColor Green
                         Write-Output "TERMINAL_ORCHESTRATOR_TASK_COMPLETED: $target"
                         exit 0
@@ -150,7 +176,12 @@ if ($Mode -eq "All") {
     # Sequentially wait on each worker via reactive socket wait
     # Since workers execute concurrently in Herdr, waiting on W1 allows W2..WN to progress in parallel
     foreach ($target in $workerList) {
-        Ensure-AgentStartedWorking $target
+        $activitySeen = Ensure-AgentStartedWorking $target
+        if (-not $activitySeen -and $RequireActivity) {
+            Write-Warning "'$target' never transitioned to 'working' after dispatch -- the prompt may be pasted but unsubmitted. Nudging Enter and allowing a second window."
+            herdr pane send-keys $target enter 2>$null
+            $activitySeen = Ensure-AgentStartedWorking $target
+        }
         $curTimeout = Get-RemainingTimeoutMs
         if ($curTimeout -le 100) { break }
 
@@ -163,7 +194,14 @@ if ($Mode -eq "All") {
                     $status = $agent.agent_status
                     $pane = $agent.pane_id
 
+                    if ($status -eq "working") {
+                        $activitySeen = $true
+                        $curTimeout = Get-RemainingTimeoutMs
+                        continue
+                    }
+
                     if ($status -eq "blocked") {
+                        $activitySeen = $true
                         Write-Warning "[BLOCKED] Worker '$target' is BLOCKED waiting on human input or approval at pane $pane!"
                         Start-Sleep -Milliseconds 500
                         $curTimeout = Get-RemainingTimeoutMs
@@ -172,6 +210,9 @@ if ($Mode -eq "All") {
 
                     if ($status -eq "done" -or $status -eq "idle") {
                         if (Test-AgentStableIdle $target) {
+                            if ($RequireActivity -and -not $activitySeen) {
+                                Write-Warning "'$target' reported completion without ever being observed 'working' -- this may be a stale idle state (prompt pasted but unsubmitted). Verify the pane before trusting the report."
+                            }
                             Write-Host "  -> Worker '$target' finished! (Status: $status, Pane: $pane)" -ForegroundColor Green
                             $completed[$target] = $true
                             $pending.Remove($target)
