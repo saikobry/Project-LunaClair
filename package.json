@@ -21,7 +21,8 @@
     "db:apply:local": "wrangler d1 migrations apply lunaclair --local",
     "db:apply:remote": "wrangler d1 migrations apply lunaclair --remote",
     "seed:shares:local": "node scripts/seed-shares.mjs --dry-run",
-    "seed:shares:remote": "node scripts/seed-shares.mjs --remote --dry-run"
+    "seed:shares:remote": "node scripts/seed-shares.mjs --remote --dry-run",
+    "generate:e2e-fixtures": "node scripts/generate-e2e-fixtures.mjs"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.1.8",

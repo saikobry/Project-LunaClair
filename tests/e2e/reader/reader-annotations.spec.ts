@@ -1,10 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, resetDatabase } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 test.describe('Reader Document Annotations & Freehand Drawings E2E', () => {
   test.beforeEach(async ({ page }) => {
     await resetDatabase(page);
-    await setupImportedMaterial(page, 'cell-structure');
+    await setupApiMocks(page);
+    await routeShare(page, cellularRespiration);
+    // Seed the library the way a user does: clone the canonical share, then open it.
+    await cloneShareToLibrary(page, cellularRespiration, 'read');
   });
 
   test('renders markdown document, supports freehand drawing with undo, and persists drawn annotations across reload', async ({
@@ -17,7 +22,7 @@ test.describe('Reader Document Annotations & Freehand Drawings E2E', () => {
 
     // 2. High-fidelity Markdown viewer renders document content
     await expect(
-      page.getByRole('heading', { name: 'Cell Structure & Function' }).first(),
+      page.getByRole('heading', { name: 'Cellular Respiration' }).first(),
     ).toBeVisible({ timeout: 10000 });
 
     // 3. Open annotation floating toolbar
@@ -75,7 +80,7 @@ test.describe('Reader Document Annotations & Freehand Drawings E2E', () => {
     await readTabAfterReload.click();
 
     await expect(
-      page.getByRole('heading', { name: 'Cell Structure & Function' }).first(),
+      page.getByRole('heading', { name: 'Cellular Respiration' }).first(),
     ).toBeVisible({ timeout: 10000 });
 
     // Open annotations toolbar and enter draw mode to inspect state

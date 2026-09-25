@@ -142,9 +142,38 @@ describe('useQuizSessionFlow', () => {
         </QueryClientProvider>
     );
 
+    it('waits for explicit activation before creating a persisted session', async () => {
+        const { result, rerender } = renderHook(
+            ({ isSessionActive }: { isSessionActive: boolean }) =>
+                useQuizSessionFlow(
+                    { type: 'quiz', quizId: '', materialId: 'mat-1', source: 'library', mode: 'practice' },
+                    isSessionActive,
+                ),
+            {
+                initialProps: { isSessionActive: false },
+                wrapper: createWrapper(),
+            },
+        );
+
+        await waitFor(() => {
+            expect(result.current.flowState).toBe('ready');
+        });
+        expect(mockStartSession.execute).not.toHaveBeenCalled();
+
+        rerender({ isSessionActive: true });
+
+        await waitFor(() => {
+            expect(mockStartSession.execute).toHaveBeenCalledWith({
+                source: 'stored',
+                quizId: 'quiz-1',
+                mode: 'practice',
+            });
+        });
+    });
+
     it('orchestrates flowState lifecycle from loading to ready, and creates a session', async () => {
         const { result } = renderHook(
-            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }),
+            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }, true),
             { wrapper: createWrapper() },
         );
 
@@ -172,7 +201,7 @@ describe('useQuizSessionFlow', () => {
 
     it('preserves answer state across forward and backward navigation', async () => {
         const { result } = renderHook(
-            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }),
+            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }, true),
             { wrapper: createWrapper() },
         );
 
@@ -215,7 +244,7 @@ describe('useQuizSessionFlow', () => {
 
     it('submits completed answers and transitions flowState to completed with results', async () => {
         const { result } = renderHook(
-            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'exam' }),
+            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'exam' }, true),
             { wrapper: createWrapper() },
         );
 
@@ -248,7 +277,7 @@ describe('useQuizSessionFlow', () => {
 
     it('retakes quiz and resets state back to ready with a fresh session', async () => {
         const { result } = renderHook(
-            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }),
+            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }, true),
             { wrapper: createWrapper() },
         );
 
@@ -290,7 +319,7 @@ describe('useQuizSessionFlow', () => {
         mockStartSession.execute.mockRejectedValue(new Error('Failed to initialize session'));
 
         const { result } = renderHook(
-            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }),
+            () => useQuizSessionFlow({ type: 'quiz', quizId: 'quiz-1', source: 'library', mode: 'practice' }, true),
             { wrapper: createWrapper() },
         );
 

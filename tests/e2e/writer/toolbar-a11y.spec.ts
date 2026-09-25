@@ -1,10 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, switchToVisualMode, locators } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks, switchToVisualMode, locators } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 test.describe('Writer E2E — P2 Toolbar Accessibility & Selection Preservation', () => {
-  test('validates accessible toolbar role, all inline toggle button labels, pressed states, and action buttons', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+  test.beforeEach(async ({ page }) => {
+    await resetDatabase(page);
+    await setupApiMocks(page);
+    await routeShare(page, cellularRespiration);
+    await cloneShareToLibrary(page, cellularRespiration, 'write');
+  });
 
+  test('validates accessible toolbar role, all inline toggle button labels, pressed states, and action buttons', async ({ page }) => {
     // Ensure we are in Visual Editor mode
     await switchToVisualMode(page);
 
@@ -47,7 +54,7 @@ test.describe('Writer E2E — P2 Toolbar Accessibility & Selection Preservation'
   });
 
   test('applies bold formatting to selected text and preserves unselected text', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+
 
     // Switch to Visual Editor mode
     const editor = await switchToVisualMode(page);

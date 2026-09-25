@@ -1,26 +1,37 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellStructure } from '../helpers/fixtures/cellStructure';
+
+interface ExportedPackage {
+  format: string;
+  schemaVersion: number;
+  metadata: { title: string };
+  materials: Array<{ id: string; title: string; documentContent: string }>;
+  questions: Array<{ id: string; materialId: string; prompt: string }>;
+  quizzes: Array<{
+    id: string;
+    materialId: string;
+    title: string;
+    items: Array<{ questionId: string; order: number }>;
+  }>;
+}
+
+let workspaceUrl = '';
 
 test.describe('Study Package (.lcpack) Export & Import E2E', () => {
   test.beforeEach(async ({ page }) => {
     await resetDatabase(page);
     await setupApiMocks(page);
-
-    // Import a starting material into the library for testing
-    await page.goto('/explore');
-    await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
-    const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
-    if (await importBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await importBtn.click();
-      await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-    }
+    await routeShare(page, cellStructure);
+    workspaceUrl = await cloneShareToLibrary(page, cellStructure, 'read');
   });
 
   test('exports material as .lcpack, verifies package integrity, and imports it via /import with preview dialog', async ({ page }) => {
-    // 1. Navigate to material workspace
-    await page.goto('/materials/cell-structure');
-    await expect(page.getByRole('heading', { name: 'Cell Structure & Function' }).first()).toBeVisible({ timeout: 10000 });
+    // 1. Navigate to the captured cloned workspace
+    await page.goto(workspaceUrl);
+    await expect(page.getByRole('heading', { name: cellStructure.title }).first()).toBeVisible({ timeout: 10000 });
 
     // 2. Trigger "Export as .lcpack" and capture the browser download
     const exportBtn = page.getByRole('button', { name: /Export as \.lcpack/i }).first();
@@ -40,20 +51,62 @@ test.describe('Study Package (.lcpack) Export & Import E2E', () => {
     const downloadPath = await download.path();
     expect(downloadPath).toBeTruthy();
     const fileContent = fs.readFileSync(downloadPath!, 'utf-8');
-    const parsedPackage = JSON.parse(fileContent);
+    const parsedPackage = JSON.parse(fileContent) as ExportedPackage;
 
-    // Verify package domain invariants
+    // Verify package domain invariants and fixture fidelity.
     expect(parsedPackage.format).toBe('lcpack');
     expect(parsedPackage.schemaVersion).toBe(1);
-    expect(parsedPackage.metadata.title).toBe('Cell Structure & Function');
+    expect(parsedPackage.metadata.title).toBe(cellStructure.title);
     expect(parsedPackage.materials).toHaveLength(1);
-    expect(parsedPackage.materials[0].id).toMatch(/^pkg_mat_/);
-    expect(parsedPackage.materials[0].documentContent).toBeTruthy();
+    expect(parsedPackage.materials[0].documentContent).toBe(cellStructure.package.materials[0].documentContent);
 
-    // Verify zero local Dexie UUIDs leaked into exported payload
-    const rawJsonString = JSON.stringify(parsedPackage);
-    expect(rawJsonString).not.toContain('cell-structure');
-    expect(rawJsonString).not.toContain('doc_');
+    const localMaterialId = new URL(workspaceUrl).pathname.split('/').filter(Boolean).at(-1);
+    expect(localMaterialId).toBeTruthy();
+    const exportedMaterial = parsedPackage.materials[0];
+    const exportedQuestionById = new Map(parsedPackage.questions.map((question) => [question.id, question]));
+    const publishedIds = new Set<string>([
+      ...cellStructure.package.materials.map((material) => material.id),
+      ...cellStructure.package.questions.map((question) => question.id),
+      ...cellStructure.package.quizzes.map((quiz) => quiz.id),
+    ]);
+    const exportedIds = new Set([
+      ...parsedPackage.materials.map((material) => material.id),
+      ...parsedPackage.questions.map((question) => question.id),
+      ...parsedPackage.quizzes.map((quiz) => quiz.id),
+    ]);
+
+    // Every published entity id must be remapped; the local material id must
+    // not leak into the export either.
+    expect([...exportedIds].filter((id) => publishedIds.has(id))).toEqual([]);
+    expect(exportedMaterial.id).not.toBe(cellStructure.package.materials[0].id);
+    expect(exportedMaterial.id).not.toBe(localMaterialId);
+    expect(exportedIds.size).toBe(publishedIds.size);
+
+    // Relationships must remain the same graph, not merely internally valid.
+    expect(parsedPackage.questions).toHaveLength(cellStructure.package.questions.length);
+    expect(parsedPackage.quizzes).toHaveLength(cellStructure.package.quizzes.length);
+    for (const question of parsedPackage.questions) {
+      expect(question.materialId).toBe(exportedMaterial.id);
+    }
+    for (const quiz of parsedPackage.quizzes) {
+      expect(quiz.materialId).toBe(exportedMaterial.id);
+      for (const item of quiz.items) {
+        expect(exportedQuestionById.get(item.questionId)).toBeDefined();
+      }
+    }
+
+    const publishedPracticeQuiz = cellStructure.package.quizzes.find(
+      (quiz) => quiz.title === 'Cell Structure Quiz',
+    );
+    const exportedPracticeQuiz = parsedPackage.quizzes.find((quiz) => quiz.title === 'Cell Structure Quiz');
+    expect(publishedPracticeQuiz).toBeDefined();
+    expect(exportedPracticeQuiz).toBeDefined();
+    const expectedPracticePrompts = publishedPracticeQuiz!.items.map(
+      (item) => cellStructure.package.questions.find((question) => question.id === item.questionId)?.prompt,
+    );
+    expect(
+      exportedPracticeQuiz!.items.map((item) => exportedQuestionById.get(item.questionId)?.prompt),
+    ).toEqual(expectedPracticePrompts);
 
     // 4. Navigate to /import
     await page.goto('/import');
@@ -72,7 +125,7 @@ test.describe('Study Package (.lcpack) Export & Import E2E', () => {
     // 6. Assert StudyPackagePreviewModal appears with authoritative inspectStudyPackage metrics
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 10000 });
-    await expect(dialog.getByRole('heading', { name: 'Cell Structure & Function' })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: cellStructure.title })).toBeVisible();
     await expect(dialog.getByText('Package Contents')).toBeVisible();
     await expect(dialog.getByText('Materials')).toBeVisible();
     await expect(dialog.getByText('Questions')).toBeVisible();

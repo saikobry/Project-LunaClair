@@ -54,7 +54,10 @@ function deriveFlowState({ isCompleted, sessionError, isLoading, isError, quiz, 
  * Consumes the discriminated QuizLaunchRequest union.
  * Manages the full lifecycle: load → session create → answer → submit → persist.
  */
-export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessionFlow {
+export function useQuizSessionFlow(
+    launchRequest: QuizLaunchRequest,
+    isSessionActive: boolean,
+): QuizSessionFlow {
     const mode: QuizMode = launchRequest.mode ?? 'practice';
     const { quiz, sourceQuizzes, questions, isLoading, isError, error } = useQuizLoader(launchRequest);
 
@@ -79,9 +82,12 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
         questions,
     });
 
-    // Create session when quiz becomes ready
+    // Create a persisted session only after the user explicitly starts the
+    // quiz. The material overview also resolves a provisional first quiz while
+    // loading choices; creating a session then would snapshot the wrong quiz
+    // when the user selects another card.
     useEffect(() => {
-        if (flowState === 'ready' && quiz && !sessionCreated.current) {
+        if (isSessionActive && flowState === 'ready' && quiz && !sessionCreated.current) {
             sessionCreated.current = true;
 
             const createPromise = launchRequest.type === 'quizzes'
@@ -92,7 +98,7 @@ export function useQuizSessionFlow(launchRequest: QuizLaunchRequest): QuizSessio
                 setSessionError(err instanceof Error ? err : new Error(String(err)));
             });
         }
-    }, [flowState, quiz, mode, createSession, launchRequest]);
+    }, [isSessionActive, flowState, quiz, mode, createSession, launchRequest]);
 
     const submit = useCallback(() => {
         if (!quiz || questions.length === 0) return;

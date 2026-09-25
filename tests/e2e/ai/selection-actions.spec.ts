@@ -1,5 +1,36 @@
 import { test, expect, type Page } from '@playwright/test';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare, type ShareFixture } from '../helpers/share-seed';
+
+const selectionShare: ShareFixture = {
+  shareId: 'share_e2e_ai_sel',
+  title: 'AI Selection E2E Notes',
+  description: 'Selectable notes for selection-action tests.',
+  author: 'e2e_bot',
+  createdAt: '2026-09-01T00:00:00.000Z',
+  viewCount: 3,
+  downloadCount: 1,
+  package: {
+    format: 'lcpack',
+    schemaVersion: 1,
+    metadata: {
+      title: 'AI Selection E2E Notes',
+      description: 'Selectable notes for selection-action tests.',
+      author: 'e2e_bot',
+      createdAt: '2026-09-01T00:00:00.000Z',
+    },
+    materials: [
+      {
+        id: 'pkg_mat_ai_sel',
+        title: 'AI Selection E2E Notes',
+        documentContent:
+          '# AI Selection E2E Notes\n\nThe sinoatrial node initiates every heartbeat in the cardiac conduction system.\n',
+      },
+    ],
+    questions: [],
+    quizzes: [],
+  },
+};
 
 /**
  * Reader selection → AI chat acceptance.
@@ -20,82 +51,8 @@ test.describe('Reader Selection AI Actions E2E', () => {
     await setupApiMocks(page);
     chatRequests = [];
 
-    // Shares feed: one package carrying selectable document text.
-    await page.route(/\/api\/shares(?:\?.*)?$/, async (route) => {
-      if (route.request().method() === 'GET') {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'share_e2e_ai_sel',
-                format: 'lcpack',
-                schemaVersion: 1,
-                title: 'AI Selection E2E Notes',
-                description: 'Selectable notes for selection-action tests.',
-                author: 'e2e_bot',
-                viewCount: 3,
-                downloadCount: 1,
-                createdAt: '2026-09-01T00:00:00.000Z',
-              },
-            ],
-            nextCursor: null,
-            hasMore: false,
-          }),
-        });
-      }
-      return route.fallback();
-    });
-
-    // Single share fetch for cloning.
-    await page.route(/\/api\/shares\/share_e2e_ai_sel$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'share_e2e_ai_sel',
-          format: 'lcpack',
-          schemaVersion: 1,
-          title: 'AI Selection E2E Notes',
-          description: 'Selectable notes for selection-action tests.',
-          author: 'e2e_bot',
-          accessType: 'public',
-          package: {
-            format: 'lcpack',
-            schemaVersion: 1,
-            metadata: {
-              title: 'AI Selection E2E Notes',
-              description: 'Selectable notes for selection-action tests.',
-              author: 'e2e_bot',
-              createdAt: '2026-09-01T00:00:00.000Z',
-            },
-            materials: [
-              {
-                id: 'pkg_mat_ai_sel',
-                title: 'AI Selection E2E Notes',
-                documentContent:
-                  '# AI Selection E2E Notes\n\nThe sinoatrial node initiates every heartbeat in the cardiac conduction system.\n',
-              },
-            ],
-            questions: [],
-            quizzes: [],
-          },
-          viewCount: 4,
-          downloadCount: 1,
-          createdAt: '2026-09-01T00:00:00.000Z',
-          updatedAt: '2026-09-01T00:00:00.000Z',
-        }),
-      });
-    });
-
-    await page.route(/\/api\/shares\/share_e2e_ai_sel\/download$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, downloadCount: 2 }),
-      });
-    });
+    await routeShare(page, selectionShare);
+    await cloneShareToLibrary(page, selectionShare, 'read');
 
     // Chat endpoint: record the payload, answer with deterministic SSE.
     await page.route(/\/api\/ai\/chat/, async (route) => {
@@ -112,18 +69,6 @@ test.describe('Reader Selection AI Actions E2E', () => {
       });
     });
 
-    // Clone the share and land on its Read workspace.
-    await page.goto('/explore');
-    await expect(page.getByText('AI Selection E2E Notes')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Clone AI Selection E2E Notes/i }).click();
-    await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-    await page
-      .getByRole('button', { name: /Open AI Selection E2E Notes in your library/i })
-      .click();
-    await expect(page).toHaveURL(/\/materials\/[^/?]+\?tab=read/);
-    await expect(
-      page.getByRole('heading', { name: 'AI Selection E2E Notes' }).first(),
-    ).toBeVisible({ timeout: 10000 });
   });
 
   /**

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellStructure } from '../helpers/fixtures/cellStructure';
+
+let workspaceUrl = '';
 
 test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
   let inMemoryShares: Map<string, any>;
@@ -8,6 +12,8 @@ test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
     inMemoryShares = new Map();
     await resetDatabase(page);
     await setupApiMocks(page);
+    await routeShare(page, cellStructure);
+    workspaceUrl = await cloneShareToLibrary(page, cellStructure, 'read');
 
     // Mock Cloudflare Worker /api/shares endpoints
     await page.route(/\/api\/shares$/, async (route) => {
@@ -110,20 +116,12 @@ test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
       return route.fallback();
     });
 
-    // Import starting material
-    await page.goto('/explore');
-    await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
-    const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
-    if (await importBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await importBtn.click();
-      await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-    }
   });
 
   test('publishes passcode-protected share, unlocks via /share/:id, downloads .lcpack, and 1-click clones to local library', async ({ page }) => {
-    // 1. Navigate to material workspace
-    await page.goto('/materials/cell-structure');
-    await expect(page.getByRole('heading', { name: 'Cell Structure & Function' }).first()).toBeVisible({ timeout: 10000 });
+    // 1. Navigate to the captured cloned workspace
+    await page.goto(workspaceUrl);
+    await expect(page.getByRole('heading', { name: cellStructure.title }).first()).toBeVisible({ timeout: 10000 });
 
     // 2. Open Share modal
     const shareBtn = page.getByRole('button', { name: /Share/i }).first();
@@ -176,7 +174,7 @@ test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
     await unlockBtn.click();
 
     // 9. Assert SharedPackageScreen renders package preview with inspectStudyPackage metrics
-    await expect(page.getByRole('heading', { name: 'Cell Structure & Function' }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: cellStructure.title }).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/Package Contents/i)).toBeVisible();
     await expect(page.getByText('Materials').first()).toBeVisible();
 
@@ -198,6 +196,6 @@ test.describe('Study Package Cloud Sharing & 1-Click Clone E2E', () => {
 
     // 12. Open Cloned Material and verify in workspace
     await openClonedBtn.click();
-    await expect(page.getByRole('heading', { name: 'Cell Structure & Function' }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: cellStructure.title }).first()).toBeVisible({ timeout: 10000 });
   });
 });

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, switchToRawMode, locators } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks, switchToRawMode, locators } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellStructure } from '../helpers/fixtures/cellStructure';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 /**
  * NOTE: These tests use synthetic `pushState + popstate` to simulate material
@@ -13,10 +16,27 @@ import { setupImportedMaterial, switchToRawMode, locators } from '../helpers/e2e
  * For full production confidence, routing-level unsaved-changes protection is
  * needed (e.g., a global `beforeRouteChange` guard that checks for dirty writers).
  */
-test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Protection', () => {
-  test('protects dirty drafts on material switch and stays in editor upon cancellation', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+function localMaterialId(workspaceUrl: string): string {
+  const materialId = new URL(workspaceUrl).pathname.split('/').filter(Boolean).at(-1);
+  if (!materialId) throw new Error(`Workspace URL did not contain a material id: ${workspaceUrl}`);
+  return materialId;
+}
 
+test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Protection', () => {
+  let cellularRespirationUrl = '';
+
+  test.beforeEach(async ({ page }) => {
+    await resetDatabase(page);
+    await setupApiMocks(page);
+    await routeShare(page, cellStructure);
+    await routeShare(page, cellularRespiration);
+
+    const cellStructureUrl = await cloneShareToLibrary(page, cellStructure, 'write');
+    cellularRespirationUrl = await cloneShareToLibrary(page, cellularRespiration, 'write');
+    await page.goto(cellStructureUrl);
+  });
+
+  test('protects dirty drafts on material switch and stays in editor upon cancellation', async ({ page }) => {
     // Switch to Raw Markdown mode and make dirty changes
     const textarea = await switchToRawMode(page);
     await textarea.fill('# Crucial Unsaved Draft Work');
@@ -27,7 +47,7 @@ test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Prot
     await page.evaluate((targetId) => {
       window.history.pushState(null, '', `/materials/${targetId}?tab=write`);
       window.dispatchEvent(new PopStateEvent('popstate'));
-    }, 'cellular-respiration');
+    }, localMaterialId(cellularRespirationUrl));
 
     // Confirmation dialog MUST appear
     const modal = page.locator('dialog').filter({ hasText: 'Unsaved Changes' });
@@ -48,7 +68,7 @@ test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Prot
   });
 
   test('discards dirty draft and transitions to new material upon confirmation', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+
 
     // Switch to Raw Markdown mode and make dirty changes
     const textarea = await switchToRawMode(page);
@@ -59,7 +79,7 @@ test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Prot
     await page.evaluate((targetId) => {
       window.history.pushState(null, '', `/materials/${targetId}?tab=write`);
       window.dispatchEvent(new PopStateEvent('popstate'));
-    }, 'cellular-respiration');
+    }, localMaterialId(cellularRespirationUrl));
 
     // Confirmation dialog MUST appear
     const modal = page.locator('dialog').filter({ hasText: 'Unsaved Changes' });
@@ -78,7 +98,7 @@ test.describe('Writer E2E — P1 Unsaved Material Navigation & beforeunload Prot
   });
 
   test('guards against accidental page reloads/closes via beforeunload listener when dirty', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+
 
     // 1. In clean state, dispatch beforeunload -> must NOT be prevented
     const isCleanPrevented = await page.evaluate(() => {

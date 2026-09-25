@@ -410,8 +410,10 @@ const components: Components = {
 };
 
 const MarkdownViewer = memo(function MarkdownViewer({ text, assetUrls }: MarkdownViewerProps) {
+  const rootProps = stylex.props(styles.root);
+
   return (
-    <div className="markdown-viewer" {...stylex.props(styles.root)}>
+    <div {...rootProps} className={`markdown-viewer ${rootProps.className ?? ''}`}>
       <AssetUrlsContext.Provider value={assetUrls}>
         <ReactMarkdown
           rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeSlug, rehypeFigure]}

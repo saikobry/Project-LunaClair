@@ -1,10 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, switchToRawMode, locators } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks, switchToRawMode, locators } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 test.describe('Writer E2E — P0 Reload Persistence & Real IndexedDB', () => {
-  test('saves content to local Dexie and preserves edited markdown across browser reload (F5)', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+  test.beforeEach(async ({ page }) => {
+    await resetDatabase(page);
+    await setupApiMocks(page);
+    await routeShare(page, cellularRespiration);
+    await cloneShareToLibrary(page, cellularRespiration, 'write');
+  });
 
+  test('saves content to local Dexie and preserves edited markdown across browser reload (F5)', async ({ page }) => {
     // Switch to Raw Markdown mode for precise text insertion
     const textarea = await switchToRawMode(page);
 

@@ -1,5 +1,64 @@
 import { test, expect } from '@playwright/test';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { routeShare, type ShareFixture } from '../helpers/share-seed';
+
+const mcatShare: ShareFixture = {
+  shareId: 'share_community_mcat',
+  title: 'MCAT High-Yield Biology',
+  description: 'Essential flashcards and high-yield questions for MCAT prep.',
+  author: 'sarah_med',
+  createdAt: '2026-08-28T00:00:00.000Z',
+  viewCount: 320,
+  downloadCount: 142,
+  package: {
+    format: 'lcpack',
+    schemaVersion: 1,
+    metadata: {
+      title: 'MCAT High-Yield Biology',
+      description: 'Essential flashcards and high-yield questions for MCAT prep.',
+      author: 'sarah_med',
+      createdAt: '2026-08-28T00:00:00.000Z',
+    },
+    materials: [
+      {
+        id: 'pkg_mat_mcat1',
+        title: 'MCAT High-Yield Biology',
+        documentContent: '# MCAT Biology Notes\n\nHigh-yield organ systems summary.',
+      },
+    ],
+    questions: [],
+    quizzes: [],
+  },
+};
+
+const organicShare: ShareFixture = {
+  shareId: 'share_community_orgo',
+  title: 'Organic Chemistry Reactions Deck',
+  description: 'Reaction mechanisms, reagents, and retrosynthesis problems.',
+  author: 'alex_chem',
+  createdAt: '2026-08-27T00:00:00.000Z',
+  viewCount: 180,
+  downloadCount: 78,
+  package: {
+    format: 'lcpack',
+    schemaVersion: 1,
+    metadata: {
+      title: 'Organic Chemistry Reactions Deck',
+      description: 'Reaction mechanisms, reagents, and retrosynthesis problems.',
+      author: 'alex_chem',
+      createdAt: '2026-08-27T00:00:00.000Z',
+    },
+    materials: [
+      {
+        id: 'pkg_mat_organic1',
+        title: 'Organic Chemistry Reactions Deck',
+        documentContent: '# Organic Chemistry Notes\n\nReaction mechanism summary.',
+      },
+    ],
+    questions: [],
+    quizzes: [],
+  },
+};
 
 /**
  * Explore hub acceptance — shares-only contract.
@@ -20,102 +79,8 @@ test.describe('Explore Discovery Hub E2E', () => {
     await resetDatabase(page);
     await setupApiMocks(page);
 
-    // Mock the public shares feed
-    await page.route(/\/api\/shares(?:\?.*)?$/, async (route) => {
-      if (route.request().method() === 'GET') {
-        const url = new URL(route.request().url());
-        const q = (url.searchParams.get('q') || '').toLowerCase();
-
-        const allShares = [
-          {
-            id: 'share_community_mcat',
-            format: 'lcpack',
-            schemaVersion: 1,
-            title: 'MCAT High-Yield Biology',
-            description: 'Essential flashcards and high-yield questions for MCAT prep.',
-            author: 'sarah_med',
-            viewCount: 320,
-            downloadCount: 142,
-            createdAt: '2026-08-28T00:00:00.000Z',
-          },
-          {
-            id: 'share_community_orgo',
-            format: 'lcpack',
-            schemaVersion: 1,
-            title: 'Organic Chemistry Reactions Deck',
-            description: 'Reaction mechanisms, reagents, and retrosynthesis problems.',
-            author: 'alex_chem',
-            viewCount: 180,
-            downloadCount: 78,
-            createdAt: '2026-08-27T00:00:00.000Z',
-          },
-        ];
-
-        const filtered = allShares.filter(
-          (s) =>
-            !q ||
-            s.title.toLowerCase().includes(q) ||
-            s.description.toLowerCase().includes(q) ||
-            s.author.toLowerCase().includes(q),
-        );
-
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ items: filtered, nextCursor: null, hasMore: false }),
-        });
-      }
-      return route.fallback();
-    });
-
-    // Single share fetch + download tracking for cloning
-    await page.route(/\/api\/shares\/share_community_mcat$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'share_community_mcat',
-          format: 'lcpack',
-          schemaVersion: 1,
-          title: 'MCAT High-Yield Biology',
-          description: 'Essential flashcards and high-yield questions for MCAT prep.',
-          author: 'sarah_med',
-          accessType: 'public',
-          package: {
-            format: 'lcpack',
-            schemaVersion: 1,
-            metadata: {
-              title: 'MCAT High-Yield Biology',
-              description: 'Essential flashcards and high-yield questions for MCAT prep.',
-              author: 'sarah_med',
-              createdAt: '2026-08-28T00:00:00.000Z',
-            },
-            materials: [
-              {
-                id: 'pkg_mat_mcat1',
-                title: 'MCAT High-Yield Biology',
-                documentContent: '# MCAT Biology Notes\n\nHigh-yield organ systems summary.',
-              },
-            ],
-            questions: [],
-            quizzes: [],
-          },
-          viewCount: 321,
-          downloadCount: 142,
-          createdAt: '2026-08-28T00:00:00.000Z',
-          updatedAt: '2026-08-28T00:00:00.000Z',
-        }),
-      });
-    });
-
-    await page.route(/\/api\/shares\/share_community_mcat\/download$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, downloadCount: 143 }),
-      });
-    });
-  });
+    await routeShare(page, mcatShare);
+    await routeShare(page, organicShare);  });
 
   test('lists shares, searches through the URL, sorts, and clones into the library', async ({ page }) => {
     // 1. Open the hub
@@ -154,27 +119,39 @@ test.describe('Explore Discovery Hub E2E', () => {
     await page.getByRole('radio', { name: 'Recent' }).click();
     await expect(page).toHaveURL(/sort=recent/);
 
-    // 5. 1-click clone → toast + In My Library
-    const cloneBtn = page.getByRole('button', { name: /Clone MCAT High-Yield Biology/i });
-    await cloneBtn.click();
+    await test.step('clone the share', async () => {
+      const cloneBtn = page.getByRole('button', { name: /Clone MCAT High-Yield Biology/i });
+      await cloneBtn.click();
 
-    await expect(page.getByText(/Cloned "MCAT High-Yield Biology" into library!/i)).toBeVisible({
-      timeout: 5000,
+      await expect(page.getByText(/Cloned "MCAT High-Yield Biology" into library!/i)).toBeVisible({
+        timeout: 5000,
+      });
+      await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
     });
-    await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
 
-    // 5b. A cloned share is not a dead end: its action becomes the next step
-    // into the local library (the Clone control is gone), and it lands on the
-    // material workspace — not the share landing surface.
-    await expect(page.getByRole('button', { name: /Clone MCAT High-Yield Biology/i })).toHaveCount(0);
-    const openInLibrary = page.getByRole('button', {
-      name: /Open MCAT High-Yield Biology in your library/i,
+    await test.step('show the cloned material card in the library', async () => {
+      await page.goto('/library');
+      await expect(page.getByText('MCAT High-Yield Biology').first()).toBeVisible({ timeout: 10000 });
     });
-    await expect(openInLibrary).toBeVisible();
-    await openInLibrary.click();
 
-    await expect(page).toHaveURL(/\/materials\/[^/?]+\?tab=read/);
+    await test.step('open the cloned material from the share flow', async () => {
+      await page.goto('/explore');
+      await expect(page.getByRole('button', { name: /Clone MCAT High-Yield Biology/i })).toHaveCount(0);
+      const openInLibrary = page.getByRole('button', {
+        name: /Open MCAT High-Yield Biology in your library/i,
+      });
+      await expect(openInLibrary).toBeVisible();
+      await openInLibrary.click();
 
+      await expect(page).toHaveURL(/\/materials\/[^/?]+\?tab=read/);
+    });
+
+    await test.step('render the cloned material content in the reader', async () => {
+      await expect(page.getByRole('heading', { name: 'MCAT High-Yield Biology' }).first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(page.locator('.markdown-viewer')).toContainText('High-yield organ systems summary.');
+    });
   });
 
   test('remembers the hub as the origin of an opened share, so Back keeps the filters', async ({ page }) => {

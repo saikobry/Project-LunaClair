@@ -6,6 +6,7 @@ import { FlashcardScreen } from '../FlashcardScreen';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../app/providers/ToastContext';
 import type { Question } from '../../../domain/quiz/models/Question';
+import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 
 describe('FlashcardScreen', () => {
@@ -121,6 +122,46 @@ describe('FlashcardScreen', () => {
         fireEvent.click(startBtn);
 
         // Player view should now be rendered with the first card prompt
+        await waitFor(() => {
+            expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
+        });
+    });
+
+    it('orders selected quiz cards by the quiz item order', async () => {
+        const practiceQuiz: Quiz = {
+            id: 'quiz-1',
+            materialId: 'mat-1',
+            title: 'Practice Quiz',
+            questionIds: ['q-1', 'q-2'],
+            items: [
+                { quizId: 'quiz-1', questionId: 'q-1', questionVersion: 1, order: 1 },
+                { quizId: 'quiz-1', questionId: 'q-2', questionVersion: 1, order: 2 },
+            ],
+            status: 'published',
+            createdAt: '2026-09-02T10:00:00.000Z',
+            updatedAt: '2026-09-02T10:00:00.000Z',
+        };
+        const masterQuiz: Quiz = {
+            ...practiceQuiz,
+            id: 'quiz-2',
+            title: 'Master Quiz',
+            questionIds: ['q-2', 'q-1'],
+            items: [
+                { quizId: 'quiz-2', questionId: 'q-2', questionVersion: 1, order: 1 },
+                { quizId: 'quiz-2', questionId: 'q-1', questionVersion: 1, order: 2 },
+            ],
+        };
+        mockContext.repositories.question.getQuestions.mockResolvedValue([mockQuestions[1], mockQuestions[0]]);
+        mockContext.repositories.quiz.getQuizzes.mockResolvedValue([practiceQuiz, masterQuiz]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-1' } });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
         await waitFor(() => {
             expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
         });

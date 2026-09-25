@@ -57,6 +57,23 @@ export async function switchToVisualMode(page: Page) {
 }
 
 /**
+ * Switches from either workspace mode to the Study tier and opens Read.
+ * The workspace uses Study/Manage mode tabs, while the per-mode content tabs
+ * render Read as a button.
+ */
+export async function switchToReadMode(page: Page): Promise<void> {
+  const studyMode = page.getByRole('tab', { name: 'Study' });
+  await expect(studyMode).toBeVisible();
+  if ((await studyMode.getAttribute('aria-selected')) !== 'true') {
+    await studyMode.click();
+  }
+
+  const readTab = locators.readTab(page);
+  await expect(readTab).toBeVisible();
+  await readTab.click();
+}
+
+/**
  * Mocks the Worker API surface the app actually calls, so tests run offline without a
  * remote D1 connection. Only `GET /api/shares` — the Explore hub's feed — is stubbed
  * here, with an empty list; specs that need content route `/api/shares` themselves with
@@ -106,50 +123,4 @@ export async function resetDatabase(page: Page) {
   } catch {
     // Ignore in non-navigated contexts
   }
-}
-
-/**
- * Seeds an imported material for the specs written against the retired official-catalog flow.
- *
- * ⚠️ Stale by design: it expects catalog material titles in Explore and clicks "Add
- * {catalog title}", which the shares-only Explore hub does not render — the specs using this
- * helper need re-seeding from a cloned `.lcpack` share before their results mean anything
- * (root AGENTS.md, "E2E suite status"). Kept so those specs keep a single entry point while
- * that re-seed happens.
- */
-export async function setupImportedMaterial(page: Page, materialId = 'cell-structure') {
-  // Pre-seed onboarding completion in localStorage so tutorial overlay never blocks interactions
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('lunaclair.settings.onboarding_done', '1');
-    } catch {
-      // Ignore in non-storage contexts
-    }
-  });
-
-  await setupApiMocks(page);
-
-  // Navigate directly to the Explore hub to perform deterministic imports
-  await page.goto('/explore');
-  await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
-
-  // Import cell-structure if not already in library
-  const cellStructureBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
-  if (await cellStructureBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await cellStructureBtn.click();
-    await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-  }
-
-  // Also import cellular-respiration if present and not imported
-  const cellularRespirationBtn = page.getByRole('button', { name: /Add Cellular Respiration/i });
-  if (await cellularRespirationBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await cellularRespirationBtn.click();
-    await expect(page.getByText(/In My Library/i).nth(1)).toBeVisible({ timeout: 5000 });
-  }
-
-  // Go to the material's Write workspace
-  await page.goto(`/materials/${materialId}?tab=write`);
-
-  // Wait for loading to finish and editor / status badge to mount
-  await expect(locators.savedBadge(page)).toBeVisible({ timeout: 10000 });
 }

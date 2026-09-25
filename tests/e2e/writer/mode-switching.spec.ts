@@ -1,10 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, switchToRawMode, switchToVisualMode, locators } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks, switchToRawMode, switchToVisualMode, locators } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 test.describe('Writer E2E — P1 Visual <-> Raw Mode Switching & Content Preservation', () => {
-  test('seamlessly synchronizes content from Raw to Visual and back', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+  test.beforeEach(async ({ page }) => {
+    await resetDatabase(page);
+    await setupApiMocks(page);
+    await routeShare(page, cellularRespiration);
+    await cloneShareToLibrary(page, cellularRespiration, 'write');
+  });
 
+  test('seamlessly synchronizes content from Raw to Visual and back', async ({ page }) => {
     // 1. Toggle to Raw mode and type content
     const textarea = await switchToRawMode(page);
     const markdownList = `# List Structure Verification\n\n- Primary Item 1\n- Primary Item 2\n- Primary Item 3`;
@@ -27,7 +34,7 @@ test.describe('Writer E2E — P1 Visual <-> Raw Mode Switching & Content Preserv
   });
 
   test('preserves content through Visual → Raw → Visual mode switching', async ({ page }) => {
-    await setupImportedMaterial(page, 'cell-structure');
+
 
     // 1. Ensure we are in Visual Editor
     const editor = await switchToVisualMode(page);

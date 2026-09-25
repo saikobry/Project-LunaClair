@@ -1,5 +1,36 @@
 import { test, expect, type Page } from '@playwright/test';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare, type ShareFixture } from '../helpers/share-seed';
+
+const settingsShare: ShareFixture = {
+  shareId: 'share_e2e_settings',
+  title: 'Settings E2E Notes',
+  description: 'Selectable notes for settings tests.',
+  author: 'e2e_bot',
+  createdAt: '2026-09-01T00:00:00.000Z',
+  viewCount: 3,
+  downloadCount: 1,
+  package: {
+    format: 'lcpack',
+    schemaVersion: 1,
+    metadata: {
+      title: 'Settings E2E Notes',
+      description: 'Selectable notes for settings tests.',
+      author: 'e2e_bot',
+      createdAt: '2026-09-01T00:00:00.000Z',
+    },
+    materials: [
+      {
+        id: 'pkg_mat_settings',
+        title: 'Settings E2E Notes',
+        documentContent:
+          '# Settings E2E Notes\n\nThe sinoatrial node initiates every heartbeat in the cardiac conduction system.\n',
+      },
+    ],
+    questions: [],
+    quizzes: [],
+  },
+};
 
 /**
  * Settings acceptance — device-local AI preferences.
@@ -19,80 +50,8 @@ test.describe('Settings E2E', () => {
     await setupApiMocks(page);
     chatRequests = [];
 
-    await page.route(/\/api\/shares(?:\?.*)?$/, async (route) => {
-      if (route.request().method() === 'GET') {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'share_e2e_settings',
-                format: 'lcpack',
-                schemaVersion: 1,
-                title: 'Settings E2E Notes',
-                description: 'Selectable notes for settings tests.',
-                author: 'e2e_bot',
-                viewCount: 3,
-                downloadCount: 1,
-                createdAt: '2026-09-01T00:00:00.000Z',
-              },
-            ],
-            nextCursor: null,
-            hasMore: false,
-          }),
-        });
-      }
-      return route.fallback();
-    });
-
-    await page.route(/\/api\/shares\/share_e2e_settings$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'share_e2e_settings',
-          format: 'lcpack',
-          schemaVersion: 1,
-          title: 'Settings E2E Notes',
-          description: 'Selectable notes for settings tests.',
-          author: 'e2e_bot',
-          accessType: 'public',
-          package: {
-            format: 'lcpack',
-            schemaVersion: 1,
-            metadata: {
-              title: 'Settings E2E Notes',
-              description: 'Selectable notes for settings tests.',
-              author: 'e2e_bot',
-              createdAt: '2026-09-01T00:00:00.000Z',
-            },
-            materials: [
-              {
-                id: 'pkg_mat_settings',
-                title: 'Settings E2E Notes',
-                documentContent:
-                  '# Settings E2E Notes\n\nThe sinoatrial node initiates every heartbeat in the cardiac conduction system.\n',
-              },
-            ],
-            questions: [],
-            quizzes: [],
-          },
-          viewCount: 4,
-          downloadCount: 1,
-          createdAt: '2026-09-01T00:00:00.000Z',
-          updatedAt: '2026-09-01T00:00:00.000Z',
-        }),
-      });
-    });
-
-    await page.route(/\/api\/shares\/share_e2e_settings\/download$/, async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, downloadCount: 2 }),
-      });
-    });
+    await routeShare(page, settingsShare);
+    workspaceUrl = await cloneShareToLibrary(page, settingsShare, 'read');
 
     await page.route(/\/api\/ai\/chat/, async (route) => {
       chatRequests.push(route.request().postDataJSON() as Record<string, unknown>);
@@ -107,15 +66,6 @@ test.describe('Settings E2E', () => {
       });
     });
 
-    await page.goto('/explore');
-    await expect(page.getByText('Settings E2E Notes')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Clone Settings E2E Notes/i }).click();
-    await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-    await page
-      .getByRole('button', { name: /Open Settings E2E Notes in your library/i })
-      .click();
-    await expect(page).toHaveURL(/\/materials\/[^/?]+\?tab=read/);
-    workspaceUrl = page.url();
   });
 
   async function openSettings(page: Page) {
@@ -213,6 +163,11 @@ test.describe('Settings E2E', () => {
     await expect.poll(() => chatRequests.length, { timeout: 10000 }).toBe(1);
     await expect(page.getByText(/natural pacemaker/)).toBeVisible({ timeout: 10000 });
     await expect.poll(() => threadCount(page), { timeout: 10000 }).toBe(1);
+
+    // The AI drawer is a non-modal overlay with an intentional backdrop. Close
+    // it before navigating so the test follows the real user interaction.
+    await page.getByRole('button', { name: 'Close AI Assistant' }).click();
+    await expect(page.getByRole('button', { name: 'Close AI Assistant' })).toHaveCount(0);
 
     // Prefer a distinct conversation per selection.
     await openSettings(page);

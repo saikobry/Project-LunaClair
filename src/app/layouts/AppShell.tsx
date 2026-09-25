@@ -351,7 +351,7 @@ export default function AppShell() {
           onClose={() => setInstallInfoOpen(false)}
         />
 
-        {/* First-run onboarding — one-time welcome flow; Finish syncs default terms */}
+        {/* First-run onboarding — one-time, skippable welcome flow */}
         <OnboardingTutorial suppressed={suppressOverlays} />
       </div>
     </FocusModeProvider>

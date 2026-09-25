@@ -21,6 +21,7 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
 - **Card Projection Invariant**:
   - Flashcard decks are dynamic projections generated from Question entities (`questionToCard` domain transformation).
   - Cards represent question prompts (front) and explanations/answers (back).
+  - When a quiz filter is selected, cards follow that quiz's `items[].order`; the question repository's arbitrary read order is not the deck contract.
   - No glossary-term flashcards exist unless explicitly introduced via a future ADR.
 - **Review State & SM-2 Invariants**:
   - Review state (`repetitions`, `easeFactor`, `intervalDays`, `dueAt`, `lapses`, `reviewCount`) belongs strictly to the domain `FlashcardReview` entity.

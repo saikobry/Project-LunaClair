@@ -22,8 +22,10 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 - **Feature-Root Screen Orchestrator**: `QuizScreen.tsx` sits at the feature root as the primary route-level screen for active quiz sessions.
 - **Session State Machine Invariants**:
   - `useQuizSessionFlow` manages phase transitions: `loading` $\rightarrow$ `ready` $\rightarrow$ `completed`.
+  - The material overview may resolve a provisional first quiz for its selection cards, but persisted session creation begins only after explicit Start/selection (`isSessionActive`).
   - Answers recorded during progress are held in an in-memory `Map<string, QuestionAnswerPayload>` preserved across forward/backward question navigation.
   - Retake resets progress and initializes a fresh active session.
+- **Quiz picker test contract:** each quiz card exposes its stable `data-quiz-id`; acceptance tests scope the Start button to the card by accessible heading rather than walking arbitrary ancestors.
 - **Question Renderer Contract**:
   - 5 supported question types: `multiple_choice`, `multiple_select`, `true_false`, `identification`, `fill_in_blank`.
   - `QuestionRenderer` maps question type to its specialized view and emits typed payloads strictly via `onAnswer(payload: QuestionAnswerPayload)`.

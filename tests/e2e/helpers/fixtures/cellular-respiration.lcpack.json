@@ -1,0 +1,27 @@
+{
+  "format": "lcpack",
+  "schemaVersion": 1,
+  "metadata": {
+    "title": "Cellular Respiration",
+    "description": "Glycolysis, Krebs cycle, electron transport chain.",
+    "author": "Saiko Interactive",
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  "materials": [
+    {
+      "id": "pkg_mat_cellular-respiration",
+      "title": "Cellular Respiration",
+      "description": "Glycolysis, Krebs cycle, electron transport chain.",
+      "documentContent": "# Cellular Respiration\r\n\r\n## Overview\r\n\r\nCellular respiration is the process by which cells break down glucose to produce ATP (adenosine triphosphate). It is an exergonic, catabolic pathway that releases energy from organic molecules.\r\n\r\n### General Equation\r\n\r\n**C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O + Energy (ATP)**\r\n\r\n### Stages of Cellular Respiration\r\n\r\n1. Glycolysis\r\n2. Pyruvate Oxidation\r\n3. Krebs Cycle (Citric Acid Cycle)\r\n4. Electron Transport Chain & Oxidative Phosphorylation\r\n\r\n## Glycolysis\r\n\r\n### Location\r\n- Occurs in the cytoplasm\r\n\r\n### Key Events\r\n- Glucose (6 carbons) is split into two molecules of pyruvate (3 carbons each)\r\n- Occurs in ten enzymatic steps\r\n- Does not require oxygen (anaerobic)\r\n\r\n### Energy Investment Phase\r\n- 2 ATP molecules are consumed\r\n- Glucose is phosphorylated to fructose-1,6-bisphosphate\r\n\r\n### Energy Payoff Phase\r\n- 4 ATP molecules are produced (substrate-level phosphorylation)\r\n- 2 NAD⁺ are reduced to 2 NADH\r\n\r\n### Net Yield\r\n- **2 ATP** (net gain)\r\n- **2 NADH**\r\n- **2 Pyruvate**\r\n\r\n## Pyruvate Oxidation\r\n\r\n### Location\r\n- Mitochondrial matrix\r\n\r\n### Key Events\r\n- Pyruvate is transported into the mitochondria\r\n- Each pyruvate is oxidized to acetyl CoA\r\n\r\n### Products (per pyruvate)\r\n- **1 CO₂** (released as waste)\r\n- **1 NADH**\r\n- **1 Acetyl CoA**\r\n\r\n## Krebs Cycle (Citric Acid Cycle)\r\n\r\n### Location\r\n- Mitochondrial matrix\r\n\r\n### Key Events\r\n- Acetyl CoA (2 carbons) combines with oxaloacetate (4 carbons) to form citrate (6 carbons)\r\n- Through a series of oxidation reactions, citrate is converted back to oxaloacetate\r\n- NAD⁺ and FAD are reduced\r\n\r\n### Products (per acetyl CoA)\r\n- **2 CO₂**\r\n- **3 NADH**\r\n- **1 FADH₂**\r\n- **1 ATP** (by substrate-level phosphorylation)\r\n\r\n## Electron Transport Chain & Oxidative Phosphorylation\r\n\r\n### Location\r\n- Inner mitochondrial membrane\r\n\r\n### Electron Transport Chain (ETC)\r\n- A series of protein complexes (I–IV) embedded in the inner membrane\r\n- NADH and FADH₂ donate electrons to the ETC\r\n- Electrons are passed through the complexes, releasing energy\r\n- Oxygen serves as the final electron acceptor\r\n\r\n### Chemiosmosis\r\n- Energy from electron flow pumps H⁺ ions into the intermembrane space\r\n- Creates a proton gradient (electrochemical gradient)\r\n- H⁺ flows back through ATP synthase\r\n- ATP synthase uses this flow to produce ATP\r\n\r\n### ATP Yield\r\n- Each NADH yields approximately **2.5 ATP**\r\n- Each FADH₂ yields approximately **1.5 ATP**\r\n\r\n## Total ATP Yield\r\n\r\n| Stage | ATP (per glucose) |\r\n|-------|-------------------|\r\n| Glycolysis | 2 ATP |\r\n| Pyruvate Oxidation | 0 ATP |\r\n| Krebs Cycle | 2 ATP |\r\n| Electron Transport Chain | ~28 ATP |\r\n| **Total** | **~32 ATP** |\r\n\r\n## Anaerobic Respiration\r\n\r\n### Fermentation\r\n- Occurs when oxygen is not available\r\n- Produces only 2 ATP per glucose (from glycolysis only)\r\n\r\n#### Lactic Acid Fermentation\r\n- Pyruvate is reduced to lactate\r\n- NADH is oxidized to NAD⁺\r\n- Occurs in muscle cells during intense exercise\r\n\r\n#### Alcoholic Fermentation\r\n- Pyruvate is converted to ethanol and CO₂\r\n- NADH is oxidized to NAD⁺\r\n- Occurs in yeast and some bacteria\r\n- Used in brewing, winemaking, and baking\r\n\r\n## Regulation of Cellular Respiration\r\n\r\n### Feedback Inhibition\r\n- High ATP levels inhibit glycolysis (phosphofructokinase)\r\n- High citrate levels inhibit glycolysis\r\n- High NADH levels inhibit the Krebs cycle\r\n\r\n### Hormonal Control\r\n- Insulin promotes glucose uptake and glycolysis\r\n- Glucagon promotes glycogen breakdown and gluconeogenesis\r\n",
+      "order": 1,
+      "tags": [
+        "metabolism",
+        "glycolysis",
+        "atp",
+        "respiration"
+      ]
+    }
+  ],
+  "questions": [],
+  "quizzes": []
+}

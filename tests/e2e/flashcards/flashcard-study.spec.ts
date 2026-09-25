@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { setupImportedMaterial, resetDatabase } from '../helpers/e2e-setup';
+import { resetDatabase, setupApiMocks } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellStructure } from '../helpers/fixtures/cellStructure';
 
 test.describe('Spaced Repetition Flashcard Study E2E', () => {
   test.beforeEach(async ({ page }) => {
     await resetDatabase(page);
-    await setupImportedMaterial(page, 'cell-structure');
+    await setupApiMocks(page);
+    await routeShare(page, cellStructure);
+    await cloneShareToLibrary(page, cellStructure, 'flashcards');
   });
 
   test('reviews flashcard deck with 3D flip card, rates retention, and persists review state across reload', async ({

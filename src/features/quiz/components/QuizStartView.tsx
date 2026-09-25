@@ -179,7 +179,7 @@ function QuizPickerList({ quizzes, isUnified, onStartQuiz }: { quizzes: Quiz[]; 
         const questionCount = quiz.questionIds.length;
         return (
           <Card key={quiz.id}>
-            <div {...stylex.props(styles.quizCard)}>
+            <div {...stylex.props(styles.quizCard)} data-quiz-id={quiz.id}>
               <div {...stylex.props(styles.quizInfo)}>
                 <h4 {...stylex.props(styles.quizTitle)}>
                   {quiz.title || `Quiz ${index + 1}`}

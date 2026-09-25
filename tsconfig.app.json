@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/__tests__/architecture"]
+  "exclude": ["src/__tests__/architecture", "src/__tests__/e2eFixtures"]
 }

@@ -70,7 +70,14 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
             const targetQuiz = quizzes.find((q) => q.id === selectedQuizId);
             if (targetQuiz) {
                 const idSet = new Set(targetQuiz.questionIds);
-                pool = pool.filter((q) => idSet.has(q.id));
+                const order = new Map(targetQuiz.items.map((item) => [item.questionId, item.order]));
+                pool = pool
+                    .filter((q) => idSet.has(q.id))
+                    .toSorted(
+                        (a, b) =>
+                            (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+                            (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+                    );
             }
         }
 

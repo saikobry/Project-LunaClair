@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { setupApiMocks, resetDatabase } from '../helpers/e2e-setup';
+import { cloneShareToLibrary, routeShare } from '../helpers/share-seed';
+import { cellularRespiration } from '../helpers/fixtures/cellularRespiration';
 
 test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
   test.beforeEach(async ({ page }) => {
@@ -77,19 +79,10 @@ test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
       });
     });
 
-    // Import cell-structure into library
-    await page.goto('/explore');
-    await expect(page.getByText('Cell Structure & Function')).toBeVisible({ timeout: 10000 });
-    const importBtn = page.getByRole('button', { name: /Add Cell Structure & Function/i });
-    if (await importBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-      await importBtn.click();
-      await expect(page.getByText(/In My Library/i).first()).toBeVisible({ timeout: 5000 });
-    }
-  });
+    await routeShare(page, cellularRespiration);  });
 
   test('generates questions with AI and saves them as drafts to Question Bank', async ({ page }) => {
-    // Navigate to Manage -> Question Bank tab
-    await page.goto('/materials/cell-structure?tab=manage');
+    await cloneShareToLibrary(page, cellularRespiration, 'questions');
     await expect(page.getByRole('button', { name: /Generate with AI/i })).toBeVisible({ timeout: 10000 });
 
     // Open AI Generator Dialog
@@ -127,8 +120,7 @@ test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
   });
 
   test('generates flashcards with AI and integrates into spaced repetition deck', async ({ page }) => {
-    // Navigate to Flashcards tab
-    await page.goto('/materials/cell-structure?tab=flashcards');
+    await cloneShareToLibrary(page, cellularRespiration, 'flashcards');
     const generateAiBtn = page.getByRole('button', { name: /Generate.*AI/i });
     await expect(generateAiBtn).toBeVisible({ timeout: 10000 });
 

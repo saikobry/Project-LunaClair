@@ -204,7 +204,7 @@ export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpe
 
   const { questions: bankQuestions } = useQuestions(materialId);
 
-  const flow = useQuizSessionFlow(launchRequest);
+  const flow = useQuizSessionFlow(launchRequest, isStarted);
   const isUnified = launchRequest.type === 'quizzes';
 
   // Filter out archived quizzes for display purposes
