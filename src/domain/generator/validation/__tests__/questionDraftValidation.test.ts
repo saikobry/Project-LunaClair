@@ -178,6 +178,91 @@ describe('questionDraftValidation', () => {
             }
         });
 
+        it('rejects a fill_in_blank whose template carries no ___ placeholder', () => {
+            // Real observed output: a template with the blank already resolved, so the derived card
+            // was `prompt + template` with nothing to test.
+            const raw = {
+                type: 'fill_in_blank',
+                prompt: 'Complete the sentence',
+                payload: {
+                    template: 'Nosotros en Madrid.',
+                    blanks: ['vivimos'],
+                },
+            };
+
+            const result = validateQuestionDraft(raw);
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error).toBe('fill_in_blank requires template with blank placeholder');
+            }
+        });
+
+        it('rejects a fill_in_blank whose ___ count does not match the number of blanks', () => {
+            const tooFewAnswers = validateQuestionDraft({
+                type: 'fill_in_blank',
+                prompt: 'Two blanks, one answer',
+                payload: { template: 'The ___ produces ___.', blanks: ['mitochondria'] },
+            });
+            const tooManyAnswers = validateQuestionDraft({
+                type: 'fill_in_blank',
+                prompt: 'One blank, two answers',
+                payload: { template: 'Nosotros ___ en Madrid.', blanks: ['vivimos', 'Madrid'] },
+            });
+
+            expect(tooFewAnswers.success).toBe(false);
+            if (!tooFewAnswers.success) {
+                expect(tooFewAnswers.error).toBe(
+                    'fill_in_blank requires one answer per ___ placeholder (2 in template, 1 supplied)',
+                );
+            }
+            expect(tooManyAnswers.success).toBe(false);
+            if (!tooManyAnswers.success) {
+                expect(tooManyAnswers.error).toBe(
+                    'fill_in_blank requires one answer per ___ placeholder (1 in template, 2 supplied)',
+                );
+            }
+        });
+
+        it('rejects a fill_in_blank with a whitespace-only blank answer', () => {
+            // Reported as an unanswered blank rather than a count mismatch: parity is measured against
+            // the raw input, so the empty entry cannot masquerade as a missing answer.
+            const raw = {
+                type: 'fill_in_blank',
+                prompt: 'Three blanks, one empty',
+                payload: { template: '___ ___ ___', blanks: ['a', '   ', 'c'] },
+            };
+
+            const result = validateQuestionDraft(raw);
+
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error).toBe('fill_in_blank requires a non-empty answer for every blank');
+            }
+        });
+
+        it('accepts a multi-blank fill_in_blank when the ___ count matches the blanks length', () => {
+            const raw = {
+                type: 'fill_in_blank',
+                prompt: 'Fill in the blanks',
+                payload: {
+                    template: '  The ___ produces ___.  ',
+                    blanks: [' mitochondria ', 'ATP'],
+                },
+            };
+
+            const result = validateQuestionDraft(raw);
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.payload).toEqual({
+                    type: 'fill_in_blank',
+                    template: 'The ___ produces ___.',
+                    blanks: ['mitochondria', 'ATP'],
+                });
+            }
+        });
+
         it('flags invalid input: non-object, empty prompt, or unsupported question type', () => {
             expect(validateQuestionDraft(null).success).toBe(false);
             expect(validateQuestionDraft({ prompt: '   ', type: 'multiple_choice' }).success).toBe(false);
@@ -263,6 +348,44 @@ describe('questionDraftValidation', () => {
         it('rejects empty arrays or non-array inputs', () => {
             expect(validateQuestionsDraftArray([]).success).toBe(false);
             expect(validateQuestionsDraftArray('not an array').success).toBe(false);
+        });
+
+        it('keeps a valid fill_in_blank sibling when one in the batch is malformed', () => {
+            // The new blank-marker checks are per-item, not per-batch: a bad template must not take a
+            // good question down with it.
+            const mixedArray = [
+                {
+                    type: 'fill_in_blank',
+                    prompt: 'Valid Question 1',
+                    payload: { template: 'Nosotros ___ en Madrid.', blanks: ['vivimos'] },
+                },
+                {
+                    type: 'fill_in_blank',
+                    prompt: 'Invalid Question 2',
+                    payload: { template: 'Nosotros en Madrid.', blanks: ['vivimos'] },
+                },
+                {
+                    type: 'fill_in_blank',
+                    prompt: 'Invalid Question 3',
+                    payload: { template: 'The ___ produces ___.', blanks: ['mitochondria'] },
+                },
+            ];
+
+            const result = validateQuestionsDraftArray(mixedArray);
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.drafts).toHaveLength(1);
+                expect(result.data.drafts[0].prompt).toBe('Valid Question 1');
+                expect(result.data.rejected).toEqual([
+                    { index: 1, error: 'fill_in_blank requires template with blank placeholder' },
+                    {
+                        index: 2,
+                        error:
+                            'fill_in_blank requires one answer per ___ placeholder (2 in template, 1 supplied)',
+                    },
+                ]);
+            }
         });
     });
 

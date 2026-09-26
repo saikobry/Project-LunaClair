@@ -7,6 +7,16 @@ import { VALID_QUESTION_TYPES } from '../../quiz/models/questionMetadata';
 const VALID_DIFFICULTIES: Set<QuestionDifficulty> = new Set(['easy', 'medium', 'hard']);
 
 /**
+ * Number of `___` blank markers in a `fill_in_blank` template.
+ *
+ * Mirrors the authoring path's rule (`quizDraftValidation`), so a generated draft and a hand-authored
+ * one are held to the same blank-marker contract.
+ */
+function blankCount(template: string): number {
+    return (template.match(/___/g) ?? []).length;
+}
+
+/**
  * Validates a single question draft object against domain business rules.
  */
 export function validateQuestionDraft(
@@ -155,19 +165,38 @@ export function validateQuestionDraft(
 
     case 'fill_in_blank': {
       const template = typeof payloadObj.template === 'string' ? payloadObj.template.trim() : '';
-      if (!template) {
+
+      // The `___` marker IS the question. A template without one (empty, or already resolved) yields a
+      // card whose front is `prompt + template` with nothing to fill in, and a marker/answer mismatch
+      // yields a blank that was never supplied a fact. Both are rejected rather than repaired — the
+      // generator never invents data, it reports the item so the caller can name the dropped count.
+      const markers = blankCount(template);
+      if (markers === 0) {
         return { success: false, error: 'fill_in_blank requires template with blank placeholder' };
       }
 
-      const blanks = Array.isArray(payloadObj.blanks)
-        ? payloadObj.blanks.flatMap((b) => {
-            const trimmed = String(b).trim();
-            return trimmed ? [trimmed] : [];
-          })
-        : [];
+      const rawBlanks = Array.isArray(payloadObj.blanks) ? payloadObj.blanks : [];
+      const blanks = rawBlanks.flatMap((b) => {
+        const trimmed = String(b).trim();
+        return trimmed ? [trimmed] : [];
+      });
 
       if (blanks.length === 0) {
         return { success: false, error: 'fill_in_blank requires at least 1 blank answer' };
+      }
+
+      // Parity is measured against the RAW input, not the filtered `blanks`: a whitespace-only entry
+      // is dropped above, so comparing markers to the filtered length would blame a count mismatch for
+      // what is really an unanswered blank. Each defect then carries its own attributable message.
+      if (blanks.length !== rawBlanks.length) {
+        return { success: false, error: 'fill_in_blank requires a non-empty answer for every blank' };
+      }
+
+      if (blanks.length !== markers) {
+        return {
+          success: false,
+          error: `fill_in_blank requires one answer per ___ placeholder (${markers} in template, ${blanks.length} supplied)`,
+        };
       }
 
       validatedPayload = {
