@@ -3,10 +3,9 @@ import { Layers, Play, Clock, Sparkles, Filter, Package, Share2 } from 'lucide-r
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import { isDue } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
-import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
+import { collectDeckCardStats } from '../utils/deckCardStats';
 import { useState, type ReactNode } from 'react';
 
 const styles = stylex.create({
@@ -234,12 +233,12 @@ function DeckStatsRow({ dueCount, newCount, total }: { dueCount: number; newCoun
 function StudyModeSelector({
     studyMode,
     dueCount,
-    totalQuestions,
+    totalCards,
     onModeChange,
 }: {
     studyMode: DeckStudyMode;
     dueCount: number;
-    totalQuestions: number;
+    totalCards: number;
     onModeChange: (mode: DeckStudyMode) => void;
 }) {
     return (
@@ -270,7 +269,7 @@ function StudyModeSelector({
             >
                 <span {...stylex.props(styles.modeTitle)}>All Cards</span>
                 <span {...stylex.props(styles.modeDesc)}>
-                    Review entire deck ({totalQuestions} cards; due cards first)
+                    Review entire deck ({totalCards} cards; due cards first)
                 </span>
             </button>
         </div>
@@ -279,12 +278,14 @@ function StudyModeSelector({
 
 function QuizFilterControl({
     activeQuizzes,
-    totalQuestions,
+    totalCards,
+    cardsByQuizId,
     selectedQuizId,
     onSelectedChange,
 }: {
     activeQuizzes: Quiz[];
-    totalQuestions: number;
+    totalCards: number;
+    cardsByQuizId: Map<string, number>;
     selectedQuizId: string;
     onSelectedChange: (value: string) => void;
 }) {
@@ -300,10 +301,10 @@ function QuizFilterControl({
                 value={selectedQuizId}
                 onChange={(e) => onSelectedChange(e.target.value)}
             >
-                <option value="all">All Quizzes ({totalQuestions} questions)</option>
+                <option value="all">All Quizzes ({totalCards} cards)</option>
                 {activeQuizzes.map((quiz) => (
                     <option key={quiz.id} value={quiz.id}>
-                        {quiz.title} ({quiz.questionIds.length} questions)
+                        {quiz.title} ({cardsByQuizId.get(quiz.id) ?? 0} cards)
                     </option>
                 ))}
             </select>
@@ -324,26 +325,19 @@ export function FlashcardDeckSetupView({
     const now = new Date();
 
     const activeQuestions = questions.filter((q) => q.status !== 'archived');
-    const totalQuestions = activeQuestions.length;
+    const activeQuizzes = quizzes.filter((q) => q.status !== 'archived');
 
-    let dueCount = 0;
-    let newCount = 0;
-
-    for (const q of activeQuestions) {
-        const key = cardKeyForQuestion(q.id);
-        const rev = reviews[key];
-        if (!rev || rev.reviewCount === 0) {
-            newCount++;
-            dueCount++; // New cards are due immediately
-        } else if (isDue(rev, now)) {
-            dueCount++;
-        }
-    }
+    // Every count below is a card count, never a question count — see
+    // `collectDeckCardStats`.
+    const { totalCards, dueCount, newCount, cardsByQuizId } = collectDeckCardStats(
+        activeQuestions,
+        activeQuizzes,
+        reviews,
+        now
+    );
 
     const [studyMode, setStudyMode] = useState<DeckStudyMode>(dueCount > 0 ? 'due_only' : 'all');
     const [selectedQuizId, setSelectedQuizId] = useState<string>('all');
-
-    const activeQuizzes = quizzes.filter((q) => q.status !== 'archived');
 
     const handleStart = () => {
         onStartSession(
@@ -352,7 +346,7 @@ export function FlashcardDeckSetupView({
         );
     };
 
-    if (totalQuestions === 0) {
+    if (totalCards === 0) {
         return (
             <div {...stylex.props(styles.container)}>
                 <div {...stylex.props(styles.headerCard)}>
@@ -387,7 +381,7 @@ export function FlashcardDeckSetupView({
                     Review key concepts with SM-2 spaced repetition. Cards are generated automatically from your question bank.
                 </p>
 
-                <DeckStatsRow dueCount={dueCount} newCount={newCount} total={totalQuestions} />
+                <DeckStatsRow dueCount={dueCount} newCount={newCount} total={totalCards} />
 
                 <div {...stylex.props(styles.configSection)}>
                     <div {...stylex.props(styles.controlGroup)}>
@@ -397,7 +391,7 @@ export function FlashcardDeckSetupView({
                         <StudyModeSelector
                             studyMode={studyMode}
                             dueCount={dueCount}
-                            totalQuestions={totalQuestions}
+                            totalCards={totalCards}
                             onModeChange={setStudyMode}
                         />
                     </div>
@@ -405,7 +399,8 @@ export function FlashcardDeckSetupView({
                     {activeQuizzes.length > 1 && (
                         <QuizFilterControl
                             activeQuizzes={activeQuizzes}
-                            totalQuestions={totalQuestions}
+                            totalCards={totalCards}
+                            cardsByQuizId={cardsByQuizId}
                             selectedQuizId={selectedQuizId}
                             onSelectedChange={setSelectedQuizId}
                         />

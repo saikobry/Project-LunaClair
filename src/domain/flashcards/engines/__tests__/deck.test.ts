@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { orderDeck } from '../deck';
 import { cardKeyForQuestion } from '../cardKey';
+import { questionToCards } from '../questionToCards';
 import type { Question } from '../../../quiz/models/Question';
 import type { ReviewState } from '../scheduler';
 
@@ -33,10 +34,28 @@ describe('orderDeck', () => {
         prompt: 'Q3',
     };
 
+    /** Two blanks, so it projects to two independently scheduled cards. */
+    const q4: Question = {
+        ...q1,
+        id: 'q4',
+        type: 'fill_in_blank',
+        prompt: 'Fill in the blank:',
+        payload: {
+            type: 'fill_in_blank',
+            template: 'The ___ contains the ___.',
+            blanks: ['nucleus', 'chromatin'],
+        },
+    };
+
+    /**
+     * orderDeck is card-based, so the caller projects. Review fixtures are
+     * keyed through the same helper the deck uses, so a drift in the key
+     * scheme cannot make a reviewed card look new. The expected outputs below
+     * stay literal to pin the `q:` format itself.
+     */
+    const cardsFor = (...questions: Question[]) => questions.flatMap(questionToCards);
+
     it('orders deck prioritizing overdue cards, then new cards, then future cards', () => {
-        // Review fixtures are keyed through the same helper the deck uses, so a
-        // drift in the key scheme cannot make a reviewed card look new. The
-        // expected outputs below stay literal to pin the `q:` format itself.
         const reviews: Record<string, ReviewState> = {
             [cardKeyForQuestion('q1')]: {
                 key: 'q:q1',
@@ -59,7 +78,7 @@ describe('orderDeck', () => {
             },
         };
 
-        const ordered = orderDeck([q3, q1, q2], reviews, fixedNow, { studyMode: 'all' });
+        const ordered = orderDeck(cardsFor(q3, q1, q2), reviews, fixedNow, { studyMode: 'all' });
 
         expect(ordered.map((c) => c.key)).toEqual(['q:q1', 'q:q2', 'q:q3']);
     });
@@ -87,18 +106,19 @@ describe('orderDeck', () => {
         };
 
         // q2 is new (isDue returns true for undefined)
-        const ordered = orderDeck([q1, q2, q3], reviews, fixedNow, { studyMode: 'due_only' });
+        const ordered = orderDeck(cardsFor(q1, q2, q3), reviews, fixedNow, { studyMode: 'due_only' });
 
         expect(ordered.map((c) => c.key)).toEqual(['q:q1', 'q:q2']);
     });
 
     it('keeps the incoming (quiz-item) order for cards with no review history', () => {
-        // FlashcardScreen hands orderDeck the selected quiz's questions already
-        // arranged by Quiz.items[].order. With no reviews every card lands in the
-        // `new` bucket, which preserves that incoming order verbatim.
+        // FlashcardScreen projects the selected quiz's questions — already
+        // arranged by Quiz.items[].order — before calling orderDeck. With no
+        // reviews every card lands in the `new` bucket, which preserves that
+        // incoming order verbatim.
         const quizOrder: Question[] = [q3, q1, q2];
 
-        const ordered = orderDeck(quizOrder, {}, fixedNow, { studyMode: 'all' });
+        const ordered = orderDeck(cardsFor(...quizOrder), {}, fixedNow, { studyMode: 'all' });
 
         expect(ordered.map((c) => c.key)).toEqual(['q:q3', 'q:q1', 'q:q2']);
     });
@@ -130,8 +150,71 @@ describe('orderDeck', () => {
         // by dueAt, so the more overdue q3 leads and the untouched q2 trails.
         const quizOrder: Question[] = [q1, q3, q2];
 
-        const ordered = orderDeck(quizOrder, reviews, fixedNow, { studyMode: 'all' });
+        const ordered = orderDeck(cardsFor(...quizOrder), reviews, fixedNow, { studyMode: 'all' });
 
         expect(ordered.map((c) => c.key)).toEqual(['q:q3', 'q:q1', 'q:q2']);
+    });
+
+    it("keeps a question's per-blank cards contiguous and in blank order", () => {
+        // The caller's projection order is the deck order: q4's two cloze cards
+        // inherit q4's slot in the incoming list, adjacent to one another.
+        const ordered = orderDeck(cardsFor(q3, q4, q1), {}, fixedNow, { studyMode: 'all' });
+
+        expect(ordered.map((c) => c.key)).toEqual([
+            'q:q3',
+            'q:q4#0',
+            'q:q4#1',
+            'q:q1',
+        ]);
+    });
+
+    it('schedules each blank of a question independently', () => {
+        // Reviewing blank #0 must not make its sibling look reviewed: the two
+        // keys are distinct, so a future-scheduled #0 drops out of `due_only`
+        // while its still-new #1 remains.
+        const reviews: Record<string, ReviewState> = {
+            'q:q4#0': {
+                key: 'q:q4#0',
+                repetitions: 1,
+                easeFactor: 2.5,
+                intervalDays: 6,
+                dueAt: new Date(fixedNow.getTime() + 86400000).toISOString(), // Not due
+                lapses: 0,
+                reviewCount: 1,
+            },
+        };
+
+        const ordered = orderDeck(cardsFor(q4), reviews, fixedNow, { studyMode: 'due_only' });
+
+        expect(ordered.map((c) => c.key)).toEqual(['q:q4#1']);
+    });
+
+    it('orders reviewed per-blank cards by their own due dates', () => {
+        const reviews: Record<string, ReviewState> = {
+            'q:q4#0': {
+                key: 'q:q4#0',
+                repetitions: 1,
+                easeFactor: 2.5,
+                intervalDays: 6,
+                dueAt: new Date(fixedNow.getTime() + 86400000).toISOString(), // Not due
+                lapses: 0,
+                reviewCount: 1,
+            },
+            'q:q4#1': {
+                key: 'q:q4#1',
+                repetitions: 1,
+                easeFactor: 2.5,
+                intervalDays: 6,
+                dueAt: new Date(fixedNow.getTime() - 3600000).toISOString(), // Overdue
+                lapses: 0,
+                reviewCount: 1,
+            },
+        };
+
+        // Blank order is #0 then #1, but #1 is overdue so it leads the due bucket
+        // and #0 trails in the not-due bucket.
+        const ordered = orderDeck(cardsFor(q4), reviews, fixedNow, { studyMode: 'all' });
+
+        expect(ordered.map((c) => c.key)).toEqual(['q:q4#1', 'q:q4#0']);
     });
 });

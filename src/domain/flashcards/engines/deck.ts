@@ -1,8 +1,6 @@
-import type { Question } from '../../quiz/models/Question';
 import type { Flashcard } from '../models/Flashcard';
 import type { ReviewState } from '../engines/scheduler';
 import { isDue } from '../engines/scheduler';
-import { questionToCard } from './questionToCard';
 
 export type DeckStudyMode = 'due_only' | 'all';
 
@@ -10,13 +8,22 @@ export interface DeckOrderOptions {
     studyMode?: DeckStudyMode;
 }
 
+/**
+ * Buckets already-projected cards into due → new → not-due, sorting the two
+ * reviewed buckets by `dueAt`. Incoming order is preserved verbatim in the
+ * `new` bucket only, so the caller's projection order (e.g. a quiz's
+ * `items[].order`) defines the first pass and SM-2 supersedes it afterwards.
+ *
+ * Projection is the caller's job: a `fill_in_blank` question can expand to one
+ * card per blank, and those cards inherit that question's slot in the incoming
+ * order. Passing questions here would make that cardinality invisible.
+ */
 export function orderDeck(
-    questions: Question[],
+    cards: Flashcard[],
     reviews: Record<string, ReviewState>,
     now: Date = new Date(),
     options?: DeckOrderOptions
 ): Flashcard[] {
-    const cards = questions.map(questionToCard);
     const studyMode = options?.studyMode ?? 'all';
 
     const filteredCards = studyMode === 'due_only'

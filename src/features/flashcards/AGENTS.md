@@ -9,20 +9,28 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
 | Path | Responsibility |
 |---|---|
 | `FlashcardScreen.tsx` | Feature-root screen orchestrator. Manages setup view, active deck progression, card flipping state, and session completion summary. |
-| `components/` | Presentational views: `FlashcardDeckSetupView` (deck size & due stats), `FlashcardPlayerView` (3D flip card, prompt/answer toggle, rating controls), `FlashcardSessionEndView` (performance summary & retention breakdown). |
+| `components/` | Presentational views: `FlashcardDeckSetupView` (card count, due/new stats, quiz filter), `FlashcardPlayerView` (3D flip card, prompt/answer toggle, rating controls), `FlashcardSessionEndView` (performance summary & retention breakdown). |
 | `hooks/mutations/` | Spaced-repetition mutations: `useFlashcardRating` (dispatches rating and updates cache). |
 | `hooks/queries/` | Review data queries: `useFlashcardReviews`. |
 | `queries/` | Query key factory (`flashcardQueryKeys.ts`). |
+| `utils/` | Pure helpers: `deckCardStats.ts` (`collectDeckCardStats` — projects questions and derives the setup view's card counts, so the counts are computed outside the React component). |
 | `types/` | Feature types: `flashcardFeature.types.ts`. |
 
 ## Local Contracts
 
 - **Feature-Root Screen Orchestrator**: `FlashcardScreen.tsx` sits at the feature root as the primary route-level screen for spaced repetition study.
 - **Card Projection Invariant**:
-  - Flashcard decks are dynamic projections generated from Question entities (`questionToCard` domain transformation), one card per question.
-  - Cards are discriminated by **shape**, not by question type: `kind: 'recall'` (from `identification`, `true_false`, `fill_in_blank`) fronts a bare prompt, while `kind: 'choice'` (from `multiple_choice`, `multiple_select`) fronts the prompt *and* its options. The projection carries no `QuestionType` — a `multiple_choice` card with its options dropped would be a choice card with nothing to choose between.
+  - Flashcard decks are dynamic projections generated from Question entities (`questionToCards` domain transformation). **Cardinality is 1..N per question, not 1:1**: every non-cloze type yields exactly one card, while a `fill_in_blank` question yields one card per blank so each blank gets its own SM-2 schedule.
+  - Cards are discriminated by **shape**, not by question type: `kind: 'recall'` (from `identification`, `true_false`, and any `fill_in_blank` row with no per-blank expansion available) fronts a bare prompt, while `kind: 'choice'` (from `multiple_choice`, `multiple_select`) fronts the prompt *and* its options. The projection carries no `QuestionType` — a `multiple_choice` card with its options dropped would be a choice card with nothing to choose between.
+  - Front-face contract, by shape:
+    - `recall` (non-cloze) — the question's own prompt; the back is the rendered answer.
+    - `choice` — the prompt plus every option, ungraded; correctness is marked only on the back face.
+    - per-blank `recall` (cloze) — the resolved template with the **target** blank left as `___` and **every other** blank replaced by its answer, so the tested blank is the only thing missing; the back is that single answer, never the joined list. Anki cloze behaviour: the other answers are retrieval context and scaffolding.
   - Cards represent question prompts (front) and explanations/answers (back).
-  - `cardKeyForQuestion` (`domain/flashcards/engines/cardKey.ts`) is the only place the `q:${questionId}` key scheme is built. Card keys are persisted review-state keys, so the format must stay byte-identical.
+  - `cardKey.ts` (`domain/flashcards/engines/`) is the only place card keys are built, and it owns both formats: `cardKeyForQuestion` → `q:${questionId}` (unchanged for every non-cloze card, so persisted review state keeps resolving) and `cardKeyForBlank` → `q:${questionId}#${blankIndex}`. Card keys are persisted review-state keys, so the formats must stay byte-identical.
+  - `orderDeck` takes **already-projected cards**, not questions, so the caller owns card order: a fill_in_blank question's per-blank cards inherit that question's slot in the incoming order.
+  - Every count the setup view shows is a **card** count (`dueCount`, `newCount`, total, and the per-quiz filter counts), because counting questions would make "Due Cards Only" promise fewer cards than the session actually shows. Per-quiz filter counts sum the projected cards of that quiz's questions. `collectDeckCardStats` (`utils/deckCardStats.ts`) is the single place those counts are derived, so no presentation code can reintroduce a question count.
+  - **Legacy-key consequence:** a `fill_in_blank` question's key moved from `q:${questionId}` to `q:${questionId}#0` when per-blank cards landed, so review state stored under the old whole-question key is no longer read. The project is pre-release, so nothing is owed: no migration, no orphan cleanup, and pre-existing local rows are disposable via the database reload path. Were there real usage, the restoration is a lookup fallback.
   - When a quiz filter is selected, cards follow that quiz's `items[].order`; the question repository's arbitrary read order is not the deck contract. That incoming order is authoritative only for cards with no review history — `orderDeck` re-buckets reviewed cards by `dueAt`, so SM-2 scheduling supersedes authoring order after the first pass (pinned by `domain/flashcards/engines/__tests__/deck.test.ts`).
   - No glossary-term flashcards exist unless explicitly introduced via a future ADR.
 - **Review State & SM-2 Invariants**:
@@ -32,7 +40,7 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
   - Rating submissions (`again`, `hard`, `good`, `easy`) route exclusively through `RecordFlashcardReviewUseCase`.
   - `useFlashcardRating` applies optimistic updates to `flashcardQueryKeys.reviews(materialId)` and invalidates `analyticsQueryKeys.all()` to keep mastery charts synchronized.
 - **Interactive Player Lifecycle**:
-  - Setup: Displays deck size, new cards count, and due cards count with a start trigger.
+  - Setup: Displays card count, new cards count, and due cards count with a start trigger.
   - Player: Card renders front by default. User triggers flip (keyboard Space/Enter or click) to reveal answer and enable 4 rating options.
   - Completion: Summarizes session accuracy, count of cards reviewed, and returns to workspace.
 - **Player Presentation Contract**:

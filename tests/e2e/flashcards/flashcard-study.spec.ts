@@ -24,10 +24,12 @@ test.describe('Spaced Repetition Flashcard Study E2E', () => {
       page.getByRole('heading', { name: 'Flashcards & Spaced Repetition' }),
     ).toBeVisible({ timeout: 10000 });
 
-    // Filter to the focused 2-question "Cell Structure Quiz"
+    // Filter to the focused 2-question "Cell Structure Quiz". The option label
+    // counts CARDS, not questions — a fill_in_blank question can project to
+    // several cards — but both of this quiz's questions yield exactly one.
     const quizFilter = page.getByLabel('Quiz Filter');
     await expect(quizFilter).toBeVisible({ timeout: 5000 });
-    await quizFilter.selectOption({ label: 'Cell Structure Quiz (2 questions)' });
+    await quizFilter.selectOption({ label: 'Cell Structure Quiz (2 cards)' });
 
     // 3. Start the flashcard study session
     const startSessionButton = page.getByRole('button', {
@@ -82,6 +84,9 @@ test.describe('Spaced Repetition Flashcard Study E2E', () => {
     await expect(
       page.getByRole('heading', { name: 'Session Complete!' }),
     ).toBeVisible({ timeout: 5000 });
+    // Still 2 cards: the cellStructure fixture's only fill_in_blank questions
+    // (5 of 52) each carry a single blank, so none of them expands to more than
+    // one card and the deck total is unchanged by the per-blank projection.
     await expect(page.getByText(/You reviewed 2 cards/i)).toBeVisible();
 
     // Return to deck setup

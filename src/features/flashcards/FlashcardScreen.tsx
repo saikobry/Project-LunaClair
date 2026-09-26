@@ -9,6 +9,7 @@ import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
 import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useToast } from '../../app/providers/ToastContext';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/engines/deck';
+import { questionToCards } from '../../domain/flashcards/engines/questionToCards';
 import type { Flashcard } from '../../domain/flashcards/models/Flashcard';
 import type { Rating } from '../../domain/flashcards/engines/scheduler';
 import type { FlashcardViewStep, FlashcardSessionSummary } from './types/flashcardFeature.types';
@@ -81,7 +82,11 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
             }
         }
 
-        const ordered = orderDeck(pool, reviews, new Date(), { studyMode });
+        // Projection happens here, after the quiz filter has fixed the question
+        // order, so a fill_in_blank question's per-blank cards inherit that
+        // question's slot in the incoming order the deck preserves.
+        const cards = pool.flatMap(questionToCards);
+        const ordered = orderDeck(cards, reviews, new Date(), { studyMode });
         if (ordered.length === 0) return;
 
         setDeck(ordered);

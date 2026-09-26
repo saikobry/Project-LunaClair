@@ -8,7 +8,9 @@ export interface FlashcardChoice {
 
 /** Properties every projected card carries, whatever its shape. */
 export interface FlashcardBase {
-    key: string; // `q:${questionId}` — built by `cardKeyForQuestion`
+    // `q:${questionId}`, or `q:${questionId}#${blankIndex}` for a per-blank
+    // cloze card — built only by `cardKeyForQuestion` / `cardKeyForBlank`.
+    key: string;
     source: FlashcardSource;
     front: string; // prompt / sentence template
     back: string; // rendered correct answer text
@@ -21,8 +23,10 @@ export interface FlashcardBase {
 
 /**
  * Prompt/answer card: the front face carries everything needed to recall and
- * the back face reveals the answer. Derived from `identification`,
- * `true_false`, and `fill_in_blank` questions.
+ * the back face reveals the answer. Derived from `identification` and
+ * `true_false` questions, and from a `fill_in_blank` question that has no
+ * per-blank expansion available (a stored row with no answers, or one whose
+ * marker count disagrees with them).
  */
 export interface RecallCard extends FlashcardBase {
     kind: 'recall';
@@ -44,5 +48,9 @@ export interface ChoiceCard extends FlashcardBase {
  * discriminant describes the card's *shape* (what the front face must present),
  * not the source question type: a `multiple_choice` question whose options were
  * dropped would still be a choice card, just an incoherent one.
+ *
+ * A question projects to **0..N** cards: one for every non-cloze type, and one
+ * per blank for a `fill_in_blank` question. `source.questionId` is therefore not
+ * a card identity — the `key` is.
  */
 export type Flashcard = RecallCard | ChoiceCard;

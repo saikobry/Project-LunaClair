@@ -51,6 +51,25 @@ describe('FlashcardScreen', () => {
         },
     ];
 
+    /** Three blanks, so the projection must expand it into three cards. */
+    const mockClozeQuestion: Question = {
+        id: 'q-3',
+        materialId: 'mat-1',
+        type: 'fill_in_blank',
+        prompt: 'Fill in the blank:',
+        payload: {
+            type: 'fill_in_blank',
+            template: 'The ___ contains the ___ and the ___.',
+            blanks: ['nucleus', 'chromatin', 'DNA'],
+        },
+        difficulty: 'medium',
+        points: 1,
+        status: 'published',
+        version: 1,
+        createdAt: '2026-09-02T10:00:00.000Z',
+        updatedAt: '2026-09-02T10:00:00.000Z',
+    };
+
     beforeEach(() => {
         queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false } },
@@ -158,6 +177,11 @@ describe('FlashcardScreen', () => {
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
+
+        // The filter reports deck slices in CARDS, not questions.
+        expect(screen.getByRole('option', { name: 'All Quizzes (2 cards)' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Practice Quiz (2 cards)' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Master Quiz (2 cards)' })).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-1' } });
         fireEvent.click(screen.getByText('Start Flashcard Session'));
@@ -296,5 +320,78 @@ describe('FlashcardScreen', () => {
         await waitFor(() => {
             expect(screen.getByText(/Session Complete/i)).toBeInTheDocument();
         });
+    });
+
+    it('counts projected cards, not questions, on the deck setup view', async () => {
+        // One question, three blanks: if the setup view still counted questions
+        // it would promise 1 card and the "Due Cards Only" session would show 3.
+        mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+
+        expect(screen.getByText('3 Total in Bank')).toBeInTheDocument();
+        expect(screen.getByText('3 New')).toBeInTheDocument();
+        expect(screen.getByText('3 Cards Due Today')).toBeInTheDocument();
+        expect(
+            screen.getByText('Focus on 3 cards due for scheduled review today')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Review entire deck (3 cards; due cards first)')
+        ).toBeInTheDocument();
+    });
+
+    it('expands a multi-blank question into one independently rated card per blank', async () => {
+        mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
+        // Card 1 — blank #0 hidden, the other two answers visible as scaffolding.
+        await waitFor(() => {
+            expect(screen.getByText('The ___ contains the chromatin and the DNA.')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => expect(screen.getByText('Good')).toBeInTheDocument());
+        // The back is the one answer under test, never the joined list.
+        expect(screen.getByText('nucleus')).toBeInTheDocument();
+        expect(screen.queryByText('nucleus, chromatin, DNA')).toBeNull();
+        fireEvent.click(screen.getByText('Good'));
+
+        // Card 2 — blank #1 hidden, blank #0's answer now visible.
+        await waitFor(() => {
+            expect(screen.getByText('The nucleus contains the ___ and the DNA.')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => expect(screen.getByText('Good')).toBeInTheDocument());
+        expect(screen.getByText('chromatin')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Good'));
+
+        // Card 3 — blank #2 hidden.
+        await waitFor(() => {
+            expect(screen.getByText('The nucleus contains the chromatin and the ___.')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => expect(screen.getByText('Good')).toBeInTheDocument());
+        expect(screen.getByText('DNA')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Good'));
+
+        // All three cards were rated under three distinct persisted keys.
+        await waitFor(() => {
+            expect(screen.getByText(/Session Complete/i)).toBeInTheDocument();
+        });
+        expect(mockRecordReview.execute).toHaveBeenCalledTimes(3);
+        for (const [index, key] of ['q:q-3#0', 'q:q-3#1', 'q:q-3#2'].entries()) {
+            expect(mockRecordReview.execute).toHaveBeenNthCalledWith(
+                index + 1,
+                expect.objectContaining({ key })
+            );
+        }
     });
 });
