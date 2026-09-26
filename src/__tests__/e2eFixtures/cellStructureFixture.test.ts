@@ -133,24 +133,36 @@ describe('E2E share fixture: cellStructure', () => {
     expect(material.documentContent).toContain('# Cell Structure & Function');
 
     // Full published graph, so export/import exercises real relationships.
-    expect(payload.questions).toHaveLength(52);
+    expect(payload.questions).toHaveLength(53);
     expect(payload.quizzes).toHaveLength(2);
     expect(payload.assets ?? []).toHaveLength(0);
 
-    // The quiz the runner/flashcard specs select by label is the 2-item one;
+    // The quiz the runner/flashcard specs select by label is the 3-item one;
     // its label stays unique next to the 50-item master quiz.
     const practice = payload.quizzes.find((quiz) => quiz.id === 'pkg_quiz_quiz-cell-001');
-    expect(practice, 'Expected the canonical 2-item "Cell Structure Quiz".').toBeDefined();
+    expect(practice, 'Expected the canonical 3-item "Cell Structure Quiz".').toBeDefined();
     expect(practice!.title).toBe('Cell Structure Quiz');
     expect(practice!.items.map((item) => item.questionId)).toEqual([
       'pkg_q_q-cell-mc-001',
       'pkg_q_q-cell-tf-001',
+      'pkg_q_q-cell-fb-001',
     ]);
 
     // The exact question prompts the specs assert, still reachable from the quiz.
     const byId = new Map(payload.questions.map((question) => [question.id, question]));
     expect(byId.get('pkg_q_q-cell-mc-001')?.prompt).toBe('Which organelle is responsible for producing ATP?');
     expect(byId.get('pkg_q_q-cell-tf-001')?.prompt).toBe('Prokaryotic cells have a membrane-bound nucleus.');
+
+    // The per-blank cloze projection has no other end-to-end coverage, so the
+    // fixture must actually carry a MULTI-blank question — not just the five
+    // single-blank ones. Marker count has to equal `blanks.length`, because
+    // `questionToCards` silently degrades a mismatch to one whole-question card.
+    const cloze = byId.get('pkg_q_q-cell-fb-001') as
+      | { type: string; payload: { template: string; blanks: string[] } }
+      | undefined;
+    expect(cloze?.type).toBe('fill_in_blank');
+    expect(cloze?.payload.template.split('___').length - 1).toBe(cloze?.payload.blanks.length);
+    expect(cloze?.payload.blanks).toEqual(['nucleus', 'mitochondria', 'ribosomes']);
 
     // Every referenced question resolves to the shipped material.
     for (const quiz of payload.quizzes) {

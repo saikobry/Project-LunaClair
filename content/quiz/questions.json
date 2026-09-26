@@ -1206,6 +1206,32 @@
     "version": 1
   },
   {
+    "id": "q-cell-fb-001",
+    "materialId": "cell-structure",
+    "type": "fill_in_blank",
+    "prompt": "Fill in the blank:",
+    "payload": {
+      "type": "fill_in_blank",
+      "template": "DNA is stored in the ___, most ATP is generated in the ___, and proteins are synthesized on the ___.",
+      "blanks": [
+        "nucleus",
+        "mitochondria",
+        "ribosomes"
+      ]
+    },
+    "difficulty": "medium",
+    "points": 1,
+    "explanation": "The nucleus holds the cell's DNA, mitochondria yield most ATP through aerobic respiration, and ribosomes are the sites of protein synthesis.",
+    "tags": [
+      "organelles",
+      "nucleus",
+      "mitochondria",
+      "ribosomes"
+    ],
+    "status": "published",
+    "version": 1
+  },
+  {
     "id": "q-mc-001",
     "materialId": "anatomy-physiology",
     "type": "multiple_choice",

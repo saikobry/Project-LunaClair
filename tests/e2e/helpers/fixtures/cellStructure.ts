@@ -15,9 +15,11 @@ import type { ShareFixture } from '../share-seed';
  * fixture spec and the displayed metadata comes from the payload itself, so there
  * is only one place to update.
  *
- * Carries the full published graph (52 questions, both quizzes), so specs that
+ * Carries the full published graph (53 questions, both quizzes), so specs that
  * assert quiz/question relationships exercise the real material → question → quiz
- * import path rather than a hand-made stand-in.
+ * import path rather than a hand-made stand-in. It is also the only fixture with
+ * a multi-blank `fill_in_blank` question, which is what lets the flashcard specs
+ * cover the per-blank (1:N) card projection.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const spec = getE2EShareFixture('cellStructure');

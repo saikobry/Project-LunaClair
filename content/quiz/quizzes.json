@@ -419,7 +419,8 @@
     "description": "A mixed-format practice quiz for this material.",
     "questionIds": [
       "q-cell-mc-001",
-      "q-cell-tf-001"
+      "q-cell-tf-001",
+      "q-cell-fb-001"
     ],
     "items": [
       {
@@ -434,6 +435,13 @@
         "questionId": "q-cell-tf-001",
         "questionVersion": 1,
         "order": 2,
+        "points": 1
+      },
+      {
+        "quizId": "quiz-cell-001",
+        "questionId": "q-cell-fb-001",
+        "questionVersion": 1,
+        "order": 3,
         "points": 1
       }
     ],
