@@ -87,4 +87,47 @@ describe('orderDeck', () => {
 
         expect(ordered.map((c) => c.key)).toEqual(['q:q1', 'q:q2']);
     });
+
+    it('keeps the incoming (quiz-item) order for cards with no review history', () => {
+        // FlashcardScreen hands orderDeck the selected quiz's questions already
+        // arranged by Quiz.items[].order. With no reviews every card lands in the
+        // `new` bucket, which preserves that incoming order verbatim.
+        const quizOrder: Question[] = [q3, q1, q2];
+
+        const ordered = orderDeck(quizOrder, {}, fixedNow, { studyMode: 'all' });
+
+        expect(ordered.map((c) => c.key)).toEqual(['q:q3', 'q:q1', 'q:q2']);
+    });
+
+    it('supersedes the incoming (quiz-item) order with due-date order once cards are reviewed', () => {
+        const reviews: Record<string, ReviewState> = {
+            'q:q1': {
+                key: 'q:q1',
+                repetitions: 2,
+                easeFactor: 2.5,
+                intervalDays: 3,
+                dueAt: new Date(fixedNow.getTime() - 3600000).toISOString(), // 1 hr overdue
+                lapses: 0,
+                reviewCount: 2,
+            },
+            'q:q3': {
+                key: 'q:q3',
+                repetitions: 4,
+                easeFactor: 2.5,
+                intervalDays: 8,
+                dueAt: new Date(fixedNow.getTime() - 18000000).toISOString(), // 5 hr overdue
+                lapses: 0,
+                reviewCount: 4,
+            },
+            // q2 has no review state (New Card)
+        };
+
+        // The quiz asks for q1 first, but reviewed cards are re-bucketed and sorted
+        // by dueAt, so the more overdue q3 leads and the untouched q2 trails.
+        const quizOrder: Question[] = [q1, q3, q2];
+
+        const ordered = orderDeck(quizOrder, reviews, fixedNow, { studyMode: 'all' });
+
+        expect(ordered.map((c) => c.key)).toEqual(['q:q3', 'q:q1', 'q:q2']);
+    });
 });

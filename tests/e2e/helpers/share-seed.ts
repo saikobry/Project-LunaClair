@@ -106,6 +106,9 @@ function detailBody(fixture: ShareFixture) {
     downloadCount: fixture.downloadCount ?? 0,
     createdAt,
     updatedAt: createdAt,
+    // The Worker always includes this key (null when the share never expires);
+    // omitting it would be a shape the live endpoint never produces.
+    expiresAt: null,
   };
 }
 
@@ -160,6 +163,10 @@ export async function routeShare(page: Page, fixture: ShareFixture): Promise<voi
   });
 
   await page.route(SHARE_DOWNLOAD_ROUTE, async (route) => {
+    // The Worker routes this endpoint as POST only (`router.register(['POST'], …)`);
+    // a non-POST is outside the contract, so fall through rather than answer it.
+    if (route.request().method() !== 'POST') return route.fallback();
+
     const fixture = registeredFixtures(page).find(
       (registered) => registered.shareId === shareIdFromUrl(route.request().url().replace('/download', '')),
     );

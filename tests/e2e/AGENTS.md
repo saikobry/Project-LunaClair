@@ -14,6 +14,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 ## Local Contracts
 
 - **Seed only through live Worker surfaces.** `.lcpack` shares via `/api/shares` are the exclusive content distribution mechanism; the legacy catalog and its `/api/catalog`, `/api/documents`, `/api/quiz` endpoints were retired. A mock is valid only for an endpoint that exists today (`ai`, `health`, `shares`, `sync`). Never mock a retired endpoint.
+- **`routeShare` mirrors the live Worker envelopes.** Its shapes are the real ones — feed `PublicShareSummary`, detail `PublishedShareResponse` (including `expiresAt: null` when unset), download `{ success, downloadCount }` on the **POST-only** route — verified against a local Worker (Sep 2026). Change a mock shape only when the Worker contract changed, not to make a spec pass.
 - **Seed order matters.** `resetDatabase(page)` → `setupApiMocks(page)` → `routeShare(page, fixture)` → `cloneShareToLibrary(...)`. Playwright resolves routes last-registered-first, so `routeShare` must come **after** `setupApiMocks` or the empty-feed default wins and Explore renders nothing.
 - **Never build a workspace URL by hand.** Cloning remaps every package id to a fresh local one, so `/materials/<uuid>?tab=…` is unknowable in advance. Capture it from `cloneShareToLibrary` and `page.goto` that.
 - **Tabs are the app's union.** `WorkspaceTab` re-exports `MaterialWorkspaceTab` from `src/app/routing/routing.ts`: `read | quiz | flashcards | write | questions | quizzes | attachments`. There is no `manage` tab — `?tab=manage` silently falls back to `read`. The workspace's Study/Manage switch is a mode control; use `switchToReadMode` when moving from Manage to Read.
@@ -35,7 +36,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 
 - `npm run test:e2e` — full suite; must be green from a clean browser/IndexedDB state, twice in a row.
 - `npx playwright test tests/e2e/<area>/<spec>.spec.ts` — single spec while iterating.
-- `npm run test:run` — covers the fixture validity/freshness contract under `src/__tests__/e2eFixtures/`.
+- `npm run test:run` — covers the fixture contract from both sides: validity + freshness under `src/__tests__/e2eFixtures/`, and the Worker's publish validator (`validateServerStudyPackage`) under `worker/src/__tests__/shareFixtureValidation.test.ts`.
 
 ## Child DOX Index
 

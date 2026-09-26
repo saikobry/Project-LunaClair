@@ -62,6 +62,7 @@
 ## Verification
 
 - `npm run build` type-checks `worker/` via `tsconfig.worker.json`; `npm run lint` (oxlint) covers it too.
+- `npm run test:run` covers `worker/` — including `worker/src/__tests__/shareFixtureValidation.test.ts`, which asserts every committed E2E share fixture (`tests/e2e/helpers/fixtures/*.lcpack.json`) passes `validateServerStudyPackage`, with a malformed-id control so the guard cannot pass vacuously. The client-side fixture test (`src/__tests__/e2eFixtures/`) covers the stricter client validator; this is the publish-time half.
 - After `npm run deploy:api`, `curl <worker-url>/health` must return `{"status":"ok","database":"connected"}`.
 
 ## Child DOX Index
