@@ -46,20 +46,26 @@ New domain module (domain may import from other domains, never from React, featu
 
 ```ts
 export type FlashcardSource = { type: 'question'; questionId: string };
-export type FlashcardType = 'multiple_choice' | 'multiple_select' | 'true_false' | 'identification' | 'fill_in_blank';
+export type FlashcardChoice = { label: string; correct: boolean };
 
-export interface Flashcard {
-  key: string;        // `q:${questionId}` (future: `t:${termId}`)
+export interface FlashcardBase {
+  key: string;        // `q:${questionId}` — built only by `cardKeyForQuestion`
   source: FlashcardSource;
-  type: FlashcardType;
   front: string;      // semantic prompt / template text
   back: string;       // rendered correct answer(s)
   explanation?: string;
   materialId: string;
   tags?: string[];
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard';  // the source question's authored difficulty
 }
+
+export interface RecallCard extends FlashcardBase { kind: 'recall' }
+export interface ChoiceCard extends FlashcardBase { kind: 'choice'; choices: FlashcardChoice[] }
+
+export type Flashcard = RecallCard | ChoiceCard;
 ```
+
+`kind` discriminates the card's **shape**, not the source question type. A `multiple_choice` question whose options were dropped would still be a choice card — just an incoherent one — so the projection deliberately does not carry a `QuestionType`.
 
 ### 3.2 `questionToCard.ts` — payload → card mapping (pure transient projection)
 
@@ -74,8 +80,9 @@ export interface Flashcard {
 | `fill_in_blank` | `template` (or `prompt + "\n\n" + template`) | `blanks` joined by comma |
 
 ### 3.2.1 Player Presentation Contract
-- Header badge: Displays consistent question type chip (`MULTIPLE CHOICE`, `TRUE / FALSE`, `FILL IN THE BLANK`, etc.) alongside `difficulty` and `tags` chips.
-- Active recall format: Options are omitted on `multiple_choice` fronts to encourage true retrieval over option recognition.
+- `recall` cards: no shape badge. The source question type is not on the card, and a badge naming the card's own shape is noise.
+- `choice` cards: the options are part of the question, so they are rendered on the **front** face, ungraded. Which options are correct is marked only on the **back** face, after the flip — nothing on the front face hints at correctness. A `multiple_select` question may have several correct options, hence the per-choice `correct` boolean.
+- The `difficulty` badge is worded as the **source question's** authored difficulty (`Source difficulty: …`); SM-2 never measures a card's difficulty.
 
 
 ### 3.3 `scheduler.ts` — SM-2 (pure, testable)

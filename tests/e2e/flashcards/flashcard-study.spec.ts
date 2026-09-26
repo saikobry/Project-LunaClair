@@ -46,8 +46,11 @@ test.describe('Spaced Repetition Flashcard Study E2E', () => {
     await expect(flipButton).toBeVisible();
     await flipButton.click();
 
-    // Card 1 back face reveals the correct answer and explanation
-    await expect(page.getByText('Mitochondria', { exact: true })).toBeVisible();
+    // Card 1 back face reveals the correct answer and explanation.
+    // Choice cards render their options on BOTH faces — a 3D flip keeps both in
+    // the DOM — so the answer text alone is ambiguous. Assert the graded state,
+    // which exists only on the back face and also proves the correct marking.
+    await expect(page.getByLabel('Mitochondria — correct answer')).toBeVisible();
     await expect(
       page.getByText(/powerhouse of the cell/i),
     ).toBeVisible();

@@ -6,6 +6,7 @@ import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import { isDue } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
+import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
 import { useState, type ReactNode } from 'react';
 
 const styles = stylex.create({
@@ -329,7 +330,7 @@ export function FlashcardDeckSetupView({
     let newCount = 0;
 
     for (const q of activeQuestions) {
-        const key = `q:${q.id}`;
+        const key = cardKeyForQuestion(q.id);
         const rev = reviews[key];
         if (!rev || rev.reviewCount === 0) {
             newCount++;

@@ -1,17 +1,12 @@
 import * as stylex from '@stylexjs/stylex';
 import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import { RotateCw, X, Check, HelpCircle, AlertCircle, Award } from 'lucide-react';
-import type { Flashcard, FlashcardType } from '../../../domain/flashcards/models/Flashcard';
+import type { Flashcard, FlashcardChoice } from '../../../domain/flashcards/models/Flashcard';
 import type { Rating } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 
-const TYPE_LABEL_MAP: Record<FlashcardType, string> = {
-    multiple_choice: 'MULTIPLE CHOICE',
-    multiple_select: 'MULTIPLE SELECT',
-    true_false: 'TRUE / FALSE',
-    identification: 'IDENTIFICATION',
-    fill_in_blank: 'FILL IN THE BLANK',
-};
+/** Shape label — never the source question type, which the projection drops. */
+const CHOICE_KIND_LABEL = 'MULTIPLE ANSWER';
 
 const styles = stylex.create({
     container: {
@@ -109,6 +104,36 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-accent-muted)',
         color: 'var(--color-accent)',
         fontWeight: 600,
+    },
+    choiceList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        width: '100%',
+        maxWidth: 520,
+        margin: '0 auto',
+    },
+    choiceRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-background-muted)',
+        color: 'var(--color-text-primary)',
+        fontSize: 15,
+        lineHeight: 1.4,
+        textAlign: 'left',
+    },
+    choiceRowCorrect: {
+        borderColor: 'color-mix(in srgb, var(--color-success) 40%, transparent)',
+        backgroundColor: 'color-mix(in srgb, var(--color-success) 12%, transparent)',
+        color: 'var(--color-success)',
+        fontWeight: 600,
+    },
+    choiceMarker: {
+        flexShrink: 0,
     },
     difficultyEasy: {
         backgroundColor: 'color-mix(in srgb, var(--color-success) 12%, transparent)',
@@ -378,11 +403,13 @@ function FlashcardCard({
                     <div {...stylex.props(styles.cardFace)}>
                         <div {...stylex.props(styles.metaRow)}>
                             <span {...stylex.props(styles.badge, difficultyStyle)}>
-                                {card.difficulty}
+                                Source difficulty: {card.difficulty}
                             </span>
-                            <span {...stylex.props(styles.badge, styles.typeBadge)}>
-                                {TYPE_LABEL_MAP[card.type] ?? card.type}
-                            </span>
+                            {card.kind === 'choice' && (
+                                <span {...stylex.props(styles.badge, styles.typeBadge)}>
+                                    {CHOICE_KIND_LABEL}
+                                </span>
+                            )}
                             {card.tags?.map((t) => (
                                 <span key={t} {...stylex.props(styles.badge)}>
                                     #{t}
@@ -392,6 +419,12 @@ function FlashcardCard({
 
                         <div {...stylex.props(styles.contentBox)}>
                             <p {...stylex.props(styles.promptText)}>{card.front}</p>
+                            {/* Options are part of the question, so they belong on
+                                the front face — ungraded, since correctness is
+                                only revealed on the back. */}
+                            {card.kind === 'choice' && (
+                                <CardChoices choices={card.choices} revealCorrect={false} />
+                            )}
                         </div>
 
                         <div {...stylex.props(styles.flipHint)}>
@@ -407,7 +440,11 @@ function FlashcardCard({
                         </div>
 
                         <div {...stylex.props(styles.contentBox)}>
-                            <p {...stylex.props(styles.answerText)}>{card.back}</p>
+                            {card.kind === 'choice' ? (
+                                <CardChoices choices={card.choices} revealCorrect />
+                            ) : (
+                                <p {...stylex.props(styles.answerText)}>{card.back}</p>
+                            )}
                             {card.explanation && (
                                 <div {...stylex.props(styles.explanationBox)}>
                                     <div {...stylex.props(styles.explanationHeader)}>
@@ -477,5 +514,44 @@ function FlashcardCard({
                 </div>
             )}
         </>
+    );
+}
+
+/**
+ * A choice card's options. The same list serves both faces so the user reads
+ * the same options before and after the flip; `revealCorrect` gates the
+ * grading marks so nothing on the front face can hint at the answer.
+ */
+function CardChoices({
+    choices,
+    revealCorrect,
+}: {
+    choices: FlashcardChoice[];
+    revealCorrect: boolean;
+}) {
+    return (
+        <div {...stylex.props(styles.choiceList)}>
+            {choices.map((choice) => {
+                const showMark = revealCorrect && choice.correct;
+
+                return (
+                    <span
+                        key={choice.label}
+                        {...stylex.props(
+                            styles.choiceRow,
+                            showMark && styles.choiceRowCorrect
+                        )}
+                        aria-label={
+                            showMark ? `${choice.label} — correct answer` : undefined
+                        }
+                    >
+                        {showMark && (
+                            <Check size={16} {...stylex.props(styles.choiceMarker)} />
+                        )}
+                        <span>{choice.label}</span>
+                    </span>
+                );
+            })}
+        </div>
     );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { orderDeck } from '../deck';
+import { cardKeyForQuestion } from '../cardKey';
 import type { Question } from '../../../quiz/models/Question';
 import type { ReviewState } from '../scheduler';
 
@@ -33,8 +34,11 @@ describe('orderDeck', () => {
     };
 
     it('orders deck prioritizing overdue cards, then new cards, then future cards', () => {
+        // Review fixtures are keyed through the same helper the deck uses, so a
+        // drift in the key scheme cannot make a reviewed card look new. The
+        // expected outputs below stay literal to pin the `q:` format itself.
         const reviews: Record<string, ReviewState> = {
-            'q:q1': {
+            [cardKeyForQuestion('q1')]: {
                 key: 'q:q1',
                 repetitions: 3,
                 easeFactor: 2.5,
@@ -44,7 +48,7 @@ describe('orderDeck', () => {
                 reviewCount: 3,
             },
             // q2 has no review state (New Card)
-            'q:q3': {
+            [cardKeyForQuestion('q3')]: {
                 key: 'q:q3',
                 repetitions: 2,
                 easeFactor: 2.5,
@@ -62,7 +66,7 @@ describe('orderDeck', () => {
 
     it('filters out future non-due cards when studyMode is "due_only"', () => {
         const reviews: Record<string, ReviewState> = {
-            'q:q1': {
+            [cardKeyForQuestion('q1')]: {
                 key: 'q:q1',
                 repetitions: 1,
                 easeFactor: 2.5,
@@ -71,7 +75,7 @@ describe('orderDeck', () => {
                 lapses: 0,
                 reviewCount: 1,
             },
-            'q:q3': {
+            [cardKeyForQuestion('q3')]: {
                 key: 'q:q3',
                 repetitions: 2,
                 easeFactor: 2.5,
@@ -101,7 +105,7 @@ describe('orderDeck', () => {
 
     it('supersedes the incoming (quiz-item) order with due-date order once cards are reviewed', () => {
         const reviews: Record<string, ReviewState> = {
-            'q:q1': {
+            [cardKeyForQuestion('q1')]: {
                 key: 'q:q1',
                 repetitions: 2,
                 easeFactor: 2.5,
@@ -110,7 +114,7 @@ describe('orderDeck', () => {
                 lapses: 0,
                 reviewCount: 2,
             },
-            'q:q3': {
+            [cardKeyForQuestion('q3')]: {
                 key: 'q:q3',
                 repetitions: 4,
                 easeFactor: 2.5,

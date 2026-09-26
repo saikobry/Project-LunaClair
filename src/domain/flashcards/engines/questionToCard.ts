@@ -1,15 +1,23 @@
 import type { Question } from '../../quiz/models/Question';
-import type { Flashcard } from '../models/Flashcard';
+import type { Flashcard, FlashcardBase, FlashcardChoice } from '../models/Flashcard';
+import { cardKeyForQuestion } from './cardKey';
 
 export function questionToCard(question: Question): Flashcard {
     const { payload } = question;
     let front = question.prompt;
     let back = '';
+    // Only the option-bearing payloads populate this; it is what selects the
+    // `choice` variant below.
+    let choices: FlashcardChoice[] | undefined;
 
     switch (payload.type) {
         case 'multiple_choice': {
             const correctChoice = payload.choices[payload.correctIndex] ?? '';
             back = correctChoice;
+            choices = payload.choices.map((label, index) => ({
+                label,
+                correct: index === payload.correctIndex,
+            }));
             break;
         }
         case 'multiple_select': {
@@ -17,6 +25,11 @@ export function questionToCard(question: Question): Flashcard {
                 .map((idx) => payload.choices[idx])
                 .filter((c): c is string => Boolean(c));
             back = correctChoices.join(', ');
+            const correctIndices = new Set(payload.correctIndices);
+            choices = payload.choices.map((label, index) => ({
+                label,
+                correct: correctIndices.has(index),
+            }));
             break;
         }
         case 'true_false': {
@@ -51,10 +64,9 @@ export function questionToCard(question: Question): Flashcard {
         }
     }
 
-    return {
-        key: `q:${question.id}`,
+    const shared: FlashcardBase = {
+        key: cardKeyForQuestion(question.id),
         source: { type: 'question', questionId: question.id },
-        type: question.type,
         front,
         back,
         explanation: question.explanation,
@@ -62,4 +74,10 @@ export function questionToCard(question: Question): Flashcard {
         tags: question.tags,
         difficulty: question.difficulty,
     };
+
+    if (choices) {
+        return { ...shared, kind: 'choice', choices };
+    }
+
+    return { ...shared, kind: 'recall' };
 }

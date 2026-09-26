@@ -209,6 +209,64 @@ describe('FlashcardScreen', () => {
         });
     });
 
+    it('shows a choice card’s options ungraded and marks the correct one after the flip', async () => {
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
+        // q-1 is a multiple_choice question, so its card is a choice card: the
+        // options belong to the question and are shown on the front face.
+        await waitFor(() => {
+            expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
+        });
+        // Both flip faces stay mounted (the flip is a 3D transform with
+        // backface-visibility), so each option text appears once per face.
+        expect(screen.getAllByText('Mitochondria')).toHaveLength(2);
+        expect(screen.getAllByText('Nucleus')).toHaveLength(2);
+
+        // The grading mark is bound to the back-face row alone — of the two
+        // "Mitochondria" rows only the back face is labelled, so the front face
+        // can never leak which option is right.
+        expect(screen.getAllByLabelText('Mitochondria — correct answer')).toHaveLength(1);
+        expect(screen.queryByLabelText('Nucleus — correct answer')).toBeNull();
+
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => {
+            expect(screen.getByText('Good')).toBeInTheDocument();
+        });
+
+        // Still exactly one graded row: the reveal does not add a marker, it
+        // reveals the back face that already carries it.
+        expect(screen.getAllByLabelText('Mitochondria — correct answer')).toHaveLength(1);
+    });
+
+    it('labels a recall card’s difficulty as the source question’s, with no card-shape badge', async () => {
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
+        // q-1 is the choice card; rating through it reveals q-2, a true_false
+        // card whose shape badge would have been pure noise.
+        await waitFor(() => {
+            expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => expect(screen.getByText('Easy')).toBeInTheDocument());
+        fireEvent.click(screen.getByText('Easy'));
+
+        await waitFor(() => {
+            expect(screen.getByText('Plant cells have cell walls.')).toBeInTheDocument();
+        });
+        expect(screen.getByText('Source difficulty: medium')).toBeInTheDocument();
+        expect(screen.queryByText('MULTIPLE ANSWER')).toBeNull();
+    });
+
     it('completes the deck and shows session summary when all cards are reviewed', async () => {
         render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
 
