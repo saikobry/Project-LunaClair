@@ -1,6 +1,7 @@
 import type { Question } from '../../quiz/models/Question';
 import type { Flashcard, FlashcardBase, FlashcardChoice } from '../models/Flashcard';
 import { cardKeyForBlank, cardKeyForQuestion } from './cardKey';
+import { resolveClozeCardFront } from './clozeCardFront';
 
 /** The marker an authored `fill_in_blank` template carries once per answer. */
 const BLANK_MARKER = '___';
@@ -98,20 +99,11 @@ export function questionToCards(question: Question): Flashcard[] {
             break;
         }
         case 'fill_in_blank': {
-            const promptTrimmed = question.prompt.trim();
-            const templateTrimmed = payload.template.trim();
+            front = resolveClozeCardFront(question.prompt, payload.template);
 
-            if (!promptTrimmed || promptTrimmed.toLowerCase().includes('fill in the blank')) {
-                front = templateTrimmed;
-            } else if (promptTrimmed !== templateTrimmed && !promptTrimmed.includes('___')) {
-                front = `${promptTrimmed}\n\n${templateTrimmed}`;
-            } else {
-                front = promptTrimmed;
-            }
-
-            // Expansion runs on the *resolved* front, so the legacy
-            // prompt-to-template fallback above still decides what each card
-            // says, and it is the fallback's output that gets split per blank.
+            // Expansion runs on the *resolved* front, so the prompt-to-template
+            // resolution still decides what each card says, and it is that
+            // resolution's output that gets split per blank.
             const expands =
                 payload.blanks.length > 0 && countBlankMarkers(front) === payload.blanks.length;
 

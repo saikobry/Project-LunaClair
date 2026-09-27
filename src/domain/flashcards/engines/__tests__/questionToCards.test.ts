@@ -322,6 +322,60 @@ describe('questionToCards', () => {
         });
     });
 
+    /**
+     * The projection reads its cloze front from `resolveClozeCardFront`, the
+     * same function the cloze schedule-invalidation policy compares. A second
+     * implementation of that resolution is the one thing that could make the
+     * reset policy stop matching what is rendered, so each resolution branch is
+     * pinned here with a **literal** expected front — never rebuilt with the
+     * function under test.
+     */
+    describe('cloze front resolution — byte-identical per branch', () => {
+        const branches: Array<{ label: string; prompt: string; template: string; front: string }> = [
+            {
+                label: 'generic prompt resolves to the bare template',
+                prompt: 'Fill in the blank:',
+                template: 'The ___ stores DNA.',
+                front: 'The ___ stores DNA.',
+            },
+            {
+                label: 'whitespace-only prompt resolves to the bare template',
+                prompt: '  ',
+                template: 'The ___ stores DNA.',
+                front: 'The ___ stores DNA.',
+            },
+            {
+                label: 'marker-free prompt is prefixed above the template',
+                prompt: 'Complete the sentence about the nucleus.',
+                template: 'The ___ stores DNA.',
+                front: 'Complete the sentence about the nucleus.\n\nThe ___ stores DNA.',
+            },
+            {
+                label: 'marker-bearing prompt wins and the template is not read',
+                prompt: 'The ___ stores the ___.',
+                template: 'Ignored by the projection.',
+                front: 'The ___ stores the ___.',
+            },
+            {
+                label: 'prompt equal to the template is returned unchanged',
+                prompt: 'The ___ stores DNA.',
+                template: 'The ___ stores DNA.',
+                front: 'The ___ stores DNA.',
+            },
+        ];
+
+        for (const { label, prompt, template, front } of branches) {
+            it(label, () => {
+                // A single blank is its own target, so the expanded front is the
+                // resolved front with that one marker left as `___`.
+                const cards = questionToCards(fillBlank({ template, blanks: ['nucleus'] }, prompt));
+
+                expect(cards).toHaveLength(1);
+                expect(cards[0].front).toBe(front);
+            });
+        }
+    });
+
     it('carries the shared projection fields on both card kinds', () => {
         const recall = questionToCards({
             ...baseQuestion,

@@ -24,6 +24,12 @@ describe('useQuestionManagement', () => {
                     archiveQuestion: { execute: vi.fn().mockResolvedValue(undefined) },
                     unarchiveQuestion: { execute: vi.fn().mockResolvedValue(undefined) },
                 },
+                flashcards: {
+                    resetReviews: {
+                        capture: vi.fn().mockResolvedValue([]),
+                        execute: vi.fn().mockResolvedValue({ resetKeys: [] }),
+                    },
+                },
             },
         };
     });
@@ -79,6 +85,34 @@ describe('useQuestionManagement', () => {
 
         expect(mockContext.useCases.quizManagement.updateQuestion.execute).toHaveBeenCalledWith('q-1', input);
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['assessment'] });
+    });
+
+    it('brackets updateQuestion with the flashcard review reset lifecycle', async () => {
+        const order: string[] = [];
+        mockContext.useCases.flashcards.resetReviews.capture.mockImplementation(async () => {
+            order.push('capture');
+            return [{ id: 'q-1' }];
+        });
+        mockContext.useCases.quizManagement.updateQuestion.execute.mockImplementation(async () => {
+            order.push('write');
+            return { id: 'q-1' };
+        });
+        mockContext.useCases.flashcards.resetReviews.execute.mockImplementation(async () => {
+            order.push('reset');
+            return { resetKeys: [] };
+        });
+
+        const { result } = renderHook(() => useQuestionManagement(), { wrapper: createWrapper() });
+
+        await act(async () => {
+            await result.current.updateQuestion.mutateAsync({ id: 'q-1', input: { points: 3 } });
+        });
+
+        // `capture` must precede the write: the input is partial, so once the row
+        // is written the old cloze content is gone for good.
+        expect(order).toEqual(['capture', 'write', 'reset']);
+        expect(mockContext.useCases.flashcards.resetReviews.capture).toHaveBeenCalledWith(['q-1']);
+        expect(mockContext.useCases.flashcards.resetReviews.execute).toHaveBeenCalledWith({ before: [{ id: 'q-1' }] });
     });
 
     it('executes publishQuestion mutation and invalidates assessment queries', async () => {

@@ -23,8 +23,15 @@ export function useQuestionManagement() {
     });
 
     const updateQuestion = useMutation({
-        mutationFn: ({ id, input }: { id: string; input: UpdateQuestionInput }) =>
-            context.useCases.quizManagement.updateQuestion.execute(id, input),
+        mutationFn: async ({ id, input }: { id: string; input: UpdateQuestionInput }) => {
+            // Bracket the write with the review-reset lifecycle. `capture` must
+            // run first: the input is partial, so once the row is written the old
+            // cloze content is gone and nothing can tell whether it moved.
+            const before = await context.useCases.flashcards.resetReviews.capture([id]);
+            const question = await context.useCases.quizManagement.updateQuestion.execute(id, input);
+            await context.useCases.flashcards.resetReviews.execute({ before });
+            return question;
+        },
         onSettled: invalidate,
     });
 

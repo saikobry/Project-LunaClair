@@ -213,6 +213,14 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
         if (!draft || saveState === 'saving') return;
         setSaveState('saving');
         try {
+            // Bracket the save with the review-reset lifecycle. `capture` must
+            // run first: once the bank questions are written, the old cloze
+            // content is gone and nothing can tell whether it moved.
+            const bankQuestionIds = draft.items
+                .map((item) => item.questionId)
+                .filter((id): id is string => Boolean(id));
+            const before = await context.useCases.flashcards.resetReviews.capture(bankQuestionIds);
+
             const result = await context.useCases.quizManagement.saveQuiz.execute(draft);
             if (!result.success) {
                 setErrors(result.errors);
@@ -220,6 +228,7 @@ export function useQuizCanvasEditor({ materialId, quizId, onClose }: QuizCanvasE
                 focusFirstInvalid(result.errors);
                 return;
             }
+            await context.useCases.flashcards.resetReviews.execute({ before });
             // UI editor lifecycle: drop the crash-recovery draft, refresh caches.
             await context.repositories.quizDraft.deleteDraft(draft.draftId);
             void queryClient.invalidateQueries({ queryKey: ['assessment'] });

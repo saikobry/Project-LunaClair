@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '../../schema/LunaClairDatabase';
 import { DexieQuizSessionRepository } from '../DexieQuizSessionRepository';
 import { DexieFlashcardReviewRepository } from '../DexieFlashcardReviewRepository';
@@ -89,6 +89,7 @@ describe('Phase 7A / Commit 1 — Analytics Data Access Foundations', () => {
         await db.flashcardReviews.clear();
         await db.quizzes.clear();
         await db.questions.clear();
+        await db.syncQueue.clear();
 
         await db.questions.bulkPut([sampleQuestion1, sampleQuestion2, sampleQuestion3]);
         await db.quizzes.put(sampleQuiz1);
@@ -273,7 +274,7 @@ describe('Phase 7A / Commit 1 — Analytics Data Access Foundations', () => {
             await expect(flashcardReviewRepo.getAllReviews(controller.signal)).rejects.toThrow();
         });
 
-        it('reflects deletions accurately', async () => {
+        it('reflects deletions accurately and tombstones them in the sync outbox in the same transaction', async () => {
             const review1: ReviewState = {
                 key: 'card-1',
                 materialId: 'mat-1',
@@ -287,8 +288,91 @@ describe('Phase 7A / Commit 1 — Analytics Data Access Foundations', () => {
             await flashcardReviewRepo.save([review1]);
             expect(await flashcardReviewRepo.getAllReviews()).toHaveLength(1);
 
+            await db.syncQueue.clear();
             await flashcardReviewRepo.deleteByKeys(['card-1']);
+
+            // The row is gone locally...
             expect(await flashcardReviewRepo.getAllReviews()).toEqual([]);
+
+            // ...and a local-only delete is not a delete: without a tombstone the
+            // remote row stays live, the next pull restores it, and the schedule
+            // resurrects. The DELETE mutation is what makes the local clear
+            // authoritative across devices.
+            const queue = await db.syncQueue.toArray();
+            expect(queue).toHaveLength(1);
+            expect(queue[0].entityType).toBe('flashcardReview');
+            expect(queue[0].entityId).toBe('card-1');
+            expect(queue[0].operation).toBe('DELETE');
+            expect(queue[0].status).toBe('pending');
+            expect(queue[0].retryCount).toBe(0);
+            expect(queue[0].clientMutationId).toEqual(expect.any(String));
+            // Strictly newer than the UPSERT that created the row, which is what
+            // the Worker's LWW `timestamp >= updated_at` check needs to apply it.
+            expect(queue[0].clientTimestamp >= '2026-08-30T00:00:00Z').toBe(true);
+        });
+
+        it('tombstones every deleted key and no-ops on an empty key list', async () => {
+            const reviews: ReviewState[] = ['q:q-1#0', 'q:q-1#1'].map((key, index) => ({
+                key,
+                materialId: 'mat-1',
+                repetitions: 1 + index,
+                easeFactor: 2.5,
+                intervalDays: 1,
+                dueAt: '2026-08-30T00:00:00Z',
+                lapses: 0,
+                lastReviewedAt: '2026-08-29T09:00:00Z',
+                reviewCount: 1 + index,
+            }));
+            await flashcardReviewRepo.save(reviews);
+            await db.syncQueue.clear();
+
+            await flashcardReviewRepo.deleteByKeys([]);
+            expect(await db.syncQueue.toArray()).toEqual([]);
+
+            await flashcardReviewRepo.deleteByKeys(['q:q-1#0', 'q:q-1#1']);
+            expect(await flashcardReviewRepo.getByKeys(['q:q-1#0', 'q:q-1#1'])).toEqual([]);
+
+            const tombstones = await db.syncQueue.toArray();
+            expect(tombstones.map((item) => item.entityId).toSorted()).toEqual(['q:q-1#0', 'q:q-1#1']);
+            expect(tombstones.every((item) => item.operation === 'DELETE')).toBe(true);
+            // Distinct logical mutation ids so a replayed batch is not deduplicated
+            // into a single no-op by the Worker's idempotency ledger.
+            expect(new Set(tombstones.map((item) => item.clientMutationId)).size).toBe(2);
+        });
+
+        it('writes the row delete and the tombstone in one transaction spanning both stores', async () => {
+            const review1: ReviewState = {
+                key: 'card-1',
+                materialId: 'mat-1',
+                repetitions: 2,
+                easeFactor: 2.5,
+                intervalDays: 6,
+                dueAt: '2026-08-30T00:00:00Z',
+                lapses: 0,
+                reviewCount: 2,
+            };
+            await flashcardReviewRepo.save([review1]);
+            await db.syncQueue.clear();
+
+            const transaction = vi.spyOn(db, 'transaction');
+            await flashcardReviewRepo.deleteByKeys(['card-1']);
+            expect(transaction).toHaveBeenCalledTimes(1);
+            const [mode, scope] = transaction.mock.calls[0];
+            expect(mode).toBe('rw');
+            expect(scope).toEqual(expect.arrayContaining([db.flashcardReviews, db.syncQueue]));
+            transaction.mockRestore();
+
+            // Atomicity, not just co-location: when the outbox write fails the row
+            // delete rolls back with it, so a review state is never cleared
+            // locally while the remote row stays live.
+            await flashcardReviewRepo.save([review1]);
+            await db.syncQueue.clear();
+            const outboxWrite = vi.spyOn(db.syncQueue, 'bulkPut').mockRejectedValue(new Error('outbox unavailable'));
+            await expect(flashcardReviewRepo.deleteByKeys(['card-1'])).rejects.toThrow('outbox unavailable');
+            outboxWrite.mockRestore();
+
+            expect(await flashcardReviewRepo.getByKeys(['card-1'])).toHaveLength(1);
+            expect(await db.syncQueue.toArray()).toEqual([]);
         });
     });
 });

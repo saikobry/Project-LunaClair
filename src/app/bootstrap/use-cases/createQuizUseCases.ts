@@ -13,6 +13,7 @@ import { UnarchiveQuizUseCase } from '../../../application/use-cases/quiz-manage
 import { PublishQuizUseCase } from '../../../application/use-cases/quiz-management/PublishQuizUseCase';
 import { SaveQuizUseCase } from '../../../application/use-cases/quiz-management/SaveQuizUseCase';
 import { RecordFlashcardReviewUseCase } from '../../../application/use-cases/flashcards/RecordFlashcardReviewUseCase';
+import { ResetFlashcardReviewsUseCase } from '../../../application/use-cases/flashcards/ResetFlashcardReviewsUseCase';
 import type { Infrastructure } from '../createInfrastructure';
 
 export function createQuizUseCases(infrastructure: Infrastructure) {
@@ -21,6 +22,9 @@ export function createQuizUseCases(infrastructure: Infrastructure) {
     return {
         flashcards: {
             recordReview: new RecordFlashcardReviewUseCase(repositories.flashcardReview),
+            // Invoked *alongside* a question write, never from inside one: the
+            // authoring use cases know nothing about review state.
+            resetReviews: new ResetFlashcardReviewsUseCase(repositories.question, repositories.flashcardReview),
         },
         quiz: {
             startSession: new StartQuizSessionUseCase(repositories.quizSession),

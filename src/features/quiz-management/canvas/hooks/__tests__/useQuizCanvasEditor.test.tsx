@@ -85,6 +85,12 @@ describe('useQuizCanvasEditor', () => {
                         execute: vi.fn().mockResolvedValue({ success: true, quizId: 'quiz-1' }),
                     },
                 },
+                flashcards: {
+                    resetReviews: {
+                        capture: vi.fn().mockResolvedValue([]),
+                        execute: vi.fn().mockResolvedValue({ resetKeys: [] }),
+                    },
+                },
             },
         };
     });
@@ -234,6 +240,61 @@ describe('useQuizCanvasEditor', () => {
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['assessment'] });
         expect(mockShowToast).toHaveBeenCalledWith('Quiz saved to catalog', { intent: 'success' });
         expect(result.current.saveState).toBe('saved');
+    });
+
+    it('brackets handleSave with the flashcard review reset lifecycle', async () => {
+        const order: string[] = [];
+        mockContext.useCases.flashcards.resetReviews.capture.mockImplementation(async () => {
+            order.push('capture');
+            return [];
+        });
+        mockContext.useCases.quizManagement.saveQuiz.execute.mockImplementation(async () => {
+            order.push('write');
+            return { success: true, quizId: 'quiz-1' };
+        });
+        mockContext.useCases.flashcards.resetReviews.execute.mockImplementation(async () => {
+            order.push('reset');
+            return { resetKeys: [] };
+        });
+
+        const { result } = renderHook(
+            () => useQuizCanvasEditor({ materialId: 'mat-1', onClose: mockOnClose }),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.phase).toBe('ready');
+        });
+
+        await act(async () => {
+            await result.current.handleSave();
+        });
+
+        // `capture` first: once the bank questions are written, the old cloze
+        // content is gone and nothing can say whether it moved.
+        expect(order).toEqual(['capture', 'write', 'reset']);
+    });
+
+    it('does not reset review state when the save fails validation', async () => {
+        mockContext.useCases.quizManagement.saveQuiz.execute.mockResolvedValue({
+            success: false,
+            errors: { title: 'Quiz title is required', items: {} },
+        });
+
+        const { result } = renderHook(
+            () => useQuizCanvasEditor({ materialId: 'mat-1', onClose: mockOnClose }),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.phase).toBe('ready');
+        });
+
+        await act(async () => {
+            await result.current.handleSave();
+        });
+
+        expect(mockContext.useCases.flashcards.resetReviews.execute).not.toHaveBeenCalled();
     });
 
     it('handles validation failure on save by displaying errors without deleting draft', async () => {
