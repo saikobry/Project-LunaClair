@@ -12,9 +12,18 @@ export interface StudyOverviewMetrics {
     totalCorrectAnswers: number;
     /** Question-weighted global accuracy percentage (0 to 100). */
     globalQuizAccuracy: number;
-    /** Total accumulated card reviews (sum of reviewCount across all cards). */
+    /** Total accumulated card reviews (sum of reviewCount across all cards). Historical: includes stranded schedules. */
     totalCardReviews: number;
-    /** Count of distinct cards with at least one recorded review (reviewCount > 0). */
+    /**
+     * Count of **current** cards with at least one recorded review
+     * (reviewCount > 0) — i.e. projected card keys in the active pool.
+     *
+     * Current-workload scoped, unlike `totalCardReviews` and the streak: a
+     * schedule outside the active card pool is a review that happened but is not
+     * a card the learner still has, so it is excluded. Presentation must say
+     * "active cards" so the number is not read as an all-time distinct-card count
+     * (which would include archived and removed cards).
+     */
     cardsWithReviewHistory: number;
     /** Current consecutive active calendar days in user's local timezone. */
     currentStreakDays: number;
@@ -31,8 +40,27 @@ export interface CardMaturityBreakdown {
     reviewCount: number;
     /** Cards mastered (intervalDays >= 21 && lapses <= 1). */
     masteredCount: number;
-    /** Total pool of cards evaluated. Invariant: sum of all counts === totalCards. */
+    /**
+     * Size of the projected card-key pool this breakdown was computed against.
+     * Invariant: `newCount + learningCount + reviewCount + masteredCount === totalCards`,
+     * and `totalCards` is the pool size — never a count of questions, and never
+     * repaired upward to cover reviews whose card no longer exists.
+     */
     totalCards: number;
+    /**
+     * Diagnostic: distinct review rows whose card key is NOT in the pool — a
+     * schedule outside the active card pool, which is the condition rather than
+     * one cause. Three real causes produce it, and the list is open: the
+     * question was **deleted**, the question was **archived** (archiving is the
+     * app's soft delete, so the question still exists and only its cards left
+     * the pool), or a **cloze blank was retired**.
+     *
+     * Reported, never absorbed: these rows are in no bucket and contribute
+     * nothing to `totalCards`, so the partition stays exact. They are
+     * **not** an error condition — pre-release data can carry them, and the
+     * Insights surface must keep rendering rather than fail over a diagnostic.
+     */
+    orphanReviewCount: number;
 }
 
 export interface ReviewForecastDay {

@@ -71,6 +71,20 @@ describe('DexieLibraryImportService', () => {
     };
   }
 
+  function reviewState(key: string, materialId: string) {
+    return {
+      key,
+      materialId,
+      repetitions: 2,
+      easeFactor: 2.5,
+      intervalDays: 6,
+      dueAt: '2026-08-30T00:00:00.000Z',
+      lapses: 0,
+      lastReviewedAt: '2026-08-29T09:00:00.000Z',
+      reviewCount: 2,
+    };
+  }
+
   it('atomically imports full material bundle across all 4 stores', async () => {
     const input = createSampleInput('mat-1');
     await service.importMaterial(input);
@@ -196,6 +210,57 @@ describe('DexieLibraryImportService', () => {
     // ...the collection itself survives, and the other material stays filed.
     expect(await db.collections.get('col-1')).toBeDefined();
     expect(await db.collectionMaterials.where('materialId').equals('mat-unfiled').toArray()).toHaveLength(1);
+  });
+
+  /**
+   * A material's questions are deleted with it, and a question's cards are the
+   * only thing that projects its review keys — so the schedules go too, and they
+   * are tombstoned in the SAME transaction. The keys come from the `materialId`
+   * index, which reaches every key of every question in the material: whole
+   * question `q:<id>` keys and per-blank `q:<id>#<n>` keys alike.
+   */
+  it('removes and tombstones every flashcard schedule of the material, including per-blank keys', async () => {
+    await service.importMaterial(createSampleInput('mat-studied'));
+    await service.importMaterial(createSampleInput('mat-untouched'));
+    await db.flashcardReviews.bulkPut([
+      reviewState('q:q-mat-studied', 'mat-studied'),
+      reviewState('q:q-mat-studied#0', 'mat-studied'),
+      reviewState('q:q-mat-studied#1', 'mat-studied'),
+      reviewState('q:q-mat-untouched', 'mat-untouched'),
+    ]);
+    await db.syncQueue.clear();
+
+    await service.removeMaterial('mat-studied');
+
+    expect(await db.flashcardReviews.toArray()).toHaveLength(1);
+    expect((await db.flashcardReviews.toArray()).map((r) => r.key)).toEqual(['q:q-mat-untouched']);
+
+    const tombstones = await db.syncQueue.toArray();
+    expect(tombstones.map((item) => item.entityId).toSorted()).toEqual([
+      'q:q-mat-studied',
+      'q:q-mat-studied#0',
+      'q:q-mat-studied#1',
+    ]);
+    expect(tombstones.every((item) => item.entityType === 'flashcardReview')).toBe(true);
+    expect(tombstones.every((item) => item.operation === 'DELETE')).toBe(true);
+  });
+
+  it('rolls the material removal back when the review tombstone write fails', async () => {
+    await service.importMaterial(createSampleInput('mat-tombstone-fail'));
+    await db.flashcardReviews.put(reviewState('q:q-mat-tombstone-fail', 'mat-tombstone-fail'));
+    await db.syncQueue.clear();
+
+    const outboxWrite = vi.spyOn(db.syncQueue, 'bulkPut').mockRejectedValue(new Error('outbox unavailable'));
+    await expect(service.removeMaterial('mat-tombstone-fail')).rejects.toThrow('outbox unavailable');
+    outboxWrite.mockRestore();
+
+    // Nothing landed: the material, its questions, and its schedule are all
+    // still here. A clear that cannot be synced must not happen — the next pull
+    // would otherwise restore the remote rows over a half-done removal.
+    expect(await db.materials.get('mat-tombstone-fail')).toBeDefined();
+    expect(await db.questions.get('q-mat-tombstone-fail')).toBeDefined();
+    expect((await db.flashcardReviews.toArray()).map((r) => r.key)).toEqual(['q:q-mat-tombstone-fail']);
+    expect(await db.syncQueue.toArray()).toEqual([]);
   });
 
   it('imports material batch atomically', async () => {

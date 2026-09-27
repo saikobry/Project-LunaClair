@@ -4,6 +4,7 @@ import type {
     MaterialAnalytics,
 } from '../../../domain/analytics/models/analytics.types';
 import { computeStudyOverview } from '../../../domain/analytics/engines/overviewEngine';
+import { buildCardKeyPool } from '../../../domain/analytics/engines/cardKeyPool';
 import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/engines/retentionEngine';
 import { computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
 import { buildActivityCalendar } from '../../../domain/analytics/engines/activityEngine';
@@ -18,15 +19,28 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
             // Index lookup rather than a full-store scan with a JS predicate (v15 added `status`).
             db.quizSessions.where('status').equals('completed').toArray(),
             db.flashcardReviews.toArray(),
-            db.questions.filter((q) => q.status !== 'archived').toArray(),
+            db.questions.toArray(),
         ]);
 
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        // Delegate all analytical calculations to pure domain engines
-        const overview = computeStudyOverview(sessions, reviews);
-        const maturity = computeCardMaturity(reviews, questions.length);
-        const forecast = computeReviewForecast(reviews, 7);
+        // The card pool is the union of the projected card keys over every
+        // in-scope question — NOT a question count. `buildCardKeyPool` owns the
+        // archived exclusion and runs the same `questionToCards` projection the
+        // study deck runs, so the maturity buckets measure the deck the learner
+        // actually has. ONE pool is passed to every engine that scopes to current
+        // cards, so the overview's "cards with history" figure and the maturity bar
+        // beside it cannot be measured against different denominators.
+        const cardKeys = buildCardKeyPool(questions);
+
+        // Delegate all analytical calculations to pure domain engines. The
+        // overview is pool-scoped for its current-workload figure only; its
+        // review totals, last activity, and streak stay on full review history.
+        const overview = computeStudyOverview(sessions, reviews, cardKeys);
+        const maturity = computeCardMaturity(reviews, cardKeys);
+        const forecast = computeReviewForecast(reviews, cardKeys, 7);
+        // Historical: a review of a since-deleted card still happened, so the
+        // calendar keeps counting it (only the forecast is pool-scoped).
         const activity = buildActivityCalendar(sessions, reviews, 365);
 
         return {
@@ -81,8 +95,11 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
             totalCardReviews += r.reviewCount || 0;
         }
 
-        const activeQuestions = questions.filter((q) => q.status !== 'archived');
-        const maturity = computeCardMaturity(reviews, activeQuestions.length);
+        // Same projection as the global scope, restricted to this material's
+        // questions — a per-material question count would understate a cloze
+        // question's per-blank cards exactly as the global one did.
+        const cardKeys = buildCardKeyPool(questions);
+        const maturity = computeCardMaturity(reviews, cardKeys);
 
         // Filter material sessions to only questions from this material for topic mastery
         const sanitizedSessions = materialSessions.map((session) => ({

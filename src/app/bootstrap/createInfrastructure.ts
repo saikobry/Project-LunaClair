@@ -56,6 +56,11 @@ import type { LocalStorageCredentialsProvider } from '../../infrastructure/brows
 import type { AiService } from '../../domain/ai/services/AiService';
 import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
+import {
+    noopAnalyticsCacheInvalidator,
+    withAnalyticsPoolInvalidation,
+    type AnalyticsCacheInvalidator,
+} from './analyticsInvalidation';
 
 /**
  * Public domain repositories contract exposed to the application layer.
@@ -112,8 +117,17 @@ export interface Infrastructure {
 
 /**
  * Creates and structures the application's infrastructure layer.
+ *
+ * `invalidateAnalytics` is supplied by the app shell and is why the question
+ * repository is registered as a *decorator* rather than the bare adapter: every
+ * question write changes the projected analytics card pool, and the composition
+ * root is the one layer that may coordinate that without giving
+ * `features/quiz-management` a dependency on `features/analytics`. See
+ * `analyticsInvalidation.ts`.
  */
-export function createInfrastructure(): Infrastructure {
+export function createInfrastructure(
+    invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+): Infrastructure {
     const documentRepository = new HybridDocumentRepository(
         dexieDocumentContentRepository,
     );
@@ -127,7 +141,7 @@ export function createInfrastructure(): Infrastructure {
         documentContent: dexieDocumentContentRepository,
         annotation: dexieAnnotationRepository,
         library: dexieLibraryRepository,
-        question: dexieQuestionRepository,
+        question: withAnalyticsPoolInvalidation(dexieQuestionRepository, invalidateAnalytics),
         quiz: dexieQuizRepository,
         quizSession: dexieQuizSessionRepository,
         quizDraft: dexieQuizDraftRepository,

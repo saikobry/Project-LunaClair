@@ -4,14 +4,27 @@ import type {
     CreateQuestionInput,
     UpdateQuestionInput,
 } from '../../../domain/quiz/repositories/QuestionRepository';
+import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
 import { normalizeTags } from '../../../shared/utils/tags';
+import { DexieFlashcardReviewRepository } from './DexieFlashcardReviewRepository';
 import { db } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
+/** The `#<index>` suffix every per-blank key of one question shares. */
+function blankKeyPrefix(questionId: string): string {
+    return `${cardKeyForQuestion(questionId)}#`;
+}
+
 export class DexieQuestionRepository implements QuestionRepository {
+    /**
+     * The single owner of review-state clearing for this repository, so a
+     * question delete and the authoring use cases share one tombstone path.
+     */
+    private readonly flashcardReviews = new DexieFlashcardReviewRepository();
+
     async getQuestions(materialId: string, signal?: AbortSignal): Promise<Question[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         return db.questions.where('materialId').equals(materialId).toArray();
@@ -90,8 +103,45 @@ export class DexieQuestionRepository implements QuestionRepository {
         return updated;
     }
 
+    /**
+     * Deletes the question **and every review row its cards owned.**
+     *
+     * A deleted question leaves nothing to project, so each of its keys —
+     * the whole-question `q:<id>` for a 1:1 question, `q:<id>#<n>` for each
+     * blank of a cloze one — is a card that no longer exists. Leaving those
+     * rows behind would strand their SM-2 state forever: the analytics pool is
+     * built from projected keys, so they would read as orphan diagnostics that
+     * nothing can ever retire.
+     *
+     * The keys are read from storage by prefix rather than re-projected from
+     * the question row, so keys left by an **earlier** shape are cleared too —
+     * a question that was once a 3-blank cloze and is now 1:1 still has `#0..2`
+     * rows, and re-projecting would only find `q:<id>`. The prefix is
+     * `${cardKeyForQuestion(id)}#`, never the bare `q:<id>`, because a plain
+     * `startsWith` on the bare key would also match a different question whose
+     * id merely extends this one (`q:q-1` vs `q:q-12`).
+     *
+     * Clearing goes through `FlashcardReviewRepository.deleteByKeys`, which
+     * writes a `DELETE` tombstone per key — a local-only clear is undone by the
+     * next pull and the schedule resurrects. Its transaction scope
+     * (`flashcardReviews`, `syncQueue`) is a subset of this one, so Dexie reuses
+     * the running transaction: the row delete, the question delete, and the
+     * outbox writes either all land or none do.
+     */
     async deleteQuestion(id: string): Promise<void> {
-        await db.questions.delete(id);
+        await db.transaction('rw', [db.questions, db.flashcardReviews, db.syncQueue], async () => {
+            const blankKeys = await db.flashcardReviews
+                .where('key')
+                .startsWith(blankKeyPrefix(id))
+                .primaryKeys();
+
+            const keys: string[] = [...blankKeys];
+            const wholeKey = cardKeyForQuestion(id);
+            if (await db.flashcardReviews.get(wholeKey)) keys.push(wholeKey);
+
+            await db.questions.delete(id);
+            await this.flashcardReviews.deleteByKeys(keys);
+        });
     }
 }
 

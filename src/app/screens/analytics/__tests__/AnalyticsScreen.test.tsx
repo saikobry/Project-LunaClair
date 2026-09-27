@@ -25,6 +25,7 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
             learningCount: 2,
             newCount: 1,
             totalCards: 10,
+            orphanReviewCount: 0,
         },
         forecast: [
             { date: '2026-08-25', dueCount: 3, cumulativeDue: 3 },
@@ -61,6 +62,7 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
             reviewCount: 0,
             masteredCount: 0,
             totalCards: 0,
+            orphanReviewCount: 0,
         },
         forecast: [],
         activity: [],
@@ -117,7 +119,7 @@ describe('AnalyticsScreen Component & UI State Tests', () => {
         expect(screen.getByText('17 / 20 correct answers')).toBeInTheDocument();
         expect(screen.getByText('Completed sessions')).toBeInTheDocument();
         expect(screen.getByText('24')).toBeInTheDocument();
-        expect(screen.getByText('8 cards with history')).toBeInTheDocument();
+        expect(screen.getByText('8 active cards with history')).toBeInTheDocument();
         expect(screen.getAllByText('4').length).toBeGreaterThan(0);
 
         // 2. Retention

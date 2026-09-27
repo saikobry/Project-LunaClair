@@ -8,7 +8,7 @@ describe('overviewEngine', () => {
     const timeZone = 'UTC';
 
     it('returns zero metrics for empty sessions and reviews', () => {
-        const metrics = computeStudyOverview([], [], refDate, timeZone);
+        const metrics = computeStudyOverview([], [], new Set(), refDate, timeZone);
         expect(metrics).toEqual({
             quizzesCompleted: 0,
             totalAnsweredQuestions: 0,
@@ -77,7 +77,7 @@ describe('overviewEngine', () => {
             reviewCount: 0, // Unreviewed card
         };
 
-        const metrics = computeStudyOverview([s1, s2], [r1, r2], refDate, timeZone);
+        const metrics = computeStudyOverview([s1, s2], [r1, r2], new Set(['card-1', 'card-2']), refDate, timeZone);
 
         expect(metrics.quizzesCompleted).toBe(2);
         expect(metrics.totalAnsweredQuestions).toBe(55);
@@ -87,7 +87,7 @@ describe('overviewEngine', () => {
 
         // Flashcards: 4 total reviews from r1 + 0 from r2 = 4
         expect(metrics.totalCardReviews).toBe(4);
-        // 1 card with reviewCount > 0
+        // 1 card with reviewCount > 0 (r2 is in the pool but unreviewed)
         expect(metrics.cardsWithReviewHistory).toBe(1);
 
         // Streak: Active on 2026-08-24 and 2026-08-25 -> 2 days
@@ -95,9 +95,48 @@ describe('overviewEngine', () => {
         expect(metrics.longestStreakDays).toBe(2);
     });
 
+    it('counts only current cards toward "cards with history", but keeps stranded reviews in the history totals', () => {
+        // A schedule for a card outside the active pool — its question archived,
+        // deleted, or a cloze blank retired. It is a review that happened, so the
+        // historical figures keep it, but it is not a card the learner has, so it
+        // must not inflate a figure that sits beside the pool-scoped maturity bar.
+        const stranded: ReviewState = {
+            key: 'card-archived-9',
+            repetitions: 6,
+            easeFactor: 2.7,
+            intervalDays: 1,
+            dueAt: '2026-09-08T00:00:00Z',
+            lapses: 0,
+            lastReviewedAt: '2026-08-24T09:00:00Z',
+            reviewCount: 6,
+        };
+
+        const current: ReviewState = {
+            key: 'card-1',
+            repetitions: 1,
+            easeFactor: 2.5,
+            intervalDays: 1,
+            dueAt: '2026-08-26T00:00:00Z',
+            lapses: 0,
+            lastReviewedAt: '2026-08-25T08:35:00Z',
+            reviewCount: 2,
+        };
+
+        const metrics = computeStudyOverview([], [current, stranded], new Set(['card-1']), refDate, timeZone);
+
+        // Current-workload figure: one card in the pool, however many reviews.
+        expect(metrics.cardsWithReviewHistory).toBe(1);
+        // Historical figures: both reviews happened.
+        expect(metrics.totalCardReviews).toBe(8);
+        // The stranded review's day still counts toward the streak.
+        expect(metrics.currentStreakDays).toBe(2);
+    });
+
     it('does not mutate input arrays', () => {
         const sessions = Object.freeze([]) as readonly QuizSession[];
         const reviews = Object.freeze([]) as readonly ReviewState[];
-        expect(() => computeStudyOverview(sessions, reviews, refDate, timeZone)).not.toThrow();
+        expect(() =>
+            computeStudyOverview(sessions, reviews, new Set(), refDate, timeZone),
+        ).not.toThrow();
     });
 });

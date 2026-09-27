@@ -151,8 +151,13 @@ export function OverviewMetricCards({ metrics }: OverviewMetricCardsProps) {
                     <div {...stylex.props(styles.value)}>
                         {metrics.totalCardReviews}
                     </div>
+                    {/* The value is historical volume (it includes reviews of
+                        cards since archived or deleted); the subtext is scoped
+                        to the cards that still exist, so it says "active cards"
+                        rather than an unqualified "cards with history". */}
                     <div {...stylex.props(styles.subtext)}>
-                        {metrics.cardsWithReviewHistory} cards with history
+                        {metrics.cardsWithReviewHistory}{' '}
+                        {metrics.cardsWithReviewHistory === 1 ? 'active card' : 'active cards'} with history
                     </div>
                 </div>
             </Card>

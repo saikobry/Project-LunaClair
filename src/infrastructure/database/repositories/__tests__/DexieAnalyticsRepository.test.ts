@@ -168,8 +168,11 @@ describe('DexieAnalyticsRepository Integration', () => {
 
             await db.quizSessions.bulkPut([sessionBio, sessionCS, sessionInProgress]);
 
+            // Review keys are the ones `questionToCards` actually projects
+            // (`q:<questionId>` for a 1:1 question). A key the pool does not
+            // contain is an orphan diagnostic, not a bucket.
             const reviewBio1: ReviewState = {
-                key: 'card-q-bio-1',
+                key: 'q:q-bio-1',
                 materialId: 'mat-bio-1',
                 repetitions: 4,
                 easeFactor: 2.6,
@@ -181,7 +184,7 @@ describe('DexieAnalyticsRepository Integration', () => {
             };
 
             const reviewCS1: ReviewState = {
-                key: 'card-q-cs-1',
+                key: 'q:q-cs-1',
                 materialId: 'mat-cs-1',
                 repetitions: 1,
                 easeFactor: 2.5,
@@ -192,30 +195,124 @@ describe('DexieAnalyticsRepository Integration', () => {
                 reviewCount: 1,
             };
 
-            await db.flashcardReviews.bulkPut([reviewBio1, reviewCS1]);
+            // A schedule for a card nothing projects any more — the question
+            // behind it is gone. Reported, never absorbed. Its dueAt is INSIDE
+            // the forecast window, so the forecast assertion below is what
+            // proves the forecast is pool-scoped.
+            const orphanReview: ReviewState = {
+                key: 'q:q-deleted-9#0',
+                materialId: 'mat-bio-1',
+                repetitions: 6,
+                easeFactor: 2.7,
+                intervalDays: 1,
+                dueAt: '2026-08-26T00:00:00Z',
+                lapses: 0,
+                lastReviewedAt: '2026-08-25T11:30:00Z',
+                reviewCount: 6,
+            };
+
+            await db.flashcardReviews.bulkPut([reviewBio1, reviewCS1, orphanReview]);
 
             const analytics = await repo.getGlobalAnalytics();
 
-            // Overview checks
+            // Overview checks. Historical volume keeps the orphan (11 reviews
+            // across all three rows), but the current-workload figure is
+            // pool-scoped, so only the two in-pool cards count.
             expect(analytics.overview.quizzesCompleted).toBe(2);
             expect(analytics.overview.totalAnsweredQuestions).toBe(3);
             expect(analytics.overview.totalCorrectAnswers).toBe(3);
             expect(analytics.overview.globalQuizAccuracy).toBe(100);
-            expect(analytics.overview.totalCardReviews).toBe(5);
+            expect(analytics.overview.totalCardReviews).toBe(11);
             expect(analytics.overview.cardsWithReviewHistory).toBe(2);
             expect(analytics.overview.currentStreakDays).toBe(1);
 
-            // Card maturity checks (3 total published questions, 1 unrecorded)
+            // Card maturity: the pool is 3 projected keys from 3 questions, all
+            // 1:1, so the totals coincide — the orphan changes nothing.
             expect(analytics.maturity.totalCards).toBe(3);
             expect(analytics.maturity.masteredCount).toBe(1); // bio card (interval 25, lapses 0)
             expect(analytics.maturity.learningCount).toBe(1); // cs card (interval 1)
             expect(analytics.maturity.newCount).toBe(1); // q-bio-2 unrecorded
+            expect(analytics.maturity.orphanReviewCount).toBe(1);
+            expect(
+                analytics.maturity.newCount +
+                    analytics.maturity.learningCount +
+                    analytics.maturity.reviewCount +
+                    analytics.maturity.masteredCount,
+            ).toBe(analytics.maturity.totalCards);
 
-            // Forecast checks
+            // Forecast checks — scoped to the pool, so the orphan is not
+            // upcoming work even though its dueAt falls on day 1 of the window
+            // alongside the cs card. Unscoped, this would be 2.
             expect(analytics.forecast).toHaveLength(7);
+            const forecastTotal = analytics.forecast.reduce((sum, day) => sum + day.dueCount, 0);
+            expect(forecastTotal).toBe(1);
+            expect(analytics.forecast[1].date).toBe('2026-08-26');
+            expect(analytics.forecast[1].dueCount).toBe(1);
 
-            // Activity calendar checks
+            // Activity calendar checks — historical, so the orphan IS counted.
             expect(analytics.activity).toHaveLength(365);
+            const activeCards = analytics.activity.reduce((sum, day) => sum + day.activeCardsCount, 0);
+            expect(activeCards).toBe(3);
+        });
+
+        it('counts a multi-blank cloze question as one card per blank, not one question', async () => {
+            // 1 non-cloze question (1 card) + 1 three-blank cloze question (3
+            // cards) = 4 cards from 2 questions. A question count would say 2.
+            await db.questions.clear();
+            await db.questions.bulkPut([
+                sampleQuestionBio1,
+                {
+                    id: 'q-bio-cloze',
+                    materialId: 'mat-bio-1',
+                    type: 'fill_in_blank',
+                    difficulty: 'medium',
+                    points: 5,
+                    version: 1,
+                    status: 'published',
+                    prompt: 'Fill in the blank:',
+                    payload: {
+                        type: 'fill_in_blank',
+                        template: 'The ___ contains the ___ and the ___.',
+                        blanks: ['nucleus', 'chromatin', 'DNA'],
+                    },
+                    createdAt: '2026-08-01T00:00:00Z',
+                    updatedAt: '2026-08-01T00:00:00Z',
+                },
+            ]);
+
+            const analytics = await repo.getGlobalAnalytics();
+
+            expect(analytics.maturity.totalCards).toBe(4);
+            expect(analytics.maturity.newCount).toBe(4);
+            expect(analytics.maturity.orphanReviewCount).toBe(0);
+        });
+
+        it('excludes an archived question from the pool but still counts its review as an orphan', async () => {
+            await db.questions.put({ ...sampleQuestionBio1, status: 'archived' });
+            await db.flashcardReviews.put({
+                key: 'q:q-bio-1',
+                materialId: 'mat-bio-1',
+                repetitions: 4,
+                easeFactor: 2.6,
+                intervalDays: 25,
+                dueAt: '2026-09-15T00:00:00Z',
+                lapses: 0,
+                lastReviewedAt: '2026-08-25T10:10:00Z',
+                reviewCount: 4,
+            });
+
+            const analytics = await repo.getGlobalAnalytics();
+
+            // q-bio-1 projects nothing while archived, so the pool is the other
+            // two questions' two cards.
+            expect(analytics.maturity.totalCards).toBe(2);
+            expect(analytics.maturity.orphanReviewCount).toBe(1);
+            expect(analytics.maturity.masteredCount).toBe(0);
+            // The overview's current-workload figure narrows with the same pool:
+            // the archived question's card is no longer a card the learner has,
+            // while its review still counts as historical volume.
+            expect(analytics.overview.cardsWithReviewHistory).toBe(0);
+            expect(analytics.overview.totalCardReviews).toBe(4);
         });
 
         it('throws when AbortSignal is aborted', async () => {
@@ -247,7 +344,7 @@ describe('DexieAnalyticsRepository Integration', () => {
             await db.quizSessions.put(sessionBio);
 
             const reviewBio1: ReviewState = {
-                key: 'card-q-bio-1',
+                key: 'q:q-bio-1',
                 materialId: 'mat-bio-1',
                 repetitions: 2,
                 easeFactor: 2.5,
@@ -271,6 +368,7 @@ describe('DexieAnalyticsRepository Integration', () => {
             expect(matAnalytics?.maturity.totalCards).toBe(2);
             expect(matAnalytics?.maturity.learningCount).toBe(1); // reviewBio1 has interval 6
             expect(matAnalytics?.maturity.newCount).toBe(1); // q-bio-2 unreviewed
+            expect(matAnalytics?.maturity.orphanReviewCount).toBe(0);
             expect(matAnalytics?.topics.length).toBeGreaterThan(0);
         });
 

@@ -51,6 +51,7 @@ describe('HomeScreen', () => {
       reviewCount: 12,
       masteredCount: 10,
       totalCards: 40,
+      orphanReviewCount: 0,
     },
     forecast: [
       { date: '2026-08-01', dueCount: 24, cumulativeDue: 24 },

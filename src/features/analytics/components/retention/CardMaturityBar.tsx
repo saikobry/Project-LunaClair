@@ -96,6 +96,12 @@ const styles = stylex.create({
         color: 'var(--color-text-disabled)',
         marginLeft: 4,
     },
+    orphanNote: {
+        fontSize: 12,
+        lineHeight: 1.5,
+        color: 'var(--color-text-secondary)',
+        margin: 0,
+    },
 });
 
 interface CardMaturityBarProps {
@@ -195,6 +201,25 @@ export function CardMaturityBar({ maturity }: CardMaturityBarProps) {
                         </div>
                     </div>
                 </div>
+
+                {/* Orphans are a diagnostic, not a bucket: a review row whose card
+                    key is in no projected pool. The copy names the CONDITION and
+                    not one cause, because there are three — the question was
+                    deleted, the question was ARCHIVED (archiving is the app's
+                    soft delete, so the question still exists and only its cards
+                    left the pool), or a cloze blank was retired. "No longer
+                    exists" was false for the archived case: it told a user who
+                    archived a question that their card had vanished, and it had
+                    not. It is deliberately excluded from `total` and from every
+                    bar segment, so it is disclosed as a footnote — never
+                    silently absorbed, and never a reason to fail the screen. */}
+                {maturity.orphanReviewCount > 0 && (
+                    <p {...stylex.props(styles.orphanNote)}>
+                        {maturity.orphanReviewCount}{' '}
+                        {maturity.orphanReviewCount === 1 ? 'schedule sits' : 'schedules sit'} outside the active card
+                        pool and {maturity.orphanReviewCount === 1 ? 'is' : 'are'} excluded from the counts above.
+                    </p>
+                )}
             </div>
         </Card>
     );

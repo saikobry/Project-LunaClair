@@ -9,7 +9,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 - `helpers/e2e-setup.ts` — `locators`, `switchToRawMode`, `switchToVisualMode`, `switchToReadMode`, `setupApiMocks`, `resetDatabase`.
 - `helpers/share-seed.ts` — the share-route mock and the real clone flow (`routeShare`, `cloneShareToLibrary`, `ShareFixture`, `WorkspaceTab`).
 - `helpers/fixtures/` — the committed `.lcpack` payloads specs serve, and the per-fixture modules that expose them.
-- `*/<name>.spec.ts` — one directory per feature area.
+- `*/<name>.spec.ts` — one directory per feature area (`analytics/insights.spec.ts` covers the Insights surface: the projected-card pool total, the stranded-schedule footnote after archived questions, and the post-write refresh).
 
 ## Local Contracts
 

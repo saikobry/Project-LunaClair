@@ -15,8 +15,16 @@ import { SaveQuizUseCase } from '../../../application/use-cases/quiz-management/
 import { RecordFlashcardReviewUseCase } from '../../../application/use-cases/flashcards/RecordFlashcardReviewUseCase';
 import { ResetFlashcardReviewsUseCase } from '../../../application/use-cases/flashcards/ResetFlashcardReviewsUseCase';
 import type { Infrastructure } from '../createInfrastructure';
+import {
+    noopAnalyticsCacheInvalidator,
+    withAnalyticsPoolInvalidationOnSave,
+    type AnalyticsCacheInvalidator,
+} from '../analyticsInvalidation';
 
-export function createQuizUseCases(infrastructure: Infrastructure) {
+export function createQuizUseCases(
+    infrastructure: Infrastructure,
+    invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+) {
     const { repositories, services } = infrastructure;
 
     return {
@@ -42,7 +50,13 @@ export function createQuizUseCases(infrastructure: Infrastructure) {
             archiveQuiz: new ArchiveQuizUseCase(repositories.quiz),
             unarchiveQuiz: new UnarchiveQuizUseCase(repositories.quiz),
             publishQuiz: new PublishQuizUseCase(repositories.quiz),
-            saveQuiz: new SaveQuizUseCase(repositories.question, services.quizEditor),
+            // The canvas commits questions through `QuizEditorService`, not
+            // through `QuestionRepository`, so the repository-level analytics
+            // invalidation never sees it. Decorated here for that reason alone.
+            saveQuiz: withAnalyticsPoolInvalidationOnSave(
+                new SaveQuizUseCase(repositories.question, services.quizEditor),
+                invalidateAnalytics,
+            ),
         },
     };
 }

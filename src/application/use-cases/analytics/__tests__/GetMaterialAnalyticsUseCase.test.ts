@@ -19,6 +19,7 @@ describe('GetMaterialAnalyticsUseCase', () => {
             reviewCount: 3,
             masteredCount: 4,
             totalCards: 12,
+            orphanReviewCount: 0,
         },
         topics: [],
     };

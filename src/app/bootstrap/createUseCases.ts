@@ -8,13 +8,25 @@ import { createPackageUseCases } from './use-cases/createPackageUseCases';
 import { createSyncUseCases } from './use-cases/createSyncUseCases';
 import { createCollectionUseCases } from './use-cases/createCollectionUseCases';
 import type { Infrastructure } from './createInfrastructure';
+import {
+    noopAnalyticsCacheInvalidator,
+    type AnalyticsCacheInvalidator,
+} from './analyticsInvalidation';
 
 /**
  * Root composition factory for application use cases.
  * Delegates domain slice construction to dedicated modular factories.
+ *
+ * `invalidateAnalytics` reaches the two slices that write questions: the
+ * question repository is decorated in `createInfrastructure`, and the quiz
+ * canvas save is decorated here. See `analyticsInvalidation.ts` for why the
+ * coordination lives at this boundary rather than in a feature hook.
  */
-export function createUseCases(infrastructure: Infrastructure) {
-    const quizSlices = createQuizUseCases(infrastructure);
+export function createUseCases(
+    infrastructure: Infrastructure,
+    invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+) {
+    const quizSlices = createQuizUseCases(infrastructure, invalidateAnalytics);
     const librarySlices = createLibraryUseCases(infrastructure);
     const readerSlices = createReaderUseCases(infrastructure);
     const aiSlices = createAiUseCases(infrastructure);

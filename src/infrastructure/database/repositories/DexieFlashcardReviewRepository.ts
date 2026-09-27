@@ -1,28 +1,43 @@
 import type { FlashcardReviewRepository } from '../../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import { db } from '../schema/LunaClairDatabase';
+import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 export class DexieFlashcardReviewRepository implements FlashcardReviewRepository {
+    /**
+     * The database this adapter writes to. Injected rather than reached for as
+     * a module singleton so a caller that already owns a transaction on its OWN
+     * `LunaClairDatabase` (a multi-table cascade in a test's isolated database,
+     * say) can delegate its review clear here and have the tombstone join that
+     * transaction. Dexie reuses a parent transaction when the requested scope is
+     * a subset of the running one, which is exactly `flashcardReviews` +
+     * `syncQueue` inside a wider removal transaction.
+     */
+    private readonly db: LunaClairDatabase;
+
+    constructor(db: LunaClairDatabase = defaultDb) {
+        this.db = db;
+    }
+
     async getAllReviews(signal?: AbortSignal): Promise<ReviewState[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return db.flashcardReviews.toArray();
+        return this.db.flashcardReviews.toArray();
     }
 
     async getByKeys(keys: string[]): Promise<ReviewState[]> {
         if (keys.length === 0) return [];
-        return db.flashcardReviews.where('key').anyOf(keys).toArray();
+        return this.db.flashcardReviews.where('key').anyOf(keys).toArray();
     }
 
     async getByMaterial(materialId: string): Promise<ReviewState[]> {
         if (!materialId) return [];
-        return db.flashcardReviews.where('materialId').equals(materialId).toArray();
+        return this.db.flashcardReviews.where('materialId').equals(materialId).toArray();
     }
 
     async save(reviews: ReviewState[]): Promise<void> {
         if (reviews.length === 0) return;
         const now = new Date().toISOString();
-        await db.transaction('rw', [db.flashcardReviews, db.syncQueue], async () => {
-            await db.flashcardReviews.bulkPut(reviews);
+        await this.db.transaction('rw', [this.db.flashcardReviews, this.db.syncQueue], async () => {
+            await this.db.flashcardReviews.bulkPut(reviews);
             const queueItems = reviews.map((r) => ({
                 id: crypto.randomUUID(),
                 clientMutationId: crypto.randomUUID(),
@@ -35,7 +50,7 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
                 createdAt: now,
                 retryCount: 0,
             }));
-            await db.syncQueue.bulkPut(queueItems);
+            await this.db.syncQueue.bulkPut(queueItems);
         });
     }
 
@@ -62,8 +77,8 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
     async deleteByKeys(keys: string[]): Promise<void> {
         if (keys.length === 0) return;
         const now = new Date().toISOString();
-        await db.transaction('rw', [db.flashcardReviews, db.syncQueue], async () => {
-            await db.flashcardReviews.bulkDelete(keys);
+        await this.db.transaction('rw', [this.db.flashcardReviews, this.db.syncQueue], async () => {
+            await this.db.flashcardReviews.bulkDelete(keys);
             const queueItems = keys.map((key) => ({
                 id: crypto.randomUUID(),
                 clientMutationId: crypto.randomUUID(),
@@ -76,7 +91,7 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
                 createdAt: now,
                 retryCount: 0,
             }));
-            await db.syncQueue.bulkPut(queueItems);
+            await this.db.syncQueue.bulkPut(queueItems);
         });
     }
 }

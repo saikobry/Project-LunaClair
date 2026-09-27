@@ -5,16 +5,29 @@ import { computeStreak } from './streakEngine';
 
 /**
  * Computes high-level study overview metrics.
- * Does not mutate input arrays.
+ * Does not mutate input arrays or sets.
+ *
+ * **Split by the question each figure answers.** The pool (the same projected
+ * card-key set `computeCardMaturity` and `computeReviewForecast` take) scopes
+ * only `cardsWithReviewHistory`, because that figure answers "how many of the
+ * cards I still have have I worked on" — and it renders directly above the
+ * maturity bar, which is measured against the very same pool. Counting stranded
+ * schedules there would put a number on screen that contradicts the bar under
+ * it. Every other review-derived figure — `totalCardReviews`, the last-activity
+ * stamps, and the streak they feed — stays on **full** review history: those
+ * describe what happened, and a review of a card that has since been archived
+ * or deleted still happened.
  *
  * @param sessions Completed QuizSession records
  * @param reviews Canonical ReviewState records
+ * @param cardKeys The projected card keys in scope (see `buildCardKeyPool`)
  * @param referenceDate Reference moment (defaults to now)
  * @param timeZone Optional IANA time zone identifier
  */
 export function computeStudyOverview(
     sessions: readonly QuizSession[],
     reviews: readonly ReviewState[],
+    cardKeys: ReadonlySet<string>,
     referenceDate: Date = new Date(),
     timeZone?: string,
 ): StudyOverviewMetrics {
@@ -57,11 +70,14 @@ export function computeStudyOverview(
 
     for (const review of uniqueReviewMap.values()) {
         totalCardReviews += review.reviewCount || 0;
-        if (review.reviewCount > 0) {
-            cardsWithReviewHistory += 1;
-        }
         if (review.lastReviewedAt) {
             activityTimestamps.push(review.lastReviewedAt);
+        }
+        // Current-workload figure only: a stranded schedule (its question archived
+        // or deleted, a cloze blank retired) is a review that happened but is not
+        // a card the learner has, so it cannot count toward "cards with history".
+        if (review.reviewCount > 0 && cardKeys.has(review.key)) {
+            cardsWithReviewHistory += 1;
         }
     }
 

@@ -21,6 +21,7 @@ describe('GetGlobalAnalyticsUseCase', () => {
             reviewCount: 5,
             masteredCount: 5,
             totalCards: 20,
+            orphanReviewCount: 0,
         },
         forecast: [],
         activity: [],

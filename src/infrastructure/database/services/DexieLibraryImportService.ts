@@ -3,6 +3,7 @@ import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import { DexieFlashcardReviewRepository } from '../repositories/DexieFlashcardReviewRepository';
 import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
@@ -16,24 +17,33 @@ import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairData
  * one single atomic transaction.
  *
  * `removeMaterial` deletes the material row, its questions/quizzes, its
- * document content, its `collectionMaterials` junction rows, and every stored
+ * document content, its `collectionMaterials` junction rows, every stored
  * binary asset of the material (`localAssets` — the imported original file plus
- * any package-imported figures) in one transaction. Asset removal lives here
- * rather than on the importer's write port so it commits atomically with the rest
- * of the removal; a non-atomic delete would leave orphaned blobs behind if the
- * material delete succeeded and it failed. Collection membership is cleared here
- * for the same reason: a stale junction row keeps inflating a collection's count
- * and keeps the material out of the Library's `uncollected` lens even though it no
- * longer exists.
+ * any package-imported figures), and its **`flashcardReviews` schedules** in one
+ * transaction. Asset removal lives here rather than on the importer's write port
+ * so it commits atomically with the rest of the removal; a non-atomic delete
+ * would leave orphaned blobs behind if the material delete succeeded and it
+ * failed. Collection membership is cleared here for the same reason: a stale
+ * junction row keeps inflating a collection's count and keeps the material out
+ * of the Library's `uncollected` lens even though it no longer exists.
+ *
+ * Removing a material removes its questions, and a question's cards are the
+ * only thing that projects its review keys — so the schedules go too. They are
+ * deleted through `FlashcardReviewRepository.deleteByKeys` (tombstoned in the
+ * same transaction, for the same reason: a local-only clear is resurrected by
+ * the next pull), and the review keys come from the `materialId` index, which
+ * reaches every key of every question in the material including per-blank ones.
  *
  * This is the single removal contract — `LibraryRepository` has no delete method,
  * so nothing can remove a material row without its dependents.
  */
 export class DexieLibraryImportService implements LibraryImportService {
     private readonly db: LunaClairDatabase;
+    private readonly flashcardReviews: DexieFlashcardReviewRepository;
 
     constructor(db: LunaClairDatabase = defaultDb) {
         this.db = db;
+        this.flashcardReviews = new DexieFlashcardReviewRepository(db);
     }
 
     async importMaterial(input: ImportMaterialInput): Promise<void> {
@@ -95,6 +105,11 @@ export class DexieLibraryImportService implements LibraryImportService {
                 this.db.documentContents,
                 this.db.localAssets,
                 this.db.collectionMaterials,
+                // Removing a material removes its questions, so its review
+                // schedules go with them — inside THIS transaction, and with
+                // their tombstones, so the clear cannot be undone by a pull.
+                this.db.flashcardReviews,
+                this.db.syncQueue,
             ],
             async () => {
                 const material = await this.db.materials.get(materialId);
@@ -117,6 +132,15 @@ export class DexieLibraryImportService implements LibraryImportService {
                 // cloned material's N package figures are removed alongside its imported file.
                 // Leaving them would strand blobs in IndexedDB that nothing references.
                 await this.db.localAssets.where('materialId').equals(materialId).delete();
+
+                // Spaced-repetition schedules go with the material's questions. Keyed by the
+                // `materialId` index, so this reaches every card key of every question in the
+                // material — whole-question `q:<id>` keys and per-blank `q:<id>#<n>` keys alike.
+                const reviewKeys = await this.db.flashcardReviews
+                    .where('materialId')
+                    .equals(materialId)
+                    .primaryKeys();
+                await this.flashcardReviews.deleteByKeys(reviewKeys);
             },
         );
     }
