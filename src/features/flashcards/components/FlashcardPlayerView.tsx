@@ -48,8 +48,12 @@ const styles = stylex.create({
     cardWrapper: {
         perspective: '1000px',
         width: '100%',
+        // The faces are absolutely positioned to fill the wrapper, so the wrapper
+        // is what bounds the per-face scroll region. `minHeight` alone would give
+        // the scroll area nothing to shrink against, hence the viewport-aware
+        // height plus the clamped upper bound.
         minHeight: 340,
-        cursor: 'pointer',
+        height: 'clamp(340px, 68vh, 520px)',
     },
     cardInner: {
         position: 'relative',
@@ -83,6 +87,16 @@ const styles = stylex.create({
     },
     cardFaceBack: {
         transform: 'rotateY(180deg)',
+    },
+    // Only the face the card is currently showing may take pointer input. The
+    // faces are stacked (`inset: 0`) and a backface-hidden face is still hit
+    // tested in some engines, so each face's interactive region would otherwise
+    // be covered by the other face's region.
+    cardFaceActive: {
+        pointerEvents: 'auto',
+    },
+    cardFaceInert: {
+        pointerEvents: 'none',
     },
     metaRow: {
         display: 'flex',
@@ -147,15 +161,40 @@ const styles = stylex.create({
         backgroundColor: 'var(--color-error-muted)',
         color: 'var(--color-error)',
     },
+    // Bounded, keyboard-reachable scroll region shared by both faces. `minHeight:
+    // 0` lets the flex item shrink below its content so the overflow is real; the
+    // centered `contentBox` uses `margin: auto` rather than `justify-content:
+    // center`, because centered content in a scroll container clips the start of
+    // the overflow (the top of a tall card) with no way to scroll back to it.
+    scrollArea: {
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        // Side padding is on contentBox; this region only supplies the bottom
+        // breathing room, and it must hold the flip hint so the hint's own
+        // "Click to reveal" instruction is actually inside the click surface.
+        padding: '0 0 12px 0',
+        boxSizing: 'border-box',
+        borderRadius: 10,
+        cursor: 'pointer',
+        ':focus-visible': {
+            outline: '2px solid var(--color-accent)',
+            outlineOffset: '2px',
+        },
+    },
     contentBox: {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         textAlign: 'center',
-        flex: 1,
+        width: '100%',
         padding: '20px 0',
         gap: 12,
+        margin: 'auto',
     },
     promptText: {
         fontSize: 20,
@@ -335,9 +374,10 @@ function FlashcardCard({
         setIsFlipped((prev) => !prev);
     }, []);
 
-    // Keyboard activation for the card itself (role="button"). The window
-    // handler below also listens for Space/Enter, so stop propagation here to
-    // avoid a double flip when the card has focus.
+    // Keyboard activation for the card (each face's scroll region is the
+    // `role="button"` flip control). The window handler below also listens for
+    // Space/Enter, so stop propagation here to avoid a double flip when the
+    // control has focus.
     const handleCardKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLDivElement>) => {
             if (e.code === 'Space' || e.code === 'Enter') {
@@ -385,22 +425,23 @@ function FlashcardCard({
 
     return (
         <>
-            <div
-                {...stylex.props(styles.cardWrapper)}
-                onClick={handleFlip}
-                role="button"
-                tabIndex={0}
-                aria-label={isFlipped ? 'Show question' : 'Show answer'}
-                onKeyDown={handleCardKeyDown}
-            >
+            <div {...stylex.props(styles.cardWrapper)}>
                 <div
                     {...stylex.props(
                         styles.cardInner,
                         isFlipped && styles.cardFlipped
                     )}
                 >
-                    {/* Front Face */}
-                    <div {...stylex.props(styles.cardFace)}>
+                    {/* Front Face — its scroll region IS the front-facing flip
+                        control: it carries the flip action's accessible name and
+                        has no focusable descendant, so the interactive ancestor
+                        never nests another focusable control. */}
+                    <div
+                        {...stylex.props(
+                            styles.cardFace,
+                            isFlipped ? styles.cardFaceInert : styles.cardFaceActive
+                        )}
+                    >
                         <div {...stylex.props(styles.metaRow)}>
                             <span {...stylex.props(styles.badge, difficultyStyle)}>
                                 Source difficulty: {card.difficulty}
@@ -417,46 +458,71 @@ function FlashcardCard({
                             ))}
                         </div>
 
-                        <div {...stylex.props(styles.contentBox)}>
-                            <p {...stylex.props(styles.promptText)}>{card.front}</p>
-                            {/* Options are part of the question, so they belong on
-                                the front face — ungraded, since correctness is
-                                only revealed on the back. */}
-                            {card.kind === 'choice' && (
-                                <CardChoices choices={card.choices} revealCorrect={false} />
-                            )}
-                        </div>
+                        <div
+                            {...stylex.props(styles.scrollArea)}
+                            role="button"
+                            aria-label="Show answer"
+                            tabIndex={isFlipped ? -1 : 0}
+                            onClick={handleFlip}
+                            onKeyDown={handleCardKeyDown}
+                        >
+                            <div {...stylex.props(styles.contentBox)}>
+                                <p {...stylex.props(styles.promptText)}>{card.front}</p>
+                                {/* Options are part of the question, so they belong on
+                                    the front face — ungraded, since correctness is
+                                    only revealed on the back. */}
+                                {card.kind === 'choice' && (
+                                    <CardChoices choices={card.choices} revealCorrect={false} />
+                                )}
+                            </div>
 
-                        <div {...stylex.props(styles.flipHint)}>
-                            <RotateCw size={14} />
-                            <span>Click or press Space to reveal answer</span>
+                            <div {...stylex.props(styles.flipHint)}>
+                                <RotateCw size={14} />
+                                <span>Click or press Space to reveal answer</span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Back Face */}
-                    <div {...stylex.props(styles.cardFace, styles.cardFaceBack)}>
+                    {/* Back Face — same contract as the front: the answer's
+                        scroll region is the flipped card's flip control. */}
+                    <div
+                        {...stylex.props(
+                            styles.cardFace,
+                            styles.cardFaceBack,
+                            isFlipped ? styles.cardFaceActive : styles.cardFaceInert
+                        )}
+                    >
                         <div {...stylex.props(styles.metaRow)}>
                             <span {...stylex.props(styles.badge)}>Answer</span>
                         </div>
 
-                        <div {...stylex.props(styles.contentBox)}>
-                            {card.kind === 'choice' ? (
-                                <CardChoices choices={card.choices} revealCorrect />
-                            ) : (
-                                <p {...stylex.props(styles.answerText)}>{card.back}</p>
-                            )}
-                            {card.explanation && (
-                                <div {...stylex.props(styles.explanationBox)}>
-                                    <div {...stylex.props(styles.explanationHeader)}>
-                                        <HelpCircle size={13} /> Explanation
+                        <div
+                            {...stylex.props(styles.scrollArea)}
+                            role="button"
+                            aria-label="Show question"
+                            tabIndex={isFlipped ? 0 : -1}
+                            onClick={handleFlip}
+                            onKeyDown={handleCardKeyDown}
+                        >
+                            <div {...stylex.props(styles.contentBox)}>
+                                {card.kind === 'choice' ? (
+                                    <CardChoices choices={card.choices} revealCorrect />
+                                ) : (
+                                    <p {...stylex.props(styles.answerText)}>{card.back}</p>
+                                )}
+                                {card.explanation && (
+                                    <div {...stylex.props(styles.explanationBox)}>
+                                        <div {...stylex.props(styles.explanationHeader)}>
+                                            <HelpCircle size={13} /> Explanation
+                                        </div>
+                                        <div>{card.explanation}</div>
                                     </div>
-                                    <div>{card.explanation}</div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
 
-                        <div {...stylex.props(styles.flipHint)}>
-                            <span>Rate recall quality below to schedule next review</span>
+                            <div {...stylex.props(styles.flipHint)}>
+                                <span>Rate recall quality below to schedule next review</span>
+                            </div>
                         </div>
                     </div>
                 </div>

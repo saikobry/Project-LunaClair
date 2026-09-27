@@ -394,4 +394,56 @@ describe('FlashcardScreen', () => {
             );
         }
     });
+
+    it('bounds each face in a keyboard-focusable scroll region and keeps the rating bar reachable', async () => {
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
+        await waitFor(() => {
+            expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
+        });
+
+        // Each face's content scroll region is the flip control and the keyboard
+        // entry point for that face. While front-facing only the front region is
+        // in the tab order; the (backface-hidden) back region is demoted so
+        // keyboard users never land on the answer before flipping.
+        const frontRegion = screen.getByRole('button', { name: 'Show answer' });
+        expect(frontRegion).toHaveAttribute('tabindex', '0');
+        frontRegion.focus();
+        expect(frontRegion).toHaveFocus();
+        expect(screen.getByRole('button', { name: 'Show question' })).toHaveAttribute(
+            'tabindex',
+            '-1'
+        );
+
+        fireEvent.click(frontRegion);
+        await waitFor(() => expect(screen.getByText('Good')).toBeInTheDocument());
+
+        // The flip swaps the tab order: only the now-visible answer face is
+        // keyboard-reachable, and its content scrolls independently of the
+        // rating bar, which stays outside the scroll region and fully usable.
+        expect(screen.getByRole('button', { name: 'Show answer' })).toHaveAttribute(
+            'tabindex',
+            '-1'
+        );
+        const answerRegion = screen.getByRole('button', { name: 'Show question' });
+        expect(answerRegion).toHaveAttribute('tabindex', '0');
+        answerRegion.focus();
+        expect(answerRegion).toHaveFocus();
+
+        // The rating bar lives OUTSIDE the scroll region, so answer overflow
+        // can never scroll the ratings out of view.
+        const goodButton = screen.getByRole('button', { name: /Good/ });
+        expect(answerRegion).not.toContainElement(goodButton);
+
+        fireEvent.click(goodButton);
+        await waitFor(() => {
+            expect(mockRecordReview.execute).toHaveBeenCalledWith(
+                expect.objectContaining({ rating: 'good' })
+            );
+        });
+    });
 });
