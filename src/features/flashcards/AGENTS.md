@@ -13,7 +13,7 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
 | `hooks/mutations/` | Spaced-repetition mutations: `useFlashcardRating` (dispatches rating and updates cache). |
 | `hooks/queries/` | Review data queries: `useFlashcardReviews`. |
 | `queries/` | Query key factory (`flashcardQueryKeys.ts`). |
-| `utils/` | Pure helpers: `deckCardStats.ts` (`collectDeckCardStats` — projects questions and derives the setup view's card counts, so the counts are computed outside the React component). |
+| `utils/` | Pure helpers: `deckCardStats.ts` (`collectDeckCardStats` — projects questions and derives the setup view's card counts, so the counts are computed outside the React component; `resolveDeckEmptyState` — why the current selection + study mode has nothing to study), `describeDeckEmptyState.ts` (the sentence shown in place of a session, and the relative next-due label). |
 | `types/` | Feature types: `flashcardFeature.types.ts`. |
 
 ## Local Contracts
@@ -41,6 +41,8 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
   - `useFlashcardRating` applies optimistic updates to `flashcardQueryKeys.reviews(materialId)` and invalidates `analyticsQueryKeys.all()` to keep mastery charts synchronized.
 - **Interactive Player Lifecycle**:
   - Setup: Displays card count, new cards count, and due cards count with a start trigger.
+  - **An empty deck is a resolved state with a named reason, never a no-op.** When the current selection + study mode yields nothing, `resolveDeckEmptyState` (`utils/deckCardStats.ts`) names which of the two causes applies — *nothing due* (every card scheduled forward; SM-2 working, and it quotes the earliest `dueAt` **in the filtered scope**) or *nothing in this selection* (the quiz filter is the cause) — and the start trigger is **disabled with that reason beside it** (`describeDeckEmptyState`, wired through `aria-describedby`) rather than left clickable and dead. "Nothing due" is a success state: `--color-text-secondary` at most, never an error token.
+  - The screen's `if (ordered.length === 0) return;` is a stale-state guard only, for a click that lands between render and click — the user's path to an empty deck is always explained before they can reach it.
   - Player: Card renders front by default. User triggers flip (keyboard Space/Enter or click) to reveal answer and enable 4 rating options.
   - Completion: Summarizes session accuracy, count of cards reviewed, and returns to workspace.
 - **Player Presentation Contract**:

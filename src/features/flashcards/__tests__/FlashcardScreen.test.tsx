@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FlashcardScreen } from '../FlashcardScreen';
@@ -445,5 +445,318 @@ describe('FlashcardScreen', () => {
                 expect.objectContaining({ rating: 'good' })
             );
         });
+    });
+});
+
+/**
+ * An empty deck is a resolved state with a named reason, not a dead primary
+ * button. These cases pin the reference instant so every quoted string is a
+ * literal, and pin the host clock so "nothing due" is reachable at all: with a
+ * fresh deck the selector defaults to All Cards, so the only way to reach the
+ * empty state is to narrow the deck yourself.
+ */
+describe('FlashcardScreen — empty deck', () => {
+    let queryClient: QueryClient;
+    let mockRecordReview: { execute: ReturnType<typeof vi.fn> };
+    let mockContext: any;
+
+    /** One minute ago, six hours, and three days — all measured from the pinned now. */
+    const MINUTE_MS = 60_000;
+    const HOUR_MS = 3_600_000;
+    const referenceNow = new Date('2026-09-27T12:00:00.000Z');
+    const dueOneMinuteAgo = new Date(referenceNow.getTime() - MINUTE_MS).toISOString();
+    const dueInSixHours = new Date(referenceNow.getTime() + 6 * HOUR_MS).toISOString();
+    const dueInThreeDays = new Date(referenceNow.getTime() + 3 * 24 * HOUR_MS).toISOString();
+
+    const mockMaterial: StudyMaterial = {
+        id: 'mat-1',
+        title: 'Cell Biology',
+        documentId: 'doc-1',
+        createdAt: '2026-09-02T10:00:00.000Z',
+        updatedAt: '2026-09-02T10:00:00.000Z',
+    };
+
+    /** q-1 is in the practice quiz; q-2 is in the later quiz. Both are live. */
+    const mockQuestions: Question[] = [
+        {
+            id: 'q-1',
+            materialId: 'mat-1',
+            type: 'true_false',
+            prompt: 'Plant cells have cell walls.',
+            payload: { type: 'true_false', correctAnswer: true },
+            difficulty: 'medium',
+            points: 1,
+            status: 'published',
+            version: 1,
+            createdAt: '2026-09-02T10:00:00.000Z',
+            updatedAt: '2026-09-02T10:00:00.000Z',
+        },
+        {
+            id: 'q-2',
+            materialId: 'mat-1',
+            type: 'identification',
+            prompt: 'What organelle produces ATP?',
+            payload: { type: 'identification', correctAnswer: 'Mitochondria' },
+            difficulty: 'easy',
+            points: 1,
+            status: 'published',
+            version: 1,
+            createdAt: '2026-09-02T10:00:00.000Z',
+            updatedAt: '2026-09-02T10:00:00.000Z',
+        },
+    ];
+
+    function makeQuiz(id: string, title: string, questionIds: string[]): Quiz {
+        return {
+            id,
+            materialId: 'mat-1',
+            title,
+            questionIds,
+            items: questionIds.map((questionId, index) => ({
+                quizId: id,
+                questionId,
+                questionVersion: 1,
+                order: index + 1,
+            })),
+            status: 'published',
+            createdAt: '2026-09-02T10:00:00.000Z',
+            updatedAt: '2026-09-02T10:00:00.000Z',
+        };
+    }
+
+    const practiceQuiz = makeQuiz('quiz-1', 'Practice Quiz', ['q-1']);
+    const laterQuiz = makeQuiz('quiz-2', 'Later Quiz', ['q-2']);
+    /**
+     * Its only question is not among the live questions — the shape an
+     * all-archived quiz leaves behind, which is how a filter can select nothing.
+     */
+    const archivedOnlyQuiz = makeQuiz('quiz-3', 'Archived Only Quiz', ['q-archived']);
+
+    const createWrapper = () => ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+            <ApplicationContext.Provider value={mockContext}>
+                <ToastProvider>{children}</ToastProvider>
+            </ApplicationContext.Provider>
+        </QueryClientProvider>
+    );
+
+    function reviewFor(key: string, dueAt: string) {
+        return {
+            key,
+            materialId: 'mat-1',
+            repetitions: 1,
+            easeFactor: 2.5,
+            intervalDays: 1,
+            dueAt,
+            lapses: 0,
+            reviewCount: 1,
+        };
+    }
+
+    beforeEach(() => {
+        // shouldAdvanceTime keeps TanStack Query's own timers running, so the
+        // component still settles on a pinned clock.
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(referenceNow);
+
+        queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+
+        mockRecordReview = { execute: vi.fn().mockResolvedValue(undefined) };
+        mockContext = {
+            repositories: {
+                question: { getQuestions: vi.fn().mockResolvedValue(mockQuestions) },
+                quiz: {
+                    getQuizzes: vi
+                        .fn()
+                        .mockResolvedValue([practiceQuiz, laterQuiz, archivedOnlyQuiz]),
+                },
+                flashcardReview: { getByMaterial: vi.fn().mockResolvedValue([]) },
+                library: { getMaterial: vi.fn().mockResolvedValue(mockMaterial) },
+                document: { getDocument: vi.fn().mockResolvedValue({ content: '# Notes' }) },
+            },
+            useCases: {
+                flashcards: { recordReview: mockRecordReview },
+                package: { exportStudyPackage: { execute: vi.fn() } },
+            },
+        };
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('disables Start and names the real next due time when nothing is due', async () => {
+        mockContext.repositories.flashcardReview.getByMaterial.mockResolvedValue([
+            reviewFor('q:q-1', dueInSixHours),
+            reviewFor('q:q-2', dueInThreeDays),
+        ]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+
+        // Every card is scheduled forward, so the selector defaulted to All Cards
+        // and the deck is studyable. Only the deliberate switch to Due Cards Only
+        // empties it — which is exactly the path that used to dead-end silently.
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeEnabled();
+        expect(screen.queryByText(/^Nothing due right now/)).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
+
+        expect(
+            screen.getByText('Nothing due right now — the next card is due in 6 hours.')
+        ).toBeInTheDocument();
+
+        const startButton = screen.getByRole('button', { name: 'Start Flashcard Session' });
+        expect(startButton).toBeDisabled();
+        // The reason travels with the control rather than floating free of it.
+        expect(startButton).toHaveAttribute('aria-describedby', 'flashcard-deck-blocked-reason');
+        expect(document.getElementById('flashcard-deck-blocked-reason')).toHaveTextContent(
+            'Nothing due right now — the next card is due in 6 hours.'
+        );
+    });
+
+    it('does not style "nothing due" as a failure', async () => {
+        mockContext.repositories.flashcardReview.getByMaterial.mockResolvedValue([
+            reviewFor('q:q-1', dueInSixHours),
+            reviewFor('q:q-2', dueInThreeDays),
+        ]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
+
+        // Nothing due is the scheduler working, so the note is a status line in
+        // the secondary text role — no error token, no failure styling, and not
+        // announced as an alert.
+        const reason = document.getElementById('flashcard-deck-blocked-reason')!;
+        expect(reason.className).toContain('"color":"var(--color-text-secondary)"');
+        expect(reason.className).not.toMatch(/error|danger|warning/i);
+        expect(reason).not.toHaveAttribute('role', 'alert');
+    });
+
+    it('disables Start and names the selection when the quiz filter holds no cards', async () => {
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+
+        // The filter control only renders with more than one active quiz, so
+        // drive the real control rather than assuming it exists.
+        expect(screen.getByLabelText('Quiz Filter')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), {
+            target: { value: 'quiz-3' },
+        });
+
+        expect(
+            screen.getByText(
+                'Archived Only Quiz has no flashcards to study. Change the Quiz Filter, or select All Quizzes, to start a session.'
+            )
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeDisabled();
+
+        // And the other way round: a quiz that does have cards re-enables it.
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-1' } });
+        expect(screen.queryByText(/has no flashcards to study/)).toBeNull();
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeEnabled();
+    });
+
+    it('re-derives the reason and the disabled state when the study mode changes', async () => {
+        mockContext.repositories.flashcardReview.getByMaterial.mockResolvedValue([
+            reviewFor('q:q-1', dueInSixHours),
+            // q-2 came due a minute ago, so the due-only deck is not empty.
+            reviewFor('q:q-2', dueOneMinuteAgo),
+        ]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+
+        // One card is due, so the deck defaulted to Due Cards Only and Start is live.
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeEnabled();
+        expect(screen.queryByText(/^Nothing due right now/)).toBeNull();
+
+        // Narrow the filter to the quiz whose only card is due in six hours: the
+        // reason changes with the selection, and the quoted date is that card's.
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-1' } });
+        expect(
+            screen.getByText('Nothing due right now — the next card is due in 6 hours.')
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeDisabled();
+
+        // Back to a mode that has cards: Start must not stay disabled.
+        fireEvent.click(screen.getByRole('button', { name: /All Cards/ }));
+        expect(screen.queryByText(/^Nothing due right now/)).toBeNull();
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeEnabled();
+
+        // The re-enabled deck really does start, and it starts with the card the
+        // filter scopes to.
+        fireEvent.click(screen.getByRole('button', { name: 'Start Flashcard Session' }));
+        await waitFor(() =>
+            expect(screen.getByText('Plant cells have cell walls.')).toBeInTheDocument()
+        );
+    });
+
+    it('quotes the next due time from the filtered pool, not the whole material', async () => {
+        mockContext.repositories.flashcardReview.getByMaterial.mockResolvedValue([
+            // Due first of all, but it lives in the practice quiz...
+            reviewFor('q:q-1', dueInSixHours),
+            // ...so the sooner card is the one the filter excludes.
+            reviewFor('q:q-2', dueInThreeDays),
+        ]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+
+        // Nothing is due at all, so the selector defaulted to All Cards and the
+        // whole deck is studyable.
+        expect(screen.getByRole('button', { name: 'Start Flashcard Session' })).toBeEnabled();
+
+        // The deliberate switch to Due Cards Only, in whole-material scope, quotes
+        // the soonest card in the material.
+        fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
+        expect(
+            screen.getByText('Nothing due right now — the next card is due in 6 hours.')
+        ).toBeInTheDocument();
+
+        // Narrow the filter away from that card: the quote must follow the scope
+        // to the card the user can actually see, never the excluded sooner one.
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-2' } });
+        expect(
+            screen.getByText('Nothing due right now — the next card is due in 3 days.')
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/in 6 hours/)).toBeNull();
+    });
+
+    it('keeps the screen on the setup view if a click somehow lands while Start is disabled', async () => {
+        mockContext.repositories.flashcardReview.getByMaterial.mockResolvedValue([
+            reviewFor('q:q-1', dueInSixHours),
+            reviewFor('q:q-2', dueInThreeDays),
+        ]);
+
+        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
+
+        const startButton = screen.getByRole('button', { name: 'Start Flashcard Session' });
+        expect(startButton).toBeDisabled();
+
+        // Simulate the protection that must NOT be the user-facing behaviour: the
+        // selection or the schedule moved under the button between render and
+        // click, so a click lands anyway. Strip the attribute the way a stale
+        // render would and click through it — `orderDeck` returning nothing has to
+        // hold the screen on the setup view rather than start nothing.
+        startButton.removeAttribute('disabled');
+        fireEvent.click(startButton);
+
+        expect(screen.queryByText('Plant cells have cell walls.')).toBeNull();
+        expect(screen.queryByText('What organelle produces ATP?')).toBeNull();
+        expect(screen.queryByText(/Session Complete/i)).toBeNull();
+        expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        expect(mockRecordReview.execute).not.toHaveBeenCalled();
     });
 });

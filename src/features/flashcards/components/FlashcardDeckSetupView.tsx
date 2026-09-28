@@ -5,7 +5,8 @@ import type { Question } from '../../../domain/quiz/models/Question';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import { Button } from '../../../shared/ui/Button/Button';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
-import { collectDeckCardStats } from '../utils/deckCardStats';
+import { collectDeckCardStats, resolveDeckEmptyState } from '../utils/deckCardStats';
+import { describeDeckEmptyState } from '../utils/describeDeckEmptyState';
 import { useState, type ReactNode } from 'react';
 
 const styles = stylex.create({
@@ -146,7 +147,20 @@ const styles = stylex.create({
         color: 'var(--color-text-secondary)',
         fontSize: 14,
     },
+    // A status note, not an alert: an empty deck is an expected outcome of
+    // spaced repetition, so it carries no error token and no failure styling.
+    blockedReason: {
+        margin: '12px auto 0',
+        maxWidth: 520,
+        fontSize: 13,
+        lineHeight: 1.5,
+        textAlign: 'center',
+        color: 'var(--color-text-secondary)',
+    },
 });
+
+/** Id the disabled Start button points at, so its reason travels with it. */
+const BLOCKED_REASON_ID = 'flashcard-deck-blocked-reason';
 
 interface FlashcardDeckSetupViewProps {
     questions: Question[];
@@ -329,15 +343,21 @@ export function FlashcardDeckSetupView({
 
     // Every count below is a card count, never a question count — see
     // `collectDeckCardStats`.
-    const { totalCards, dueCount, newCount, cardsByQuizId } = collectDeckCardStats(
-        activeQuestions,
-        activeQuizzes,
-        reviews,
-        now
-    );
+    const stats = collectDeckCardStats(activeQuestions, activeQuizzes, reviews, now);
+    const { totalCards, dueCount, newCount, cardsByQuizId } = stats;
 
     const [studyMode, setStudyMode] = useState<DeckStudyMode>(dueCount > 0 ? 'due_only' : 'all');
     const [selectedQuizId, setSelectedQuizId] = useState<string>('all');
+
+    // Resolved from the active quizzes, so a filter value that no longer names
+    // one falls back to the whole material — the same fallback the start handler
+    // applies, rather than a second, stricter rule.
+    const selectedQuiz = activeQuizzes.find((q) => q.id === selectedQuizId) ?? null;
+
+    // Re-derived on every render, so switching the quiz filter or the study mode
+    // re-derives the reason and the disabled state together.
+    const blockedReason = resolveDeckEmptyState(stats, { quiz: selectedQuiz }, studyMode, now).reason;
+    const blockedMessage = blockedReason ? describeDeckEmptyState(blockedReason, { now }) : null;
 
     const handleStart = () => {
         onStartSession(
@@ -413,6 +433,8 @@ export function FlashcardDeckSetupView({
                         variant="primary"
                         icon={<Play size={16} />}
                         onClick={handleStart}
+                        isDisabled={blockedMessage !== null}
+                        aria-describedby={blockedMessage ? BLOCKED_REASON_ID : undefined}
                     >
                         Start Flashcard Session
                     </Button>
@@ -449,6 +471,12 @@ export function FlashcardDeckSetupView({
                         </Button>
                     )}
                 </div>
+
+                {blockedMessage && (
+                    <p id={BLOCKED_REASON_ID} {...stylex.props(styles.blockedReason)}>
+                        {blockedMessage}
+                    </p>
+                )}
             </div>
         </div>
     );

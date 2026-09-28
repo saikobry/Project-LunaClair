@@ -87,6 +87,11 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
         // question's slot in the incoming order the deck preserves.
         const cards = pool.flatMap(questionToCards);
         const ordered = orderDeck(cards, reviews, new Date(), { studyMode });
+        // Stale-state guard only. The setup view disables its start trigger and
+        // names the reason (nothing due vs. nothing in this selection) whenever
+        // this returns nothing, so a deck is never silently unstartable; this
+        // catches a click that lands after the selection or schedule moved under
+        // the button between render and click.
         if (ordered.length === 0) return;
 
         setDeck(ordered);
