@@ -8,6 +8,7 @@ import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/engines/deck';
 import { questionToCards } from '../../domain/flashcards/engines/questionToCards';
 import type { Flashcard } from '../../domain/flashcards/models/Flashcard';
+import { selectScopedCards, resolveSelectedQuiz } from './utils/selectScopedCards';
 import type { Rating } from '../../domain/flashcards/engines/scheduler';
 import type { FlashcardViewStep, FlashcardSessionSummary } from './types/flashcardFeature.types';
 import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
@@ -68,27 +69,10 @@ export function FlashcardScreen({ materialId, onOpenQuestionBank }: FlashcardScr
     const isLoading = loadingQuestions || loadingQuizzes || loadingReviews;
 
     const handleStartSession = (selectedQuizId?: string, studyMode?: DeckStudyMode) => {
-        let pool = questions.filter((q) => q.status !== 'archived');
-
-        if (selectedQuizId) {
-            const targetQuiz = quizzes.find((q) => q.id === selectedQuizId);
-            if (targetQuiz) {
-                const idSet = new Set(targetQuiz.questionIds);
-                const order = new Map(targetQuiz.items.map((item) => [item.questionId, item.order]));
-                pool = pool
-                    .filter((q) => idSet.has(q.id))
-                    .toSorted(
-                        (a, b) =>
-                            (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-                            (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-                    );
-            }
-        }
-
-        // Projection happens here, after the quiz filter has fixed the question
-        // order, so a fill_in_blank question's per-blank cards inherit that
-        // question's slot in the incoming order the deck preserves.
-        const cards = pool.flatMap(questionToCards);
+        const pool = questions.filter((q) => q.status !== 'archived');
+        const targetQuiz = resolveSelectedQuiz(quizzes, selectedQuizId);
+        const allCards = pool.flatMap(questionToCards);
+        const cards = selectScopedCards(allCards, targetQuiz);
         const ordered = orderDeck(cards, reviews, new Date(), { studyMode });
         // Stale-state guard only. The setup view disables its start trigger and
         // names the reason (nothing due vs. nothing in this selection) whenever

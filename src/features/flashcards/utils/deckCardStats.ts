@@ -5,6 +5,7 @@ import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import { isDue } from '../../../domain/flashcards/engines/scheduler';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
 import { questionToCards } from '../../../domain/flashcards/engines/questionToCards';
+import { selectScopedCards } from './selectScopedCards';
 
 export interface DeckCardStats {
     /** Every projected card for the non-archived questions, in question order. */
@@ -83,8 +84,8 @@ export function collectDeckCardStats(
 
 /** The scope a session is limited to: one quiz's cards, or every quiz's. */
 export interface DeckSelection {
-    /** The selected quiz, or `null` for the whole material. */
-    quiz: Quiz | null;
+    /** The selected quiz, `null` for the whole material, or `undefined` for an unresolved quiz selection. */
+    quiz: Quiz | null | undefined;
 }
 
 export type DeckEmptyReason =
@@ -123,7 +124,7 @@ export function resolveDeckEmptyState(
     studyMode: DeckStudyMode,
     now: Date
 ): DeckEmptyState {
-    const scopedCards = selectScopedCards(stats, selection.quiz);
+    const scopedCards = selectScopedCards(stats.cards, selection.quiz, stats.questionIdsByQuizId);
 
     let studyableCardCount = 0;
     let earliestDueAtMs = Number.POSITIVE_INFINITY;
@@ -154,19 +155,4 @@ export function resolveDeckEmptyState(
     }
 
     return { studyableCardCount: 0, reason: { kind: 'nothing_due', nextDueAt: earliestDueAt } };
-}
-
-/**
- * The cards a selection scopes to. A quiz contributes the projected cards of the
- * questions it lists, exactly as the per-quiz counts above are built; an unknown
- * quiz resolves to nothing, and the whole scope is every projected card.
- */
-function selectScopedCards(stats: DeckCardStats, quiz: Quiz | null): Flashcard[] {
-    if (!quiz) return stats.cards;
-
-    const questionIds = stats.questionIdsByQuizId.get(quiz.id);
-    if (!questionIds) return [];
-
-    const idSet = new Set(questionIds);
-    return stats.cards.filter((card) => idSet.has(card.source.questionId));
 }

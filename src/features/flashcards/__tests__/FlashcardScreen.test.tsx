@@ -8,6 +8,7 @@ import { ToastProvider } from '../../../app/providers/ToastContext';
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import { flashcardQueryKeys } from '../queries/flashcardQueryKeys';
 
 describe('FlashcardScreen', () => {
     let queryClient: QueryClient;
@@ -183,12 +184,65 @@ describe('FlashcardScreen', () => {
         expect(screen.getByRole('option', { name: 'Practice Quiz (2 cards)' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: 'Master Quiz (2 cards)' })).toBeInTheDocument();
 
+        // 1. Select quiz-1 (q-1 order 1, q-2 order 2).
         fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-1' } });
         fireEvent.click(screen.getByText('Start Flashcard Session'));
 
+        // First card must be q-1 (order 1), not q-2
         await waitFor(() => {
             expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
         });
+        expect(screen.queryByText('Plant cells have cell walls.')).not.toBeInTheDocument();
+        expect(screen.getByText('Card 1 of 2')).toBeInTheDocument();
+
+        // Advance to second card: flip and rate Good
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => {
+            expect(screen.getByText('Good')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Good'));
+
+        // Second card must be q-2 (order 2)
+        await waitFor(() => {
+            expect(screen.getByText('Plant cells have cell walls.')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('What organelle produces ATP?')).not.toBeInTheDocument();
+        expect(screen.getByText('Card 2 of 2')).toBeInTheDocument();
+
+        // Exit session back to setup
+        fireEvent.click(screen.getByRole('button', { name: 'Exit session' }));
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+
+        // Reset review cache so both cards remain unreviewed (new) cards,
+        // preventing orderDeck's dueAt bucketing from dominating incoming quiz item order.
+        queryClient.setQueryData(flashcardQueryKeys.reviews('mat-1'), {});
+
+        // 2. Select quiz-2 (q-2 order 1, q-1 order 2).
+        fireEvent.change(screen.getByLabelText('Quiz Filter'), { target: { value: 'quiz-2' } });
+        fireEvent.click(screen.getByText('Start Flashcard Session'));
+
+        // First card must flip to q-2 (order 1), not q-1
+        await waitFor(() => {
+            expect(screen.getByText('Plant cells have cell walls.')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('What organelle produces ATP?')).not.toBeInTheDocument();
+        expect(screen.getByText('Card 1 of 2')).toBeInTheDocument();
+
+        // Advance to second card: flip and rate Good
+        fireEvent.click(screen.getByLabelText('Show answer'));
+        await waitFor(() => {
+            expect(screen.getByText('Good')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByText('Good'));
+
+        // Second card must be q-1 (order 2)
+        await waitFor(() => {
+            expect(screen.getByText('What organelle produces ATP?')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('Plant cells have cell walls.')).not.toBeInTheDocument();
+        expect(screen.getByText('Card 2 of 2')).toBeInTheDocument();
     });
 
     it('flips card on click and records rating on rating button click', async () => {

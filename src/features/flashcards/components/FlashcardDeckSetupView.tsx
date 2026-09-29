@@ -7,6 +7,7 @@ import { Button } from '../../../shared/ui/Button/Button';
 import type { DeckStudyMode } from '../../../domain/flashcards/engines/deck';
 import { collectDeckCardStats, resolveDeckEmptyState } from '../utils/deckCardStats';
 import { describeDeckEmptyState } from '../utils/describeDeckEmptyState';
+import { resolveSelectedQuiz } from '../utils/selectScopedCards';
 import { useState, type ReactNode } from 'react';
 
 const styles = stylex.create({
@@ -303,10 +304,10 @@ export function FlashcardDeckSetupView({
     const [studyMode, setStudyMode] = useState<DeckStudyMode>(dueCount > 0 ? 'due_only' : 'all');
     const [selectedQuizId, setSelectedQuizId] = useState<string>('all');
 
-    // Resolved from the active quizzes, so a filter value that no longer names
-    // one falls back to the whole material — the same fallback the start handler
-    // applies, rather than a second, stricter rule.
-    const selectedQuiz = activeQuizzes.find((q) => q.id === selectedQuizId) ?? null;
+    // Resolved from the active quizzes via shared fail-closed resolver:
+    // 'all' -> null (unfiltered / whole material), valid ID -> Quiz,
+    // stale / unknown ID -> undefined (scopes to [] cards and blocks Start).
+    const selectedQuiz = resolveSelectedQuiz(activeQuizzes, selectedQuizId);
 
     // Re-derived on every render, so switching the quiz filter or the study mode
     // re-derives the reason and the disabled state together.
