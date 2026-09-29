@@ -135,7 +135,11 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
 
 - **`dispatch.ps1`**:
   Verifies targets (Herdr agent name or pane ID, e.g. `kilo-scout`, `cline`, `w3:p5`), stages the spec, formats a clean task prompt, and delivers via a three-step transport ladder, then **confirms delivery**.
-  - **Transport ladder**: (1) any prompt up to the **20,000-char inline budget** goes through `herdr agent prompt <pane-id> <text> --wait --until working --until blocked`, which owns paste *and* submit and surfaces Herdr's own `agent_prompt_stalled`; (2) if that transport rejects or stalls, `herdr pane send-text` + Enter is used as a fallback; (3) anything larger is **refused** with an actionable warning (see Platform Limits below). Pane ids are preferred over agent names, which some Herdr builds reject (`agent target codex not found`).
+  - **Transport ladder**:
+    - **Transport 0 (Freebuff)**: Focused OpenTUI keystroke choreography via `freebuff-prompt.ps1`.
+    - **Transport 1 (`herdr agent prompt`)**: Used for short, single-line prompts (<= 1,000 chars) or targets lacking a resolved pane ID. If Herdr returns `agent_prompt_stalled` (the agent took >5s to enter `working`), Herdr has already sent the text; the dispatcher marks it delivered and proceeds to confirmation wait without falling back to paste, completely preventing double-paste duplication.
+    - **Transport 2 (`herdr pane send-text`)**: Used directly for any large or multi-line prompt up to the **20,000-char inline budget** when a pane ID is available, or as fallback if Transport 1 was rejected before input was sent (`agent_not_found`).
+    - Anything above the 20,000-char budget is **refused** with an actionable warning (see Platform Limits below). Pane ids are preferred over agent names.
   - **Hand-built command line**: the prompt is passed to `herdr` through a `ProcessStartInfo` argument string that quotes the text per `CommandLineToArgvW` rules (`ConvertTo-WindowsCommandLineArg`), not through PowerShell's native argument passing, which re-splits large multi-line prompts into stray options.
   - **Delivery confirmation**: after sending, dispatch polls for a `working`/`blocked` transition. The paste fallback keeps re-pressing Enter every 2.5s for up to ~45s, because a multi-KB paste can take tens of seconds to absorb before an Enter counts at all. An unconfirmed delivery is a hard failure (`exit 1`) rather than a success — otherwise the follow-up wait returns instantly and its report shows the worker's previous turn as this task's answer.
   - **Never clears a composer.** Dispatch does not send `ctrl+c` or `Escape` to a worker pane under any circumstance; on an unconfirmed delivery it warns and leaves clearing to the operator.
@@ -190,6 +194,13 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
   - **Budget guard**: prompts above **20,000 chars** are refused up front with guidance (condense into rounds, or consult a self-contained spec with `-AllowTools`), and prompts within 10% of the budget warn. The dispatcher enforces the same limit independently.
   - `-AllowTools`: lets the worker read the staged file itself, for cases where the content genuinely cannot be inlined.
 
+- **`freebuff-prompt.ps1`**:
+  Dedicated prompt runner for Freebuff agents in Herdr.
+  - **Why it exists**: Freebuff uses an OpenTUI/React composer with an explicit focus guard; keystrokes delivered to an unfocused pane are dropped by Windows ConPTY. Additionally, Freebuff prompts display an interactive wallet credit confirmation modal (`Enter: confirm and send`) before execution starts.
+  - **What it does**: Auto-detects the Freebuff pane (or uses `-TargetPane`), delivers prompt text via `herdr pane run`, dynamically navigates focus to Freebuff, allows 500ms for ConPTY/OpenTUI focus propagation, delivers submit Enter, confirms the credit modal automatically, restores original caller focus, and optionally waits for turn completion via `-Wait`.
+  - `powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/freebuff-prompt.ps1 -Prompt "<text>" [-TargetPane <pane_id>] [-Wait]`
+  - Used automatically as **Transport 0** inside `dispatch.ps1` whenever `-Worker freebuff` (or a Freebuff pane ID) is targeted.
+
 - **`clean.ps1`**:
   Wipes temporary specs and reports in `.orchestrator/`.
   - `-All`: Clears all temporary staging files.
@@ -208,6 +219,7 @@ These are observed constraints of the Herdr CLI + terminal agent TUIs. They expl
 - **Herdr writes failures to stderr while the exit code stays 0.** Capture stderr to a file and scan it for `"error"` / `agent_prompt_stalled` / `agent_blocked`; `2>&1` in PowerShell turns those lines into `ErrorRecord`s that abort the calling statement.
 - **Target form matters.** Agent-scoped commands may reject agent names (`agent target codex not found`) while accepting pane ids (`herdr agent get w6:pB` works). Always keep a pane id in hand.
 - **Keep `.ps1` sources ASCII-only.** Without a UTF-8 BOM PowerShell 5.1 reads scripts as ANSI, so a single non-ASCII byte (an em dash's `0x94`) decodes into a stray quote and produces cascading, misleading parse errors.
+- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused and prompts for interactive wallet credit confirmation before processing. Always launch Freebuff sessions in Herdr panes via `freebuff-herdr` (which initializes Herdr metadata and spawns the detached `status-watcher.sh`). Dispatching via `dispatch.ps1 -Worker freebuff` or `freebuff-prompt.ps1` handles the temporary focus navigation and modal confirmation automatically.
 
 ---
 

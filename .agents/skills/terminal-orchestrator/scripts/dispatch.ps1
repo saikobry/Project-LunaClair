@@ -326,18 +326,49 @@ foreach ($workerItem in $dispatchPlan.Keys) {
     $promptDelivered = $false
     $deliveryPath = $null
     $promptTarget = if ($paneId) { $paneId } else { $agentName }
+    $shortPromptMaxChars = 1000
+    $isLargeOrMultiline = ($prompt.Length -gt $shortPromptMaxChars) -or ($prompt.Contains("`n"))
 
-    # Transport 1 (preferred): Herdr's own prompt API. It owns paste AND submit, so there is no
-    # Enter race to lose, and `--wait --until working` returns agent_prompt_stalled if the worker
-    # never starts. The text goes through a hand-built command line rather than PowerShell's
-    # native argument passing, which mangles large multi-line payloads into stray options.
-    if ($promptTarget -and $prompt.Length -le $script:MaxInlinePromptChars) {
+    # Transport 0 (Freebuff): Freebuff's OpenTUI composer requires focus and enter keystroke choreography
+    $isFreebuff = ($agentName -eq 'freebuff') -or ($matchedPane -and ($matchedPane.agent -eq 'freebuff' -or $matchedPane.display_agent -eq 'freebuff'))
+    if (-not $promptDelivered -and $isFreebuff) {
+        Write-Host "Dispatching to Freebuff pane '$paneId' via freebuff-prompt..." -ForegroundColor Cyan
+        $fbScript = Join-Path $PSScriptRoot "freebuff-prompt.ps1"
+        if (Test-Path $fbScript) {
+            & $fbScript -Prompt $prompt -TargetPane $paneId
+            if ($LASTEXITCODE -eq 0) {
+                $promptDelivered = $true
+                $deliveryPath = "freebuff-prompt:$paneId"
+            }
+        }
+    }
+
+    # If pane ID is known and prompt is large or multi-line, bypass Transport 1 to prevent
+    # agent_prompt_stalled false-failures and double-paste races.
+    $canUseAgentPrompt = (-not $promptDelivered) -and $promptTarget -and (-not $isLargeOrMultiline -or -not $paneId) -and ($prompt.Length -le $script:MaxInlinePromptChars)
+
+    # Transport 1: Herdr's own prompt API.
+    # Note: `herdr agent prompt` has an unconfigurable 5s deadline to observe 'working'.
+    # Crucially, Herdr sends the text to the pane BEFORE checking that deadline. If it stalls,
+    # the text IS ALREADY in the composer; falling back to bracketed paste would paste it a
+    # second time (causing duplicate prompts).
+    if ($canUseAgentPrompt) {
         Write-Host "Dispatching via Herdr agent prompt to '$promptTarget' ($($prompt.Length) chars)..." -ForegroundColor Cyan
         $promptResult = Invoke-HerdrAgentPrompt -Target $promptTarget -Text $prompt -TimeoutMs 30000
         $flatErr = if ($promptResult.StdErr) { ($promptResult.StdErr -replace '\s+', ' ').Trim() } else { "" }
         $flatOut = if ($promptResult.StdOut) { ($promptResult.StdOut -replace '\s+', ' ').Trim() } else { "" }
-        if ("$flatErr $flatOut" -match '"error"|agent_prompt_stalled|agent_blocked|unknown option|not found') {
-            Write-Host "  -> Herdr agent prompt rejected or stalled: $flatErr$flatOut" -ForegroundColor DarkYellow
+
+        if ("$flatErr $flatOut" -match 'agent_prompt_stalled') {
+            # Herdr already sent the prompt and Enter to the pane, but the agent took >5s to enter 'working'.
+            # DO NOT fall back to bracketed paste here: doing so pastes a second copy into the composer!
+            # Instead, mark as delivered and let Wait-PromptAccepted handle the wait and Enter nudge.
+            Write-Host "  -> Herdr agent prompt text sent; worker did not enter 'working' within 5s (proceeding to confirmation wait)..." -ForegroundColor DarkYellow
+            $promptDelivered = $true
+            $deliveryPath = "agent-prompt:$promptTarget"
+        } elseif ("$flatErr $flatOut" -match 'agent_blocked') {
+            Write-Warning "Agent '$promptTarget' is blocked. Refusing to inject prompt."
+        } elseif ("$flatErr $flatOut" -match '"error"|unknown option|not found|agent_not_ready') {
+            Write-Host "  -> Herdr agent prompt rejected before delivery: $flatErr$flatOut" -ForegroundColor DarkYellow
         } elseif ($promptResult.ExitCode -ne 0) {
             Write-Host "  -> Herdr agent prompt exited $($promptResult.ExitCode): $flatErr" -ForegroundColor DarkYellow
         } else {
@@ -346,12 +377,10 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         }
     }
 
+    # Transport 2: bracketed paste directly into pane
     if (-not $promptDelivered -and $paneId -and $prompt.Length -le $script:MaxInlinePromptChars) {
-        # Transport 2 (fallback): a single bracketed paste. Must stay ONE call -- `herdr pane
-        # send-text` carries the text in its own argv (so ~32K is a hard launch ceiling: a 35KB
-        # prompt dies with ApplicationFailedException) and splitting a paste across calls does NOT
-        # concatenate reliably in an agent TUI.
-        Write-Host "Falling back to bracketed paste into pane '$paneId' ($([int]($prompt.Length / 1024))KB)..." -ForegroundColor DarkYellow
+        $desc = if ($isLargeOrMultiline) { "bracketed paste" } else { "bracketed paste fallback" }
+        Write-Host "Dispatching via $desc into pane '$paneId' ($([int]($prompt.Length / 1024))KB)..." -ForegroundColor $(if ($isLargeOrMultiline) { "Cyan" } else { "DarkYellow" })
         herdr pane send-text $paneId $prompt
         # A large paste must settle before Enter is meaningful: a premature Enter is absorbed
         # and leaves the composer populated but unsubmitted.
@@ -377,7 +406,7 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         # Delivery confirmation: a pasted-but-unsubmitted prompt must never be reported as a
         # successful dispatch, because the follow-up wait would return instantly and its report
         # would present the worker's previous turn as this task's answer.
-        $allowNudge = $deliveryPath -like 'pane-paste:*'
+        $allowNudge = ($deliveryPath -like 'pane-paste:*') -or ($deliveryPath -like 'agent-prompt:*')
         if (Wait-PromptAccepted -AgentName $agentName -PaneId $paneId -ResubmitEnter:$allowNudge) {
             Write-Host "  -> Delivery confirmed via ${deliveryPath}: '$workerItem' entered 'working'." -ForegroundColor Green
         } else {

@@ -159,7 +159,9 @@ function Get-SingleReport {
                     })
 
                     if ($SinceIso -and $msgs.Count -gt 0) {
-                        $since = [DateTime]::Parse($SinceIso, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal)
+                        # Accommodate agents that record timestamps with minute-only precision (e.g. Freebuff logs HH:mm:00Z).
+                        # Subtracting 60 seconds avoids rejecting turns dispatched in the middle of a minute.
+                        $since = [DateTime]::Parse($SinceIso, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal).AddSeconds(-60)
                         $msgs = @($msgs | Where-Object {
                             $ts = [DateTime]::MinValue
                             if ($_.timestamp -and [DateTime]::TryParse($_.timestamp, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$ts)) {
