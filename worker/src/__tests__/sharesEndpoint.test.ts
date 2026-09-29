@@ -135,11 +135,9 @@ const sampleValidPackage = {
       type: 'multiple_choice',
       prompt: 'What is the powerhouse of the cell?',
       payload: {
-        options: [
-          { id: 'opt_1', text: 'Mitochondria' },
-          { id: 'opt_2', text: 'Nucleus' },
-        ],
-        correctOptionId: 'opt_1',
+        type: 'multiple_choice',
+        choices: ['Mitochondria', 'Nucleus'],
+        correctIndex: 0,
       },
       difficulty: 'easy',
       points: 10,
@@ -327,6 +325,38 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
         env,
       );
       expect(unlabelledRes.status).toBe(201);
+    });
+
+    it('rejects a question with a structurally malformed cloze payload with 422', async () => {
+      // Publish-time strictness: a marker/answer mismatch is malformed content, and the client's
+      // tolerant import path (which keeps such a legacy share cloneable and reports it) does not
+      // license publishing a new one. The message is the client validator's, verbatim.
+      const malformedClozePackage = {
+        ...sampleValidPackage,
+        questions: [
+          {
+            ...sampleValidPackage.questions[0],
+            type: 'fill_in_blank',
+            payload: {
+              type: 'fill_in_blank',
+              template: 'The ___ is the ___ of the cell.',
+              blanks: ['nucleus'],
+            },
+          },
+        ],
+      };
+
+      const req = new Request('http://localhost/api/shares', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package: malformedClozePackage }),
+      });
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(422);
+      const json = await res.json() as { details: string[] };
+      expect(json.details).toContain(
+        'Question "pkg_q_001": fill_in_blank payload requires exactly one answer per "___" placeholder (2 in template, 1 supplied).',
+      );
     });
 
     it('rejects passcode accessType when passcode is missing', async () => {      const req = new Request('http://localhost/api/shares', {

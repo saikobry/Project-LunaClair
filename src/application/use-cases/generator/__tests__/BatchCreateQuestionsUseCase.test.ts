@@ -4,6 +4,7 @@ import type { QuestionRepository, CreateQuestionInput } from '../../../../domain
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { GeneratedQuestionDraft } from '../../../../domain/generator/models/generator.types';
 import { validateQuestionDraft } from '../../../../domain/generator/validation/questionDraftValidation';
+import { validateQuestionPayload } from '../../../../domain/quiz/validation/questionPayloadValidation';
 
 describe('BatchCreateQuestionsUseCase', () => {
   const mockDrafts: GeneratedQuestionDraft[] = [
@@ -296,6 +297,157 @@ describe('BatchCreateQuestionsUseCase', () => {
       expect(captured).toHaveLength(0);
       expect(created).toEqual([]);
       expect(rejected[0].error).toMatch(/one answer per ___ placeholder/);
+    });
+
+    /**
+     * The validator NORMALIZES as it validates. Writing the raw draft instead of its normalized
+     * output means a draft can pass this gate and still be persisted exactly as malformed as it
+     * arrived — which is what made "every ingress validates" true only by accident. Each case
+     * below is a real normalisation the validator performs, asserted at the persistence boundary.
+     */
+    describe('persists the validator NORMALIZED output, not the raw draft', () => {
+      it('adopts the payload type when the top-level type is unusable, instead of persisting it', async () => {
+        const { repo, captured } = repoCapturingInputs();
+
+        // The observed `_false` slip: the model drops the leading token of `true_false`. The
+        // payload carries a real type, so the validator salvages the item — and persisting the
+        // raw draft would store `type: '_false'`, which is not a `QuestionType` at all.
+        const { created, rejected } = await new BatchCreateQuestionsUseCase(repo).execute({
+          materialId: 'mat-cell-1',
+          questions: [
+            {
+              type: '_false',
+              prompt: 'Plant cells have cell walls.',
+              payload: { type: 'true_false', correctAnswer: true },
+              difficulty: 'easy',
+              points: 1,
+            } as unknown as GeneratedQuestionDraft,
+          ],
+        });
+
+        expect(rejected).toEqual([]);
+        expect(created).toHaveLength(1);
+        expect(captured).toHaveLength(1);
+        expect(captured[0].type).toBe('true_false');
+        expect(captured[0].payload).toEqual({ type: 'true_false', correctAnswer: true });
+        // The persisted row must itself pass the Question Bank's payload rule.
+        expect(validateQuestionPayload(captured[0].type, captured[0].payload)).toEqual([]);
+      });
+
+      it('defaults a non-boolean true_false answer rather than persisting the raw value', async () => {
+        const { repo, captured } = repoCapturingInputs();
+
+        // `validateQuestionDraft` defaults this to `true`. The raw value would pass the gate and
+        // then be stored, so the deck would read a non-boolean where the projection expects one.
+        const { rejected } = await new BatchCreateQuestionsUseCase(repo).execute({
+          materialId: 'mat-cell-1',
+          questions: [
+            {
+              type: 'true_false',
+              prompt: 'Plant cells have cell walls.',
+              payload: { type: 'true_false', correctAnswer: 'yes' },
+              difficulty: 'easy',
+              points: 1,
+            } as unknown as GeneratedQuestionDraft,
+          ],
+        });
+
+        expect(rejected).toEqual([]);
+        expect(captured).toHaveLength(1);
+        expect(captured[0].payload).toEqual({ type: 'true_false', correctAnswer: true });
+        expect(validateQuestionPayload(captured[0].type, captured[0].payload)).toEqual([]);
+      });
+
+      it('drops the blank choices the validator filtered out, rather than persisting them', async () => {
+        const { repo, captured } = repoCapturingInputs();
+
+        const { rejected } = await new BatchCreateQuestionsUseCase(repo).execute({
+          materialId: 'mat-cell-1',
+          questions: [
+            {
+              type: 'multiple_choice',
+              prompt: 'What is the powerhouse of the cell?',
+              payload: {
+                type: 'multiple_choice',
+                choices: ['Nucleus', '   ', 'Mitochondria', ''],
+                correctIndex: 0,
+              },
+              difficulty: 'easy',
+              points: 1,
+            } as unknown as GeneratedQuestionDraft,
+          ],
+        });
+
+        expect(rejected).toEqual([]);
+        expect(captured).toHaveLength(1);
+        // The validator resolves the index against the FILTERED choices, so persisting the raw
+        // choices alongside it would point the correct answer at the wrong text.
+        expect(captured[0].payload).toEqual({
+          type: 'multiple_choice',
+          choices: ['Nucleus', 'Mitochondria'],
+          correctIndex: 0,
+        });
+        expect(validateQuestionPayload(captured[0].type, captured[0].payload)).toEqual([]);
+      });
+
+      it('drops the blank accepted alternatives the validator filtered out', async () => {
+        const { repo, captured } = repoCapturingInputs();
+
+        const { rejected } = await new BatchCreateQuestionsUseCase(repo).execute({
+          materialId: 'mat-cell-1',
+          questions: [
+            {
+              type: 'identification',
+              prompt: 'What is the capital of Japan?',
+              payload: {
+                type: 'identification',
+                correctAnswer: 'Tokyo',
+                acceptedAlternatives: ['Edo', '  '],
+              },
+              difficulty: 'easy',
+              points: 1,
+            } as unknown as GeneratedQuestionDraft,
+          ],
+        });
+
+        expect(rejected).toEqual([]);
+        expect(captured).toHaveLength(1);
+        expect(captured[0].payload).toEqual({
+          type: 'identification',
+          correctAnswer: 'Tokyo',
+          acceptedAlternatives: ['Edo'],
+        });
+        expect(validateQuestionPayload(captured[0].type, captured[0].payload)).toEqual([]);
+      });
+
+      it('persists a non-array acceptedAlternatives as absent, not as the raw value', async () => {
+        const { repo, captured } = repoCapturingInputs();
+
+        // A string alternatives value is a `TypeError` on `.map` in the grader. The validator
+        // normalizes it to `undefined`; persisting the raw value would reintroduce the exact
+        // shape the defensive guards elsewhere had to absorb.
+        const { rejected } = await new BatchCreateQuestionsUseCase(repo).execute({
+          materialId: 'mat-cell-1',
+          questions: [
+            {
+              type: 'identification',
+              prompt: 'What is the capital of Japan?',
+              payload: {
+                type: 'identification',
+                correctAnswer: 'Tokyo',
+                acceptedAlternatives: 'Edo',
+              },
+              difficulty: 'easy',
+              points: 1,
+            } as unknown as GeneratedQuestionDraft,
+          ],
+        });
+
+        expect(rejected).toEqual([]);
+        expect(captured).toHaveLength(1);
+        expect(captured[0].payload).toEqual({ type: 'identification', correctAnswer: 'Tokyo' });
+        expect(validateQuestionPayload(captured[0].type, captured[0].payload)).toEqual([]);
+      });
     });
 
     it('salvages the batch: valid siblings are still persisted when one item is refused', async () => {

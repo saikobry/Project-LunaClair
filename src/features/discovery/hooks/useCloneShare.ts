@@ -27,6 +27,7 @@ export function useCloneShare() {
         ]);
 
         showToast(`Cloned "${result.share.title}" into library!`, { intent: 'success' });
+
         return result;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));

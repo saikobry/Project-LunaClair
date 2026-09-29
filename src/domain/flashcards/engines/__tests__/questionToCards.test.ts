@@ -1,6 +1,9 @@
 import { assert, describe, expect, it } from 'vitest';
 import { questionToCards } from '../questionToCards';
 import type { Question } from '../../../quiz/models/Question';
+import type { Flashcard } from '../../models/Flashcard';
+import { validateStudyPackage } from '../../../package/engines/validateStudyPackage';
+import { buildCardKeyPool } from '../../../analytics/engines/cardKeyPool';
 
 describe('questionToCards', () => {
     const baseQuestion = {
@@ -398,5 +401,208 @@ describe('questionToCards', () => {
             expect(card.difficulty).toBe('medium');
             expect(card.explanation).toBe('Detailed concept explanation.');
         }
+    });
+
+    /**
+     * The projection must degrade, never throw, on a question that cannot expand one card per
+     * blank. Those are states the authoring surfaces genuinely produce — a cloze whose author
+     * has not typed the answers yet, and a cloze whose marker count disagrees with the answers
+     * it does have (which every write boundary refuses today, so it means a row stored before
+     * they validated). Both keep ONE usable card: never N, because there are no answers to pair
+     * markers with, and never zero, because dropping the question would silently remove it from
+     * the deck and from the analytics pool.
+     *
+     * The non-array `blanks` / `acceptedAlternatives` and non-string `template` cases these
+     * guards used to absorb are GONE: every ingress to `db.questions` validates, so no such row
+     * can be produced. `refuses the shapes the deleted guards absorbed` below is what pins that.
+     */
+    describe('a cloze that cannot expand per blank — one usable card, never zero', () => {
+        const MATERIAL_ID = 'mat-cell';
+        const QUESTION_ID = 'q-cloze-single';
+        const WHOLE_KEY = `q:${QUESTION_ID}`;
+
+        const clozeQuestion = (payload: unknown, prompt = 'Fill in the blank:'): Question =>
+            ({
+                id: QUESTION_ID,
+                materialId: MATERIAL_ID,
+                type: 'fill_in_blank',
+                prompt,
+                payload,
+                difficulty: 'medium',
+                points: 1,
+                status: 'published',
+                version: 1,
+                createdAt: '2026-08-27T00:00:00.000Z',
+                updatedAt: '2026-08-27T00:00:00.000Z',
+            }) as unknown as Question;
+
+        /** A learner has to be able to actually study it, and the deck has to be able to find it. */
+        const expectUsableSingleCard = (question: Question, cards: Flashcard[]): void => {
+            expect(cards).toHaveLength(1);
+            const card = cards[0];
+            expect(card.kind).toBe('recall');
+            // Literal, never rebuilt with the key helpers under test.
+            expect(card.key).toBe(WHOLE_KEY);
+            expect(card.front.trim()).not.toBe('');
+            expect(card.back.trim()).not.toBe('');
+            // The analytics pool is the other consumer of this exact projection, and it resolves
+            // a review schedule by key — so "it projected" is not enough, the key has to be the
+            // one the deck and the pool can both look up.
+            expect([...buildCardKeyPool([question])]).toEqual([WHOLE_KEY]);
+        };
+
+        it('keeps one card for a cloze with no answers at all', () => {
+            const question = clozeQuestion({
+                type: 'fill_in_blank',
+                template: 'The ___ stores DNA.',
+                blanks: [],
+            });
+
+            const cards = questionToCards(question);
+
+            expectUsableSingleCard(question, cards);
+            expect(cards[0].front).toBe('The ___ stores DNA.');
+            expect(cards[0].back).toBe('The ___ stores DNA.');
+        });
+
+        it('keeps one card when the marker count disagrees with the answers', () => {
+            // Guessing a marker/answer pairing would print an answer on the card's own front, so
+            // the fallback is the joined answers.
+            const question = clozeQuestion({
+                type: 'fill_in_blank',
+                template: 'The ___ stores DNA in the ___.',
+                blanks: ['nucleus'],
+            });
+
+            const cards = questionToCards(question);
+
+            expectUsableSingleCard(question, cards);
+            expect(cards[0].front).toBe('The ___ stores DNA in the ___.');
+            expect(cards[0].back).toBe('nucleus');
+        });
+
+        it('still expands a well-formed cloze to one card per blank, so the fallback is not the gate', () => {
+            const question = clozeQuestion({
+                type: 'fill_in_blank',
+                template: 'The ___ contains the ___ and the ___.',
+                blanks: ['nucleus', 'chromatin', 'DNA'],
+            });
+
+            const cards = questionToCards(question);
+
+            expect(cards.map((card) => card.key)).toEqual([
+                `${WHOLE_KEY}#0`,
+                `${WHOLE_KEY}#1`,
+                `${WHOLE_KEY}#2`,
+            ]);
+            // Each blank still hides only its own marker and shows the others as scaffolding.
+            expect(cards.map((card) => card.front)).toEqual([
+                'The ___ contains the chromatin and the DNA.',
+                'The nucleus contains the ___ and the DNA.',
+                'The nucleus contains the chromatin and the ___.',
+            ]);
+            expect(cards.map((card) => card.back)).toEqual(['nucleus', 'chromatin', 'DNA']);
+            // Three blanks, three pool keys: the analytics denominator still tracks the deck.
+            expect([...buildCardKeyPool([question])]).toEqual([
+                `${WHOLE_KEY}#0`,
+                `${WHOLE_KEY}#1`,
+                `${WHOLE_KEY}#2`,
+            ]);
+        });
+
+        it('renders an identification whose optional alternatives are simply absent', () => {
+            const question = {
+                id: 'q-ident-plain',
+                materialId: MATERIAL_ID,
+                type: 'identification',
+                prompt: 'What is the capital of Japan?',
+                payload: { type: 'identification', correctAnswer: 'Tokyo' },
+                difficulty: 'medium',
+                points: 1,
+                status: 'published',
+                version: 1,
+                createdAt: '2026-08-27T00:00:00.000Z',
+                updatedAt: '2026-08-27T00:00:00.000Z',
+            } satisfies Question;
+
+            const cards = questionToCards(question);
+
+            expect(cards).toHaveLength(1);
+            expect(cards[0].back).toBe('Tokyo');
+        });
+    });
+
+    /**
+     * The premise the deleted guards rested on, asserted rather than assumed: no ingress can
+     * produce the three shapes they absorbed. Green tests elsewhere show the projection handles
+     * what it is given; only this shows what it can be given.
+     */
+    describe('refuses the shapes the deleted guards absorbed', () => {
+        const packageWith = (payload: unknown): unknown => ({
+            format: 'lcpack',
+            schemaVersion: 1,
+            metadata: { title: 'Share', createdAt: '2026-08-27T00:00:00.000Z' },
+            materials: [
+                { id: 'pkg_mat_probe', title: 'Cells', documentContent: '# Cells' },
+            ],
+            questions: [
+                {
+                    id: 'pkg_q_probe',
+                    materialId: 'pkg_mat_probe',
+                    type: 'fill_in_blank',
+                    prompt: 'Answer this.',
+                    payload,
+                    difficulty: 'medium',
+                    points: 1,
+                },
+            ],
+            quizzes: [],
+        });
+
+        it('refuses a non-array "blanks" and a non-string "template"', () => {
+            const nonArrayBlanks = validateStudyPackage(
+                packageWith({ type: 'fill_in_blank', template: 'A ___ B', blanks: 'nucleus' }),
+            );
+            expect(nonArrayBlanks.isValid).toBe(false);
+            expect(nonArrayBlanks.errors.length).toBeGreaterThan(0);
+
+            const nonStringTemplate = validateStudyPackage(
+                packageWith({ type: 'fill_in_blank', template: 42, blanks: ['x'] }),
+            );
+            expect(nonStringTemplate.isValid).toBe(false);
+            expect(nonStringTemplate.errors.length).toBeGreaterThan(0);
+        });
+
+        it('refuses a non-array "acceptedAlternatives"', () => {
+            const result = validateStudyPackage({
+                format: 'lcpack',
+                schemaVersion: 1,
+                metadata: { title: 'Share', createdAt: '2026-08-27T00:00:00.000Z' },
+                materials: [
+                    { id: 'pkg_mat_probe', title: 'Capitals', documentContent: '# Capitals' },
+                ],
+                questions: [
+                    {
+                        id: 'pkg_q_probe',
+                        materialId: 'pkg_mat_probe',
+                        type: 'identification',
+                        prompt: 'Name the capital.',
+                        payload: {
+                            type: 'identification',
+                            correctAnswer: 'Tokyo',
+                            acceptedAlternatives: 'Edo',
+                        },
+                        difficulty: 'medium',
+                        points: 1,
+                    },
+                ],
+                quizzes: [],
+            });
+
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain(
+                'Question "pkg_q_probe": identification payload "acceptedAlternatives" must be an array of strings when provided.',
+            );
+        });
     });
 });

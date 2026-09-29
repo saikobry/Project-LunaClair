@@ -5,6 +5,7 @@ import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } fr
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
+import type { SaveQuestionResult } from '../../../application/use-cases/quiz-management/CreateQuestionUseCase';
 import { QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
 import type { MaterialWorkspaceTab } from '../../../app/routing/routing';
 import { Button } from '../../../shared/ui/Button/Button';
@@ -28,8 +29,10 @@ interface QuestionBankTabProps {
     materialId: string;
     materialTitle?: string;
     documentMarkdown?: string;
-    onCreate: (input: CreateQuestionInput) => void;
-    onUpdate: (id: string, input: UpdateQuestionInput) => void;
+    // Both resolve to the write boundary's result: a refused write is a fact the editor
+    // renders, so the promise has to reach it rather than being fired and forgotten.
+    onCreate: (input: CreateQuestionInput) => Promise<SaveQuestionResult>;
+    onUpdate: (id: string, input: UpdateQuestionInput) => Promise<SaveQuestionResult>;
     onPublish: (id: string) => void;
     onArchive: (id: string) => void;
     onUnarchive?: (id: string) => void;
@@ -265,10 +268,9 @@ export function QuestionBankTab({
 
     const handleSave = (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => {
         if (id) {
-            onUpdate(id, input as UpdateQuestionInput);
-        } else {
-            onCreate(input as CreateQuestionInput);
+            return onUpdate(id, input as UpdateQuestionInput);
         }
+        return onCreate(input as CreateQuestionInput);
     };
 
     const openCreate = () => {

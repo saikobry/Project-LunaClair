@@ -501,7 +501,6 @@ function CloneSuccessBanner({
   );
 }
 
-
 interface SharedPackageActionsBarProps {
   isCloning: boolean;
   isDownloading: boolean;

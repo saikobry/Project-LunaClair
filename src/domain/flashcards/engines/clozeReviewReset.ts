@@ -61,8 +61,8 @@ function blankIndices(count: number): number[] {
  * Every blank index a reset must clear: the union of the before and after
  * lengths, so a shrink also clears the keys the removed blanks left behind.
  */
-function allBlankIndices(before: FillBlankPayload, after: FillBlankPayload): number[] {
-    return blankIndices(Math.max(before.blanks.length, after.blanks.length));
+function allBlankIndices(before: string[], after: string[]): number[] {
+    return blankIndices(Math.max(before.length, after.length));
 }
 
 /**
@@ -80,26 +80,30 @@ export function affectedClozeBlankIndices(before: Question, after: Question): nu
     // a question that only just became cloze has brand-new keys with no history
     // to invalidate.
     if (!beforePayload) return [];
+    const beforeBlanks = beforePayload.blanks;
 
     // A cloze question converted to any other type now projects 1:1 to a single
     // whole-question card, so no card projects its old per-blank keys any more.
     // Retiring all of them is the asymmetric half of the rule: left in place
     // they would sit in `flashcardReviews` forever with nothing rendering them.
     const afterPayload = clozePayloadOf(after);
-    if (!afterPayload) return blankIndices(beforePayload.blanks.length);
+    if (!afterPayload) return blankIndices(beforeBlanks.length);
+    const afterBlanks = afterPayload.blanks;
 
     // The resolved front is the text every card front is rendered from, so
     // editing it invalidates every blank — including blanks whose own answer
-    // survived.
+    // survived. `resolveClozeCardFront` is the same function the projection
+    // renders from, so the two cannot drift, which is the whole reason the
+    // resolver is shared.
     const beforeFront = resolveClozeCardFront(before.prompt, beforePayload.template);
     const afterFront = resolveClozeCardFront(after.prompt, afterPayload.template);
     if (normalize(beforeFront) !== normalize(afterFront)) {
-        return allBlankIndices(beforePayload, afterPayload);
+        return allBlankIndices(beforeBlanks, afterBlanks);
     }
 
     // A different number of blanks renumbers the keys outright.
-    if (beforePayload.blanks.length !== afterPayload.blanks.length) {
-        return allBlankIndices(beforePayload, afterPayload);
+    if (beforeBlanks.length !== afterBlanks.length) {
+        return allBlankIndices(beforeBlanks, afterBlanks);
     }
 
     // A pure permutation — the same answers in different positions — is a
@@ -108,17 +112,17 @@ export function affectedClozeBlankIndices(before: Question, after: Question): nu
     // history stored under #1 belongs to #2. An unchanged multiset is what makes
     // it a reorder; a changed multiset means an answer was actually rewritten,
     // which is the in-place case below.
-    const beforeAnswers = beforePayload.blanks.map(normalize).toSorted();
-    const afterAnswers = afterPayload.blanks.map(normalize).toSorted();
+    const beforeAnswers = beforeBlanks.map(normalize).toSorted();
+    const afterAnswers = afterBlanks.map(normalize).toSorted();
     const sameAnswers = beforeAnswers.every((answer, index) => answer === afterAnswers[index]);
-    const someBlankMoved = beforePayload.blanks.some(
-        (blank, index) => normalize(blank) !== normalize(afterPayload.blanks[index]),
+    const someBlankMoved = beforeBlanks.some(
+        (blank, index) => normalize(blank) !== normalize(afterBlanks[index]),
     );
-    if (sameAnswers && someBlankMoved) return allBlankIndices(beforePayload, afterPayload);
+    if (sameAnswers && someBlankMoved) return allBlankIndices(beforeBlanks, afterBlanks);
 
     // Otherwise the answers were edited in place: only the positions that now
     // hold a different answer are stale.
-    return afterPayload.blanks
-        .map((blank, index) => (normalize(blank) === normalize(beforePayload.blanks[index]) ? -1 : index))
+    return afterBlanks
+        .map((blank, index) => (normalize(blank) === normalize(beforeBlanks[index]) ? -1 : index))
         .filter((index) => index !== -1);
 }

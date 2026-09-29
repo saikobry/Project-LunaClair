@@ -39,7 +39,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
   - `materials` consumes `collections` (`MaterialCard`'s filing popover — the sole material-to-collection assignment surface). Verified Sep 2026: the edge is one-way and `collections` imports nothing from `materials`, so the DAG stays acyclic. The earlier "zero dependencies" wording did not match the code.
   - `reader` depends on `materials`.
   - `writer` depends on `reader` and `materials`.
-  - `discovery` depends on `materials`.
+  - `discovery` depends on `materials` for exact clone identity (`useLibrary`) and post-clone cache invalidation (`materialQueryKeys`). **It no longer depends on `package`**: the shared import-warning notice is gone, and a clone that is refused for malformed content is reported by each surface through its own existing error channel. The edge is one-way and acyclic.
   - `quiz` depends on `materials`.
   - `flashcards` depends on `quiz`, `reader`, and `materials` — and **owns no authoring**: it renders a projection of questions, so its only route out is a handoff to the Question Bank. The workspace wires that as the ordinary `?tab=questions` tab change **plus** a one-shot launch intent that preselects Fill in the Blank and offers a way back to Flashcards. The intent is plain data the **workspace screen** holds and threads down (`WorkspaceTabPanels` → `QuizManagementScreen` → `QuestionBankTab`), so it adds **no** `flashcards -> ai` or `flashcards -> quiz-management` edge — and no feature edge at all, since neither the arming side nor the claiming side imports the other. Authoring still has exactly one owner and one write path.
   - `quiz-management` depends on `quiz`, `reader`, `package`, `materials`, and `ai`.

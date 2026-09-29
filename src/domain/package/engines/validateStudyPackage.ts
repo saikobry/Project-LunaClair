@@ -2,6 +2,7 @@ import type { PackageValidationResult, StudyPackage } from '../models/package.ty
 import type { QuestionType } from '../../quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../quiz/models/Question';
 import { VALID_QUESTION_TYPES } from '../../quiz/models/questionMetadata';
+import { validateQuestionPayload } from '../../quiz/validation/questionPayloadValidation';
 
 const VALID_DIFFICULTIES: ReadonlySet<QuestionDifficulty> = new Set([
     'easy',
@@ -18,7 +19,7 @@ const ASSET_URI_REGEX = /lc-asset:\/\/([^\s)"'>]+)/g;
 
 /**
  * Pure validator for checking the structural and referential integrity of a StudyPackage.
- * 
+ *
  * Invariants enforced:
  * - format must equal 'lcpack'
  * - schemaVersion must equal 1
@@ -27,6 +28,22 @@ const ASSET_URI_REGEX = /lc-asset:\/\/([^\s)"'>]+)/g;
  * - Foreign keys (question.materialId, quiz.materialId, quizItem.questionId, flashcard.materialId, asset.materialId)
  *   must resolve to declared entities
  * - Markdown asset URIs (lc-asset://...) must resolve to declared package assets
+ * - Every question payload must be structurally valid for its declared type
+ *
+ * **There is ONE tier, and it is strict.** This function used to take `{ strictness }` with a
+ * tolerant `read` default that recorded a malformed payload as a non-blocking `warning`, imported
+ * the row anyway, and left the caller to describe the damage. The promise behind that tolerance —
+ * that shares published before payload validation existed had to stay cloneable — was checked
+ * against the remote D1 `shares` table and found to defend an EMPTY population: the table was
+ * created by a migration never applied remotely, so no `.lcpack` has ever been published. The
+ * tolerance was therefore not merely dead but load-bearing in the wrong direction: it was the one
+ * ingress with no way to say no, and the reason a malformed payload could reach a learner's deck.
+ *
+ * The single strict tier is also now the whole of the local publish gate, because there is nothing
+ * left for a caller to opt into and so nothing for it to forget to opt into. The Worker's
+ * `validateServerStudyPackage` mirrors exactly these rules; the wording it mirrors is owned by
+ * `validateQuestionPayload` and is a frozen contract pinned by
+ * `worker/src/__tests__/questionPayloadParity.test.ts`.
  */
 export function validateStudyPackage(input: unknown): PackageValidationResult {
     const errors: string[] = [];
@@ -161,6 +178,15 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
 
             if (!q.payload || typeof q.payload !== 'object' || Array.isArray(q.payload)) {
                 errors.push(`Question "${String(q.id || idx)}" must have a valid payload object.`);
+            } else if (typeof q.type === 'string' && VALID_QUESTION_TYPES.has(q.type as QuestionType)) {
+                // Per-type structural validation, owned by `validateQuestionPayload` — one rule for
+                // the package boundary, not a divergent copy of the authoring/generator one. Every
+                // finding is fatal: a package carrying a malformed payload is refused, so the row
+                // can never be persisted in a shape the study surfaces cannot read.
+                const questionId = String(q.id || idx);
+                for (const issue of validateQuestionPayload(q.type as QuestionType, q.payload)) {
+                    errors.push(`Question "${questionId}": ${issue}`);
+                }
             }
 
             if (typeof q.difficulty !== 'string' || !VALID_DIFFICULTIES.has(q.difficulty as QuestionDifficulty)) {

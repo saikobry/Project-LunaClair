@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { affectedClozeBlankIndices } from '../clozeReviewReset';
+import { cardKeyForBlank } from '../cardKey';
 import type { FillBlankPayload, QuestionAnswerPayload } from '../../../quiz/models/AnswerPayload';
 import type { Question } from '../../../quiz/models/Question';
 
@@ -222,6 +223,191 @@ describe('affectedClozeBlankIndices', () => {
             const after = cloze({ template: 'A completely rewritten template.' }, { prompt: 'The ___ and the ___ .' });
 
             expect(affectedClozeBlankIndices(before, after)).toEqual([]);
+        });
+    });
+
+    /**
+     * Site 1 is a **write** path, so a row that cannot project per-blank cards is driven through
+     * the capture → write → execute bracket rather than handed to the predicate directly. The
+     * bracket itself is owned by `ResetFlashcardReviewsUseCase` (application layer, whose own
+     * suite covers the orchestration); what is exercised here is the pair of rows the bracket
+     * hands this predicate, produced by a real in-memory store and a real partial write — the
+     * same shapes, in the same order, that the use case reads.
+     *
+     * The two rows used here are `blanks: []` (a cloze whose author has not written the answers
+     * yet) and `template: ''` (one whose template is not written yet). Both are real authoring
+     * states the question is allowed to be in, which is what makes them worth bracketing. The
+     * *absent* `blanks` and *non-string* `template` the old guards absorbed are gone: every
+     * ingress to `db.questions` validates, so no such row can be stored.
+     */
+    describe('a cloze that projects no per-blank cards, through the capture/execute bracket', () => {
+        const STORED_QUESTION_ID = 'q-cloze-1';
+
+        /** The stored row a question with this payload leaves behind. */
+        const storedCloze = (payload: unknown, prompt = 'Fill in the blank:'): Question =>
+            ({
+                ...baseQuestion,
+                id: STORED_QUESTION_ID,
+                type: 'fill_in_blank',
+                prompt,
+                payload,
+                createdAt: '2026-08-27T00:00:00.000Z',
+                updatedAt: '2026-08-27T00:00:00.000Z',
+            }) as unknown as Question;
+
+        /** The Dexie table: a read returns whatever the write left behind. */
+        const makeStore = (row: Question) => {
+            const rows = new Map<string, Question>([[row.id, row]]);
+            return {
+                read: (id: string) => rows.get(id),
+                /** A partial update, as `UpdateQuestionInput` delivers it. */
+                write: (id: string, patch: Partial<Question>) => {
+                    const current = rows.get(id);
+                    if (current) rows.set(id, { ...current, ...patch });
+                },
+            };
+        };
+
+        /** Phase 1 of the bracket: keep only the rows with per-blank keys. */
+        const capture = (store: ReturnType<typeof makeStore>, ids: string[]): Question[] =>
+            ids.map((id) => store.read(id)).filter((row): row is Question => row?.payload.type === 'fill_in_blank');
+
+        /** Phase 2 of the bracket: re-read the written row and ask the policy. */
+        const execute = (store: ReturnType<typeof makeStore>, before: Question[]): string[] => {
+            const keys: string[] = [];
+            for (const row of before) {
+                const current = store.read(row.id);
+                if (!current) continue;
+                for (const index of affectedClozeBlankIndices(row, current)) {
+                    keys.push(cardKeyForBlank(row.id, index));
+                }
+            }
+            return keys;
+        };
+
+        it('survives a difficulty-only save of a cloze with no answers', () => {
+            const question = storedCloze({
+                type: 'fill_in_blank',
+                template: 'The ___ produces ATP in the ___ of a eukaryotic cell.',
+                blanks: [],
+            });
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            // A difficulty-only save supplies no payload, so the post-write row is
+            // identical apart from that field.
+            store.write(question.id, { difficulty: 'hard', version: 2 });
+            const keys = execute(store, before);
+
+            // No answers, so the row projects ONE whole-question card and holds no
+            // `q:<id>#n` schedule: there is nothing per-blank to retire.
+            expect(keys).toEqual([]);
+        });
+
+        it('survives an edit of the prompt on a cloze with no answers', () => {
+            const question = storedCloze(
+                {
+                    type: 'fill_in_blank',
+                    template: 'The ___ produces ATP in the ___ of a eukaryotic cell.',
+                    blanks: [],
+                },
+                'Complete the sentence about ATP.',
+            );
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            store.write(question.id, { prompt: 'Complete the sentence about cellular respiration.' });
+
+            // The front the learner is shown did change — so the policy must SEE the
+            // change — but a row with no answers still projects no per-blank cards,
+            // so there is no key it could be earned on.
+            expect(affectedClozeBlankIndices(before[0], store.read(question.id)!)).toEqual([]);
+            expect(execute(store, before)).toEqual([]);
+        });
+
+        it('retires every key when an answerless cloze is written into a real per-blank question', () => {
+            const question = storedCloze(
+                {
+                    type: 'fill_in_blank',
+                    template: 'The ___ produces ATP in the ___ of a eukaryotic cell.',
+                    blanks: [],
+                },
+                'Complete the sentence about ATP.',
+            );
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            // The author fills the answers in: the row now really does project two cards.
+            store.write(question.id, {
+                payload: {
+                    type: 'fill_in_blank',
+                    template: 'The ___ produces ATP in the ___ of a eukaryotic cell.',
+                    blanks: ['Mitochondrion', 'cytoplasm'],
+                } as FillBlankPayload,
+            });
+
+            // The front the learner is shown genuinely changed — the bare prompt
+            // becomes the prompt above the template — so the policy clears every
+            // index rather than none.
+            expect(execute(store, before)).toEqual([
+                `q:${STORED_QUESTION_ID}#0`,
+                `q:${STORED_QUESTION_ID}#1`,
+            ]);
+        });
+
+        it('retires nothing when an answerless cloze stops being a cloze, because it never held a per-blank key', () => {
+            const question = storedCloze(
+                {
+                    type: 'fill_in_blank',
+                    template: 'The ___ produces ATP in the ___ of a eukaryotic cell.',
+                    blanks: [],
+                },
+                'Complete the sentence about ATP.',
+            );
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            store.write(question.id, {
+                payload: { type: 'identification', correctAnswer: 'Mitochondrion' } as never,
+            });
+
+            // The asymmetric rule still applies, but a row that projects one
+            // whole-question card has no `q:<id>#n` to retire, so the honest answer
+            // is no keys rather than a guess at how many the row "should" have had.
+            expect(execute(store, before)).toEqual([]);
+        });
+
+        it('survives a difficulty-only save of a cloze whose template is not written yet', () => {
+            const question = storedCloze(
+                { type: 'fill_in_blank', template: '', blanks: ['Mitochondrion', 'cytoplasm'] },
+                'The ___ produces ATP in the ___ of a eukaryotic cell.'
+            );
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            store.write(question.id, { difficulty: 'hard', version: 2 });
+
+            // The front is the prompt, so a difficulty-only save leaves it identical
+            // and the (two) answer keys stand.
+            expect(execute(store, before)).toEqual([]);
+        });
+
+        it('retires every blank when the prompt of a template-less cloze is reworded', () => {
+            const question = storedCloze(
+                { type: 'fill_in_blank', template: '', blanks: ['Mitochondrion', 'cytoplasm'] },
+                'The ___ produces ATP in the ___ of a eukaryotic cell.'
+            );
+            const store = makeStore(question);
+
+            const before = capture(store, [question.id]);
+            store.write(question.id, { prompt: 'Complete the sentence about cellular respiration.' });
+
+            // The template is not rendered on this row, so the prompt IS the front,
+            // and editing it is editing what the learner is tested on.
+            expect(execute(store, before)).toEqual([
+                `q:${STORED_QUESTION_ID}#0`,
+                `q:${STORED_QUESTION_ID}#1`,
+            ]);
         });
     });
 

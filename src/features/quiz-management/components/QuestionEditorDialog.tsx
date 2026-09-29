@@ -12,6 +12,7 @@ import { TextArea } from '../../../shared/ui/TextArea/TextArea';
 import { TagInput } from '../../../shared/ui/TagInput/TagInput';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { useToast } from '../../../app/providers/ToastContext';
+import type { SaveQuestionResult } from '../../../application/use-cases/quiz-management/CreateQuestionUseCase';
 import { getQuestionEditor, createDefaultPayload } from '../editors/QuestionEditorRegistry';
 import { QUESTION_TYPES, QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
 import { normalizeTags, mergeTags, splitTagInput, tagKey } from '../../../shared/utils/tags';
@@ -36,6 +37,28 @@ const styles = stylex.create({
         paddingTop: 8,
         borderTop: '1px solid var(--color-border)',
     },
+    /**
+     * The write-refusal callout. Same presentation the quiz canvas card uses for a
+     * `SaveQuizUseCase` refusal, because it is the same fact: the answer payload is not
+     * structurally valid for its type, and the author is holding the only content that
+     * can fix it. Each line is one `validateQuestionPayload` finding verbatim, so it
+     * names the offending field without this component re-deriving the rule.
+     */
+    errorCallout: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: '8px 12px',
+        borderRadius: 6,
+        backgroundColor: 'var(--color-error-muted)',
+        border: '1px solid var(--color-error)',
+        margin: 0,
+    },
+    errorText: {
+        fontSize: 12,
+        color: 'var(--color-error)',
+        margin: 0,
+    },
 });
 
 const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = QUESTION_TYPES.map(
@@ -53,7 +76,12 @@ interface QuestionEditorDialogProps {
     onClose: () => void;
     materialId: string;
     question?: Question | null;
-    onSave: (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => void;
+    /**
+     * Commits the edit. Resolves to the write boundary's result rather than firing and
+     * forgetting, because a refused write is a fact the author has to act on while the
+     * dialog is still open — see `saveErrors` below.
+     */
+    onSave: (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => Promise<SaveQuestionResult>;
 }
 
 function hasUserData(payload: QuestionAnswerPayload): boolean {
@@ -100,6 +128,10 @@ export function QuestionEditorDialog({
     const [tags, setTags] = useState<string[]>(question?.tags ?? []);
 
     const [pendingTypeChange, setPendingTypeChange] = useState<QuestionType | null>(null);
+    // Findings from a refused write, verbatim from `validateQuestionPayload`. Non-empty
+    // means nothing was persisted and the dialog stays open, so the author can fix the
+    // named field and save again.
+    const [saveErrors, setSaveErrors] = useState<string[]>([]);
 
     const handleTypeChangeRequest = useCallback((newType: QuestionType) => {
         if (hasUserData(payload)) {
@@ -122,36 +154,47 @@ export function QuestionEditorDialog({
         setPendingTypeChange(null);
     }, []);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const parsedTags = normalizeTags(tags);
         const parsedPoints = Math.max(1, parseInt(points, 10) || 1);
 
-        if (isEditing && question) {
-            const input: UpdateQuestionInput = {
-                prompt,
-                payload,
-                difficulty,
-                points: parsedPoints,
-                explanation: explanation || undefined,
-                tags: parsedTags,
-            };
-            onSave(input, question.id);
-            showToast('Question updated', { intent: 'success' });
-        } else {
-            const input: CreateQuestionInput = {
-                materialId,
-                type,
-                prompt,
-                payload,
-                difficulty,
-                points: parsedPoints,
-                explanation: explanation || undefined,
-                tags: parsedTags,
-                status: 'draft' as QuestionStatus,
-            };
-            onSave(input);
-            showToast('Question created successfully', { intent: 'success' });
+        const isUpdate = isEditing && question;
+        const input: CreateQuestionInput | UpdateQuestionInput = isUpdate
+            ? {
+                  prompt,
+                  payload,
+                  difficulty,
+                  points: parsedPoints,
+                  explanation: explanation || undefined,
+                  tags: parsedTags,
+              }
+            : {
+                  materialId,
+                  type,
+                  prompt,
+                  payload,
+                  difficulty,
+                  points: parsedPoints,
+                  explanation: explanation || undefined,
+                  tags: parsedTags,
+                  status: 'draft' as QuestionStatus,
+              };
+
+        // The write boundary is a gate, not a formality: a structurally malformed answer
+        // payload is refused and nothing is persisted. The dialog therefore stays open and
+        // names the offending field, rather than closing on a success toast over a row that
+        // was never written.
+        const result = isUpdate
+            ? await onSave(input, question.id)
+            : await onSave(input);
+
+        if (!result.success) {
+            setSaveErrors(result.errors);
+            return;
         }
+
+        setSaveErrors([]);
+        showToast(isUpdate ? 'Question updated' : 'Question created successfully', { intent: 'success' });
         onClose();
     };
 
@@ -203,8 +246,21 @@ export function QuestionEditorDialog({
                         <DynamicQuestionEditor
                             type={type}
                             value={payload}
-                            onChange={setPayload}
+                            onChange={(next) => {
+                                // Editing the answer clears a stale refusal, the same way the
+                                // canvas drops its save errors once the author keeps typing.
+                                setSaveErrors([]);
+                                setPayload(next);
+                            }}
                         />
+
+                        {saveErrors.length > 0 && (
+                            <div {...stylex.props(styles.errorCallout)} role="alert">
+                                {saveErrors.map((error) => (
+                                    <p key={error} {...stylex.props(styles.errorText)}>{error}</p>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div {...stylex.props(styles.row)}>

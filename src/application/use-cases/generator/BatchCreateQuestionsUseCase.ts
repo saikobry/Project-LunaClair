@@ -85,19 +85,30 @@ export class BatchCreateQuestionsUseCase {
         return;
       }
 
+      // **The validator's NORMALIZED output is what is persisted, not the raw draft.**
+      // `validateQuestionDraft` normalizes as it validates: it trims, it filters blank choices
+      // and blank alternatives out, it resolves an unusable top-level `type` from the payload's
+      // own (the observed `_false` slip), and it defaults a non-boolean `true_false` answer to
+      // `true`. Discarding that and writing `draft.payload` raw is how a row passes validation and
+      // is then persisted exactly as malformed as it arrived — which is what made "every ingress
+      // validates" true only by accident rather than by construction. Salvage still means
+      // drop-never-repair: the normalized value carries no data the model did not supply, it only
+      // discards what was unusable.
+      const normalized = validation.data;
+
       // Tags are whatever classification the draft carries — persistence adds no provenance marker.
       // `sourceSection` is the provenance record itself, so unlike a tag it IS persisted: the
       // draft's declared difficulty, payload type, and section all reach the bank intact.
       createInputs.push({
         materialId: input.materialId,
-        type: draft.type,
-        prompt: draft.prompt,
-        payload: draft.payload,
-        difficulty: draft.difficulty,
-        points: draft.points,
-        explanation: draft.explanation,
-        tags: draft.tags ?? [],
-        sourceSection: draft.sourceSection,
+        type: normalized.type,
+        prompt: normalized.prompt,
+        payload: normalized.payload,
+        difficulty: normalized.difficulty,
+        points: normalized.points,
+        explanation: normalized.explanation,
+        tags: normalized.tags ?? [],
+        sourceSection: normalized.sourceSection,
         status: input.status ?? 'draft',
       });
     });

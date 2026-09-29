@@ -7,6 +7,12 @@ import { ApplicationContext, type ApplicationContextValue } from '../../../../ap
 import { ToastProvider } from '../../../../app/providers/ToastContext';
 import type { StudyPackage } from '../../../../domain/package/models/package.types';
 
+const showToastMock = vi.fn();
+vi.mock('../../../../app/providers/ToastContext', () => ({
+  useToast: () => ({ showToast: showToastMock }),
+  ToastProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
 describe('useImportStudyPackage', () => {
   const mockValidPackage: StudyPackage = {
     format: 'lcpack',
@@ -49,11 +55,42 @@ describe('useImportStudyPackage', () => {
     ],
   };
 
+  /**
+   * A genuinely malformed package, NOT a hand-written warnings array on a mocked result.
+   *
+   * This is the shape the tolerant read tier used to admit: two `___` markers against one answer.
+   * It is driven through the REAL `validateStudyPackage` (the hook calls it directly on the parsed
+   * file), so the test exercises the live rejection surface rather than a stub describing a path
+   * that no longer exists.
+   */
+  const malformedPackage: StudyPackage = {
+    ...mockValidPackage,
+    questions: [
+      {
+        id: 'pkg_q_broken_cloze',
+        materialId: 'pkg_mat_1',
+        type: 'fill_in_blank',
+        prompt: 'Fill in the blanks.',
+        payload: {
+          type: 'fill_in_blank',
+          template: 'The ___ is the ___ of the cell.',
+          blanks: ['nucleus'],
+        },
+        difficulty: 'medium',
+        points: 1,
+      },
+    ],
+  };
+
   let queryClient: QueryClient;
   let mockImportExecute: ReturnType<typeof vi.fn>;
   let invalidateQueriesSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    // The toast mock is module-level, so a call recorded by an earlier case would otherwise
+    // satisfy a "no error was shown" assertion in a later one.
+    vi.clearAllMocks();
+
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -201,6 +238,102 @@ describe('useImportStudyPackage', () => {
     expect(result.current.isPreviewOpen).toBe(false);
     expect(result.current.stagedPackage).toBeNull();
     expect(result.current.errorMessage).toBeNull();
+  });
+
+  it('shows a success toast and no error for a well-formed import', async () => {
+    const { result } = renderHook(() => useImportStudyPackage(), {
+      wrapper: createWrapper(),
+    });
+
+    const blob = new Blob([JSON.stringify(mockValidPackage)], { type: 'application/json' });
+    await act(async () => {
+      await result.current.stagePackageFromFile(blob);
+    });
+
+    await act(async () => {
+      await result.current.confirmImport();
+    });
+
+    // The negative case is the load-bearing one: a well-formed package must reach no error
+    // channel at all, or the refusal below stops meaning anything.
+    expect(result.current.errorMessage).toBeNull();
+    expect(showToastMock).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ intent: 'error' }),
+    );
+    expect(showToastMock).toHaveBeenCalledWith('Study package imported successfully', {
+      intent: 'success',
+    });
+  });
+
+  /**
+   * The live rejection surface, exercised with a genuinely malformed package.
+   *
+   * The validator is the REAL one the hook calls on the parsed file, so this is the production
+   * path: the user picks a `.lcpack` whose question payload is structurally invalid, and is told
+   * which question and which field — before anything touches Dexie. There is no "imported in a
+   * reduced form" outcome to report any more; the import does not happen.
+   */
+  it('refuses a malformed package at the file, names the offending question, and never calls the import use case', async () => {
+    const { result } = renderHook(() => useImportStudyPackage(), {
+      wrapper: createWrapper(),
+    });
+
+    const blob = new Blob([JSON.stringify(malformedPackage)], { type: 'application/json' });
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.stagePackageFromFile(blob);
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.stagedPackage).toBeNull();
+    expect(result.current.isPreviewOpen).toBe(false);
+    // Both the package id and the specific field are named, so the user can act on it.
+    expect(result.current.errorMessage).toContain('pkg_q_broken_cloze');
+    expect(result.current.errorMessage).toContain('exactly one answer per "___" placeholder');
+
+    // The toast carries the same single finding, and nothing reached persistence.
+    expect(showToastMock).toHaveBeenCalledWith(
+      'Invalid study package: Question "pkg_q_broken_cloze": fill_in_blank payload requires exactly one answer per "___" placeholder (2 in template, 1 supplied).',
+      { intent: 'error' },
+    );
+    expect(mockImportExecute).not.toHaveBeenCalled();
+  });
+
+  it('refuses a package whose identification answer is empty, naming the field', async () => {
+    const { result } = renderHook(() => useImportStudyPackage(), {
+      wrapper: createWrapper(),
+    });
+
+    const blob = new Blob(
+      [
+        JSON.stringify({
+          ...mockValidPackage,
+          questions: [
+            {
+              id: 'pkg_q_broken_ident',
+              materialId: 'pkg_mat_1',
+              type: 'identification',
+              prompt: 'Name the organelle.',
+              payload: { type: 'identification', correctAnswer: '' },
+              difficulty: 'medium',
+              points: 1,
+            },
+          ],
+        }),
+      ],
+      { type: 'application/json' },
+    );
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.stagePackageFromFile(blob);
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.errorMessage).toContain('requires a non-empty "correctAnswer" string');
+    expect(mockImportExecute).not.toHaveBeenCalled();
   });
 
   it('executes confirmImport, invalidates query keys, and closes preview', async () => {

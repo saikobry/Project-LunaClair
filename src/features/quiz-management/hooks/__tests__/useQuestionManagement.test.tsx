@@ -18,8 +18,10 @@ describe('useQuestionManagement', () => {
         mockContext = {
             useCases: {
                 quizManagement: {
-                    createQuestion: { execute: vi.fn().mockResolvedValue({ id: 'q-new' }) },
-                    updateQuestion: { execute: vi.fn().mockResolvedValue({ id: 'q-upd' }) },
+                    // Both authoring writes are gates: they resolve to a discriminated result, and
+                    // a refusal is a fact the editor renders rather than an exception.
+                    createQuestion: { execute: vi.fn().mockResolvedValue({ success: true, question: { id: 'q-new' } }) },
+                    updateQuestion: { execute: vi.fn().mockResolvedValue({ success: true, question: { id: 'q-upd' } }) },
                     publishQuestion: { execute: vi.fn().mockResolvedValue(undefined) },
                     archiveQuestion: { execute: vi.fn().mockResolvedValue(undefined) },
                     unarchiveQuestion: { execute: vi.fn().mockResolvedValue(undefined) },
@@ -95,7 +97,7 @@ describe('useQuestionManagement', () => {
         });
         mockContext.useCases.quizManagement.updateQuestion.execute.mockImplementation(async () => {
             order.push('write');
-            return { id: 'q-1' };
+            return { success: true, question: { id: 'q-1' } };
         });
         mockContext.useCases.flashcards.resetReviews.execute.mockImplementation(async () => {
             order.push('reset');
@@ -113,6 +115,25 @@ describe('useQuestionManagement', () => {
         expect(order).toEqual(['capture', 'write', 'reset']);
         expect(mockContext.useCases.flashcards.resetReviews.capture).toHaveBeenCalledWith(['q-1']);
         expect(mockContext.useCases.flashcards.resetReviews.execute).toHaveBeenCalledWith({ before: [{ id: 'q-1' }] });
+    });
+
+    it('does not run the review reset when the write boundary refuses the payload', async () => {
+        // A refused write changed nothing, so there is nothing to invalidate — the bracket must
+        // not close around a write that never happened.
+        const errors = ['identification payload requires a non-empty "correctAnswer" string.'];
+        mockContext.useCases.quizManagement.updateQuestion.execute.mockResolvedValue({ success: false, errors });
+
+        const { result } = renderHook(() => useQuestionManagement(), { wrapper: createWrapper() });
+
+        const outcome = await act(async () =>
+            result.current.updateQuestion.mutateAsync({
+                id: 'q-1',
+                input: { payload: { type: 'identification', correctAnswer: '' } },
+            }),
+        );
+
+        expect(outcome).toEqual({ success: false, errors });
+        expect(mockContext.useCases.flashcards.resetReviews.execute).not.toHaveBeenCalled();
     });
 
     it('executes publishQuestion mutation and invalidates assessment queries', async () => {

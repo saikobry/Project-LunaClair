@@ -117,7 +117,18 @@ describe('useExportStudyPackage', () => {
     expect(result.current.isExporting).toBe(false);
   });
 
-  it('uses default fallback filename when package metadata title is missing', async () => {
+  /**
+   * The nameless-package branch.
+   *
+   * This hook used to reach its `|| 'study-package'` filename fallback whenever a materialized
+   * package carried an empty `metadata.title`, and a test pinned that. The strict export gate now
+   * refuses such a package outright - an `.lcpack` with no title is one no share endpoint accepts -
+   * and `MaterializeStudyPackageUseCase` builds `metadata.title` from the material's own non-empty
+   * title, so the fallback is defence-in-depth rather than a reachable path. The test is therefore
+   * inverted: it pins the behaviour that replaced it, that a nameless package is refused and no
+   * file is written.
+   */
+  it('refuses to export a package with no title, which the strict tier requires to be non-empty', async () => {
     const unnamedPackage: StudyPackage = {
       ...mockStudyPackage,
       metadata: {
@@ -127,8 +138,11 @@ describe('useExportStudyPackage', () => {
     };
     mockMaterializeExecute.mockResolvedValueOnce(unnamedPackage);
 
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
     const { result } = renderHook(
-      () => useExportStudyPackage(),
+      () => useExportStudyPackage({ onSuccess, onError }),
       { wrapper: createWrapper() }
     );
 
@@ -136,12 +150,64 @@ describe('useExportStudyPackage', () => {
       await result.current.exportPackage('mat-no-title');
     });
 
-    expect(triggerBlobDownloadSpy).toHaveBeenCalledWith(
-      expect.any(Blob),
-      'study-package.lcpack'
+    expect(triggerBlobDownloadSpy).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect((onError.mock.calls[0][0] as Error).message).toMatch(
+      /Cannot export this material: Package metadata "title" must be a non-empty string\./,
     );
-    expect(showToastMock).toHaveBeenCalledWith('Exported "study-package" as .lcpack', {
-      intent: 'success',
+  });
+
+  /**
+   * The local export gate — the same strict tier publication runs, on the same reasoning: an
+   * `.lcpack` is something else has to be able to clone, and materialization copies each question's
+   * payload verbatim, so a question that arrived malformed from a legacy share would otherwise be
+   * written straight back out.
+   *
+   * This fails if the `validateStudyPackage(..., { strictness: 'publish' })` call is removed: the
+   * blob would then be downloaded and the success toast shown.
+   */
+  it('refuses to export a package the strict client tier rejects, and writes no file', async () => {
+    const malformedPackage: StudyPackage = {
+      ...mockStudyPackage,
+      questions: [
+        {
+          id: 'pkg_q_legacy_cloze',
+          materialId: 'pkg_mat_1',
+          type: 'fill_in_blank',
+          prompt: 'Fill in the blanks.',
+          payload: {
+            type: 'fill_in_blank',
+            // Two `___` markers, one answer — the shape a pre-validation share carries.
+            template: 'The ___ is the ___ of the cell.',
+            blanks: ['nucleus'],
+          },
+          difficulty: 'medium',
+          points: 1,
+        },
+      ],
+    };
+    mockMaterializeExecute.mockResolvedValueOnce(malformedPackage);
+
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    const { result } = renderHook(
+      () => useExportStudyPackage({ onSuccess, onError }),
+      { wrapper: createWrapper() }
+    );
+
+    await act(async () => {
+      await result.current.exportPackage('mat-legacy');
+    });
+
+    expect(triggerBlobDownloadSpy).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect((onError.mock.calls[0][0] as Error).message).toMatch(
+      /Cannot export this material: Question "pkg_q_legacy_cloze": fill_in_blank payload requires exactly one answer per/
+    );
+    expect(showToastMock).toHaveBeenCalledWith(expect.stringMatching(/Cannot export this material/), {
+      intent: 'error',
     });
     expect(result.current.isExporting).toBe(false);
   });

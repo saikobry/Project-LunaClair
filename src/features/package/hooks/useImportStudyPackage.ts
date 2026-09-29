@@ -88,9 +88,13 @@ export function useImportStudyPackage(): UseImportStudyPackageResult {
         ]);
 
         showToast('Study package imported successfully', { intent: 'success' });
+
         setIsPreviewOpen(false);
         setStagedPackage(null);
       } catch (error) {
+        // The package was staged through the same strict validator that just refused it, so this is
+        // the defensive path (remap or transaction failure), not a second validation surface. The
+        // use case's own message names the offending question.
         const message = error instanceof Error ? error.message : 'Failed to import study package.';
         showToast(message, { intent: 'error' });
         throw error;

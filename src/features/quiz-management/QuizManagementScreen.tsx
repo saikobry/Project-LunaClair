@@ -87,8 +87,8 @@ export default function QuizManagementScreen({ materialId, onNavigate, section =
                     materialId={materialId}
                     materialTitle={material?.title ?? 'Study Material'}
                     documentMarkdown={doc?.content ?? ''}
-                    onCreate={(input) => questionMgmt.createQuestion.mutate(input)}
-                    onUpdate={(id, input) => questionMgmt.updateQuestion.mutate({ id, input })}
+                    onCreate={(input) => questionMgmt.createQuestion.mutateAsync(input)}
+                    onUpdate={(id, input) => questionMgmt.updateQuestion.mutateAsync({ id, input })}
                     onPublish={(id) => questionMgmt.publishQuestion.mutate(id)}
                     onArchive={(id) => questionMgmt.archiveQuestion.mutate(id)}
                     onUnarchive={(id) => questionMgmt.unarchiveQuestion.mutate(id)}

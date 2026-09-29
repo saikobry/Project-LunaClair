@@ -15,6 +15,20 @@ export type SaveQuizResult =
     | { success: true; quizId: string; updatedQuestionIds: string[]; warnings?: string[] }
     | { success: false; errors: QuizDraftErrors };
 
+/**
+ * Whether two payloads of the same type hold the same answer content — the
+ * `questionVersion` bump test.
+ *
+ * `a` is the **stored** row and `b` the draft item. Both are now read directly: the
+ * `Array.isArray` guards that used to sit here existed only because a package the READ
+ * tier tolerated could persist an `acceptedAlternatives` / `blanks` that was not an array,
+ * and reading one unguarded is a `TypeError` on a quiz the author is trying to re-save.
+ * Every ingress to `db.questions` now validates, so the field is an array or is absent —
+ * and `acceptedAlternatives` is optional, which is the only absence `?? []` has to cover.
+ *
+ * This does not soften the bump rule: a stored value read as absent, and a draft that
+ * supplies a real one, is a content change and still bumps.
+ */
 function payloadsEqual(a: QuestionAnswerPayload, b: QuestionAnswerPayload): boolean {
     if (a.type !== b.type) return false;
     switch (a.type) {

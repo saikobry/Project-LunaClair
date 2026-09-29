@@ -8,10 +8,9 @@ Pure domain contracts, types, validators, remappers, and inspection engines for 
 
 - `package.types.ts` — Canonical domain interfaces (`StudyPackage`, `StudyPackageMetadata`, `PackageMaterial`, `PackageQuestion`, `PackageQuizItem`, `PackageQuiz`, `PackageFlashcard`, `PackageAsset`, `LocalIdGenerator`, `RemappedStudyPackage`, `PackageValidationResult`, `StudyPackageSummary`, `PackageInspection`).
 - `StudyPackageImportService.ts` — Domain application port for atomic multi-store package imports using platform-neutral primitives (`dataBase64`).
-- `validateStudyPackage.ts` — Pure structural, referential, prefix, and schema integrity validator for incoming untrusted package payloads.
+- `validateStudyPackage.ts` — Pure structural, referential, prefix, schema, and per-type question-payload integrity validator for incoming untrusted package payloads. **Single strict tier, no options**: every finding is an `error` and a package carrying one is refused rather than imported with a note.
 - `remapStudyPackage.ts` — Pure relational remapping engine generating collision-free local UUIDs, rewiring foreign key relationships, and re-targeting embedded markdown asset URIs.
 - `inspectStudyPackage.ts` — Pure metadata and metrics aggregation engine for package inspection and preview screens.
-- `index.ts` — Module entrypoint re-exporting all package types, ports, and pure domain utilities.
 
 ## Local Contracts
 
@@ -31,8 +30,12 @@ Pure domain contracts, types, validators, remappers, and inspection engines for 
   - Flashcard: `pkg_card_*`
   - Asset: `pkg_asset_*`
 - Zero React/UI, zero Dexie/persistence, and zero DOM dependencies.
+- **`validateStudyPackage(input)` is ONE strict validator, and its signature says so.** There is no `strictness` option and no `StudyPackageValidationStrictness` type: `PackageValidationResult` is `{ isValid, errors }` and every structural defect lands in `errors`. It used to take `{ strictness }` with a tolerant `read` default that recorded a malformed question payload as a non-blocking `warning`, imported the row anyway, and left the caller to describe the damage — on the promise that shares published before payload validation existed had to stay cloneable. **That promise was checked against the remote D1 `shares` table and found to defend an empty population:** the table was created by a migration never applied remotely, so no `.lcpack` has ever been published. The tolerance was therefore not merely dead but load-bearing in the wrong direction — it was the one ingress with no way to say no, and the reason a malformed payload could reach a learner's deck at all. **An unused `read` mode was explicitly rejected rather than kept as a compromise:** it retains implementation and test burden without preserving a production path, and a switch with one reachable value misrepresents the contract.
+- **A malformed package is REFUSED, and the refusal names the offending question.** Every `validateQuestionPayload` finding is pushed as `Question "<pkg_q_id>": <defect>`, so a caller can tell the user which question is wrong and which field is at fault. `ImportStudyPackageUseCase` throws before the transaction opens — a refused import is neither a partial import nor a rollback, because nothing was written. `useImportStudyPackage`, `useCloneShare`, and `SharedPackageScreen` surface that throw through their existing error channels. **The notice machinery this replaced is deleted**: no `PackageValidationWarning`, no `classifyPackageQuestionDefect`, no `PackageQuestionDefect`, no `importWarningsNotice` copy. What the user sees now is a refusal naming the question and the field, which is strictly more actionable than a notice about a study shape nobody can act on.
+- **Provenance stays optional; structural validity does not.** `sourceSection` absence is valid forever — a package published before the field existed still validates unchanged, on the one tier. A payload whose structure disagrees with its declared type is refused by every path: import, publish, export, the Question Bank, and the Worker.
 - Pure validation (`validateStudyPackage`) checks:
   - Non-null object schema structure and required metadata.
+  - Per-type question payload structure for all five types (delegated to `validateQuestionPayload`). Every finding is an error.
   - Package-wide ID uniqueness across all entity collections.
   - Foreign key referential integrity (questions -> materials, quizzes -> materials, quiz items -> questions, flashcards -> materials, assets -> materials).
   - Markdown asset references (`lc-asset://pkg_asset_*`) point to declared package assets.

@@ -18,6 +18,7 @@
  */
 
 import { extname } from 'node:path';
+import { validateQuestionPayload } from '../../src/domain/quiz/validation/questionPayloadValidation.ts';
 
 export const MAX_SHARE_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5,242,880 bytes — mirrors worker/src/routes/shares.ts
 export const PUBLISHER_AUTHOR = 'Saiko Interactive';
@@ -109,7 +110,17 @@ export function rewriteAssetLinks(markdown, filenameToAssetId) {
 
 /**
  * Pure self-check mirroring the Worker's validateServerStudyPackage plus the
- * stricter client-side clone rules (strict ID suffixes, metadata.createdAt).
+ * stricter client-side clone rules (strict ID suffixes, metadata.createdAt, and
+ * the per-type question payload rules).
+ *
+ * The payload rules are NOT restated here: they are imported from
+ * `src/domain/quiz/validation/questionPayloadValidation.ts`, the same module the
+ * client's `validateStudyPackage` and the Worker's mirrored copy are written
+ * against. The dry run used to be payload-shape-generic, so it could report a
+ * package PASS that `POST /api/shares` would then refuse — most visibly a cloze
+ * whose `___` count disagreed with its `blanks.length`, which nothing here ever
+ * looked at. Failing here is the point: the alternative is a failed publish after
+ * a round trip.
  */
 export function selfValidatePackage(payload) {
   const errors = [];
@@ -196,6 +207,16 @@ export function selfValidatePackage(payload) {
     }
     if (typeof q.points !== 'number' || Number.isNaN(q.points) || q.points < 0) {
       errors.push(`Question "${String(q.id)}" must have non-negative numeric points.`);
+    }
+    // Per-type payload structure, owned by the domain validator and mirrored by the Worker. The
+    // same two guards `validateStudyPackage` applies keep this from double-reporting: an unknown
+    // question type is already an error above, and a payload that is not an object is already an
+    // error above too — and the validator's own switch has no branch for an unknown type, so
+    // calling it with one would yield `undefined` rather than a list of findings.
+    if (QUESTION_TYPES.has(q.type) && q.payload && typeof q.payload === 'object' && !Array.isArray(q.payload)) {
+      for (const issue of validateQuestionPayload(q.type, q.payload)) {
+        errors.push(`Question "${String(q.id)}": ${issue}`);
+      }
     }
   }
 

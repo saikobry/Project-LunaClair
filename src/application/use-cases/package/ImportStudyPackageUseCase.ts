@@ -31,6 +31,11 @@ export interface ImportStudyPackageResult {
  * - Collision-Free: Every import generates a fresh, collision-free local UUID identity mapping.
  * - Atomic Transaction: All materials, document contents, questions, quizzes, and assets commit in a single transaction via StudyPackageImportService.
  * - Failure Isolation: If validation or transaction fails, local library remains 100% untouched.
+ *
+ * **A malformed package throws; it never partially imports.** `validateStudyPackage` is strict, so
+ * a structurally malformed question payload is one of the `errors` and the whole import is refused
+ * before a single row is written. There is no tolerated-and-reported variant: a caller that receives
+ * this result holds a package whose every question payload is structurally valid for its type.
  */
 export class ImportStudyPackageUseCase {
   private readonly importService: StudyPackageImportService;

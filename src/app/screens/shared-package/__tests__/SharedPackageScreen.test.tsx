@@ -352,6 +352,80 @@ describe('SharedPackageScreen', () => {
     expect(onOpenMaterial).toHaveBeenCalledWith('local_mat_101');
   });
 
+  /**
+   * The live rejection surface. A malformed package is REFUSED, not imported with a note, so the
+   * surface has to report the refusal through its existing error channel and leave the share
+   * exactly as cloneable as it was — no success banner, no local material, no dismissed notice.
+   *
+   * The rejected error is the one the real `ImportStudyPackageUseCase` throws for a genuinely
+   * malformed package (a strict `validateStudyPackage` refusal naming the offending question),
+   * so this pins the presentation of a production failure rather than a stub describing a path
+   * that no longer exists.
+   */
+  it('reports a clone refused for malformed content as an error and leaves the share un-cloned', async () => {
+    mockImportStudyPackage.mockRejectedValueOnce(
+      new Error(
+        'StudyPackage validation failed:\n- Question "pkg_q_broken_cloze": fill_in_blank payload requires exactly one answer per "___" placeholder (2 in template, 1 supplied).',
+      ),
+    );
+
+    const { onOpenMaterial } = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Clone to Library/i }));
+
+    // The refusal names the offending question and the specific field, so the visitor can tell
+    // what is wrong with the share rather than being told it merely failed.
+    await waitFor(() => {
+      expect(
+        screen.getByText(/pkg_q_broken_cloze.*exactly one answer per "___" placeholder/s),
+      ).toBeInTheDocument();
+    });
+
+    // Nothing claims a success, and the action is still on offer — the share is unchanged, so
+    // a retry is meaningful once the publisher re-publishes it.
+    expect(
+      screen.queryByText('Study package successfully cloned to your library!'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Some questions were imported in a reduced form'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open Cloned Material/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onOpenMaterial).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Clone to Library/i })).not.toBeDisabled();
+    });
+  });
+
+  it('shows no error or notice when a clean package is cloned', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Cellular Biochemistry' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Clone to Library/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Study package successfully cloned to your library!'),
+      ).toBeInTheDocument();
+    });
+
+    // A notice or error that rendered unconditionally would be noise on every well-formed share,
+    // and would stop the refusal above meaning anything.
+    expect(
+      screen.queryByText('Some questions were imported in a reduced form'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/malformed answer payload/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument();
+  });
+
   it('recognises an already-cloned share on a fresh visit instead of offering a duplicate clone', async () => {
     // The share was cloned by an earlier session (or by the Explore hub): the
     // only evidence is `originShareId` on the local material.

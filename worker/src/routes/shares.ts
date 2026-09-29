@@ -103,6 +103,158 @@ export function timingSafeHashMatch(a: string, b: string): boolean {
 }
 
 /**
+ * The five supported question types. Mirrors the client's canonical vocabulary
+ * (`src/domain/quiz/models/questionMetadata.ts`), which the Worker cannot import; the parity test
+ * (`worker/src/__tests__/questionPayloadParity.test.ts`) is the guard against drift.
+ */
+const VALID_QUESTION_TYPES: ReadonlySet<string> = new Set([
+  'multiple_choice',
+  'multiple_select',
+  'true_false',
+  'identification',
+  'fill_in_blank',
+]);
+
+/** How many `___` placeholders a `fill_in_blank` template carries. */
+function countBlankMarkers(template: string): number {
+  return (template.match(/___/g) ?? []).length;
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Structural per-type payload validation, mirrored byte-for-byte from the client's
+ * `src/domain/quiz/validation/questionPayloadValidation.ts` (the Worker cannot import it).
+ *
+ * Returns unprefixed defect messages; the caller prefixes the offending question id. Both sides
+ * MUST produce identical wording and identical accept/reject verdicts, because a package the app
+ * can clone has to be one this endpoint accepts, and vice versa.
+ *
+ * **There is one tier, and both sides are it.** The client once had a tolerant *import* tier that
+ * admitted a malformed payload and reported it, so shares published before payload validation
+ * existed would stay cloneable. That population was proven empty — a read-only query of the remote
+ * D1 `shares` table found the table itself was never created there, so no `.lcpack` had ever been
+ * published — and the tier was deleted rather than kept as an unused mode. See the
+ * "Evidence Before Compatibility" section of the root `AGENTS.md`.
+ */
+function validateQuestionPayload(declaredType: string, payload: unknown): string[] {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return ['payload must be a non-null object.'];
+  }
+
+  const raw = payload as Record<string, unknown>;
+  const issues: string[] = [];
+
+  if (raw.type !== declaredType) {
+    issues.push(
+      `payload.type "${String(raw.type)}" does not match question type "${declaredType}".`,
+    );
+  }
+
+  switch (declaredType) {
+    case 'multiple_choice': {
+      const choices = Array.isArray(raw.choices) ? raw.choices : [];
+      if (choices.length < 2 || !choices.every(isNonBlankString)) {
+        issues.push(
+          'multiple_choice payload requires a "choices" array of at least 2 non-empty strings.',
+        );
+      }
+      const correctIndex = raw.correctIndex;
+      if (
+        typeof correctIndex !== 'number' ||
+        !Number.isInteger(correctIndex) ||
+        correctIndex < 0 ||
+        correctIndex >= choices.length
+      ) {
+        issues.push(
+          'multiple_choice payload requires "correctIndex" to be an integer within the choices range.',
+        );
+      }
+      return issues;
+    }
+
+    case 'multiple_select': {
+      const choices = Array.isArray(raw.choices) ? raw.choices : [];
+      if (choices.length < 2 || !choices.every(isNonBlankString)) {
+        issues.push(
+          'multiple_select payload requires a "choices" array of at least 2 non-empty strings.',
+        );
+      }
+      const correctIndices = raw.correctIndices;
+      const hasCorrectAnswers =
+        Array.isArray(correctIndices) &&
+        correctIndices.length > 0 &&
+        correctIndices.every(
+          (index) =>
+            typeof index === 'number' &&
+            Number.isInteger(index) &&
+            index >= 0 &&
+            index < choices.length,
+        );
+      if (!hasCorrectAnswers) {
+        issues.push(
+          'multiple_select payload requires a non-empty "correctIndices" array of integers within the choices range.',
+        );
+      }
+      return issues;
+    }
+
+    case 'true_false': {
+      if (typeof raw.correctAnswer !== 'boolean') {
+        issues.push('true_false payload requires a boolean "correctAnswer".');
+      }
+      return issues;
+    }
+
+    case 'identification': {
+      if (!isNonBlankString(raw.correctAnswer)) {
+        issues.push('identification payload requires a non-empty "correctAnswer" string.');
+      }
+      if (
+        raw.acceptedAlternatives !== undefined &&
+        (!Array.isArray(raw.acceptedAlternatives) ||
+          !raw.acceptedAlternatives.every((alternative) => typeof alternative === 'string'))
+      ) {
+        issues.push(
+          'identification payload "acceptedAlternatives" must be an array of strings when provided.',
+        );
+      }
+      return issues;
+    }
+
+    case 'fill_in_blank': {
+      const template = typeof raw.template === 'string' ? raw.template : '';
+      const markerCount = countBlankMarkers(template);
+
+      if (markerCount === 0) {
+        issues.push(
+          'fill_in_blank payload requires a "template" string with at least one "___" placeholder.',
+        );
+        return issues;
+      }
+
+      const blanks = Array.isArray(raw.blanks) ? raw.blanks : [];
+      if (blanks.length !== markerCount) {
+        issues.push(
+          `fill_in_blank payload requires exactly one answer per "___" placeholder (${markerCount} in template, ${blanks.length} supplied).`,
+        );
+        return issues;
+      }
+
+      if (!blanks.every(isNonBlankString)) {
+        issues.push('fill_in_blank payload requires a non-empty answer for every "___" placeholder.');
+      }
+      return issues;
+    }
+
+    default:
+      return issues;
+  }
+}
+
+/**
  * Server-side StudyPackage validator ensuring untrusted uploads conform to
  * format 'lcpack', schemaVersion 1, and relational graph integrity.
  */
@@ -200,8 +352,22 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
       errors.push(`Question "${String(id || idx)}" materialId "${String(q.materialId)}" does not exist in package.`);
     }
 
+    if (typeof q.type !== 'string' || !VALID_QUESTION_TYPES.has(q.type)) {
+      errors.push(`Question "${String(id || idx)}" has invalid type "${String(q.type)}".`);
+    }
+
     if (typeof q.prompt !== 'string' || q.prompt.trim().length === 0) {
       errors.push(`Question "${String(id || idx)}" prompt is required.`);
+    }
+
+    // Per-type payload validation, mirroring the client's single tier. A malformed payload is
+    // refused here and refused identically on import; there is no tolerant path on either side.
+    if (!q.payload || typeof q.payload !== 'object' || Array.isArray(q.payload)) {
+      errors.push(`Question "${String(id || idx)}": payload must be a non-null object.`);
+    } else if (typeof q.type === 'string' && VALID_QUESTION_TYPES.has(q.type)) {
+      for (const issue of validateQuestionPayload(q.type, q.payload)) {
+        errors.push(`Question "${String(id || idx)}": ${issue}`);
+      }
     }
 
     // Optional provenance label (the section the question was generated from). Additive:

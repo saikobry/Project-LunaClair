@@ -126,6 +126,10 @@ export interface RemappedStudyPackage {
 
 export interface PackageValidationResult {
     isValid: boolean;
+    /**
+     * Every defect found, and the only defect channel. A structurally malformed question payload is
+     * listed here like any other — a package carrying one is refused, never imported with a note.
+     */
     errors: string[];
 }
 

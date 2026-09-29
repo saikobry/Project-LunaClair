@@ -93,39 +93,45 @@ export function questionToCards(question: Question): Flashcard[] {
         }
         case 'identification': {
             back = payload.correctAnswer;
-            if (payload.acceptedAlternatives && payload.acceptedAlternatives.length > 0) {
-                back += ` (Also accepted: ${payload.acceptedAlternatives.join(', ')})`;
+            // The alternatives are decoration on the back face, and absence is
+            // the ordinary case (the field is optional), so `?? []` is the whole
+            // of it. A non-array cannot reach here: every ingress validates.
+            const alternatives = payload.acceptedAlternatives ?? [];
+            if (alternatives.length > 0) {
+                back += ` (Also accepted: ${alternatives.join(', ')})`;
             }
             break;
         }
         case 'fill_in_blank': {
+            const blanks = payload.blanks;
             front = resolveClozeCardFront(question.prompt, payload.template);
 
             // Expansion runs on the *resolved* front, so the prompt-to-template
             // resolution still decides what each card says, and it is that
             // resolution's output that gets split per blank.
-            const expands =
-                payload.blanks.length > 0 && countBlankMarkers(front) === payload.blanks.length;
+            const expands = blanks.length > 0 && countBlankMarkers(front) === blanks.length;
 
             if (expands) {
-                return payload.blanks.map((answer, index) =>
+                return blanks.map((answer, index) =>
                     buildCard(
                         question,
                         cardKeyForBlank(question.id, index),
-                        renderClozeFront(front, payload.blanks, index),
+                        renderClozeFront(front, blanks, index),
                         answer
                     )
                 );
             }
 
             // No per-blank expansion is possible: the row carries no answers, or
-            // its marker count disagrees with them (authoring and AI generation
-            // both reject that, so it means a legacy or hand-edited row). It
-            // still gets a card — dropping it would silently remove the question
-            // from the deck, and guessing a marker/answer pairing would print an
-            // answer on the card's own front. The legacy back is the honest
-            // fallback: the joined answers, or the template when there are none.
-            back = payload.blanks.length > 0 ? payload.blanks.join(', ') : payload.template;
+            // its marker count disagrees with them. Both are reachable authoring
+            // states (an empty answer set is a real question the author is still
+            // writing; a marker/answer mismatch is refused at every ingress, so it
+            // means a row stored before the write boundaries validated). It still
+            // gets a card — dropping it would silently remove the question from the
+            // deck, and guessing a marker/answer pairing would print an answer on
+            // the card's own front. The legacy back is the honest fallback: the
+            // joined answers, or the template when there are none.
+            back = blanks.length > 0 ? blanks.join(', ') : payload.template;
             break;
         }
     }

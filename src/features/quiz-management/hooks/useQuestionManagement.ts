@@ -28,9 +28,13 @@ export function useQuestionManagement() {
             // run first: the input is partial, so once the row is written the old
             // cloze content is gone and nothing can tell whether it moved.
             const before = await context.useCases.flashcards.resetReviews.capture([id]);
-            const question = await context.useCases.quizManagement.updateQuestion.execute(id, input);
-            await context.useCases.flashcards.resetReviews.execute({ before });
-            return question;
+            const result = await context.useCases.quizManagement.updateQuestion.execute(id, input);
+            // A refused write changed nothing, so there is nothing to invalidate — running
+            // the reset would bracket a write that never happened.
+            if (result.success) {
+                await context.useCases.flashcards.resetReviews.execute({ before });
+            }
+            return result;
         },
         onSettled: invalidate,
     });

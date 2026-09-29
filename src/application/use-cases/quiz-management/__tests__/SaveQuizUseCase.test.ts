@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SaveQuizUseCase } from '../SaveQuizUseCase';
+import { ImportStudyPackageUseCase } from '../../package/ImportStudyPackageUseCase';
+import { createQuizDraftFromQuiz } from '../../../quiz-management/drafts/QuizDraft';
+import { validateStudyPackage } from '../../../../domain/package/engines/validateStudyPackage';
 import type { QuestionRepository } from '../../../../domain/quiz/repositories/QuestionRepository';
 import type { QuizEditorService, SaveQuizToRepositoryInput } from '../../../../domain/quiz/services/QuizEditorService';
+import type {
+    ImportStudyPackageRecords,
+    StudyPackageImportService,
+} from '../../../../domain/package/services/StudyPackageImportService';
+import type { StudyPackage } from '../../../../domain/package/models/package.types';
 import type { QuizDraft } from '../../../quiz-management/drafts/QuizDraft';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
@@ -532,6 +540,181 @@ describe('SaveQuizUseCase', () => {
             };
 
             await expect(useCase.execute(draft)).rejects.toThrow('Transaction aborted');
+        });
+    });
+
+    /**
+     * End-to-end through the real clone: a published share is validated by the REAL
+     * `validateStudyPackage`, imported by the REAL `ImportStudyPackageUseCase`, and the canvas
+     * draft is seeded by the REAL `createQuizDraftFromQuiz`. Only the persistence ports are test
+     * doubles — the questions and quiz handed onward are the ones a clone actually leaves in the
+     * library, so this shows what re-saving a cloned quiz really reaches.
+     *
+     * The package here is well-formed, which is the point: the import is strict, so a share whose
+     * payload is malformed is REFUSED rather than stored. The version-bump rules are what this
+     * exercises, and the one that matters for the optional `acceptedAlternatives` is that absent
+     * and present are different content — a stored row with no alternatives is unchanged by a
+     * draft with no alternatives, and a draft that adds them is a real edit.
+     */
+    describe('a question cloned from a published share', () => {
+        const shareWith = (payload: unknown, prompt: string): StudyPackage => ({
+            format: 'lcpack',
+            schemaVersion: 1,
+            metadata: { title: 'Published share', createdAt: '2026-08-27T00:00:00.000Z' },
+            materials: [
+                {
+                    id: 'pkg_mat_shared',
+                    title: 'World Capitals',
+                    documentContent: '# Capitals',
+                    order: 1,
+                },
+            ],
+            questions: [
+                {
+                    id: 'pkg_q_shared_ident',
+                    materialId: 'pkg_mat_shared',
+                    type: 'identification',
+                    prompt,
+                    payload: payload as never,
+                    difficulty: 'medium',
+                    points: 1,
+                },
+            ],
+            quizzes: [
+                {
+                    id: 'pkg_quiz_shared',
+                    materialId: 'pkg_mat_shared',
+                    title: 'Capitals quiz',
+                    items: [{ questionId: 'pkg_q_shared_ident', order: 1, points: 1 }],
+                },
+            ],
+        });
+
+        /**
+         * Clones the share the way a user does: the real validator must ACCEPT it, the real
+         * import use case remaps and commits it, and the real canvas seeding builds the draft from
+         * the stored rows.
+         */
+        const cloneShare = async (payload: unknown, prompt: string) => {
+            const share = shareWith(payload, prompt);
+            const validation = validateStudyPackage(share);
+            expect(validation.isValid, validation.errors.join(' | ')).toBe(true);
+
+            let committed: ImportStudyPackageRecords | null = null;
+            const importService: StudyPackageImportService = {
+                importStudyPackage: vi.fn(async (records) => {
+                    committed = records;
+                }),
+            };
+            let nextId = 0;
+            await new ImportStudyPackageUseCase(importService).execute({
+                package: share,
+                idGenerator: { generate: () => `local-${(nextId += 1)}` },
+            });
+
+            const records = committed as unknown as ImportStudyPackageRecords;
+            // The clone persists the payload verbatim; that is what makes the row reachable here.
+            expect(records.questions[0].payload).toEqual(payload);
+
+            return { records, storedQuestion: records.questions[0], storedQuiz: records.quizzes[0] };
+        };
+
+        /** The use case, wired to the rows a clone left behind. */
+        const saveQuizOver = (stored: Question[], quiz: Quiz) => {
+            const questionRepo: QuestionRepository = {
+                getQuestions: vi.fn(),
+                getQuestionById: vi.fn(),
+                getQuestionsByIds: vi.fn(async (ids: string[]) =>
+                    stored.filter((question) => ids.includes(question.id))
+                ),
+                createQuestion: vi.fn(),
+                createQuestionsBatch: vi.fn(),
+                updateQuestion: vi.fn(),
+                deleteQuestion: vi.fn(),
+            };
+            const editorService: QuizEditorService = {
+                saveQuiz: vi.fn().mockResolvedValue({ quiz, updatedQuestionIds: [] }),
+            };
+
+            return { useCase: new SaveQuizUseCase(questionRepo, editorService), editorService };
+        };
+
+        it('re-saves a cloned identification unchanged, without bumping the version', async () => {
+            // `acceptedAlternatives` is optional, so a stored row declaring none is the ordinary
+            // case and a draft seeded from it supplies none — which is no content change at all.
+            const { records, storedQuestion, storedQuiz } = await cloneShare(
+                { type: 'identification', correctAnswer: 'Tokyo' },
+                'What is the capital of Japan?'
+            );
+
+            // The canvas seeds its draft from the stored quiz and questions, so the author
+            // re-saving the quiz re-presents the stored payload verbatim.
+            const { useCase, editorService } = saveQuizOver(records.questions, storedQuiz);
+            const result = await useCase.execute(createQuizDraftFromQuiz(storedQuiz, [storedQuestion]));
+
+            expect(result.success).toBe(true);
+            expect(editorService.saveQuiz).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    questionChanges: [
+                        expect.objectContaining({
+                            kind: 'update',
+                            questionId: storedQuestion.id,
+                            bumpVersion: false,
+                        }),
+                    ],
+                })
+            );
+        });
+
+        it('bumps the version when the author adds accepted alternatives to such a question', async () => {
+            const { storedQuestion, storedQuiz } = await cloneShare(
+                { type: 'identification', correctAnswer: 'Tokyo' },
+                'What is the capital of Japan?'
+            );
+
+            // The stored row declares no alternatives, so the author's edit putting a real array
+            // on the draft IS a content change — the honest verdict rather than a suppressed bump.
+            const edited: Question = {
+                ...storedQuestion,
+                payload: {
+                    type: 'identification' as const,
+                    correctAnswer: 'Tokyo',
+                    acceptedAlternatives: ['Edo'],
+                },
+            };
+            const { useCase, editorService } = saveQuizOver([storedQuestion], storedQuiz);
+            const result = await useCase.execute(createQuizDraftFromQuiz(storedQuiz, [edited]));
+
+            expect(result.success).toBe(true);
+            expect(editorService.saveQuiz).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    questionChanges: [
+                        expect.objectContaining({
+                            questionId: storedQuestion.id,
+                            bumpVersion: true,
+                        }),
+                    ],
+                })
+            );
+        });
+
+        it('refuses to clone a share carrying a malformed payload, so no such row is reachable', async () => {
+            // The premise the old guards rested on, asserted rather than assumed: a non-array
+            // `acceptedAlternatives` cannot be cloned in the first place, because the package
+            // validator refuses the whole import. Only the import port is exercised — a refused
+            // import never reaches it.
+            const importService: StudyPackageImportService = { importStudyPackage: vi.fn() };
+
+            await expect(
+                new ImportStudyPackageUseCase(importService).execute({
+                    package: shareWith(
+                        { type: 'identification', correctAnswer: 'Tokyo', acceptedAlternatives: 'Edo' },
+                        'What is the capital of Japan?'
+                    ),
+                    idGenerator: { generate: () => 'local-1' },
+                }),
+            ).rejects.toThrow(/acceptedAlternatives/);
+            expect(importService.importStudyPackage).not.toHaveBeenCalled();
         });
     });
 
