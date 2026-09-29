@@ -82,6 +82,9 @@ export function remapStudyPackage(
             points: q.points,
             explanation: q.explanation,
             tags: q.tags ? [...q.tags] : undefined,
+            // Provenance travels with the question across an import. Absent stays absent —
+            // remapping never invents a label, so a package without one clones without one.
+            sourceSection: q.sourceSection,
             status: 'published',
             version: 1,
             createdAt: now,

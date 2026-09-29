@@ -11,63 +11,42 @@ import type { QuestionAnswerPayload } from '../../quiz/models/AnswerPayload';
  * have offered, and it forces every caller to load the whole document just to open a dialog.
  */
 export interface GenerateQuestionsRequest {
-  /** Target study material ID; the source document is resolved from it. */
-  materialId: string;
-  /** Target number of questions to generate (1..10, default: 5). */
-  count?: number;
-  /** Target difficulty level or 'all' for mixed difficulty. */
-  difficulty?: QuestionDifficulty | 'all';
-  /** Target question types to generate. If empty or undefined, generates mixed types. */
-  types?: QuestionType[];
-  /** Optional custom topic or section focus (e.g. "Focus on cardiac conduction"). */
-  focusTopic?: string;
-  /**
-   * App-facing model id from the catalog. Omitted = the catalog default.
-   * The model also decides the document cap and the output budget the request runs under.
-   */
-  model?: string;
-  /** Optional abort signal. */
-  signal?: AbortSignal;
+    /** Target study material ID; the source document is resolved from it. */
+    materialId: string;
+    /** Target number of questions to generate (1..10, default: 5). */
+    count?: number;
+    /** Target difficulty level or 'all' for mixed difficulty. */
+    difficulty?: QuestionDifficulty | 'all';
+    /** Target question types to generate. If empty or undefined, generates mixed types. */
+    types?: QuestionType[];
+    /** Optional custom topic or section focus (e.g. "Focus on cardiac conduction"). */
+    focusTopic?: string;
+    /**
+     * App-facing model id from the catalog. Omitted = the catalog default.
+     * The model also decides the document cap and the output budget the request runs under.
+     */
+    model?: string;
+    /** Optional abort signal. */
+    signal?: AbortSignal;
 }
 
 /**
  * Validated in-memory draft of an AI-generated assessment question.
  * Reuses canonical QuestionAnswerPayload domain types.
+ *
+ * This is the **only** AI authoring draft. There is no flashcard draft: a flashcard is a
+ * projection of a typed question (`domain/flashcards/engines/questionToCards`), and a
+ * `fill_in_blank` question projects one card per blank — each with its own SM-2 schedule.
+ * A `{front, back}` draft could only ever be flattened into an `identification` question,
+ * which is exactly the type fidelity and per-blank scheduling the projection exists to keep.
  */
 export interface GeneratedQuestionDraft {
-  type: QuestionType;
-  prompt: string;
-  payload: QuestionAnswerPayload;
-  difficulty: QuestionDifficulty;
-  points: number;
-  explanation?: string;
-  tags?: string[];
-  sourceSection?: string;
-}
-
-/**
- * Request specification for generating flashcards from study materials.
- */
-export interface GenerateFlashcardsRequest {
-  /** Target study material ID; the source document is resolved from it. */
-  materialId: string;
-  /** Target number of flashcards to generate (1..15, default: 8). */
-  count?: number;
-  /** Optional custom topic or section focus. */
-  focusTopic?: string;
-  /** App-facing model id from the catalog. Omitted = the catalog default. */
-  model?: string;
-  /** Optional abort signal. */
-  signal?: AbortSignal;
-}
-
-/**
- * Validated in-memory draft of an AI-generated flashcard.
- */
-export interface GeneratedFlashcardDraft {
-  front: string;
-  back: string;
-  explanation?: string;
-  sourceSection?: string;
-  tags?: string[];
+    type: QuestionType;
+    prompt: string;
+    payload: QuestionAnswerPayload;
+    difficulty: QuestionDifficulty;
+    points: number;
+    explanation?: string;
+    tags?: string[];
+    sourceSection?: string;
 }

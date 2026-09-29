@@ -203,6 +203,13 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
     if (typeof q.prompt !== 'string' || q.prompt.trim().length === 0) {
       errors.push(`Question "${String(id || idx)}" prompt is required.`);
     }
+
+    // Optional provenance label (the section the question was generated from). Additive:
+    // absence is valid and stays valid, matching the client validator exactly — the two
+    // must agree or a package the app can clone would be refused at publish time.
+    if (q.sourceSection !== undefined && typeof q.sourceSection !== 'string') {
+      errors.push(`Question "${String(id || idx)}" sourceSection must be a string.`);
+    }
   });
 
   // 3. Validate Quizzes

@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { Layers, Play, Clock, Sparkles, Filter, Package, Share2 } from 'lucide-react';
+import { Layers, Play, Clock, Sparkles, Filter } from 'lucide-react';
 import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { Question } from '../../../domain/quiz/models/Question';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
@@ -167,56 +167,13 @@ interface FlashcardDeckSetupViewProps {
     quizzes: Quiz[];
     reviews: Record<string, ReviewState>;
     onStartSession: (selectedQuizId?: string, studyMode?: DeckStudyMode) => void;
-    onGenerateAi?: () => void;
-    onExport?: () => void;
-    isExporting?: boolean;
-    onShare?: () => void;
-}
-
-interface ActionHandlers {
-    onGenerateAi?: () => void;
-    onExport?: () => void;
-    isExporting?: boolean;
-    onShare?: () => void;
-}
-
-function ActionButtonGroup({ onGenerateAi, onExport, isExporting, onShare }: ActionHandlers) {
-    return (
-        <>
-            {onGenerateAi && (
-                <Button
-                    label="Generate Flashcards with AI"
-                    variant="primary"
-                    icon={<Sparkles size={16} />}
-                    onClick={onGenerateAi}
-                >
-                    Generate Flashcards with AI
-                </Button>
-            )}
-            {onShare && (
-                <Button
-                    label="Share"
-                    variant="secondary"
-                    icon={<Share2 size={16} />}
-                    onClick={onShare}
-                >
-                    Share
-                </Button>
-            )}
-            {onExport && (
-                <Button
-                    label="Export as .lcpack"
-                    variant="secondary"
-                    icon={<Package size={16} />}
-                    onClick={onExport}
-                    isLoading={isExporting}
-                    isDisabled={isExporting}
-                >
-                    Export as .lcpack
-                </Button>
-            )}
-        </>
-    );
+    /**
+     * Opens the Question Bank for this material — the app's only authoring surface.
+     * This feature creates nothing: a card is a projection of a typed question, so
+     * "add cards" is "add questions". Wired by the workspace as a `?tab=questions`
+     * navigation plus a one-shot launch intent; there is no dialog to open from here.
+     */
+    onOpenQuestionBank: () => void;
 }
 
 function StatBadge({ icon, emphasized, children }: { icon: ReactNode; emphasized?: boolean; children: ReactNode }) {
@@ -331,10 +288,7 @@ export function FlashcardDeckSetupView({
     quizzes,
     reviews,
     onStartSession,
-    onGenerateAi,
-    onExport,
-    isExporting,
-    onShare,
+    onOpenQuestionBank,
 }: FlashcardDeckSetupViewProps) {
     const now = new Date();
 
@@ -375,15 +329,23 @@ export function FlashcardDeckSetupView({
                     </div>
                     <h2 {...stylex.props(styles.title)}>No Flashcards Available</h2>
                     <p {...stylex.props(styles.description)}>
-                        This material doesn&apos;t have any flashcards yet. Generate cards directly from your notes using AI, or create questions in the Question Bank!
+                        This material doesn&apos;t have any questions yet, so there is nothing to study
+                        from. Cards are built from your Question Bank — add questions there and they
+                        appear here automatically.
                     </p>
                     <div style={{ marginTop: 8, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <ActionButtonGroup
-                            onGenerateAi={onGenerateAi}
-                            onShare={onShare}
-                            onExport={onExport}
-                            isExporting={isExporting}
-                        />
+                        {/* With nothing to study, authoring IS the action — so it is the primary
+                            control here, not the quiet "Add questions" of the populated view.
+                            The workspace routes this through the shell's launch intent, so the
+                            Bank opens on Fill in the Blank and offers a way back to this tab. */}
+                        <Button
+                            label="Generate questions"
+                            variant="primary"
+                            icon={<Sparkles size={16} />}
+                            onClick={onOpenQuestionBank}
+                        >
+                            Generate questions
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -438,38 +400,17 @@ export function FlashcardDeckSetupView({
                     >
                         Start Flashcard Session
                     </Button>
-                    {onGenerateAi && (
-                        <Button
-                            label="Generate with AI"
-                            variant="secondary"
-                            icon={<Sparkles size={16} />}
-                            onClick={onGenerateAi}
-                        >
-                            Generate with AI
-                        </Button>
-                    )}
-                    {onShare && (
-                        <Button
-                            label="Share"
-                            variant="secondary"
-                            icon={<Share2 size={16} />}
-                            onClick={onShare}
-                        >
-                            Share
-                        </Button>
-                    )}
-                    {onExport && (
-                        <Button
-                            label="Export as .lcpack"
-                            variant="secondary"
-                            icon={<Package size={16} />}
-                            onClick={onExport}
-                            isLoading={isExporting}
-                            isDisabled={isExporting}
-                        >
-                            Export as .lcpack
-                        </Button>
-                    )}
+                    {/* A populated deck is a STUDY surface, so authoring is deliberately quiet:
+                        ghost variant, no accent fill, sitting beside the primary Start action
+                        rather than competing with it. It routes to the Question Bank — this
+                        feature creates nothing. */}
+                    <Button
+                        label="Add questions"
+                        variant="ghost"
+                        onClick={onOpenQuestionBank}
+                    >
+                        Add questions
+                    </Button>
                 </div>
 
                 {blockedMessage && (

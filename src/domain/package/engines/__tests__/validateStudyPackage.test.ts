@@ -248,4 +248,53 @@ describe('validateStudyPackage', () => {
             'Material "pkg_mat_cell_intro" references undeclared asset "pkg_asset_missing_photo" in markdown content.'
         );
     });
+
+    /**
+     * `sourceSection` is the one field that made it into the package format purely to stop
+     * the generator from computing it and throwing it away. It is ADDITIVE and optional, and
+     * the compatibility policy is deliberately one-directional: absence is always valid, so
+     * every package published before the field existed keeps validating forever.
+     */
+    describe('question sourceSection (additive, optional)', () => {
+        it('accepts a package whose questions carry no sourceSection at all', () => {
+            // The compatibility policy, pinned: the base fixture predates the field and is
+            // still a valid package. A reader must never be the reason an old share stops cloning.
+            const pkg = createValidPackage();
+            expect(pkg.questions.every((q) => q.sourceSection === undefined)).toBe(true);
+
+            const result = validateStudyPackage(pkg);
+            expect(result.errors).toEqual([]);
+            expect(result.isValid).toBe(true);
+        });
+
+        it('accepts a string sourceSection', () => {
+            const pkg = createValidPackage();
+            pkg.questions[0].sourceSection = 'Cell Organelles';
+
+            const result = validateStudyPackage(pkg);
+            expect(result.errors).toEqual([]);
+            expect(result.isValid).toBe(true);
+        });
+
+        it('accepts an empty string as a present-but-empty label', () => {
+            // Presence with no content is not a structural defect; the repository's write
+            // boundary is what collapses a blank label to absent, not the package validator.
+            const pkg = createValidPackage();
+            pkg.questions[0].sourceSection = '';
+
+            const result = validateStudyPackage(pkg);
+            expect(result.errors).toEqual([]);
+        });
+
+        it('rejects a present-but-non-string sourceSection', () => {
+            // The one thing that is refused: a value of the wrong shape, which would put a
+            // non-label into the provenance field on clone.
+            const pkg = createValidPackage();
+            (pkg.questions[0] as any).sourceSection = ['Cell Organelles'];
+
+            const result = validateStudyPackage(pkg);
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain('Question "pkg_q_mitochondria" sourceSection must be a string.');
+        });
+    });
 });

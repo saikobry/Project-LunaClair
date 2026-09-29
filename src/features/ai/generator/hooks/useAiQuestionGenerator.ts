@@ -49,6 +49,12 @@ export interface UseAiQuestionGeneratorReturn {
   deselectAll: () => void;
   updateDraft: (index: number, updated: GeneratedQuestionDraft) => void;
   saveSelected: (materialId: string) => Promise<Question[]>;
+  /**
+   * How many of the items the user accepted were refused at the write boundary.
+   * Zero on the ordinary path — the generator and the review step both validate, so this
+   * only ever names a shortfall the user would otherwise not see.
+   */
+  saveRejectedCount: number;
   reset: () => void;
 }
 
@@ -89,6 +95,7 @@ export function useAiQuestionGenerator(): UseAiQuestionGeneratorReturn {
   const [rejectedCount, setRejectedCount] = useState(0);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [savedQuestions, setSavedQuestions] = useState<Question[]>([]);
+  const [saveRejectedCount, setSaveRejectedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   const generate = useCallback(
@@ -169,16 +176,20 @@ export function useAiQuestionGenerator(): UseAiQuestionGeneratorReturn {
       setPhaseMessage('Saving questions to Question Bank...');
 
       try {
-        const created = await useCases.generator.batchCreateQuestions.execute({
+        const result = await useCases.generator.batchCreateQuestions.execute({
           materialId,
           questions: selectedDrafts,
           status: 'draft', // All AI generated questions are created as drafts
         });
 
-        setSavedQuestions(created);
+        setSavedQuestions(result.created);
+        // The write boundary is salvage-based: valid siblings land and only the offending
+        // item is dropped. Naming the drop is what keeps that from reading as a shortfall
+        // the model caused.
+        setSaveRejectedCount(result.rejected.length);
         setStatus('done');
         setPhaseMessage('');
-        return created;
+        return result.created;
       } catch (err: unknown) {
         setStatus('error');
         const message = err instanceof Error ? err.message : 'Failed to save questions';
@@ -200,6 +211,7 @@ export function useAiQuestionGenerator(): UseAiQuestionGeneratorReturn {
     setRejectedCount(0);
     setSelectedIndices(new Set());
     setSavedQuestions([]);
+    setSaveRejectedCount(0);
     setErrorMessage(undefined);
   }, []);
 
@@ -224,6 +236,7 @@ export function useAiQuestionGenerator(): UseAiQuestionGeneratorReturn {
     deselectAll,
     updateDraft,
     saveSelected,
+    saveRejectedCount,
     reset,
   };
 }

@@ -158,7 +158,7 @@ CRITICAL RULES:
 9. COMPLETE ANSWERS: \`correctIndex\` and \`correctIndices\` must be zero-based integers pointing at a real choice, and \`correctAnswer\` / \`blanks\` must be non-empty. A question with no determinable answer is discarded.
 10. Output exactly ${count} objects, then stop. Add no commentary before or after the array.
 11. TAGS: give every question 2-4 short topic tags (lowercase, one to three words) naming the subject matter it tests, drawn from the material — these are how a user classifies the question later. Never tag a question with how it was produced (for example 'ai', 'generated', or 'flashcard').
-
+${allowedTypes.includes('fill_in_blank') ? `12. CLOZE ATOMICITY: each \`___\` in a \`fill_in_blank\` template becomes its own flashcard with its own review schedule, so every blank must stand alone as ONE discrete, high-yield fact. Keep the template short and put the tested fact in the blank — the surrounding words are retrieval context, not the question. Supply exactly one non-empty entry in \`blanks\` per \`___\`, in left-to-right order; a blank with no supplied answer, or an answer count that disagrees with the marker count, discards the item.\n` : ''}
 SCHEMA FORMATS BY TYPE (only the allowed types listed above):
 
 ${schemaSection}`;
@@ -184,8 +184,9 @@ Generate ${count} questions matching the schema.`;
 
     // Tags are classification, not provenance. Nothing is stamped on top of the model's own topic
     // tags: an `ai-generated` marker does not help anyone find or group a question, and a `sec:`
-    // marker duplicated the section the draft already carries. `sourceSection` stays as the record of
-    // where the question came from; how it was authored is not a fact the user asked to see.
+    // marker duplicated the section the draft already carries. `sourceSection` is the real record
+    // of where the question came from — a dedicated optional field on `Question`, not a tag — and
+    // `BatchCreateQuestionsUseCase` persists it as-is.
     return {
       drafts: rawBatch.drafts.map((draft) => ({
         ...draft,

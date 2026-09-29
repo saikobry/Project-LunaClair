@@ -288,4 +288,61 @@ describe('MaterializeStudyPackageUseCase', () => {
         expect(pkg.assets).toBeUndefined();
         expect(pkg.materials[0].documentContent).toBe('# Chapter 1\nCells are life.');
     });
+
+    describe('question sourceSection (optional provenance)', () => {
+        /** A use case whose single question carries (or lacks) a section label. */
+        function useCaseWithSourceSection(sourceSection?: string) {
+            const question: Question = { ...mockQuestion, sourceSection };
+            return new MaterializeStudyPackageUseCase(
+                {
+                    getMaterialById: vi.fn().mockResolvedValue(mockMaterial),
+                    getMaterials: vi.fn(),
+                    createMaterial: vi.fn(),
+                    updateMaterial: vi.fn(),
+                },
+                {
+                    getByDocumentId: vi.fn().mockResolvedValue({
+                        documentId: 'doc-local-1',
+                        title: 'Cell Biology Notes',
+                        content: '# Chapter 1',
+                        updatedAt: '2026-09-01T00:00:00.000Z',
+                    }),
+                    put: vi.fn(),
+                    deleteByDocumentId: vi.fn(),
+                },
+                {
+                    getQuestions: vi.fn().mockResolvedValue([question]),
+                    getQuestionById: vi.fn(),
+                    getQuestionsByIds: vi.fn(),
+                    createQuestion: vi.fn(),
+                    createQuestionsBatch: vi.fn(),
+                    updateQuestion: vi.fn(),
+                    deleteQuestion: vi.fn(),
+                },
+                {
+                    getQuizzes: vi.fn().mockResolvedValue([]),
+                    getQuizById: vi.fn(),
+                    getQuizzesForMaterials: vi.fn(),
+                    getQuizzesByIds: vi.fn(),
+                    createQuiz: vi.fn(),
+                    updateQuiz: vi.fn(),
+                    deleteQuiz: vi.fn(),
+                },
+                { get: vi.fn(), getByMaterialId: vi.fn().mockResolvedValue([]) },
+            );
+        }
+
+        it('exports a question\'s section label so the provenance survives publish', async () => {
+            const pkg = await useCaseWithSourceSection('Cell Organelles').execute({ materialId: 'mat-local-1' });
+
+            expect(pkg.questions[0].sourceSection).toBe('Cell Organelles');
+        });
+
+        it('omits the key when the question has no label, never synthesizing one', async () => {
+            const pkg = await useCaseWithSourceSection(undefined).execute({ materialId: 'mat-local-1' });
+
+            // Absent is a valid package, and an export must not invent provenance.
+            expect(pkg.questions[0].sourceSection).toBeUndefined();
+        });
+    });
 });

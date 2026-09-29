@@ -11,6 +11,7 @@ import { MaterializeStudyPackageUseCase } from '../MaterializeStudyPackageUseCas
 import { ImportStudyPackageUseCase } from '../ImportStudyPackageUseCase';
 import { parseJsonFromString as parsePackageFromJson } from '../../../../shared/utils/jsonBlobParser';
 import { serializePackageToJson } from '../../../../domain/package/engines/StudyPackageSerializer';
+import { validateStudyPackage } from '../../../../domain/package/engines/validateStudyPackage';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../../domain/reader/repositories/DocumentContentRepository';
 import type { Question } from '../../../../domain/quiz/models/Question';
@@ -310,6 +311,108 @@ describe('StudyPackage E2E Roundtrip & Isolation', () => {
     const originalMaterial = await db.materials.get(originalMatId);
     expect(originalMaterial).toBeDefined();
     expect(originalMaterial?.title).toBe('Cellular Respiration & Glycolysis');
+  });
+
+  /**
+   * The full provenance loop, end to end against real Dexie.
+   *
+   * `sourceSection` used to be computed during generation, rendered in the review UI, and
+   * dropped at persistence — so a question could never say where it came from. This walks
+   * the whole path it now travels: persisted → exported → client-validated → remapped on
+   * import, and asserts a package WITHOUT the field still round-trips (the compatibility
+   * policy: absence is valid and stays valid).
+   */
+  it('round-trips a question sourceSection through export, validation, and re-import', async () => {
+    const now = '2026-09-20T12:00:00.000Z';
+    const matId = 'mat_provenance_1';
+    const docId = 'doc_provenance_1';
+
+    await db.materials.put({
+      id: matId,
+      title: 'Glycolysis Notes',
+      documentId: docId,
+      order: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.documentContents.put({
+      documentId: docId,
+      title: 'Glycolysis Notes',
+      content: '## Glycolysis\n\nOccurs in the cytoplasm.',
+      updatedAt: now,
+    });
+
+    // Two questions: one carrying provenance, one without. The second is the control for the
+    // compatibility policy — a package mixed between labelled and unlabelled is still valid.
+    await db.questions.bulkPut([
+      {
+        id: 'q_provenance_1',
+        materialId: matId,
+        type: 'fill_in_blank',
+        prompt: 'Fill in the blank with the location of glycolysis.',
+        payload: {
+          type: 'fill_in_blank',
+          template: 'Glycolysis occurs in the ___.',
+          blanks: ['cytoplasm'],
+        },
+        difficulty: 'easy',
+        points: 1,
+        sourceSection: 'Glycolysis',
+        status: 'published',
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'q_provenance_2',
+        materialId: matId,
+        type: 'true_false',
+        prompt: 'Glycolysis occurs in the mitochondria.',
+        payload: { type: 'true_false', correctAnswer: false },
+        difficulty: 'medium',
+        points: 1,
+        status: 'published',
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    // 1. Read back through the repository — the provenance is on the stored row, not just
+    //    the draft that produced it.
+    const readBack = await questionRepo.getQuestions(matId);
+    const labelled = readBack.find((q) => q.id === 'q_provenance_1');
+    const unlabelled = readBack.find((q) => q.id === 'q_provenance_2');
+    expect(labelled?.sourceSection).toBe('Glycolysis');
+    expect(unlabelled?.sourceSection).toBeUndefined();
+
+    // 2. Export to a package. The label rides out; the unlabelled question omits the key.
+    const pkg = await materializeUseCase.execute({ materialId: matId });
+    const exportedLabelled = pkg.questions.find((q) => q.sourceSection === 'Glycolysis');
+    expect(exportedLabelled).toBeDefined();
+    expect(pkg.questions.filter((q) => q.sourceSection !== undefined)).toHaveLength(1);
+
+    // 3. The package validates on the client, mixed labels and all.
+    const serialized = serializePackageToJson(pkg);
+    const parsed = parsePackageFromJson(serialized);
+    expect(validateStudyPackage(parsed).errors).toEqual([]);
+
+    // 4. Import. The remapped question is a brand-new local row that still carries the label.
+    const imported = await importUseCase.execute({ package: parsed });
+    const importedQuestions = await db.questions
+        .where('materialId')
+        .equals(imported.materialIds[0])
+        .toArray();
+
+    expect(importedQuestions).toHaveLength(2);
+    const importedLabelled = importedQuestions.find(
+        (q) => q.payload.type === 'fill_in_blank',
+    );
+    expect(importedLabelled?.sourceSection).toBe('Glycolysis');
+    // The remap never invents provenance for the question that had none.
+    expect(
+        importedQuestions.find((q) => q.payload.type === 'true_false')?.sourceSection,
+    ).toBeUndefined();
   });
 
   it('generates two completely independent graphs when importing the same package twice', async () => {

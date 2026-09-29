@@ -41,10 +41,13 @@ describe('AiQuestionGeneratorDialog', () => {
           execute: vi.fn().mockResolvedValue({ drafts: mockDrafts, rejected: [] }),
         },
         batchCreateQuestions: {
-          execute: vi.fn().mockResolvedValue([
-            { id: 'q-1', prompt: mockDrafts[0].prompt, status: 'draft' },
-            { id: 'q-2', prompt: mockDrafts[1].prompt, status: 'draft' },
-          ]),
+          execute: vi.fn().mockResolvedValue({
+            created: [
+              { id: 'q-1', prompt: mockDrafts[0].prompt, status: 'draft' },
+              { id: 'q-2', prompt: mockDrafts[1].prompt, status: 'draft' },
+            ],
+            rejected: [],
+          }),
         },
       },
       ...overrides,
@@ -227,7 +230,7 @@ describe('AiQuestionGeneratorDialog', () => {
               }),
           },
           batchCreateQuestions: {
-            execute: vi.fn().mockResolvedValue([]),
+            execute: vi.fn().mockResolvedValue({ created: [], rejected: [] }),
           },
         },
       },
@@ -270,6 +273,106 @@ describe('AiQuestionGeneratorDialog', () => {
       );
       expect(onSuccess).toHaveBeenCalledWith(2);
       expect(screen.getByText('Questions Saved!')).toBeInTheDocument();
+    });
+  });
+
+  describe('the launch handoff', () => {
+    it('opens on exactly the requested types, so a cloze launch sends only the cloze schema', () => {
+      const { mockUseCases } = renderWithContext(
+        <AiQuestionGeneratorDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          materialId="mat-1"
+          materialTitle="Cell Biology"
+          initialTypes={['fill_in_blank']}
+        />,
+      );
+
+      fireEvent.click(screen.getByText('Generate Questions'));
+
+      // The preselection is the whole point of the launch: the Flashcards tab asks for cards,
+      // so the request must carry the `fill_in_blank` schema and nothing else.
+      return waitFor(() => {
+        expect(mockUseCases.generator.generateQuestions.execute).toHaveBeenCalledWith(
+          expect.objectContaining({ types: ['fill_in_blank'] }),
+        );
+      });
+    });
+
+    it('offers the launcher a way back on the done step, and no way back without one', async () => {
+      const onReturn = vi.fn();
+      const { mockUseCases } = renderWithContext(
+        <AiQuestionGeneratorDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          materialId="mat-1"
+          materialTitle="Cell Biology"
+          returnAction={{ label: 'Study these questions', onReturn }}
+        />,
+      );
+
+      fireEvent.click(screen.getByText('Generate Questions'));
+      await waitFor(() => expect(screen.getByText('Add 2 Questions to Bank')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Add 2 Questions to Bank'));
+
+      const returnBtn = await screen.findByRole('button', { name: 'Study these questions' });
+      fireEvent.click(returnBtn);
+
+      // The dialog closes first, then the return fires, so the user never lands on a tab
+      // with the dialog still mounted over it.
+      expect(onReturn).toHaveBeenCalledTimes(1);
+      expect(mockUseCases.generator.batchCreateQuestions.execute).toHaveBeenCalled();
+    });
+
+    it('offers no return action when the Bank opened the dialog itself', async () => {
+      renderWithContext(
+        <AiQuestionGeneratorDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          materialId="mat-1"
+          materialTitle="Cell Biology"
+        />,
+      );
+
+      fireEvent.click(screen.getByText('Generate Questions'));
+      await waitFor(() => expect(screen.getByText('Add 2 Questions to Bank')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Add 2 Questions to Bank'));
+
+      // The Bank's own "Generate with AI" has nowhere to return to — a return button here
+      // would be a dead end dressed as a convenience.
+      await screen.findByText('Questions Saved!');
+      expect(screen.queryByRole('button', { name: 'Study these questions' })).toBeNull();
+    });
+
+    it('names an item the write boundary refused, so the count is not read as a model shortfall', async () => {
+      renderWithContext(
+        <AiQuestionGeneratorDialog
+          isOpen={true}
+          onClose={vi.fn()}
+          materialId="mat-1"
+          materialTitle="Cell Biology"
+        />,
+        {
+          generator: {
+            generateQuestions: { execute: vi.fn().mockResolvedValue({ drafts: mockDrafts, rejected: [] }) },
+            batchCreateQuestions: {
+              execute: vi.fn().mockResolvedValue({
+                created: [{ id: 'q-1', prompt: mockDrafts[0].prompt, status: 'draft' }],
+                rejected: [{ index: 1, error: 'fill_in_blank requires template with blank placeholder' }],
+              }),
+            },
+          },
+        },
+      );
+
+      fireEvent.click(screen.getByText('Generate Questions'));
+      await waitFor(() => expect(screen.getByText('Add 2 Questions to Bank')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Add 2 Questions to Bank'));
+
+      // Salvaging is deliberate, but the gap is named rather than left as a silent shortfall.
+      expect(
+        await screen.findByText(/1 question could not be saved and was skipped/i),
+      ).toBeInTheDocument();
     });
   });
 });

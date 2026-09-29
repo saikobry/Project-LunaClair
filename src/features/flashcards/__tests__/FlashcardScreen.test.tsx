@@ -129,7 +129,7 @@ describe('FlashcardScreen', () => {
     );
 
     it('renders deck setup view and transitions to active session on start', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         // Wait for setup view to load
         await waitFor(() => {
@@ -173,7 +173,7 @@ describe('FlashcardScreen', () => {
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockQuestions[1], mockQuestions[0]]);
         mockContext.repositories.quiz.getQuizzes.mockResolvedValue([practiceQuiz, masterQuiz]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -192,7 +192,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('flips card on click and records rating on rating button click', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -234,7 +234,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('shows a choice card’s options ungraded and marks the correct one after the flip', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -268,7 +268,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('labels a recall card’s difficulty as the source question’s, with no card-shape badge', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('completes the deck and shows session summary when all cards are reviewed', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -327,7 +327,7 @@ describe('FlashcardScreen', () => {
         // it would promise 1 card and the "Due Cards Only" session would show 3.
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -347,7 +347,7 @@ describe('FlashcardScreen', () => {
     it('expands a multi-blank question into one independently rated card per blank', async () => {
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -396,7 +396,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('bounds each face in a keyboard-focusable scroll region and keeps the rating bar reachable', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -445,6 +445,30 @@ describe('FlashcardScreen', () => {
                 expect.objectContaining({ rating: 'good' })
             );
         });
+    });
+
+    it('owns no authoring: the populated deck offers only a quiet route to the Question Bank', async () => {
+        const onOpenQuestionBank = vi.fn();
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
+
+        await waitFor(() => {
+            expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        });
+
+        // No generator, no dialog, no "Generate with AI" — the retired card-authoring front
+        // door. Cards come from questions, and questions are authored in exactly one place.
+        expect(screen.queryByText(/Generate.*with AI/i)).toBeNull();
+        expect(screen.queryByText(/Generate Flashcards/i)).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
+
+        // What remains is a navigation, labelled for what it does. `ghost` keeps it from
+        // competing with the primary Start action on a surface that is about studying.
+        const addQuestions = screen.getByRole('button', { name: 'Add questions' });
+        fireEvent.click(addQuestions);
+        expect(onOpenQuestionBank).toHaveBeenCalledTimes(1);
+
+        // Authoring is a route change, not a write: nothing on this screen persists.
+        expect(mockRecordReview.execute).not.toHaveBeenCalled();
     });
 });
 
@@ -593,7 +617,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -624,7 +648,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
         fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
@@ -639,7 +663,7 @@ describe('FlashcardScreen — empty deck', () => {
     });
 
     it('disables Start and names the selection when the quiz filter holds no cards', async () => {
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -670,7 +694,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueOneMinuteAgo),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -707,7 +731,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -737,7 +761,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" />, { wrapper: createWrapper() });
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
         fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
@@ -757,6 +781,32 @@ describe('FlashcardScreen — empty deck', () => {
         expect(screen.queryByText('What organelle produces ATP?')).toBeNull();
         expect(screen.queryByText(/Session Complete/i)).toBeNull();
         expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
+        expect(mockRecordReview.execute).not.toHaveBeenCalled();
+    });
+
+    it('makes authoring the primary action when the bank is empty, and hands off with a return path', async () => {
+        // Zero questions is a different state from "nothing due": there is no content at all,
+        // so the honest action is to create some. It is primary here precisely because it is
+        // the only thing this surface can usefully offer.
+        mockContext.repositories.question.getQuestions.mockResolvedValue([]);
+        const onOpenQuestionBank = vi.fn();
+
+        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
+
+        await waitFor(() => expect(screen.getByText('No Flashcards Available')).toBeInTheDocument());
+
+        // The copy names the real relationship: cards are built FROM the Question Bank.
+        expect(screen.getByText(/Cards are built from your Question Bank/i)).toBeInTheDocument();
+        // And it no longer promises generation from this tab, because that path is gone.
+        expect(screen.queryByText(/Generate cards directly from your notes/i)).toBeNull();
+        expect(screen.queryByText(/Generate.*with AI/i)).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }));
+        // The workspace answers this by arming the one-shot launch intent (Fill in the Blank
+        // preselected, plus a "Study these questions" way back to this tab) *and* routing to
+        // `?tab=questions`. What this feature contributes is the handoff and nothing else.
+        expect(onOpenQuestionBank).toHaveBeenCalledTimes(1);
         expect(mockRecordReview.execute).not.toHaveBeenCalled();
     });
 });

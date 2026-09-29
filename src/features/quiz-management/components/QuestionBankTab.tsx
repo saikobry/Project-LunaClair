@@ -1,237 +1,24 @@
 import { useState, useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus, Filter, Sparkles } from 'lucide-react';
+import { Pencil, Archive, ArchiveRestore, CheckCircle, Inbox, Plus } from 'lucide-react';
 import { DIFFICULTY_APPEARANCE, POINTS_APPEARANCE, QUESTION_TYPE_APPEARANCE } from '../utils/quizBadgeAppearance';
 import type { Question, QuestionStatus, QuestionDifficulty } from '../../../domain/quiz/models/Question';
 import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 import type { CreateQuestionInput, UpdateQuestionInput } from '../../../domain/quiz/repositories/QuestionRepository';
-import { QUESTION_TYPES, QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
+import { QUESTION_TYPE_LABELS } from '../../../domain/quiz/models/questionMetadata';
+import type { MaterialWorkspaceTab } from '../../../app/routing/routing';
 import { Button } from '../../../shared/ui/Button/Button';
-import { SearchInput } from '../../../shared/ui/SearchInput/SearchInput';
 import { Card } from '../../../shared/ui/Card/Card';
 import { EmptyState } from '../../../shared/ui/EmptyState/EmptyState';
-import { Selector, type SelectorOption } from '../../../shared/ui/Selector/Selector';
 import { useToast } from '../../../app/providers/ToastContext';
 import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { QuestionEditorDialog } from './QuestionEditorDialog';
+import { QuestionBankFilterBar } from './QuestionBankFilterBar';
 import { QuestionPayloadPreview } from './QuestionPayloadPreview';
 import { AiQuestionGeneratorDialog } from '../../ai/generator/components/AiQuestionGeneratorDialog';
+import { useGeneratorLaunchClaim, type GeneratorLaunchChannel } from '../hooks/useGeneratorLaunchClaim';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
-
-const desktopQuery = '@media (min-width: 769px)';
-
-const styles = stylex.create({
-    container: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-    },
-    filterBar: {
-        display: 'flex',
-        gap: 10,
-        flexWrap: 'wrap',
-        alignItems: 'center',
-    },
-    searchField: {
-        flex: 1,
-        minWidth: 180,
-    },
-    desktopSelectors: {
-        display: 'none',
-        [desktopQuery]: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-        },
-    },
-    mobileFilterTrigger: {
-        display: 'flex',
-        [desktopQuery]: {
-            display: 'none',
-        },
-    },
-    mobileFilterPanel: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        width: '100%',
-        padding: 12,
-        backgroundColor: 'var(--color-background-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        boxSizing: 'border-box',
-        [desktopQuery]: {
-            display: 'none',
-        },
-    },
-    newQuestionButton: {
-        marginLeft: 'auto',
-    },
-    list: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-    },
-    cardContent: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-    },
-    promptRow: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    prompt: {
-        fontSize: 14,
-        fontWeight: 500,
-        color: 'var(--color-text-primary)',
-        margin: 0,
-        lineHeight: 1.5,
-        flex: 1,
-        minWidth: 0,
-    },
-    topRightStatusBadge: {
-        flexShrink: 0,
-    },
-    badgesRow: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 6,
-        alignItems: 'center',
-    },
-    detailSection: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        paddingTop: 8,
-        borderTop: '1px solid var(--color-border)',
-    },
-    detailLabel: {
-        fontSize: 11,
-        fontWeight: 600,
-        textTransform: 'capitalize',
-        letterSpacing: 0.4,
-        color: 'var(--color-text-disabled)',
-    },
-    explanationPreview: {
-        fontSize: 13,
-        color: 'var(--color-text-secondary)',
-        lineHeight: 1.5,
-        margin: 0,
-        maxWidth: '80%',
-    },
-    tagsRow: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 4,
-    },
-    cardFooter: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 8,
-        paddingTop: 10,
-        marginTop: 6,
-        borderTop: '1px solid var(--color-border)',
-    },
-    cardFooterMeta: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-    versionTag: {
-        fontSize: 11,
-        fontWeight: 600,
-        color: 'var(--color-text-disabled)',
-    },
-    cardActions: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        flexShrink: 0,
-        marginLeft: 'auto',
-    },
-    empty: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 8,
-        padding: '48px 24px',
-        color: 'var(--color-text-secondary)',
-        textAlign: 'center',
-    },
-    // Badge variant styles for status and usage
-    badgedot: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '2px 8px',
-        fontSize: 11,
-        fontWeight: 600,
-        textTransform: 'capitalize',
-        border: 'none',
-        borderRadius: 5,
-    },
-    badgePublished: {
-        backgroundColor: 'var(--color-success-muted)',
-        color: 'var(--color-on-success-muted)',
-    },
-    badgeDraft: {
-        backgroundColor: 'var(--color-warning-muted)',
-        color: 'var(--color-on-warning-muted)',
-    },
-    badgeArchived: {
-        backgroundColor: 'var(--color-background-muted)',
-        color: 'var(--color-text-disabled)',
-    },
-    badgeUsed: {
-        backgroundColor: 'var(--color-accent-muted)',
-        color: 'var(--color-accent)',
-    },
-    badgeUnused: {
-        backgroundColor: 'var(--color-background-muted)',
-        color: 'var(--color-text-disabled)',
-    },
-    tag: {
-        fontSize: 10.5,
-        padding: '1px 7px',
-        border: 'none',
-        borderRadius: 4,
-        backgroundColor: 'var(--color-background-muted)',
-        color: 'var(--color-text-secondary)',
-        cursor: 'pointer',
-        transition: 'background-color 0.15s ease, color 0.15s ease',
-        ':hover': {
-            backgroundColor: 'var(--color-accent-muted)',
-            color: 'var(--color-accent)',
-        },
-        ':active': {
-            opacity: 0.8,
-        },
-    },
-});
-
-const TYPE_OPTIONS: SelectorOption[] = [
-    { value: '', label: 'All types' },
-    ...QUESTION_TYPES.map((value) => ({ value, label: QUESTION_TYPE_LABELS[value] })),
-];
-
-const DIFFICULTY_OPTIONS: SelectorOption[] = [
-    { value: '', label: 'All difficulty' },
-    { value: 'easy', label: 'Easy' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' },
-];
-
-const STATUS_OPTIONS: SelectorOption[] = [
-    { value: '', label: 'All status' },
-    { value: 'published', label: 'Published' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'archived', label: 'Archived' },
-];
+import { styles } from './questionBank.stylex';
 
 const STATUS_RANK: Record<string, number> = { published: 0, draft: 1, archived: 2 };
 
@@ -247,6 +34,19 @@ interface QuestionBankTabProps {
     onArchive: (id: string) => void;
     onUnarchive?: (id: string) => void;
     onRefresh?: () => void;
+    /**
+     * Returns the workspace to a sibling tab, offered on the generator's done step when
+     * this Bank was reached through a launch intent. Wired to the workspace's ordinary tab
+     * change, so the return keeps the `?from=` origin and the mode tier the tab implies.
+     */
+    onReturnToTab?: (tab: MaterialWorkspaceTab) => void;
+    /**
+     * The workspace screen's one-shot launch intent for this material: the pending request
+     * plus the single command that retires it. The Bank reads it and retires it; it never
+     * authors on the strength of one, and a `null` intent is the ordinary case (the Bank's
+     * own "Generate with AI" needs no launch at all).
+     */
+    generatorLaunch: GeneratorLaunchChannel;
 }
 
 function statusBorderColor(status: QuestionStatus): string {
@@ -420,6 +220,8 @@ export function QuestionBankTab({
     onArchive,
     onUnarchive,
     onRefresh,
+    generatorLaunch,
+    onReturnToTab,
 }: QuestionBankTabProps) {
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
@@ -427,11 +229,15 @@ export function QuestionBankTab({
     const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
     const [difficultyFilter, setDifficultyFilter] = useState<QuestionDifficulty | ''>('');
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | ''>('');
-    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
-    const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Question | null>(null);
     const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
+
+    // A launch intent addressed to THIS material opens the one generator dialog with its types
+    // preselected and a way back to the tab that asked; the claim is one-shot, so returning
+    // here later opens nothing. All of that lives in the hook — this tab only decides when the
+    // dialog is open and what to hand it.
+    const generator = useGeneratorLaunchClaim(materialId, generatorLaunch, onReturnToTab);
 
     const activeFilterCount = [typeFilter, difficultyFilter, statusFilter].filter(Boolean).length;
 
@@ -504,101 +310,20 @@ export function QuestionBankTab({
 
     return (
         <div {...stylex.props(styles.container)}>
-            <div {...stylex.props(styles.filterBar)}>
-                <div {...stylex.props(styles.searchField)}>
-                    <SearchInput
-                        label="Search questions"
-                        placeholder="Search prompts and tags…"
-                        value={search}
-                        onChange={setSearch}
-                        size="sm"
-                    />
-                </div>
-                <div {...stylex.props(styles.desktopSelectors)}>
-                    <Selector
-                        label="Filter by type"
-                        isLabelHidden
-                        options={TYPE_OPTIONS}
-                        value={typeFilter}
-                        onChange={(v) => setTypeFilter(v as QuestionType | '')}
-                        size="sm"
-                        width={160}
-                    />
-                    <Selector
-                        label="Filter by difficulty"
-                        isLabelHidden
-                        options={DIFFICULTY_OPTIONS}
-                        value={difficultyFilter}
-                        onChange={(v) => setDifficultyFilter(v as QuestionDifficulty | '')}
-                        size="sm"
-                        width={150}
-                    />
-                    <Selector
-                        label="Filter by status"
-                        isLabelHidden
-                        options={STATUS_OPTIONS}
-                        value={statusFilter}
-                        onChange={(v) => setStatusFilter(v as QuestionStatus | '')}
-                        size="sm"
-                        width={150}
-                    />
-                </div>
-                <div {...stylex.props(styles.mobileFilterTrigger)}>
-                    <Button
-                        label="Toggle filters"
-                        variant={activeFilterCount > 0 ? 'primary' : 'secondary'}
-                        icon={<Filter size={14} />}
-                        onClick={() => setMobileFilterOpen((prev) => !prev)}
-                    >
-                        Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-                    </Button>
-                </div>
-                <Button
-                    label="Generate with AI"
-                    variant="secondary"
-                    icon={<Sparkles size={14} />}
-                    onClick={() => setAiGeneratorOpen(true)}
-                    isDisabled={!documentMarkdown}
-                    tooltip={!documentMarkdown ? 'Document markdown is not available' : 'Generate questions with AI'}
-                >
-                    Generate with AI
-                </Button>
-                <Button
-                    label="New question"
-                    variant="primary"
-                    icon={<Plus size={14} />}
-                    onClick={openCreate}
-                    {...stylex.props(styles.newQuestionButton)}
-                >
-                    New Question
-                </Button>
-            </div>
-
-            {mobileFilterOpen && (
-                <div {...stylex.props(styles.mobileFilterPanel)}>
-                    <Selector
-                        label="Filter by type"
-                        options={TYPE_OPTIONS}
-                        value={typeFilter}
-                        onChange={(v) => setTypeFilter(v as QuestionType | '')}
-                        size="sm"
-                    />
-                    <Selector
-                        label="Filter by difficulty"
-                        options={DIFFICULTY_OPTIONS}
-                        value={difficultyFilter}
-                        onChange={(v) => setDifficultyFilter(v as QuestionDifficulty | '')}
-                        size="sm"
-                    />
-                    <Selector
-                        label="Filter by status"
-                        options={STATUS_OPTIONS}
-                        value={statusFilter}
-                        onChange={(v) => setStatusFilter(v as QuestionStatus | '')}
-                        size="sm"
-                    />
-                </div>
-            )}
+            <QuestionBankFilterBar
+                search={search}
+                onSearchChange={setSearch}
+                typeFilter={typeFilter}
+                onTypeFilterChange={setTypeFilter}
+                difficultyFilter={difficultyFilter}
+                onDifficultyFilterChange={setDifficultyFilter}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                activeFilterCount={activeFilterCount}
+                canGenerate={Boolean(documentMarkdown)}
+                onOpenGenerator={generator.open}
+                onCreateQuestion={openCreate}
+            />
 
             {questions.length === 0 ? (
                 <EmptyState
@@ -685,12 +410,18 @@ export function QuestionBankTab({
                 onCancel={() => setPendingArchiveId(null)}
             />
 
-            {aiGeneratorOpen && (
+            {generator.isOpen && (
                 <AiQuestionGeneratorDialog
-                    isOpen={aiGeneratorOpen}
-                    onClose={() => setAiGeneratorOpen(false)}
+                    isOpen
+                    onClose={generator.close}
                     materialId={materialId}
                     materialTitle={materialTitle || 'Study Material'}
+                    initialTypes={generator.initialTypes}
+                    returnAction={
+                        generator.returnLabel
+                            ? { label: generator.returnLabel, onReturn: generator.returnToLauncher }
+                            : undefined
+                    }
                     onSuccess={(createdCount) => {
                         showToast(`Added ${createdCount} questions to Question Bank in Draft status`, { intent: 'success' });
                         if (onRefresh) {

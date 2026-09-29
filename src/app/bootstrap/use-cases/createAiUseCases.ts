@@ -14,8 +14,6 @@ import { SetSelectionThreadModeUseCase } from '../../../application/use-cases/ai
 import { SetPreferredModelIdUseCase } from '../../../application/use-cases/ai/SetPreferredModelIdUseCase';
 import { GenerateQuestionsUseCase } from '../../../application/use-cases/generator/GenerateQuestionsUseCase';
 import { BatchCreateQuestionsUseCase } from '../../../application/use-cases/generator/BatchCreateQuestionsUseCase';
-import { GenerateFlashcardsUseCase } from '../../../application/use-cases/generator/GenerateFlashcardsUseCase';
-import { BatchCreateFlashcardsUseCase } from '../../../application/use-cases/generator/BatchCreateFlashcardsUseCase';
 import type { Infrastructure } from '../createInfrastructure';
 
 export function createAiUseCases(infrastructure: Infrastructure) {
@@ -47,11 +45,10 @@ export function createAiUseCases(infrastructure: Infrastructure) {
         },
         generator: {
             // Synthesis resolves its source document through the same resolver the chat path uses,
-            // so "what was actually sent" has one implementation for both surfaces.
+            // so "what was actually sent" has one implementation for both surfaces. There is one
+            // generation pair: a flashcard is a `fill_in_blank` question, not a second record type.
             generateQuestions: new GenerateQuestionsUseCase(services.ai, aiGroundingResolver),
             batchCreateQuestions: new BatchCreateQuestionsUseCase(repositories.question),
-            generateFlashcards: new GenerateFlashcardsUseCase(services.ai, aiGroundingResolver),
-            batchCreateFlashcards: new BatchCreateFlashcardsUseCase(repositories.question),
         },
     };
 }

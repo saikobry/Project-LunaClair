@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import type { QuestionType } from '../../../../domain/quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../../../domain/quiz/models/Question';
 import { QUESTION_TYPES, QUESTION_TYPE_LABELS } from '../../../../domain/quiz/models/questionMetadata';
+import { Button } from '../../../../shared/ui/Button/Button';
 import { Input } from '../../../../shared/ui/Input/Input';
 import { GeneratedQuestionPreviewCard } from './GeneratedQuestionPreviewCard';
 import { SynthesisModelControl } from './SynthesisModelControl';
@@ -60,12 +61,31 @@ const QUESTION_TYPE_OPTIONS: Array<{ type: QuestionType; label: string }> = QUES
   (type) => ({ type, label: QUESTION_TYPE_LABELS[type] }),
 );
 
+/** The default type selection: a mixed batch. A launch intent may narrow it (e.g. to cloze only). */
+const DEFAULT_SELECTED_TYPES: readonly QuestionType[] = [
+  'multiple_choice',
+  'true_false',
+  'fill_in_blank',
+];
+
 export interface AiQuestionGeneratorDialogProps {
   isOpen: boolean;
   onClose: () => void;
   materialId: string;
   materialTitle: string;
   onSuccess?: (createdCount: number) => void;
+  /**
+   * Types the type control opens with selected, from the launcher's launch intent.
+   * The dialog remounts per open, so this is read once per launch — a `Back` to the config
+   * step keeps the launcher's selection, the same way it keeps the batch's other settings.
+   */
+  initialTypes?: readonly QuestionType[];
+  /**
+   * Return affordance shown on the done step, for a caller that launched the dialog and
+   * wants the user back where they came from. Omitted for the Bank's own "Generate with AI",
+   * which has nowhere to return to.
+   */
+  returnAction?: { label: string; onReturn: () => void };
 }
 
 export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps> = ({
@@ -74,11 +94,13 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
   materialId,
   materialTitle,
   onSuccess,
+  initialTypes,
+  returnAction,
 }) => {
   const [count, setCount] = useState<number>(5);
   const [difficulty, setDifficulty] = useState<QuestionDifficulty | 'all'>('all');
   const [selectedTypes, setSelectedTypes] = useState<Set<QuestionType>>(
-    new Set(['multiple_choice', 'true_false', 'fill_in_blank']),
+    () => new Set(initialTypes ?? DEFAULT_SELECTED_TYPES),
   );
   const [focusTopic, setFocusTopic] = useState('');
 
@@ -102,6 +124,7 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
     deselectAll,
     updateDraft,
     saveSelected,
+    saveRejectedCount,
     reset,
   } = useAiQuestionGenerator();
 
@@ -147,6 +170,16 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
     onClose();
   };
 
+  // The launcher still gets its return path on the way out: the dialog closes first, so the
+  // target surface is unmounted before the navigation lands and the user never sees a stale
+  // dialog over the tab they were sent back to.
+  const handleReturn = () => {
+    if (!returnAction) return;
+    reset();
+    onClose();
+    returnAction.onReturn();
+  };
+
   return (
     <AiBatchGeneratorShell
       title="Generate Questions with AI"
@@ -162,6 +195,32 @@ export const AiQuestionGeneratorDialog: React.FC<AiQuestionGeneratorDialogProps>
         <>
           Added {savedQuestions.length} questions to your Question Bank in{' '}
           <strong>Draft</strong> status.
+          {/* The write boundary salvages rather than fails, so a refusal must be named here
+              or the count silently reads as the model returning less than it did. */}
+          {saveRejectedCount > 0 && (
+            <>
+              {' '}
+              {saveRejectedCount} {saveRejectedCount === 1 ? 'question' : 'questions'} could not
+              be saved and {saveRejectedCount === 1 ? 'was' : 'were'} skipped.
+            </>
+          )}
+          {/* The return path lives in the consumer-owned done node rather than the shell's
+              footer: the shell's footer is a fixed lifecycle mapping and stays that way
+              (no `footerActions` slot), so a launcher that wants a way home says so here.
+              The shell renders this node inside a `<p>`, so it stays inline content. */}
+          {returnAction && (
+            <>
+              <br />
+              <Button
+                label={returnAction.label}
+                variant="primary"
+                onClick={handleReturn}
+                style={{ marginTop: 16 }}
+              >
+                {returnAction.label}
+              </Button>
+            </>
+          )}
         </>
       }
       totalCount={drafts.length}

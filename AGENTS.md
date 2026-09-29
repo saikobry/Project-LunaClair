@@ -136,7 +136,7 @@ See `docs/architecture/architecture.md` and `docs/architecture/adr/` for full de
 ## TypeScript
 
 Four tsconfig files:
-- `tsconfig.app.json` — covers `src/` (app code). `src/__tests__/architecture` and `src/__tests__/e2eFixtures` are **excluded**: both are Node-API test harnesses (`node:fs`/`node:path`) and this config carries only `vite/client` types, so they would not typecheck. They are still run by Vitest.
+- `tsconfig.app.json` — covers `src/` (app code). `src/__tests__/architecture` and `src/__tests__/e2eFixtures` are **excluded**: they are Node-API test harnesses (`node:fs`/`node:path`) and this config carries only `vite/client` types, so they would not typecheck. They are still run by Vitest. `src/__tests__/e2eFixtures` also holds unit tests for `tests/e2e/helpers` modules, so it reaches outside `src/` entirely; that folder is therefore in **no** tsconfig project (`tsconfig.app.json` excludes it, `tsconfig.e2e.json` starts at `tests/e2e`) and `tsc -b` does not typecheck it. A green build is not evidence those tests typecheck.
 - `tsconfig.node.json` — covers `vite.config.ts` (tooling)
 - `tsconfig.worker.json` — covers `worker/` (Cloudflare Worker)
 - `tsconfig.e2e.json` — composite Playwright support project; covers `tests/e2e/**/*.ts` plus the imported app/domain modules and pure `scripts/lib` modules, with Node + DOM libs and explicit Playwright imports.

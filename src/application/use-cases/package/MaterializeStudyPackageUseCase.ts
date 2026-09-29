@@ -92,6 +92,9 @@ export class MaterializeStudyPackageUseCase {
         points: q.points,
         explanation: q.explanation,
         tags: q.tags,
+        // Optional provenance: present only when the question carries a section label.
+        // Absent is a valid package, so the export never synthesizes one.
+        sourceSection: q.sourceSection,
       };
     });
 

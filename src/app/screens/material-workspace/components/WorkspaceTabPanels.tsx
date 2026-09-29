@@ -6,6 +6,7 @@ import type { StoredAsset } from '../../../../domain/assets/repositories/AssetRe
 import { AnimatedTabPanel } from '../../../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
 import ReaderScreen, { type ReaderSelectionEvent } from '../../../../features/reader/ReaderScreen';
+import type { GeneratorLaunchChannel } from '../../../../features/quiz-management/hooks/useGeneratorLaunchClaim';
 import { WorkspaceAttachments } from './WorkspaceAttachments';
 
 // Lazy load secondary workspace tabs (Reader stays eager — it owns first paint)
@@ -33,6 +34,19 @@ export interface WorkspaceTabPanelsProps {
   onQuizExit: () => void;
   onPreviewFile: (asset: StoredAsset) => void;
   onNavigate: (route: AppRoute) => void;
+  /**
+   * Opens the Question Bank's generator for this material with Fill in the Blank
+   * preselected, and a way back to the Flashcards tab when the batch is saved.
+   * Arms the screen's one-shot launch intent and then makes the ordinary tab change —
+   * the mode tier still changes, because the Bank genuinely lives in Manage.
+   */
+  onGenerateCards: () => void;
+  /**
+   * The screen-held one-shot launch intent (pending request + the command that retires it),
+   * forwarded to the Questions panel. Threaded, not broadcast: the request is addressed to this
+   * material's Question Bank, which is a descendant two hops down.
+   */
+  generatorLaunch: GeneratorLaunchChannel;
 }
 
 interface TabSlotProps {
@@ -70,6 +84,8 @@ export function WorkspaceTabPanels({
   onQuizExit,
   onPreviewFile,
   onNavigate,
+  onGenerateCards,
+  generatorLaunch,
 }: WorkspaceTabPanelsProps) {
   return (
     <AnimatedTabPanel activeKey={activeTab}>
@@ -95,7 +111,13 @@ export function WorkspaceTabPanels({
       </TabSlot>
       <TabSlot tabKey="flashcards" activeTab={activeTab} visitedTabs={visitedTabs}>
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <FlashcardScreen materialId={materialId} />
+          {/* The flashcards feature owns no content, so its only authoring affordance is a
+              handoff to the Question Bank — expressed as the ordinary `?tab=questions` route
+              (the mode tier still changes; the Bank genuinely lives in Manage) plus the
+              screen's one-shot launch intent, exactly as the quiz tab's "Open Management"
+              uses the tab route. It is not a second authoring path: the same single dialog
+              opens, and the same single use case persists. */}
+          <FlashcardScreen materialId={materialId} onOpenQuestionBank={onGenerateCards} />
         </Suspense>
       </TabSlot>
       <TabSlot tabKey="write" activeTab={activeTab} visitedTabs={visitedTabs}>
@@ -109,15 +131,20 @@ export function WorkspaceTabPanels({
             materialId={materialId}
             onNavigate={onNavigate}
             section="questions"
+            onReturnToTab={(tab) => onTabChange(tab)}
+            generatorLaunch={generatorLaunch}
           />
         </Suspense>
       </TabSlot>
       <TabSlot tabKey="quizzes" activeTab={activeTab} visitedTabs={visitedTabs}>
         <Suspense fallback={<WorkspaceSkeleton />}>
+          {/* Same required prop on both sections; only the Question Bank acts on it (the Quiz
+              Catalog authors quizzes, not questions, so it never opens the generator). */}
           <QuizManagementScreen
             materialId={materialId}
             onNavigate={onNavigate}
             section="quizzes"
+            generatorLaunch={generatorLaunch}
           />
         </Suspense>
       </TabSlot>

@@ -221,4 +221,120 @@ Repolarization is driven by potassium ion (K+) efflux.
       }),
     ).rejects.toThrowError(/Cloudflare Workers AI timeout/);
   });
+
+  /**
+   * The card path. There is no separate flashcard generator: a generated card is a
+   * `fill_in_blank` question produced by this same use case, and `questionToCards` projects
+   * it into one card per blank. These cases pin the property the projection depends on.
+   */
+  describe('the card path (fill_in_blank)', () => {
+    const clozePayload: GeneratedQuestionDraft[] = [
+      {
+        type: 'fill_in_blank',
+        prompt: 'Fill in the blank with the ion whose influx depolarizes the membrane.',
+        payload: {
+          type: 'fill_in_blank',
+          template: 'Depolarization is driven by ___ (Na+) influx.',
+          blanks: ['sodium'],
+        },
+        difficulty: 'easy',
+        points: 1,
+        tags: ['action potentials'],
+      },
+    ];
+
+    it('yields a valid typed cloze question whose blanks match its ___ markers', async () => {
+      const mockAi = new MockAiAdapter({ structuredResponse: clozePayload });
+      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
+
+      const batch = await useCase.execute({
+        materialId: 'mat-bio-1',
+        types: ['fill_in_blank'],
+      });
+
+      expect(batch.rejected).toEqual([]);
+      expect(batch.drafts).toHaveLength(1);
+      const draft = batch.drafts[0];
+      // A real typed question — never a renamed {front, back} and never an identification row.
+      expect(draft.type).toBe('fill_in_blank');
+      expect(draft.payload.type).toBe('fill_in_blank');
+      // The parity `questionToCards` needs: the template's marker count IS the blank count,
+      // so every card front has exactly one `___` to hide and one real answer behind it.
+      const payload = draft.payload as { template: string; blanks: string[] };
+      expect((payload.template.match(/___/g) ?? []).length).toBe(payload.blanks.length);
+      expect(payload.blanks).toHaveLength(1);
+    });
+
+    it('carries the section label onto the draft as provenance, not as a tag', async () => {
+      // Whole-material grounding resolves no section heading, so the label the draft keeps
+      // is the model's own. What matters here is that it survives as a dedicated field
+      // rather than being rendered-then-dropped or folded into the filterable tag list.
+      const mockAi = new MockAiAdapter({
+        structuredResponse: [
+          { ...clozePayload[0], sourceSection: 'Action Potentials' },
+        ],
+      });
+      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
+
+      const batch = await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
+
+      // Computed during generation, carried on the draft, and persisted by
+      // `BatchCreateQuestionsUseCase`.
+      expect(batch.drafts[0].sourceSection).toBe('Action Potentials');
+      // Provenance is metadata, not a tag: it must not leak into the tag list.
+      expect(batch.drafts[0].tags).toEqual(['action potentials']);
+      expect(batch.drafts[0].tags).not.toContain('Action Potentials');
+    });
+
+    it('leaves the label absent when the draft supplies none', async () => {
+      const mockAi = new MockAiAdapter({ structuredResponse: clozePayload });
+      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
+
+      const batch = await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
+
+      // Absent is a legitimate state, not a gap to fill: a hand-grounded generation with no
+      // section heading simply has no provenance to record.
+      expect(batch.drafts[0].sourceSection).toBeUndefined();
+    });
+
+    it('rejects a cloze whose marker and answer counts disagree, keeping its valid siblings', async () => {
+      const mockAi = new MockAiAdapter({
+        structuredResponse: [
+          {
+            type: 'fill_in_blank',
+            prompt: 'Mismatched',
+            payload: { type: 'fill_in_blank', template: 'A ___ and a ___.', blanks: ['one'] },
+          },
+          ...clozePayload,
+        ],
+      });
+      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
+
+      const batch = await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
+
+      // Salvage-based, as every generator batch is: the sibling survives, the defect is named.
+      expect(batch.drafts).toHaveLength(1);
+      expect(batch.rejected).toEqual([
+        {
+          index: 0,
+          error: 'fill_in_blank requires one answer per ___ placeholder (2 in template, 1 supplied)',
+        },
+      ]);
+    });
+
+    it('asks the model for cloze atomicity only when the cloze type is allowed', async () => {
+      const mockAi = new MockAiAdapter({ structuredResponse: clozePayload });
+      const seen = recordRequests(mockAi);
+      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
+
+      await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
+      // The card prompt's real strength — one discrete fact per blank — survives the
+      // consolidation as a rule on the cloze schema rather than as a second prompt.
+      expect(seen[0].systemPrompt).toContain('CLOZE ATOMICITY');
+
+      await useCase.execute({ materialId: 'mat-bio-1', types: ['multiple_choice'] });
+      // A rule about a type the request excludes is noise in the prompt, so it is omitted.
+      expect(seen[1].systemPrompt).not.toContain('CLOZE ATOMICITY');
+    });
+  });
 });

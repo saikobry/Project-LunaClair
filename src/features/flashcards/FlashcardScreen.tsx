@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { useQueryClient } from '@tanstack/react-query';
 
 import { useQuestions } from '../quiz/hooks/queries/useQuestions';
 import { useQuizzes } from '../quiz/hooks/queries/useQuizzes';
 import { useFlashcardReviews } from './hooks/queries/useFlashcardReviews';
 import { useFlashcardRating } from './hooks/mutations/useFlashcardRating';
-import { useMaterial } from '../materials/hooks/queries/useMaterial';
-import { useToast } from '../../app/providers/ToastContext';
 import { orderDeck, type DeckStudyMode } from '../../domain/flashcards/engines/deck';
 import { questionToCards } from '../../domain/flashcards/engines/questionToCards';
 import type { Flashcard } from '../../domain/flashcards/models/Flashcard';
@@ -16,7 +13,6 @@ import type { FlashcardViewStep, FlashcardSessionSummary } from './types/flashca
 import { FlashcardDeckSetupView } from './components/FlashcardDeckSetupView';
 import { FlashcardPlayerView } from './components/FlashcardPlayerView';
 import { FlashcardSessionEndView } from './components/FlashcardSessionEndView';
-import { AiFlashcardGeneratorDialog } from '../ai/generator/components/AiFlashcardGeneratorDialog';
 
 const styles = stylex.create({
     container: {
@@ -37,6 +33,17 @@ const styles = stylex.create({
 
 interface FlashcardScreenProps {
     materialId: string;
+    /**
+     * Hands the user off to the Question Bank's AI generator for this material — the app's
+     * ONLY authoring surface.
+     *
+     * This feature owns no content. Cards are a projection of typed questions, so creating
+     * them means authoring questions, and that happens in one place. The workspace supplies
+     * this as a tab change (`?tab=questions`) plus a one-shot launch intent the workspace
+     * holds and threads on — it preselects Fill in the Blank and offers a way back to this
+     * tab; there is deliberately no generator, dialog, or write path on this screen.
+     */
+    onOpenQuestionBank: () => void;
 }
 
 const INITIAL_SUMMARY: FlashcardSessionSummary = {
@@ -47,22 +54,18 @@ const INITIAL_SUMMARY: FlashcardSessionSummary = {
     easyCount: 0,
 };
 
-export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
-    const queryClient = useQueryClient();
-    const { showToast } = useToast();
+export function FlashcardScreen({ materialId, onOpenQuestionBank }: FlashcardScreenProps) {
     const { questions, isLoading: loadingQuestions } = useQuestions(materialId);
     const { quizzes, isLoading: loadingQuizzes } = useQuizzes(materialId);
     const { reviews, isLoading: loadingReviews } = useFlashcardReviews(materialId);
     const { recordRating } = useFlashcardRating(materialId);
-    const { material, isLoading: loadingMaterial } = useMaterial(materialId);
 
     const [step, setStep] = useState<FlashcardViewStep>('setup');
-    const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
     const [deck, setDeck] = useState<Flashcard[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [summary, setSummary] = useState<FlashcardSessionSummary>(INITIAL_SUMMARY);
 
-    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews || loadingMaterial;
+    const isLoading = loadingQuestions || loadingQuizzes || loadingReviews;
 
     const handleStartSession = (selectedQuizId?: string, studyMode?: DeckStudyMode) => {
         let pool = questions.filter((q) => q.status !== 'archived');
@@ -150,7 +153,7 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     quizzes={quizzes}
                     reviews={reviews}
                     onStartSession={handleStartSession}
-                    onGenerateAi={() => setAiGeneratorOpen(true)}
+                    onOpenQuestionBank={onOpenQuestionBank}
                 />
             )}
 
@@ -168,19 +171,6 @@ export function FlashcardScreen({ materialId }: FlashcardScreenProps) {
                     summary={summary}
                     onRestudy={handleRestudy}
                     onDone={() => setStep('setup')}
-                />
-            )}
-
-            {aiGeneratorOpen && (
-                <AiFlashcardGeneratorDialog
-                    isOpen={aiGeneratorOpen}
-                    onClose={() => setAiGeneratorOpen(false)}
-                    materialId={materialId}
-                    materialTitle={material?.title || 'Study Material'}
-                    onSuccess={(count) => {
-                        showToast(`Added ${count} flashcards to your deck`, { intent: 'success' });
-                        queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });
-                    }}
                 />
             )}
         </div>

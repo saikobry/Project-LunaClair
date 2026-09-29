@@ -1,4 +1,4 @@
-import type { GeneratedQuestionDraft, GeneratedFlashcardDraft } from '../models/generator.types';
+import type { GeneratedQuestionDraft } from '../models/generator.types';
 import type { QuestionType } from '../../quiz/models/QuestionType';
 import type { QuestionDifficulty } from '../../quiz/models/Question';
 import type { QuestionAnswerPayload } from '../../quiz/models/AnswerPayload';
@@ -254,6 +254,10 @@ export interface DraftBatch<T> {
  * Fails only when there is nothing usable at all — a non-array, an empty array, or every item
  * invalid — because "the model produced nothing we can open a review step with" is a real failure,
  * whereas "the model produced nine good questions and one typo" is not.
+ *
+ * This is the **only** draft-array validator: there is no flashcard array. A card is a
+ * projection of a typed question, so a generated card arrives here as a `fill_in_blank` item
+ * and is held to the same `___`/blank parity as any other cloze.
  */
 export function validateQuestionsDraftArray(
   data: unknown,
@@ -282,60 +286,6 @@ export function validateQuestionsDraftArray(
     return {
       success: false,
       error: `No usable questions in the response (first problem: item ${rejected[0].index + 1} — ${rejected[0].error})`,
-    };
-  }
-
-  return {
-    success: true,
-    data: { drafts, rejected },
-  };
-}
-
-/**
- * Validates an array of flashcard drafts from AI output. Salvages valid cards on the same terms as
- * `validateQuestionsDraftArray`.
- */
-export function validateFlashcardsDraftArray(
-  data: unknown,
-): { success: true; data: DraftBatch<GeneratedFlashcardDraft> } | { success: false; error: string } {
-  if (!Array.isArray(data)) {
-    return { success: false, error: 'Expected an array of flashcards' };
-  }
-
-  if (data.length === 0) {
-    return { success: false, error: 'AI generated an empty array of flashcards' };
-  }
-
-  const drafts: GeneratedFlashcardDraft[] = [];
-  const rejected: RejectedDraft[] = [];
-
-  for (let i = 0; i < data.length; i++) {
-    const item = data[i];
-    if (!item || typeof item !== 'object') {
-      rejected.push({ index: i, error: 'must be an object' });
-      continue;
-    }
-    const obj = item as Record<string, unknown>;
-    const front = typeof obj.front === 'string' ? obj.front.trim() : '';
-    const back = typeof obj.back === 'string' ? obj.back.trim() : '';
-    if (!front || !back) {
-      rejected.push({ index: i, error: 'requires non-empty front and back text' });
-      continue;
-    }
-
-    drafts.push({
-      front,
-      back,
-      explanation: typeof obj.explanation === 'string' ? obj.explanation.trim() : undefined,
-      sourceSection: typeof obj.sourceSection === 'string' ? obj.sourceSection.trim() : undefined,
-      tags: Array.isArray(obj.tags) ? obj.tags.filter((t): t is string => typeof t === 'string') : [],
-    });
-  }
-
-  if (drafts.length === 0) {
-    return {
-      success: false,
-      error: `No usable flashcards in the response (first problem: card ${rejected[0].index + 1} — ${rejected[0].error})`,
     };
   }
 

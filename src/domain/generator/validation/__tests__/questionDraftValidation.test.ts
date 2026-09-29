@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
     validateQuestionDraft,
     validateQuestionsDraftArray,
-    validateFlashcardsDraftArray,
 } from '../questionDraftValidation';
 
 describe('questionDraftValidation', () => {
@@ -385,44 +384,6 @@ describe('questionDraftValidation', () => {
                             'fill_in_blank requires one answer per ___ placeholder (2 in template, 1 supplied)',
                     },
                 ]);
-            }
-        });
-    });
-
-    describe('validateFlashcardsDraftArray', () => {
-        it('validates flashcard drafts and ensures non-empty front and back', () => {
-            const rawCards = [
-                {
-                    front: '  Mitochondria  ',
-                    back: '  Powerhouse of the cell  ',
-                    tags: ['bio', 'cells'],
-                },
-            ];
-
-            const result = validateFlashcardsDraftArray(rawCards);
-
-            expect(result.success).toBe(true);
-            if (result.success) {
-                expect(result.data.drafts).toHaveLength(1);
-                expect(result.data.drafts[0].front).toBe('Mitochondria');
-                expect(result.data.drafts[0].back).toBe('Powerhouse of the cell');
-                expect(result.data.drafts[0].tags).toEqual(['bio', 'cells']);
-                expect(result.data.rejected).toEqual([]);
-            }
-        });
-
-        it('rejects cards with missing or whitespace-only front or back', () => {
-            const invalidCards = [
-                { front: 'Question', back: '   ' },
-            ];
-
-            const result = validateFlashcardsDraftArray(invalidCards);
-
-            // Every card invalid means there is no review step to open — that is still a failure.
-            expect(result.success).toBe(false);
-            if (!result.success) {
-                expect(result.error).toContain('No usable flashcards');
-                expect(result.error).toContain('card 1 — requires non-empty front and back text');
             }
         });
     });

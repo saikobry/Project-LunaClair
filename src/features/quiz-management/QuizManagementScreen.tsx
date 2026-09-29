@@ -3,13 +3,14 @@ import * as stylex from '@stylexjs/stylex';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../app/providers/ApplicationContext';
 import type { AppRoute } from '../../app/routing/routing';
-import type { ManageSection } from '../../app/routing/routing';
+import type { ManageSection, MaterialWorkspaceTab } from '../../app/routing/routing';
 import { useMaterial } from '../materials/hooks/queries/useMaterial';
 import { useDocument } from '../reader/hooks/useDocument';
 import { QuestionBankTab } from './components/QuestionBankTab';
 import { QuizCatalogTab } from './components/QuizCatalogTab';
 import { useQuestionManagement } from './hooks/useQuestionManagement';
 import { useQuizBuilder } from './hooks/useQuizBuilder';
+import type { GeneratorLaunchChannel } from './hooks/useGeneratorLaunchClaim';
 
 const styles = stylex.create({
     loading: {
@@ -31,9 +32,22 @@ interface QuizManagementScreenProps {
      * one section and owns no tab bar of its own.
      */
     section?: ManageSection;
+    /**
+     * Returns the workspace to a sibling tab. The Question Bank offers it on the
+     * generator's done step when it was reached through a launch intent, so a
+     * study surface that sent the user here can bring them straight back.
+     */
+    onReturnToTab?: (tab: MaterialWorkspaceTab) => void;
+    /**
+     * The workspace screen's one-shot launch intent — the pending request plus the single
+     * command that retires it. Passed through untouched: the workspace owns the state and
+     * this screen only carries it to the section that acts on it. Required rather than
+     * optional so no caller can silently drop the handoff.
+     */
+    generatorLaunch: GeneratorLaunchChannel;
 }
 
-export default function QuizManagementScreen({ materialId, onNavigate, section = 'questions' }: QuizManagementScreenProps) {
+export default function QuizManagementScreen({ materialId, onNavigate, section = 'questions', onReturnToTab, generatorLaunch }: QuizManagementScreenProps) {
     const context = useContext(ApplicationContext);
     if (!context) {
         throw new Error('QuizManagementScreen must be used within a <ApplicationProvider>');
@@ -81,6 +95,8 @@ export default function QuizManagementScreen({ materialId, onNavigate, section =
                     onRefresh={() => {
                         queryClient.invalidateQueries({ queryKey: ['assessment', 'questions', materialId] });
                     }}
+                    onReturnToTab={onReturnToTab}
+                    generatorLaunch={generatorLaunch}
                 />
             )}
 

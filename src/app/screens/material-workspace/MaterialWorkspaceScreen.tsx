@@ -4,6 +4,10 @@ import { BookOpen, BrainCircuit, Layers, PenTool, Library, ListChecks, Paperclip
 import type { AppRoute } from '../../routing/routing';
 import { isMaterialWorkspaceTab, workspaceModeOfTab, type MaterialWorkspaceTab, type WorkspaceMode } from '../../routing/routing';
 import { useMaterial } from '../../../features/materials/hooks/queries/useMaterial';
+import type {
+    GeneratorLaunchChannel,
+    GeneratorLaunchIntent,
+} from '../../../features/quiz-management/hooks/useGeneratorLaunchClaim';
 import { useCollection } from '../../../features/collections/hooks/queries/useCollection';
 import { useDocument } from '../../../features/reader/hooks/useDocument';
 import { useMaterialAssets } from '../../../features/reader/hooks/useMaterialAssets';
@@ -92,6 +96,43 @@ export function MaterialWorkspaceScreen({
   // switches across modes.
   const visitedTabs = useVisitedTabs(safeTab);
 
+  /**
+   * The workspace-held one-shot launch intent, threaded down to the Question Bank. It is state
+   * HERE, on the screen that scopes the command, rather than a channel on the app shell: the
+   * request is addressed to one material's Question Bank and is retired as soon as the Bank
+   * acts on it, so it has neither the lifetime nor the reach that would justify a provider.
+   * `FocusModeProvider` is the counter-example that keeps its home at the shell — a mode that
+   * must outlive any single route. This starts `null` on every mount, so a deep link
+   * (`?tab=questions` typed or shared) fires nothing, and it expires with the material it was
+   * armed for, so it cannot outlive the workspace it was meant for either.
+   */
+  const [launchIntent, setLaunchIntent] = useState<GeneratorLaunchIntent | null>(null);
+
+  // A launch is addressed to ONE material's Question Bank, and this screen instance is reused
+  // when the route's material changes — `ShellRoutes` renders it without a key — so a pending
+  // intent must expire with the material it was armed for. Carried across, it sits armed
+  // against a different material's workspace (which is why the Bank's own material check
+  // declines it) and re-fires the generator when the user returns to the first material, long
+  // after the request was made. A render-phase adjustment, like `useVisitedTabs` and
+  // `lastInMode` below: the expiry is a fact about the route, not a follow-up effect, and the
+  // screen's state is what has to let go of it.
+  if (launchIntent !== null && launchIntent.materialId !== materialId) {
+    setLaunchIntent(null);
+  }
+
+  // Retirement NAMES the intent it retires rather than emptying the state blindly, so a dialog
+  // that a newer launch has already superseded cannot clear the launch that replaced it. The
+  // owner is the only party that knows which intent is currently armed.
+  const retireLaunch = useCallback((target: GeneratorLaunchIntent) => {
+    setLaunchIntent((current) => (current === target ? null : current));
+  }, []);
+  // The pending request and the single command that retires it travel as one object, so no hop
+  // can be threaded with one half and not the other.
+  const generatorLaunch = useMemo<GeneratorLaunchChannel>(
+    () => ({ intent: launchIntent, onRetire: retireLaunch }),
+    [launchIntent, retireLaunch],
+  );
+
   // Last-visited tab per mode: the mode switch returns to where the mode was
   // left. Re-synced during render (guarded adjustment, so Back/Forward and
   // deep links correct it) and recorded on every tab change.
@@ -161,6 +202,22 @@ export function MaterialWorkspaceScreen({
     setLastInMode((prev) => ({ ...prev, [workspaceModeOfTab(tab)]: tab }));
     onNavigate({ kind: 'workspace', workspace: 'material', materialId, activeTab: tab, fromCollectionId });
   }, [onNavigate, materialId, fromCollectionId]);
+
+  /**
+   * The Flashcards tab's authoring handoff. It arms this screen's one-shot launch intent —
+   * Fill in the Blank preselected, and a "Study these questions" way back to this tab — and
+   * then makes the ordinary `?tab=questions` change. The mode tier still moves to Manage,
+   * because the Question Bank genuinely lives there; what the intent adds is the way back,
+   * so the user is not left to rediscover Study → Flashcards by hand.
+   */
+  const handleGenerateCards = useCallback(() => {
+    setLaunchIntent({
+      materialId,
+      requestedTypes: ['fill_in_blank'],
+      returnTo: { tab: 'flashcards', label: 'Study these questions' },
+    });
+    handleTabChange('questions');
+  }, [materialId, handleTabChange]);
 
   const handleModeChange = useCallback((nextMode: WorkspaceMode) => {
     onNavigate({
@@ -239,6 +296,8 @@ export function MaterialWorkspaceScreen({
         onQuizExit={handleQuizExit}
         onPreviewFile={setSourceAsset}
         onNavigate={onNavigate}
+        onGenerateCards={handleGenerateCards}
+        generatorLaunch={generatorLaunch}
       />
 
       {isAiOpen && (

@@ -8,6 +8,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 
 - `helpers/e2e-setup.ts` — `locators`, `switchToRawMode`, `switchToVisualMode`, `switchToReadMode`, `setupApiMocks`, `resetDatabase`.
 - `helpers/share-seed.ts` — the share-route mock and the real clone flow (`routeShare`, `cloneShareToLibrary`, `ShareFixture`, `WorkspaceTab`).
+- `helpers/ai-prompt.ts` — `readAllowedQuestionTypes` / `requestsOnlyType` / `describeUnreadableAllowedTypes`: the single reader for "what did this generation request actually ask for", read off the app's own `- Allowed Question Types:` line in the **system** prompt. A `/api/ai/chat` route mock that must answer differently per request kind (e.g. the cloze-only card request vs. a general batch) uses this instead of parsing inline, so a prompt reword is a one-file fix. It is deliberately **tolerant**: an unrecognised prompt yields an empty list rather than throwing, which routes the mock down its default branch instead of failing a spec with a confusing content mismatch; `describeUnreadableAllowedTypes` exists so that case is still reported as what it is. Unit-tested by `src/__tests__/e2eFixtures/ai-prompt.test.ts` (Vitest, not Playwright).
 - `helpers/fixtures/` — the committed `.lcpack` payloads specs serve, and the per-fixture modules that expose them.
 - `*/<name>.spec.ts` — one directory per feature area (`analytics/insights.spec.ts` covers the Insights surface: the projected-card pool total, the stranded-schedule footnote after archived questions, and the post-write refresh).
 
@@ -24,6 +25,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 - **Close the AI drawer before global navigation.** Its non-modal backdrop intentionally intercepts page clicks; close the drawer before clicking header or sidebar navigation in acceptance specs.
 - **`resetDatabase` writes `onboarding_done = 1`**, so it cannot be used to reach the first-run state; onboarding specs must arrange their own initial state with an init script and must not assert retired academic-term routes.
 - **Support-code boundaries:** `resetDatabase` is the only content-reset helper; direct IndexedDB use in `database/reload-recovery.spec.ts` and the settings thread-count probe is intentional diagnostics, not fixture seeding. The package-sharing spec keeps custom POST/detail/download handlers only for its publish/passcode flow; its seed share uses `routeShare`. Content-dependent assertions require visible fixture text or a nonzero graph, and quiz cards expose `data-quiz-id` for scoped locators.
+- **This folder holds Playwright specs only — `*.spec.ts`.** Playwright's default `testMatch` is used, unoverridden, because nothing else matches it. A Vitest test that supports this suite does **not** live here: put it in `src/__tests__/e2eFixtures/`, which Vitest's default `src/**/*.test.{ts,tsx}` include already picks up, and from which the helper is imported by relative path (`../../../tests/e2e/helpers/<name>`). That keeps `vitest.config.ts` and `playwright.config.ts` free of suite-splitting special cases, and mirrors the existing `cellStructureFixture.test.ts`. Those tests are outside all four tsconfig projects, so they are not typechecked by `tsc -b`.
 - No CI runs this suite (deliberate project convention) — a green run is a manual gate.
 
 ## Work Guidance
@@ -36,7 +38,7 @@ End-to-end acceptance specs for the real app in Chromium, plus the shared helper
 
 - `npm run test:e2e` — full suite; must be green from a clean browser/IndexedDB state, twice in a row.
 - `npx playwright test tests/e2e/<area>/<spec>.spec.ts` — single spec while iterating.
-- `npm run test:run` — covers the fixture contract from both sides: validity + freshness under `src/__tests__/e2eFixtures/`, and the Worker's publish validator (`validateServerStudyPackage`) under `worker/src/__tests__/shareFixtureValidation.test.ts`.
+- `npm run test:run` — covers the fixture contract from both sides: validity + freshness under `src/__tests__/e2eFixtures/`, and the Worker's publish validator (`validateServerStudyPackage`) under `worker/src/__tests__/shareFixtureValidation.test.ts`. It is also how the helpers' Vitest unit tests run (`src/__tests__/e2eFixtures/ai-prompt.test.ts`).
 
 ## Child DOX Index
 

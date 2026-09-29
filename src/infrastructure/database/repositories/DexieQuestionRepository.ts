@@ -6,6 +6,7 @@ import type {
 } from '../../../domain/quiz/repositories/QuestionRepository';
 import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
 import { normalizeTags } from '../../../shared/utils/tags';
+import { normalizeSourceSection } from '../../../shared/utils/sourceSection';
 import { DexieFlashcardReviewRepository } from './DexieFlashcardReviewRepository';
 import { db } from '../schema/LunaClairDatabase';
 
@@ -53,6 +54,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             points: input.points ?? 1,
             explanation: input.explanation,
             tags: normalizeTags(input.tags),
+            sourceSection: normalizeSourceSection(input.sourceSection),
             status: input.status ?? 'draft',
             version: 1,
             createdAt: now,
@@ -75,6 +77,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             points: input.points ?? 1,
             explanation: input.explanation,
             tags: normalizeTags(input.tags),
+            sourceSection: normalizeSourceSection(input.sourceSection),
             status: input.status ?? 'draft',
             version: 1,
             createdAt: now,
@@ -96,6 +99,23 @@ export class DexieQuestionRepository implements QuestionRepository {
             ...existing,
             ...input,
             tags: normalizeTags(input.tags ?? existing.tags),
+            // `sourceSection` is a **three-state** field, and the three states are told apart on
+            // the RAW input rather than on its normalized value, because "absent" and "present
+            // but blank" both normalize to `undefined` and must not collapse into one:
+            //
+            //   absent   (`undefined`) — preserve the stored label. This is what a
+            //                      publish/archive/difficulty-only save takes, so an unrelated
+            //                      edit can never erase provenance it never carried.
+            //   blank    (`''`/`'  '`) — CLEAR the label. A caller that means "this question has
+            //                      no known origin" says so explicitly.
+            //   labelled — replace it.
+            //
+            // Decided before the normalizer runs (rather than by the `??` inside it) so the
+            // contract is the code's own statement and not an accident of ordering.
+            sourceSection:
+                input.sourceSection === undefined
+                    ? existing.sourceSection
+                    : normalizeSourceSection(input.sourceSection),
             version: existing.version + 1,
             updatedAt: new Date().toISOString(),
         };
