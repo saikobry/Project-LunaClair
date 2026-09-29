@@ -1,20 +1,17 @@
-import type { LibraryImportService, ImportMaterialInput } from '../../../domain/library/services/LibraryImportService';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
-import type { Question } from '../../../domain/quiz/models/Question';
-import type { Quiz } from '../../../domain/quiz/models/Quiz';
-import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import type { LibraryImportService } from '../../../domain/library/services/LibraryImportService';
 import { DexieFlashcardReviewRepository } from '../repositories/DexieFlashcardReviewRepository';
 import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Concrete `LibraryImportService` backed by Dexie.
  *
- * `importMaterial` writes the material row, its questions/quizzes, and its
- * locally imported document content inside a single `db.transaction('rw')` —
- * atomic: either the whole import lands or none of it does.
- *
- * `importMaterialBatch` accepts multiple materials and commits everything in
- * one single atomic transaction.
+ * **Removal only.** The `importMaterial` / `importMaterialBatch` methods were
+ * deleted in Sep 2026: no production caller remained after the catalog-era
+ * import use cases were removed, and they wrote to `db.questions` with no
+ * payload validator — the one ungated write surface left in a codebase where
+ * every live ingress runs `validateQuestionPayload`. Library population goes
+ * through `DexieStudyPackageImportService` (cloned share / imported `.lcpack`,
+ * which validates) and the importer use cases; nothing here creates content.
  *
  * `removeMaterial` deletes the material row, its questions/quizzes, its
  * document content, its `collectionMaterials` junction rows, every stored
@@ -44,55 +41,6 @@ export class DexieLibraryImportService implements LibraryImportService {
     constructor(db: LunaClairDatabase = defaultDb) {
         this.db = db;
         this.flashcardReviews = new DexieFlashcardReviewRepository(db);
-    }
-
-    async importMaterial(input: ImportMaterialInput): Promise<void> {
-        await this.db.transaction(
-            'rw',
-            [
-                this.db.materials,
-                this.db.questions,
-                this.db.quizzes,
-                this.db.documentContents,
-            ],
-            async () => {
-                await this.db.materials.put(input.material);
-                if (input.questions.length > 0) await this.db.questions.bulkPut(input.questions);
-                if (input.quizzes.length > 0) await this.db.quizzes.bulkPut(input.quizzes);
-                if (input.documentContent) await this.db.documentContents.put(input.documentContent);
-            },
-        );
-    }
-
-    async importMaterialBatch(inputs: ImportMaterialInput[]): Promise<void> {
-        if (inputs.length === 0) return;
-        await this.db.transaction(
-            'rw',
-            [
-                this.db.materials,
-                this.db.questions,
-                this.db.quizzes,
-                this.db.documentContents,
-            ],
-            async () => {
-                const materials: StudyMaterial[] = [];
-                const questions: Question[] = [];
-                const quizzes: Quiz[] = [];
-                const documentContents: ImportedDocumentContent[] = [];
-
-                for (const input of inputs) {
-                    materials.push(input.material);
-                    if (input.questions.length > 0) questions.push(...input.questions);
-                    if (input.quizzes.length > 0) quizzes.push(...input.quizzes);
-                    if (input.documentContent) documentContents.push(input.documentContent);
-                }
-
-                if (materials.length > 0) await this.db.materials.bulkPut(materials);
-                if (questions.length > 0) await this.db.questions.bulkPut(questions);
-                if (quizzes.length > 0) await this.db.quizzes.bulkPut(quizzes);
-                if (documentContents.length > 0) await this.db.documentContents.bulkPut(documentContents);
-            },
-        );
     }
 
     async removeMaterial(materialId: string): Promise<void> {

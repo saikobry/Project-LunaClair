@@ -5,8 +5,6 @@ import type { LibraryImportService } from '../../../../domain/library/services/L
 describe('RemoveMaterialUseCase', () => {
     it('delegates deletion of local material, quiz content, and document to libraryImport service', async () => {
         const mockLibraryImport: LibraryImportService = {
-            importMaterial: vi.fn(),
-            importMaterialBatch: vi.fn(),
             removeMaterial: vi.fn().mockResolvedValue(undefined),
         };
 
@@ -18,8 +16,6 @@ describe('RemoveMaterialUseCase', () => {
 
     it('propagates error when local removal fails', async () => {
         const mockLibraryImport: LibraryImportService = {
-            importMaterial: vi.fn(),
-            importMaterialBatch: vi.fn(),
             removeMaterial: vi.fn().mockRejectedValue(new Error('IndexedDB transaction failed')),
         };
 

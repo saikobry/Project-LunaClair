@@ -313,4 +313,121 @@ describe('quizDraftValidation', () => {
             expect(validateQuizDraft(draft)).toBeNull();
         });
     });
+
+    /**
+     * Two structural facts have no authoring rule, so the canvas used to accept
+     * them: `validateQuestionPayload` — the single owner of the rule, the same
+     * one the package validator and the Question Bank run — is what now refuses
+     * them. The findings carry the owner's wording verbatim, because it is a
+     * frozen contract mirrored byte-for-byte by the Worker, and re-wording it
+     * here is how a second rule starts.
+     */
+    describe('Structural rules owned by validateQuestionPayload', () => {
+        /**
+         * `q.type` and `payload.type` are two statements about the same fact, and
+         * `questionToCards` dispatches on the payload's while the canvas labels
+         * the card by the declared one — so a card that disagrees studies in a
+         * shape its type does not predict.
+         */
+        it('refuses a card whose payload.type disagrees with its declared type', () => {
+            const draft = createBaseDraft({
+                items: [
+                    createBaseItem({
+                        type: 'identification',
+                        payload: {
+                            type: 'multiple_choice',
+                            choices: ['Nucleus', 'Mitochondria'],
+                            correctIndex: 1,
+                        },
+                    }),
+                ],
+            });
+
+            expect(validateQuizDraft(draft)?.items['card-1']).toContain(
+                'payload.type "multiple_choice" does not match question type "identification".',
+            );
+        });
+
+        it('refuses a non-array acceptedAlternatives', () => {
+            const draft = createBaseDraft({
+                items: [
+                    createBaseItem({
+                        type: 'identification',
+                        payload: {
+                            type: 'identification',
+                            correctAnswer: 'Mitochondria',
+                            acceptedAlternatives: 'Powerhouse of the cell' as unknown as string[],
+                        },
+                    }),
+                ],
+            });
+
+            expect(validateQuizDraft(draft)?.items['card-1']).toContain(
+                'identification payload "acceptedAlternatives" must be an array of strings when provided.',
+            );
+        });
+
+        it('refuses an acceptedAlternatives holding a non-string', () => {
+            const draft = createBaseDraft({
+                items: [
+                    createBaseItem({
+                        type: 'identification',
+                        payload: {
+                            type: 'identification',
+                            correctAnswer: 'Mitochondria',
+                            acceptedAlternatives: ['Powerhouse of the cell', 42 as unknown as string],
+                        },
+                    }),
+                ],
+            });
+
+            expect(validateQuizDraft(draft)?.items['card-1']).toContain(
+                'identification payload "acceptedAlternatives" must be an array of strings when provided.',
+            );
+        });
+
+        /**
+         * The control: the owner is a gate, not a new obstacle. A well-formed card
+         * that carries the optional field genuinely present is still valid, so the
+         * save proceeds (`null` is what `SaveQuizUseCase` reads as "no errors").
+         */
+        it('accepts a well-formed card carrying a real acceptedAlternatives array', () => {
+            const draft = createBaseDraft({
+                items: [
+                    createBaseItem({
+                        type: 'identification',
+                        payload: {
+                            type: 'identification',
+                            correctAnswer: 'Mitochondria',
+                            acceptedAlternatives: ['Powerhouse of the cell', 'Powerhouse'],
+                        },
+                    }),
+                ],
+            });
+
+            expect(validateQuizDraft(draft)).toBeNull();
+        });
+
+        /**
+         * The authoring rules keep their own voice on the fields they own: a card
+         * the canvas already reports is not additionally judged by the owner, so
+         * one defect is never reported twice in two vocabularies.
+         */
+        it('does not double-report a field the authoring rules already own', () => {
+            const draft = createBaseDraft({
+                items: [
+                    createBaseItem({
+                        type: 'multiple_choice',
+                        payload: {
+                            type: 'multiple_choice',
+                            choices: ['Only one choice'],
+                            correctIndex: 0,
+                        },
+                    }),
+                ],
+            });
+
+            expect(validateQuizDraft(draft)?.items['card-1']).toEqual(['Add at least two choices.']);
+        });
+    });
 });

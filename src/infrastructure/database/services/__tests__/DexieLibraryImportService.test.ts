@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { LunaClairDatabase } from '../../schema/LunaClairDatabase';
 import { DexieLibraryImportService } from '../DexieLibraryImportService';
-import type { ImportMaterialInput } from '../../../../domain/library/services/LibraryImportService';
 import type { StudyMaterial } from '../../../../domain/library/models/StudyMaterial';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
@@ -23,7 +22,14 @@ describe('DexieLibraryImportService', () => {
     db.close();
   });
 
-  function createSampleInput(id = 'mat-1'): ImportMaterialInput {
+  /**
+   * Seeds the rows a material owns, straight into the stores. The service is
+   * removal-only, so the fixture is written by the database rather than through
+   * it: what these tests assert is what `removeMaterial` clears, and each
+   * dependency is named explicitly rather than bundled by a helper the service
+   * used to provide.
+   */
+  async function seedMaterial(id = 'mat-1') {
     const now = '2026-08-01T00:00:00.000Z';
     const material: StudyMaterial = {
       id,
@@ -63,12 +69,10 @@ describe('DexieLibraryImportService', () => {
       updatedAt: now,
     };
 
-    return {
-      material,
-      questions: [question],
-      quizzes: [quiz],
-      documentContent,
-    };
+    await db.materials.put(material);
+    await db.questions.put(question);
+    await db.quizzes.put(quiz);
+    await db.documentContents.put(documentContent);
   }
 
   function reviewState(key: string, materialId: string) {
@@ -85,19 +89,8 @@ describe('DexieLibraryImportService', () => {
     };
   }
 
-  it('atomically imports full material bundle across all 4 stores', async () => {
-    const input = createSampleInput('mat-1');
-    await service.importMaterial(input);
-
-    expect(await db.materials.get('mat-1')).toBeDefined();
-    expect(await db.questions.get('q-mat-1')).toBeDefined();
-    expect(await db.quizzes.get('quiz-mat-1')).toBeDefined();
-    expect(await db.documentContents.get('doc-mat-1')).toBeDefined();
-  });
-
-  it('removes imported material, questions, quizzes, and document content', async () => {
-    const input = createSampleInput('mat-del');
-    await service.importMaterial(input);
+  it('removes the material, its questions, quizzes, and document content', async () => {
+    await seedMaterial('mat-del');
 
     await service.removeMaterial('mat-del');
 
@@ -109,7 +102,7 @@ describe('DexieLibraryImportService', () => {
   });
 
   it('rolls back asset removal when the removal transaction fails', async () => {
-    await service.importMaterial(createSampleInput('mat-rollback'));
+    await seedMaterial('mat-rollback');
     await seedAssets('mat-rollback', 1);
     await db.collections.put({
       id: 'col-rollback',
@@ -169,8 +162,8 @@ describe('DexieLibraryImportService', () => {
   }
 
   it('removes every stored binary asset of the material, including N package figures', async () => {
-    await service.importMaterial(createSampleInput('mat-owned'));
-    await service.importMaterial(createSampleInput('mat-other'));
+    await seedMaterial('mat-owned');
+    await seedMaterial('mat-other');
     await seedAssets('mat-owned', 3);
     await seedAssets('mat-other', 2);
 
@@ -188,8 +181,8 @@ describe('DexieLibraryImportService', () => {
    * Library's `uncollected` lens) while the material itself no longer exists.
    */
   it('removes the material from every collection it was filed into', async () => {
-    await service.importMaterial(createSampleInput('mat-filed'));
-    await service.importMaterial(createSampleInput('mat-unfiled'));
+    await seedMaterial('mat-filed');
+    await seedMaterial('mat-unfiled');
 
     await db.collections.put({
       id: 'col-1',
@@ -220,8 +213,8 @@ describe('DexieLibraryImportService', () => {
    * question `q:<id>` keys and per-blank `q:<id>#<n>` keys alike.
    */
   it('removes and tombstones every flashcard schedule of the material, including per-blank keys', async () => {
-    await service.importMaterial(createSampleInput('mat-studied'));
-    await service.importMaterial(createSampleInput('mat-untouched'));
+    await seedMaterial('mat-studied');
+    await seedMaterial('mat-untouched');
     await db.flashcardReviews.bulkPut([
       reviewState('q:q-mat-studied', 'mat-studied'),
       reviewState('q:q-mat-studied#0', 'mat-studied'),
@@ -246,7 +239,7 @@ describe('DexieLibraryImportService', () => {
   });
 
   it('rolls the material removal back when the review tombstone write fails', async () => {
-    await service.importMaterial(createSampleInput('mat-tombstone-fail'));
+    await seedMaterial('mat-tombstone-fail');
     await db.flashcardReviews.put(reviewState('q:q-mat-tombstone-fail', 'mat-tombstone-fail'));
     await db.syncQueue.clear();
 
@@ -261,34 +254,5 @@ describe('DexieLibraryImportService', () => {
     expect(await db.questions.get('q-mat-tombstone-fail')).toBeDefined();
     expect((await db.flashcardReviews.toArray()).map((r) => r.key)).toEqual(['q:q-mat-tombstone-fail']);
     expect(await db.syncQueue.toArray()).toEqual([]);
-  });
-
-  it('imports material batch atomically', async () => {
-    const input1 = createSampleInput('mat-batch-1');
-    const input2 = createSampleInput('mat-batch-2');
-
-    await service.importMaterialBatch([input1, input2]);
-
-    expect(await db.materials.count()).toBe(2);
-    expect(await db.questions.count()).toBe(2);
-    expect(await db.quizzes.count()).toBe(2);
-    expect(await db.documentContents.count()).toBe(2);
-  });
-
-  it('rolls back entire transaction if document content write fails', async () => {
-    const input = createSampleInput('mat-fail');
-
-    // Intercept documentContents.put to fail after material, etc. were staged
-    vi.spyOn(db.documentContents, 'put').mockRejectedValueOnce(
-      new Error('Simulated document content failure'),
-    );
-
-    await expect(service.importMaterial(input)).rejects.toThrow('Simulated document content failure');
-
-    // Verify atomic rollback across all tables
-    expect(await db.materials.count()).toBe(0);
-    expect(await db.questions.count()).toBe(0);
-    expect(await db.quizzes.count()).toBe(0);
-    expect(await db.documentContents.count()).toBe(0);
   });
 });

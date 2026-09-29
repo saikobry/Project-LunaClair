@@ -1,5 +1,6 @@
 import type { QuizDraft, QuestionDraft } from './QuizDraft';
 import type { QuestionAnswerPayload } from '../../../domain/quiz/models/AnswerPayload';
+import { validateQuestionPayload } from '../../../domain/quiz/validation/questionPayloadValidation';
 
 /**
  * Structured validation errors for a `QuizDraft`.
@@ -72,7 +73,33 @@ function validateItem(item: QuestionDraft): string[] {
     if (Number.isNaN(item.points) || item.points < 1) {
         errors.push('Points must be at least 1.');
     }
-    errors.push(...validatePayload(item.payload));
+
+    // Two rules on one card, two jobs, and only one owner each.
+    //
+    // `validatePayload` above is this module's own: it is the *authoring* voice. It names the field
+    // to fix, keeps to one message per field, and only ever looks at `payload.type` — the shape the
+    // canvas card is actually rendered from.
+    //
+    // `validateQuestionPayload` is the *structural* owner (domain/quiz/validation), the same rule the
+    // package validator, the Question Bank and the generator run, and its wording is a frozen
+    // contract mirrored by the Worker. It judges `payload` against a declared type and reports every
+    // defect it finds. So it is called, never restated — but only for a card the authoring rules
+    // accepted, which is what keeps the two from double-reporting one defect in two vocabularies.
+    // Two facts have no authoring rule at all, and therefore no other way to be caught here: a
+    // `payload.type` that disagrees with the card's declared `type` (the UI lists and labels the card
+    // by the declared type while `questionToCards` dispatches on `payload.type`, so a mismatch
+    // studies in a shape the declared type does not predict), and an `acceptedAlternatives` that is
+    // not an array of strings.
+    //
+    // A card the authoring rules already refused is not judged again here. That is not a weaker
+    // gate: such a card is refused either way and the structural findings surface on top of the
+    // authoring ones as soon as the authoring rules are satisfied. What it costs is a message this
+    // save does not show, on a card whose fixable field is the one the author is already reading.
+    const authoringErrors = validatePayload(item.payload);
+    errors.push(...authoringErrors);
+    if (authoringErrors.length === 0) {
+        errors.push(...validateQuestionPayload(item.type, item.payload));
+    }
     return errors;
 }
 
@@ -81,6 +108,13 @@ function validateItem(item: QuestionDraft): string[] {
  *
  * Returns `null` when the draft is valid, otherwise a structured error map
  * (top-level `title` error plus per-card item errors keyed by `tempId`).
+ *
+ * This is a validating write boundary for the quiz canvas, and it is **not** a
+ * second copy of the payload rule: a card the authoring rules accept is handed
+ * to `domain/quiz/validation/questionPayloadValidation` — the single owner —
+ * so the canvas cannot save a payload the Question Bank or the package
+ * validator would refuse. See `validateItem` for why the two are combined in
+ * that order rather than merged.
  */
 export function validateQuizDraft(draft: QuizDraft): QuizDraftErrors | null {
     const errors: QuizDraftErrors = { items: {} };
