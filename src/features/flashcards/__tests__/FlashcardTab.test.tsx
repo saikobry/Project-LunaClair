@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FlashcardScreen } from '../FlashcardScreen';
+import { FlashcardTab } from '../FlashcardTab';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../app/providers/ToastContext';
 import type { Question } from '../../../domain/quiz/models/Question';
@@ -10,7 +10,7 @@ import type { Quiz } from '../../../domain/quiz/models/Quiz';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import { flashcardQueryKeys } from '../queries/flashcardQueryKeys';
 
-describe('FlashcardScreen', () => {
+describe('FlashcardTab', () => {
     let queryClient: QueryClient;
     let mockRecordReview: { execute: ReturnType<typeof vi.fn> };
     let mockContext: any;
@@ -130,7 +130,7 @@ describe('FlashcardScreen', () => {
     );
 
     it('renders deck setup view and transitions to active session on start', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         // Wait for setup view to load
         await waitFor(() => {
@@ -174,7 +174,7 @@ describe('FlashcardScreen', () => {
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockQuestions[1], mockQuestions[0]]);
         mockContext.repositories.quiz.getQuizzes.mockResolvedValue([practiceQuiz, masterQuiz]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -246,7 +246,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('flips card on click and records rating on rating button click', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -288,7 +288,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('shows a choice card’s options ungraded and marks the correct one after the flip', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -322,7 +322,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('labels a recall card’s difficulty as the source question’s, with no card-shape badge', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('completes the deck and shows session summary when all cards are reviewed', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -381,7 +381,7 @@ describe('FlashcardScreen', () => {
         // it would promise 1 card and the "Due Cards Only" session would show 3.
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe('FlashcardScreen', () => {
     it('expands a multi-blank question into one independently rated card per blank', async () => {
         mockContext.repositories.question.getQuestions.mockResolvedValue([mockClozeQuestion]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -450,7 +450,7 @@ describe('FlashcardScreen', () => {
     });
 
     it('bounds each face in a keyboard-focusable scroll region and keeps the rating bar reachable', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
         });
@@ -503,7 +503,7 @@ describe('FlashcardScreen', () => {
 
     it('owns no authoring: the populated deck offers only a quiet route to the Question Bank', async () => {
         const onOpenQuestionBank = vi.fn();
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument();
@@ -533,7 +533,7 @@ describe('FlashcardScreen', () => {
  * fresh deck the selector defaults to All Cards, so the only way to reach the
  * empty state is to narrow the deck yourself.
  */
-describe('FlashcardScreen — empty deck', () => {
+describe('FlashcardTab — empty deck', () => {
     let queryClient: QueryClient;
     let mockRecordReview: { execute: ReturnType<typeof vi.fn> };
     let mockContext: any;
@@ -671,7 +671,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -702,7 +702,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
         fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
@@ -717,7 +717,7 @@ describe('FlashcardScreen — empty deck', () => {
     });
 
     it('disables Start and names the selection when the quiz filter holds no cards', async () => {
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -748,7 +748,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueOneMinuteAgo),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -785,7 +785,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
 
@@ -815,7 +815,7 @@ describe('FlashcardScreen — empty deck', () => {
             reviewFor('q:q-2', dueInThreeDays),
         ]);
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={vi.fn()} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('Start Flashcard Session')).toBeInTheDocument());
         fireEvent.click(screen.getByRole('button', { name: /Due Cards Only/ }));
@@ -845,7 +845,7 @@ describe('FlashcardScreen — empty deck', () => {
         mockContext.repositories.question.getQuestions.mockResolvedValue([]);
         const onOpenQuestionBank = vi.fn();
 
-        render(<FlashcardScreen materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
+        render(<FlashcardTab materialId="mat-1" onOpenQuestionBank={onOpenQuestionBank} />, { wrapper: createWrapper() });
 
         await waitFor(() => expect(screen.getByText('No Flashcards Available')).toBeInTheDocument());
 

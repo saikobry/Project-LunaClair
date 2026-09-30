@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import ReaderScreen from '../ReaderScreen';
+import ReaderTab from '../ReaderTab';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { ToastProvider } from '../../../app/providers/ToastContext';
 import { FocusModeProvider } from '../../../app/providers/FocusModeContext';
@@ -14,7 +14,7 @@ import * as useDrawingsModule from '../hooks/useDrawings';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { Document } from '../../../domain/reader/models/Document';
 
-describe('ReaderScreen', () => {
+describe('ReaderTab', () => {
   let queryClient: QueryClient;
   let mockContext: any;
   let mockClearHighlights: ReturnType<typeof vi.fn>;
@@ -103,13 +103,13 @@ describe('ReaderScreen', () => {
     } as any);
   });
 
-  const renderScreen = (props: Partial<React.ComponentProps<typeof ReaderScreen>> = {}) => {
+  const renderScreen = (props: Partial<React.ComponentProps<typeof ReaderTab>> = {}) => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ApplicationContext.Provider value={mockContext}>
           <FocusModeProvider isFocusMode={false}>
             <ToastProvider>
-              <ReaderScreen materialId="mat-101" {...props} />
+              <ReaderTab materialId="mat-101" {...props} />
             </ToastProvider>
           </FocusModeProvider>
         </ApplicationContext.Provider>

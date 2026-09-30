@@ -53,7 +53,7 @@ const styles = stylex.create({
   },
 });
 
-interface QuizScreenProps {
+interface QuizTabProps {
   quizId: string;
   materialIds: string[];
   quizIds?: string[];
@@ -186,7 +186,7 @@ function QuizEmptyNotice({ hasArchivedOnly }: { hasArchivedOnly: boolean }) {
   );
 }
 
-export default function QuizScreen({ quizId, materialIds, quizIds, onExit, onOpenManagement, embedded = false }: QuizScreenProps) {
+export default function QuizTab({ quizId, materialIds, quizIds, onExit, onOpenManagement, embedded = false }: QuizTabProps) {
   const { showToast } = useToast();
   const [activeQuizId, setActiveQuizId] = useState<string | undefined>(quizId || undefined);
   const [isStarted, setIsStarted] = useState(false);

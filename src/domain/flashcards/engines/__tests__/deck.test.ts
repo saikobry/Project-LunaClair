@@ -112,7 +112,7 @@ describe('orderDeck', () => {
     });
 
     it('keeps the incoming (quiz-item) order for cards with no review history', () => {
-        // FlashcardScreen projects the selected quiz's questions — already
+        // FlashcardTab projects the selected quiz's questions — already
         // arranged by Quiz.items[].order — before calling orderDeck. With no
         // reviews every card lands in the `new` bucket, which preserves that
         // incoming order verbatim.

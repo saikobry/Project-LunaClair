@@ -8,7 +8,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 
 | Path | Responsibility |
 |---|---|
-| `QuizScreen.tsx` | Feature-root screen orchestrator. Manages quiz launch requests (exam vs practice mode, single quiz vs virtual composite), wraps session flow, and handles completion transitions. |
+| `QuizTab.tsx` | Feature orchestrator. Manages quiz launch requests (exam vs practice mode, single quiz vs virtual composite), wraps session flow, and handles completion transitions (mounted as a routed screen by QuizSessionScreen or embedded as a workspace tab). |
 | `components/` | Presentational views: `QuestionRenderer` (MC, MS, TF, Identification, FillBlank), `QuizStartView`, `QuizView`, `QuizResultView`, `QuestionSkeleton`. `IdentificationQuestion` renders the shared `<Input>` with the question prompt as its label (no hand-wired `useId`/`htmlFor`); `FillBlankQuestion` deliberately keeps raw inline `<input>`s because each blank sits inside a sentence template where field chrome would break the prose flow — it only tokenizes its border. |
 | `hooks/session/` | Active session state machine hooks: `useQuizSessionFlow` (master orchestrator), `useQuizProgress` (index bounds & answer map), `useQuizPersistence` (start/submit/abandon dispatches), `useQuizLoader` (single quiz, virtual quiz composite, or material questions). |
 | `hooks/queries/` | Read queries: `useQuestions`, `useQuizzes`. |
@@ -19,7 +19,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
 
 ## Local Contracts
 
-- **Feature-Root Screen Orchestrator**: `QuizScreen.tsx` sits at the feature root as the primary route-level screen for active quiz sessions.
+- **Feature-Root Orchestrator**: `QuizTab.tsx` sits at the feature root for active quiz sessions, composed by `QuizSessionScreen` as a routed screen and by `MaterialWorkspaceScreen` as a workspace tab.
 - **Session State Machine Invariants**:
   - `useQuizSessionFlow` manages phase transitions: `loading` $\rightarrow$ `ready` $\rightarrow$ `completed`.
   - The material overview may resolve a provisional first quiz for its selection cards, but persisted session creation begins only after explicit Start/selection (`isSessionActive`).
@@ -34,7 +34,7 @@ Live quiz execution and assessment feature module. Owns active test-taking sessi
   - Session abandonment delegates to `AbandonQuizSessionUseCase`.
   - Session completion invalidates the `analyticsQueryKeys.all()` cache namespace to refresh mastery and activity charts.
 - **Direct-Path Consumption (ADR-010)**:
-  - Outside consumers import direct paths (e.g. `quiz/QuizScreen`, `quiz/types/quizFeature.types`, `quiz/queries/assessmentQueryKeys`). No root barrel is exposed.
+  - Outside consumers import direct paths (e.g. `quiz/QuizTab`, `quiz/types/quizFeature.types`, `quiz/queries/assessmentQueryKeys`). No root barrel is exposed.
 
 ## Work Guidance
 

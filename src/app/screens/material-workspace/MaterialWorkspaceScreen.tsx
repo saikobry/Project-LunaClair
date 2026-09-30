@@ -16,7 +16,7 @@ import { Page } from '../../../shared/ui/Page/Page';
 import { Breadcrumbs, type BreadcrumbItem } from '../../../shared/ui/Breadcrumbs/Breadcrumbs';
 import { TabList, Tab } from '../../../shared/ui/TabList/TabList';
 import { WorkspaceSkeleton } from '../../../shared/ui/Skeleton/Skeleton';
-import type { ReaderSelectionEvent } from '../../../features/reader/ReaderScreen';
+import type { ReaderSelectionEvent } from '../../../features/reader/ReaderTab';
 import { extractSectionContext } from '../../../domain/ai/context/extractSectionContext';
 import type { SelectionContext } from '../../../features/ai/components/AiChatDrawer';
 import { workspaceBreadcrumbs } from './utils/workspaceBreadcrumbs';

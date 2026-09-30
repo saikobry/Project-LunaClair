@@ -32,7 +32,7 @@ const styles = stylex.create({
     },
 });
 
-interface FlashcardScreenProps {
+interface FlashcardTabProps {
     materialId: string;
     /**
      * Hands the user off to the Question Bank's AI generator for this material — the app's
@@ -55,7 +55,7 @@ const INITIAL_SUMMARY: FlashcardSessionSummary = {
     easyCount: 0,
 };
 
-export function FlashcardScreen({ materialId, onOpenQuestionBank }: FlashcardScreenProps) {
+export function FlashcardTab({ materialId, onOpenQuestionBank }: FlashcardTabProps) {
     const { questions, isLoading: loadingQuestions } = useQuestions(materialId);
     const { quizzes, isLoading: loadingQuizzes } = useQuizzes(materialId);
     const { reviews, isLoading: loadingReviews } = useFlashcardReviews(materialId);

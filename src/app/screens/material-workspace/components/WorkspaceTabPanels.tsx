@@ -5,7 +5,7 @@ import type { MaterialWorkspaceTab } from '../../../routing/routing';
 import type { StoredAsset } from '../../../../domain/assets/repositories/AssetRepository';
 import { AnimatedTabPanel } from '../../../../shared/ui/AnimatedTabPanel/AnimatedTabPanel';
 import { WorkspaceSkeleton } from '../../../../shared/ui/Skeleton/Skeleton';
-import ReaderScreen, { type ReaderSelectionEvent } from '../../../../features/reader/ReaderScreen';
+import ReaderTab, { type ReaderSelectionEvent } from '../../../../features/reader/ReaderTab';
 import type { GeneratorLaunchChannel } from '../../../../features/quiz-management/hooks/useGeneratorLaunchClaim';
 import { WorkspaceAttachments } from './WorkspaceAttachments';
 
@@ -13,10 +13,10 @@ import { WorkspaceAttachments } from './WorkspaceAttachments';
 const MaterialWriterTab = lazy(() =>
   import('../../../../features/writer/components/MaterialWriterTab').then((m) => ({ default: m.MaterialWriterTab })),
 );
-const QuizScreen = lazy(() => import('../../../../features/quiz/QuizScreen'));
-const QuizManagementScreen = lazy(() => import('../../../../features/quiz-management/QuizManagementScreen'));
-const FlashcardScreen = lazy(() =>
-  import('../../../../features/flashcards/FlashcardScreen').then((m) => ({ default: m.FlashcardScreen })),
+const QuizTab = lazy(() => import('../../../../features/quiz/QuizTab'));
+const QuizManagementTab = lazy(() => import('../../../../features/quiz-management/QuizManagementTab'));
+const FlashcardTab = lazy(() =>
+  import('../../../../features/flashcards/FlashcardTab').then((m) => ({ default: m.FlashcardTab })),
 );
 
 export interface WorkspaceTabPanelsProps {
@@ -90,7 +90,7 @@ export function WorkspaceTabPanels({
   return (
     <AnimatedTabPanel activeKey={activeTab}>
       <TabSlot tabKey="read" activeTab={activeTab} visitedTabs={visitedTabs}>
-        <ReaderScreen
+        <ReaderTab
           materialId={materialId}
           onNavigateToWrite={() => onTabChange('write')}
           onAskAiSelection={onAskAiSelection}
@@ -99,7 +99,7 @@ export function WorkspaceTabPanels({
       </TabSlot>
       <TabSlot tabKey="quiz" activeTab={activeTab} visitedTabs={visitedTabs}>
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <QuizScreen
+          <QuizTab
             key={`quiz-${materialId}-${quizRunId}`}
             quizId=""
             materialIds={[materialId]}
@@ -117,7 +117,7 @@ export function WorkspaceTabPanels({
               screen's one-shot launch intent, exactly as the quiz tab's "Open Management"
               uses the tab route. It is not a second authoring path: the same single dialog
               opens, and the same single use case persists. */}
-          <FlashcardScreen materialId={materialId} onOpenQuestionBank={onGenerateCards} />
+          <FlashcardTab materialId={materialId} onOpenQuestionBank={onGenerateCards} />
         </Suspense>
       </TabSlot>
       <TabSlot tabKey="write" activeTab={activeTab} visitedTabs={visitedTabs}>
@@ -127,7 +127,7 @@ export function WorkspaceTabPanels({
       </TabSlot>
       <TabSlot tabKey="questions" activeTab={activeTab} visitedTabs={visitedTabs}>
         <Suspense fallback={<WorkspaceSkeleton />}>
-          <QuizManagementScreen
+          <QuizManagementTab
             materialId={materialId}
             onNavigate={onNavigate}
             section="questions"
@@ -140,7 +140,7 @@ export function WorkspaceTabPanels({
         <Suspense fallback={<WorkspaceSkeleton />}>
           {/* Same required prop on both sections; only the Question Bank acts on it (the Quiz
               Catalog authors quizzes, not questions, so it never opens the generator). */}
-          <QuizManagementScreen
+          <QuizManagementTab
             materialId={materialId}
             onNavigate={onNavigate}
             section="quizzes"

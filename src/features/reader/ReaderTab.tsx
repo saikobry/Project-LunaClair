@@ -73,7 +73,7 @@ export interface ReaderSelectionEvent {
   action: 'explain' | 'simplify' | 'example';
 }
 
-interface ReaderScreenProps {
+interface ReaderTabProps {
   materialId: string;
   onNavigateToWrite?: () => void;
   onAskAiSelection?: (selection: ReaderSelectionEvent) => void;
@@ -86,12 +86,12 @@ interface ReaderScreenProps {
   isActive?: boolean;
 }
 
-export default function ReaderScreen({
+export default function ReaderTab({
   materialId,
   onNavigateToWrite,
   onAskAiSelection,
   isActive = true,
-}: ReaderScreenProps) {
+}: ReaderTabProps) {
   const { material, isLoading: materialLoading } = useMaterial(materialId);
   const { showToast } = useToast();
   const { data: document, isLoading: docLoading, error } = useDocument(material ?? null);

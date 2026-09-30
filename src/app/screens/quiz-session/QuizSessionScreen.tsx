@@ -1,4 +1,4 @@
-import QuizScreen from '../../../features/quiz/QuizScreen';
+import QuizTab from '../../../features/quiz/QuizTab';
 
 export interface QuizSessionScreenProps {
   quizId: string;
@@ -14,7 +14,7 @@ export function QuizSessionScreen({
   onExit,
 }: QuizSessionScreenProps) {
   return (
-    <QuizScreen
+    <QuizTab
       quizId={quizId}
       materialIds={materialIds}
       quizIds={quizIds}

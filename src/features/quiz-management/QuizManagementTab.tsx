@@ -23,7 +23,7 @@ const styles = stylex.create({
     },
 });
 
-interface QuizManagementScreenProps {
+interface QuizManagementTabProps {
     materialId: string;
     onNavigate: (route: AppRoute) => void;
     /**
@@ -47,10 +47,10 @@ interface QuizManagementScreenProps {
     generatorLaunch: GeneratorLaunchChannel;
 }
 
-export default function QuizManagementScreen({ materialId, onNavigate, section = 'questions', onReturnToTab, generatorLaunch }: QuizManagementScreenProps) {
+export default function QuizManagementTab({ materialId, onNavigate, section = 'questions', onReturnToTab, generatorLaunch }: QuizManagementTabProps) {
     const context = useContext(ApplicationContext);
     if (!context) {
-        throw new Error('QuizManagementScreen must be used within a <ApplicationProvider>');
+        throw new Error('QuizManagementTab must be used within a <ApplicationProvider>');
     }
 
     const queryClient = useQueryClient();

@@ -108,7 +108,7 @@ React 19 + TypeScript + Vite + Dexie.js (IndexedDB) + TanStack Query/Virtual.
 
 **Testing framework**: Vitest (`vitest`) configured in `vitest.config.ts` for unit, fidelity, Dexie persistence, and UI state tests; Playwright (`@playwright/test`) configured in `playwright.config.ts` for real Chromium E2E acceptance tests (`npm run test:e2e`). Blob byte assertions must run under Vitest's `node` environment — `jsdom` + `fake-indexeddb` drops stored bytes, making such comparisons vacuous; see `src/infrastructure/AGENTS.md` (Verification).
 
-**E2E suite status (verified Sep 2026):** the full Playwright suite is green: **39/39 passed** from a clean browser/IndexedDB state. All specs seed through live `/api/shares` clone flows; `package/*`, `generator/ai-generator`, `analytics/insights`, onboarding, writer, reader, quiz, and flashcard coverage are current. The helper mocks **only** the live API surface (`GET /api/shares`); retired `/api/catalog`, `/api/documents`, and `/api/quiz` endpoints are never mocked.
+**E2E suite status (verified Sep 2026):** the full Playwright suite is green: **41/41 passed** from a clean browser/IndexedDB state. All specs seed through live `/api/shares` clone flows; `package/*`, `generator/ai-generator`, `analytics/insights`, onboarding, writer, reader, quiz, and flashcard coverage are current. The helper mocks **only** the live API surface (`GET /api/shares`); retired `/api/catalog`, `/api/documents`, and `/api/quiz` endpoints are never mocked.
 
 ## Linter
 
