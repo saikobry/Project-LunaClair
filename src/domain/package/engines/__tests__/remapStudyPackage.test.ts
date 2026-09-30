@@ -179,44 +179,4 @@ describe('remapStudyPackage', () => {
         expect(import1.assets[0].id).not.toBe(import2.assets[0].id);
     });
 
-    /**
-     * Provenance is the one field the package format carries purely so the generator's
-     * computed section label is not thrown away at persistence. Remapping must therefore
-     * carry it onto the cloned question — and must NOT invent one when it is absent.
-     */
-    describe('question sourceSection', () => {
-        it('carries a present sourceSection onto the remapped question', () => {
-            const pkg = createSamplePackage();
-            pkg.questions[0].sourceSection = 'Newton\'s First Law';
-
-            const remapped = remapStudyPackage(pkg, new MockIdGenerator('test_uuid'));
-
-            expect(remapped.questions[0].sourceSection).toBe('Newton\'s First Law');
-        });
-
-        it('leaves sourceSection absent when the package carries none', () => {
-            // Absence is a valid package, so a clone must not fabricate provenance the
-            // original question never had.
-            const remapped = remapStudyPackage(createSamplePackage(), new MockIdGenerator('test_uuid'));
-
-            expect(remapped.questions[0].sourceSection).toBeUndefined();
-        });
-
-        it('keeps each question\'s own label independent', () => {
-            const pkg = createSamplePackage();
-            pkg.questions[0].sourceSection = 'First Law';
-            pkg.questions.push({
-                ...pkg.questions[0],
-                id: 'pkg_q_second_law',
-                prompt: 'What is the Second Law?',
-                // Explicitly unlabelled: a spread of the labelled question would carry the
-                // label over, which is exactly the leak this case exists to catch.
-                sourceSection: undefined,
-            });
-
-            const remapped = remapStudyPackage(pkg, new MockIdGenerator('test_uuid'));
-
-            expect(remapped.questions.map((q) => q.sourceSection)).toEqual(['First Law', undefined]);
-        });
-    });
 });

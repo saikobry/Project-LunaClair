@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { useState } from 'react';
 import { QuestionBankTab } from '../QuestionBankTab';
@@ -9,6 +9,8 @@ import type {
 } from '../../hooks/useGeneratorLaunchClaim';
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
+import { styles } from '../questionBank.stylex';
+import { styles as filterBarStyles } from '../questionBankFilterBar.stylex';
 
 const mockShowToast = vi.fn();
 vi.mock('../../../../app/providers/ToastContext', () => ({
@@ -151,6 +153,11 @@ describe('QuestionBankTab', () => {
         );
     };
 
+    /** Card-scoped queries: a tag renders BOTH in the filter section and on cards, so a bare
+     * `getByText('#tag')` is ambiguous. These tests name the surface they mean. */
+    const cardFor = (prompt: string) =>
+        within(screen.getByText(prompt).closest<HTMLDivElement>('div[style*="border"]')!);
+
     it('renders list of questions and their quiz usage badges', () => {
         renderTab();
 
@@ -194,7 +201,7 @@ describe('QuestionBankTab', () => {
     it('toggles tag filter on chip click', () => {
         renderTab();
 
-        const biologyTagChip = screen.getByText('#biology');
+        const biologyTagChip = cardFor('What organelle produces energy?').getByText('#biology');
         fireEvent.click(biologyTagChip);
 
         expect(screen.getByText('What organelle produces energy?')).toBeInTheDocument();
@@ -203,6 +210,620 @@ describe('QuestionBankTab', () => {
         // Click again to toggle off
         fireEvent.click(biologyTagChip);
         expect(screen.getByText('Is water a polar molecule?')).toBeInTheDocument();
+    });
+
+    /**
+     * The tag chip port. A Bank tag is a filter toggle (`aria-pressed`), so it carries the
+     * treatment of the material card's tag toggle — one look for both surfaces, no cross-feature
+     * import. These assertions are deliberately about what a user can see: a styling port that
+     * quietly dropped the tag row or any neighbouring metadata is the failure mode here.
+     */
+    describe('card tag rendering', () => {
+        it('renders every tag on the card as a chip', () => {
+            renderTab();
+
+            // q-1 carries two tags, q-2 and q-3 one each — every tag must survive the port.
+            expect(cardFor('What organelle produces energy?').getByText('#biology')).toBeInTheDocument();
+            expect(cardFor('What organelle produces energy?').getByText('#cell')).toBeInTheDocument();
+            expect(cardFor('Is water a polar molecule?').getByText('#chemistry')).toBeInTheDocument();
+            expect(cardFor('Identify Newton first law concept').getByText('#physics')).toBeInTheDocument();
+            expect(screen.getAllByTitle(/^Filter by tag: /)).toHaveLength(4);
+        });
+
+        it('renders no tag row at all for a question with no tags', () => {
+            // Same question, tags removed — so its quiz usage and every other field stay identical.
+            const untagged: Question = { ...mockQuestions[0], tags: [] };
+            renderTab({ questions: [untagged] });
+
+            // No chip, no stray '#' — the untagged card renders exactly as it did before the port.
+            expect(screen.queryByTitle(/^Filter by tag: /)).toBeNull();
+            expect(screen.queryByText(/^#/)).toBeNull();
+
+            // ...and the rest of the card is untouched by the absent row.
+            expect(screen.getByText('What organelle produces energy?')).toBeInTheDocument();
+            expect(screen.getByText('published')).toBeInTheDocument();
+            expect(screen.getByText('1 pt')).toBeInTheDocument();
+            expect(screen.getByText('v1')).toBeInTheDocument();
+            expect(screen.getByText('Used in 1 quiz')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Edit question: What organelle/i })).toBeInTheDocument();
+        });
+
+        it('keeps every other card field when tags are present (no metadata dropped by the port)', () => {
+            renderTab();
+
+            const prompt = screen.getByText('What organelle produces energy?');
+            const card = prompt.closest<HTMLDivElement>('div[style*="border"]')!;
+            const cardScope = within(card);
+
+            // Status + badges
+            expect(cardScope.getByText('published')).toBeInTheDocument();
+            expect(cardScope.getByText('1 pt')).toBeInTheDocument();
+            expect(cardScope.getByText('easy')).toBeInTheDocument();
+            expect(cardScope.getByText('Multiple Choice')).toBeInTheDocument();
+
+            // Tags, prompt and explanation
+            expect(cardScope.getByText('#biology')).toBeInTheDocument();
+            expect(cardScope.getByText('#cell')).toBeInTheDocument();
+            expect(cardScope.getByText('Explanation')).toBeInTheDocument();
+            expect(cardScope.getByText('Mitochondria produces ATP.')).toBeInTheDocument();
+
+            // Footer metadata + actions
+            expect(cardScope.getByText('v1')).toBeInTheDocument();
+            expect(cardScope.getByText('Used in 1 quiz')).toBeInTheDocument();
+            expect(cardScope.getByRole('button', { name: /Edit question: What organelle/i })).toBeInTheDocument();
+            expect(cardScope.getByRole('button', { name: /Archive question: What organelle/i })).toBeInTheDocument();
+        });
+    });
+
+    /**
+     * The tag filter as REAL filter state. The Bank used to fake it: clicking a chip wrote
+     * `#tag` into the search box and the list was filtered by that text, so the two controls
+     * were the same control. This block pins the replacement — a multi-select set, OR within the
+     * facet, independent of the search field.
+     */
+    describe('tag filtering (multi-select, independent of search)', () => {
+        // Two questions share a tag and each carries a second, distinct one, so a selection can
+        // be asserted while MULTIPLE chips are still on screen. The old exclusivity test clicked
+        // a unique tag, which filtered the list to one card and made its own claim unexercised.
+        const tagQuestions: Question[] = [
+            { ...mockQuestions[0], id: 'tag-1', prompt: 'Alpha shares biology', tags: ['biology', 'cell'] },
+            { ...mockQuestions[1], id: 'tag-2', prompt: 'Beta shares biology', tags: ['biology', 'chemistry'] },
+            { ...mockQuestions[2], id: 'tag-3', prompt: 'Gamma is physics only', tags: ['physics'] },
+        ];
+
+        const searchInput = () => screen.getByPlaceholderText('Search prompts and tags…');
+
+        it('selects multiple tags at once and shows every question matching any of them', () => {
+            renderTab({ questions: tagQuestions });
+
+            // Two chips carry `#biology`, so the first click is deliberately scoped by index.
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+
+            // OR within the facet: both biology questions survive, the physics-only one does not.
+            expect(screen.getByText('Alpha shares biology')).toBeInTheDocument();
+            expect(screen.getByText('Beta shares biology')).toBeInTheDocument();
+            expect(screen.queryByText('Gamma is physics only')).not.toBeInTheDocument();
+
+            fireEvent.click(within(screen.getByRole('group', { name: 'Filter by tag' })).getByRole('button', { name: 'chemistry' }));
+
+            // A second tag ADDS to the filter rather than replacing the first.
+            expect(screen.getByText('Alpha shares biology')).toBeInTheDocument();
+            expect(screen.getByText('Beta shares biology')).toBeInTheDocument();
+            expect(screen.queryByText('Gamma is physics only')).not.toBeInTheDocument();
+
+            // Exclusivity, with every chip still present: both selected chips on Beta's card are
+            // pressed and the unrelated one on Alpha's card is not.
+            const betaScope = cardFor('Beta shares biology');
+            expect(betaScope.getByText('#biology')).toHaveAttribute('aria-pressed', 'true');
+            expect(betaScope.getByText('#chemistry')).toHaveAttribute('aria-pressed', 'true');
+
+            const alphaScope = cardFor('Alpha shares biology');
+            expect(alphaScope.getByText('#biology')).toHaveAttribute('aria-pressed', 'true');
+            expect(alphaScope.getByText('#cell')).toHaveAttribute('aria-pressed', 'false');
+        });
+
+        it('deselects a tag when its chip is clicked again', () => {
+            renderTab({ questions: tagQuestions });
+
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+            expect(screen.queryByText('Gamma is physics only')).not.toBeInTheDocument();
+
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+
+            expect(
+                screen.getAllByText('#biology').every((chip) => chip.getAttribute('aria-pressed') === 'false'),
+            ).toBe(true);
+            expect(screen.getByText('Gamma is physics only')).toBeInTheDocument();
+        });
+
+        it('toggling a tag does not write into the search field', () => {
+            renderTab({ questions: tagQuestions });
+
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+
+            // The old mechanic faked filtering by typing '#biology' into the search box. A real
+            // tag selection must leave the search text exactly as the user left it.
+            expect(searchInput()).toHaveValue('');
+        });
+
+        it('typing in the search field does not clear the selected tags', () => {
+            renderTab({ questions: tagQuestions });
+
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+            fireEvent.change(searchInput(), { target: { value: 'alpha' } });
+
+            // Search narrows further (AND across facets); the tag selection is untouched.
+            expect(screen.getByText('Alpha shares biology')).toBeInTheDocument();
+            expect(screen.queryByText('Beta shares biology')).not.toBeInTheDocument();
+            expect(cardFor('Alpha shares biology').getByText('#biology')).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        it('clearing the search leaves the tag filter in place', () => {
+            renderTab({ questions: tagQuestions });
+
+            fireEvent.click(screen.getAllByText('#biology')[0]);
+            fireEvent.change(searchInput(), { target: { value: 'alpha' } });
+            fireEvent.change(searchInput(), { target: { value: '' } });
+
+            // The two mechanisms are independent in both directions: emptying the search box does
+            // not silently drop the tag filter.
+            expect(screen.getByText('Beta shares biology')).toBeInTheDocument();
+            expect(cardFor('Beta shares biology').getByText('#biology')).toHaveAttribute('aria-pressed', 'true');
+        });
+    });
+
+    /**
+     * Style binding for the ported tag chip. The text/title/aria assertions elsewhere prove the
+     * chip renders and toggles; NONE of them would fail if `styles.tag` / `styles.tagPressed`
+     * were deleted, because a rule set that never reaches the DOM still passes a text query. This
+     * block binds the rendered element to the rule it must carry. Vitest mocks `stylex.props` to
+     * serialize each rule object into the class name (see `src/test/setup.ts`), so comparing
+     * against `JSON.stringify(styles.<rule>)` is the same string the component produced.
+     */
+    describe('tag chip style binding', () => {
+        it('binds a rendered tag chip to the tag rule set', () => {
+            renderTab();
+
+            const chip = cardFor('What organelle produces energy?').getByText('#biology');
+
+            expect(chip.className).toContain(JSON.stringify(styles.tag));
+        });
+
+        it('binds the active tag to the pressed rule set', () => {
+            renderTab();
+
+            fireEvent.click(cardFor('What organelle produces energy?').getByText('#biology'));
+
+            const chip = cardFor('What organelle produces energy?').getByText('#biology');
+            expect(chip.className).toContain(JSON.stringify(styles.tag));
+            expect(chip.className).toContain(JSON.stringify(styles.tagPressed));
+        });
+
+        /**
+         * The chip's INTERNAL spacing. A selected bar chip's remove `X` used to sit hard against
+         * the label — the chip's horizontal padding was the only separation — so the shared rule
+         * carries the Material Library's `filterPill` `gap: 4`.
+         *
+         * Asserted on the rule (jsdom has no layout, so a rendered chip's spacing is unobservable)
+         * and then on BOTH call sites' content, because that is what makes the gap safe to share:
+         * `gap` separates flex ITEMS, and the per-question row chip's whole content is one
+         * contiguous run of text — a single anonymous item — so there is nothing there for the gap
+         * to separate. The spacing therefore reaches the selected filter-bar chip and its mobile
+         * twin, and cannot loosen the row chips. Verified in Chromium too: the row chip's measured
+         * width is identical with and without the declaration, while the selected chip's
+         * label-to-icon distance goes from 0px to 4px.
+         */
+        it('separates the label from the remove X with a gap, inert on the single-item row chip', () => {
+            renderTab();
+
+            expect(filterBarStyles.filterPill.gap).toBe(4);
+            expect(styles.tag.gap).toBe(4);
+
+            // The row chip: `#{tag}` as contiguous text, so ZERO element children — one anonymous
+            // flex item, and the shared gap has nothing to separate.
+            const rowChip = cardFor('What organelle produces energy?').getByText('#biology');
+            expect(rowChip.children).toHaveLength(0);
+            expect(rowChip.className).toContain(JSON.stringify(styles.tag));
+
+            // The bar's SELECTED chip is the surface with the dimmed # and the remove X.
+            const group = screen.getByRole('group', { name: 'Filter by tag' });
+            const sectionChip = within(group).getByRole('button', { name: 'biology' });
+            fireEvent.click(sectionChip);
+
+            const selected = within(group).getByRole('button', { name: 'biology' });
+            expect(selected.children).toHaveLength(2);
+            expect(selected.children[0].tagName.toLowerCase()).toBe('span');
+            expect(selected.children[1].tagName.toLowerCase()).toBe('svg');
+        });
+    });
+
+    /**
+     * The tag filter SECTION in the bar — the missing half. It is the same control as a card's tag
+     * chip (one `selectedTags` array), capped at 8 with a selected tag never hidden by the cap.
+     */
+    describe('tag filter section', () => {
+        const tagGroup = () => screen.getByRole('group', { name: 'Filter by tag' });
+        const tagChip = (container: HTMLElement, tag: string) =>
+            within(container).getByRole('button', { name: tag });
+
+        it('renders a chip for every tag it was handed', () => {
+            renderTab();
+
+            const group = tagGroup();
+            expect(tagChip(group, 'biology')).toBeInTheDocument();
+            expect(tagChip(group, 'cell')).toBeInTheDocument();
+            expect(tagChip(group, 'chemistry')).toBeInTheDocument();
+            expect(tagChip(group, 'physics')).toBeInTheDocument();
+        });
+
+        it('shares one selectedTags array between the section chips and the per-question chips', () => {
+            renderTab();
+            const group = tagGroup();
+
+            // Toggle from the SECTION chip…
+            fireEvent.click(tagChip(group, 'biology'));
+            expect(tagChip(group, 'biology')).toHaveAttribute('aria-pressed', 'true');
+            // …and the per-question chip on the matching card shows the same state.
+            expect(cardFor('What organelle produces energy?').getByText('#biology')).toHaveAttribute(
+                'aria-pressed',
+                'true',
+            );
+
+            // Deselect from the QUESTION chip — the same tag — and the section chip follows.
+            fireEvent.click(cardFor('What organelle produces energy?').getByText('#biology'));
+            expect(tagChip(group, 'biology')).toHaveAttribute('aria-pressed', 'false');
+        });
+
+        it('renders a two-tier tag design: filter bar pill and compact card tag', () => {
+            renderTab();
+
+            // Two-tier design mirroring the Materials feature: the filter bar renders its own
+            // `filterPill` rule (matching LibraryView), while question cards render the compact
+            // `tag` rule (matching MaterialCard).
+            const sectionChip = tagChip(tagGroup(), 'biology');
+            const cardChip = cardFor('What organelle produces energy?').getByText('#biology');
+            expect(sectionChip.className).toContain(JSON.stringify(filterBarStyles.filterPill));
+            expect(cardChip.className).toContain(JSON.stringify(styles.tag));
+
+            // …and on the ACTIVE state, each adds its own pressed rule.
+            fireEvent.click(sectionChip);
+            expect(tagChip(tagGroup(), 'biology').className).toContain(
+                JSON.stringify(filterBarStyles.filterPillActive),
+            );
+            expect(cardFor('What organelle produces energy?').getByText('#biology').className).toContain(
+                JSON.stringify(styles.tagPressed),
+            );
+        });
+
+        it('shows the remove X on a selected tag pill only', () => {
+            renderTab();
+            const group = tagGroup();
+
+            // Unselected: no icon at all.
+            const unselected = tagChip(group, 'biology');
+            expect(unselected.querySelector('svg')).toBeNull();
+
+            fireEvent.click(unselected);
+
+            // Selected: the X appears as the click-again-to-remove confirmation.
+            const selected = tagChip(group, 'biology');
+            expect(selected.querySelector('svg')).not.toBeNull();
+        });
+
+        it('adds no nested control and keeps the pill accessible name as the tag', () => {
+            renderTab();
+            const group = tagGroup();
+
+            const unselected = tagChip(group, 'biology');
+            expect(unselected.querySelectorAll('button')).toHaveLength(0);
+
+            fireEvent.click(unselected);
+
+            // Still exactly one button, still named by the tag — the X is aria-hidden decoration.
+            const selected = tagChip(group, 'biology');
+            expect(selected.querySelectorAll('button')).toHaveLength(0);
+            expect(selected.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+        });
+
+        it('puts the search field and the selector dropdowns on ONE row, with the tag facet below and the actions last', () => {
+            renderTab();
+
+            const searchInput = screen.getByPlaceholderText('Search prompts and tags…');
+            const selectionGroup = screen.getByRole('group', {
+                name: 'Filter by type, difficulty, and status',
+            });
+            const tagGroupEl = screen.getByRole('group', { name: 'Filter by tag' });
+            const actionsGroup = screen.getByRole('group', { name: 'Question actions' });
+
+            // Row 1 contract: the search field shares ONE row with the selector dropdowns…
+            const row = selectionGroup.parentElement!;
+            expect(row.contains(searchInput)).toBe(true);
+            // …and is not folded into the selector group itself.
+            expect(searchInput.closest('[role="group"]')).toBeNull();
+
+            // The entry-point actions are a SIBLING row, not a child of the search row: they used
+            // to sit inside it and only *looked* like their own row because `flex: 1` forced the
+            // wrap. All three groups share one parent — the bar.
+            expect(actionsGroup.parentElement).toBe(row.parentElement);
+            expect(tagGroupEl.parentElement).toBe(row.parentElement);
+
+            // The tag facet is a SIBLING row BELOW the search row, not nested inside it…
+            expect(row.contains(tagGroupEl)).toBe(false);
+            // …and the actions are the bar's LAST row, after the tags.
+            expect(
+                tagGroupEl.compareDocumentPosition(actionsGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+
+        it('keeps the tag row and the actions row as siblings of the search row', () => {
+            renderTab();
+
+            const row = screen
+                .getByRole('group', { name: 'Filter by type, difficulty, and status' })
+                .parentElement!;
+            const tagGroupEl = screen.getByRole('group', { name: 'Filter by tag' });
+            const actionsGroup = screen.getByRole('group', { name: 'Question actions' });
+
+            // The three rows are siblings under one parent — the bar. Asserted as DOM
+            // relationships, not class names, so a StyleX rename cannot pass or fail this.
+            expect(row.parentElement).toBe(tagGroupEl.parentElement);
+            expect(row.parentElement).toBe(actionsGroup.parentElement);
+            // Neither the tags nor the actions is nested inside the search row any more.
+            expect(row.contains(tagGroupEl)).toBe(false);
+            expect(row.contains(actionsGroup)).toBe(false);
+        });
+
+        it('renders the tags above the actions', () => {
+            renderTab();
+
+            const tagGroupEl = screen.getByRole('group', { name: 'Filter by tag' });
+            const actionsGroup = screen.getByRole('group', { name: 'Question actions' });
+
+            // Document order, so a reorder that keeps both on the bar still fails here.
+            expect(
+                tagGroupEl.compareDocumentPosition(actionsGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                actionsGroup.compareDocumentPosition(tagGroupEl) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeFalsy();
+        });
+
+        it('caps the row at 8 tags and reveals the rest through the expander', () => {
+            const many: Question[] = Array.from({ length: 10 }, (_, i) => ({
+                ...mockQuestions[0],
+                id: `many-${i}`,
+                prompt: `Capped prompt ${i}`,
+                tags: [`t${i}`],
+            }));
+            renderTab({ questions: many });
+
+            const group = tagGroup();
+            // The first 8 (frequency ties break alphabetically) are visible; the rest are not.
+            expect(tagChip(group, 't7')).toBeInTheDocument();
+            expect(within(group).queryByRole('button', { name: 't8' })).toBeNull();
+
+            fireEvent.click(within(group).getByRole('button', { name: 'Show 2 more tags' }));
+            expect(tagChip(group, 't8')).toBeInTheDocument();
+            expect(tagChip(group, 't9')).toBeInTheDocument();
+
+            fireEvent.click(within(group).getByText('Show fewer'));
+            expect(within(group).queryByRole('button', { name: 't8' })).toBeNull();
+        });
+
+        it('never hides a selected tag behind the cap', () => {
+            const many: Question[] = Array.from({ length: 10 }, (_, i) => ({
+                ...mockQuestions[0],
+                id: `pinned-${i}`,
+                prompt: `Pinned prompt ${i}`,
+                tags: [`t${i}`],
+            }));
+            renderTab({ questions: many });
+
+            // `t9` is past the cap, so its section chip is hidden before selection...
+            expect(within(tagGroup()).queryByRole('button', { name: 't9' })).toBeNull();
+
+            // ...but selecting it from the CARD chip pins it into the section row regardless.
+            fireEvent.click(cardFor('Pinned prompt 9').getByText('#t9'));
+
+            expect(tagChip(tagGroup(), 't9')).toHaveAttribute('aria-pressed', 'true');
+        });
+    });
+
+    /**
+     * The <769px arrangement: the tag facet rides INSIDE the existing `Filter (N)` disclosure, so
+     * the list starts under row 1 instead of below a chip set that wraps to several lines.
+     *
+     * jsdom has no layout, so the bar's stylesheet cannot relocate the facet — which is exactly
+     * why the bar makes the placement decision in the DOM from the same 769px boundary, read
+     * through `useMediaQuery`. The setup polyfill answers `matches: false` to every query, i.e. the
+     * DESKTOP answer, so these tests stub it to the compact answer to exercise the real branch.
+     * The stub is global, so it is restored after each test.
+     */
+    describe('tag facet inside the compact filter disclosure', () => {
+        const originalMatchMedia = window.matchMedia;
+
+        const setCompactViewport = (isCompact: boolean) => {
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: isCompact && query === '(max-width: 768px)',
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            })) as unknown as typeof window.matchMedia;
+        };
+
+        afterEach(() => {
+            window.matchMedia = originalMatchMedia;
+        });
+
+        const tagLandmarks = () => screen.queryAllByRole('group', { name: 'Filter by tag' });
+        const filterTrigger = () => screen.getByRole('button', { name: 'Toggle filters' });
+        const openPanel = () => fireEvent.click(filterTrigger());
+        const bar = () => screen.getByRole('group', { name: 'Question actions' }).parentElement!;
+        const panelRule = JSON.stringify(filterBarStyles.mobileFilterPanel);
+
+        it('moves the chips into the panel and drops the standalone row', () => {
+            setCompactViewport(true);
+            renderTab();
+
+            // Closed: the facet is nowhere in the document — no row between the search row and the
+            // actions, so the content begins directly under row 1.
+            expect(tagLandmarks()).toHaveLength(0);
+            expect(filterTrigger()).toBeInTheDocument();
+
+            openPanel();
+
+            // Open: exactly one landmark, and it is inside the panel's bordered box.
+            expect(tagLandmarks()).toHaveLength(1);
+            const panel = tagLandmarks()[0].parentElement!;
+            expect(panel).not.toBe(bar());
+            expect(panel.className).toContain(panelRule);
+            // The panel is the selectors PLUS the facet — nothing was dropped moving the chips in.
+            expect(panel.querySelectorAll('select')).toHaveLength(3);
+            expect(within(panel).getByRole('button', { name: 'biology' })).toBeInTheDocument();
+            expect(within(panel).getByRole('button', { name: 'physics' })).toBeInTheDocument();
+        });
+
+        it('never has the standalone row and the panel in the document together', () => {
+            setCompactViewport(true);
+            renderTab();
+            openPanel();
+
+            // The duplication guard on its own: with the panel open, exactly one tag landmark
+            // exists. Rendering the row as well would put the chips — and the landmark — in the
+            // document twice, so a screen reader would announce two "Filter by tag" groups.
+            expect(tagLandmarks()).toHaveLength(1);
+        });
+
+        it('shows every tag in the panel with no cap and no expander', () => {
+            // 12 tags, past the desktop cap of 8: inside the panel they are all reachable without
+            // a second disclosure nested in the first.
+            const many: Question[] = Array.from({ length: 12 }, (_, i) => ({
+                ...mockQuestions[0],
+                id: `mobile-${i}`,
+                prompt: `Mobile prompt ${i}`,
+                tags: [`t${i}`],
+            }));
+            setCompactViewport(true);
+            renderTab({ questions: many });
+            openPanel();
+
+            const group = tagLandmarks()[0];
+            expect(within(group).getByRole('button', { name: 't0' })).toBeInTheDocument();
+            expect(within(group).getByRole('button', { name: 't11' })).toBeInTheDocument();
+            expect(within(group).queryByText('+4 more')).toBeNull();
+            expect(within(group).queryByText('Show fewer')).toBeNull();
+            expect(within(group).queryByRole('button', { name: /more tags/i })).toBeNull();
+        });
+
+        it('counts the selected tags in the Filter (N) trigger', () => {
+            setCompactViewport(true);
+            renderTab();
+
+            expect(filterTrigger()).toHaveTextContent(/^Filter$/);
+
+            // A tag selection must move the count: the panel this trigger opens is showing it, and
+            // two active tags must not read `Filter (0)`.
+            fireEvent.click(cardFor('What organelle produces energy?').getByText('#biology'));
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(1\)$/);
+
+            fireEvent.click(cardFor('What organelle produces energy?').getByText('#cell'));
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(2\)$/);
+        });
+
+        it('adds the tags to the selector facets without counting a facet twice', () => {
+            setCompactViewport(true);
+            renderTab();
+
+            // One selector facet counts once…
+            fireEvent.change(screen.getByLabelText('Filter by type'), {
+                target: { value: 'multiple_choice' },
+            });
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(1\)$/);
+
+            // …and each tag adds exactly one, however many tags the facet holds. The card the chips
+            // are clicked on is the one this type keeps in the list.
+            const cell = cardFor('What organelle produces energy?');
+            fireEvent.click(cell.getByText('#biology'));
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(2\)$/);
+
+            fireEvent.click(cell.getByText('#cell'));
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(3\)$/);
+
+            // Deselecting removes exactly its own contribution.
+            fireEvent.click(cell.getByText('#biology'));
+            expect(filterTrigger()).toHaveTextContent(/^Filter \(2\)$/);
+        });
+
+        it('keeps the trigger name from understating what the panel holds', () => {
+            setCompactViewport(true);
+            renderTab();
+            openPanel();
+
+            // The name is the generic `Toggle filters` — it enumerates no facet, so folding the
+            // tag facet in cannot make it understate the panel. Pinned so a facet-enumerating name
+            // cannot land on the trigger without this failing.
+            expect(filterTrigger()).toHaveAccessibleName('Toggle filters');
+            // The disclosed body is the three selectors and the tag landmark — all four facets.
+            const panel = tagLandmarks()[0].parentElement!;
+            expect(panel.querySelectorAll('select')).toHaveLength(3);
+            expect(within(panel).getByRole('group', { name: 'Filter by tag' })).toBeInTheDocument();
+        });
+
+        it('does not mount the panel at >=769px, so the row is never duplicated', () => {
+            setCompactViewport(false);
+            renderTab();
+
+            // The trigger is CSS-hidden at this width; clicking it must not mount a second facet
+            // beside the row, so the landmark stays singular at every width.
+            openPanel();
+
+            expect(tagLandmarks()).toHaveLength(1);
+            expect(
+                Array.from(bar().children).some((child) => child.className.includes(panelRule)),
+            ).toBe(false);
+        });
+    });
+
+    /**
+     * The bar's own visual rules, pinned as rules. Vitest mocks `stylex.create` to hand the rule
+     * object through unchanged (see `src/test/setup.ts`), so a rule can be inspected directly — and
+     * asserting on the rule is what makes the absence real: a divider that merely stopped being
+     * *rendered* would still be here, and a rule deleted from the file cannot satisfy a query for
+     * its class name. The check is deliberately across EVERY rule in the bar's stylesheet, not
+     * just `selectorGroup`, so a divider reappearing on any rule is caught too.
+     */
+    describe('filter bar rule sheet', () => {
+        /** Every `borderRight*` declaration in the bar's stylesheet, by rule name. */
+        const rightBorderRules = () =>
+            Object.entries(filterBarStyles as Record<string, Record<string, unknown>>)
+                .filter(([, rule]) => rule && typeof rule === 'object')
+                .filter(([, rule]) => Object.keys(rule).some((prop) => prop.startsWith('borderRight')))
+                .map(([name]) => name);
+
+        it('declares no right-border divider on any rule', () => {
+            // The bar's rows are separated by spacing, not by a rule. A dangling divider was
+            // ported from the Material Library's `membershipGroup`, which borders a lens that HAS
+            // controls to its right; here there was nothing after it to separate.
+            expect(rightBorderRules()).toEqual([]);
+        });
+
+        it('renders the selector group without a divider, while keeping its group role', () => {
+            renderTab();
+
+            const selectorGroup = screen.getByRole('group', {
+                name: 'Filter by type, difficulty, and status',
+            });
+
+            // The landmark the divider was decoration inside is untouched...
+            expect(selectorGroup).toBeInTheDocument();
+            // ...and the rule it carries is still the layout rule, just without the border.
+            expect(selectorGroup.className).toContain(JSON.stringify(filterBarStyles.selectorGroup));
+            expect(selectorGroup.className).not.toContain('borderRight');
+        });
     });
 
     it('renders empty state when question bank is completely empty', () => {
@@ -569,4 +1190,5 @@ describe('QuestionBankTab', () => {
             expect(screen.getByTestId('return-label')).toHaveTextContent('');
         });
     });
+
 });

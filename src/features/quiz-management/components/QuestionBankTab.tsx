@@ -66,8 +66,8 @@ function statusBorderColor(status: QuestionStatus): string {
 interface QuestionBankCardProps {
     question: Question;
     usageCount: number;
-    /** Live search query (lowercased, leading '#' stripped) — drives tag-chip pressed state. */
-    activeTagQuery: string;
+    /** The Bank's active tag filter — a chip is pressed because it is in this set. */
+    selectedTagSet: ReadonlySet<string>;
     onEdit: (question: Question) => void;
     onPublish: (question: Question) => void;
     onArchiveRequest: (question: Question, usageCount: number) => void;
@@ -75,10 +75,70 @@ interface QuestionBankCardProps {
     onTagClick: (tag: string) => void;
 }
 
+interface QuestionCardActionsProps {
+    question: Question;
+    usageCount: number;
+    onEdit: (question: Question) => void;
+    onPublish: (question: Question) => void;
+    onArchiveRequest: (question: Question, usageCount: number) => void;
+    onUnarchive: ((question: Question) => void) | undefined;
+}
+
+function QuestionCardActions({
+    question: q,
+    usageCount,
+    onEdit,
+    onPublish,
+    onArchiveRequest,
+    onUnarchive,
+}: QuestionCardActionsProps) {
+    return (
+        <div {...stylex.props(styles.cardActions)}>
+            {q.status === 'draft' && (
+                <Button
+                    label={`Publish question: ${q.prompt}`}
+                    variant="secondary"
+                    icon={<CheckCircle size={14} />}
+                    isIconOnly
+                    tooltip="Publish"
+                    onClick={() => onPublish(q)}
+                />
+            )}
+            <Button
+                label={`Edit question: ${q.prompt}`}
+                variant="secondary"
+                icon={<Pencil size={14} />}
+                isIconOnly
+                tooltip="Edit"
+                onClick={() => onEdit(q)}
+            />
+            {q.status === 'archived' && onUnarchive ? (
+                <Button
+                    label={`Restore question: ${q.prompt}`}
+                    variant="secondary"
+                    icon={<ArchiveRestore size={14} />}
+                    isIconOnly
+                    tooltip="Restore"
+                    onClick={() => onUnarchive(q)}
+                />
+            ) : (
+                <Button
+                    label={`Archive question: ${q.prompt}`}
+                    variant="danger"
+                    icon={<Archive size={14} />}
+                    isIconOnly
+                    tooltip="Archive"
+                    onClick={() => onArchiveRequest(q, usageCount)}
+                />
+            )}
+        </div>
+    );
+}
+
 function QuestionBankCard({
     question: q,
     usageCount,
-    activeTagQuery,
+    selectedTagSet,
     onEdit,
     onPublish,
     onArchiveRequest,
@@ -143,18 +203,27 @@ function QuestionBankCard({
 
                 {q.tags && q.tags.length > 0 && (
                     <div {...stylex.props(styles.tagsRow)}>
-                        {q.tags.map((tag) => (
-                            <button
-                                key={tag}
-                                type="button"
-                                title={`Filter by tag: ${tag}`}
-                                aria-pressed={activeTagQuery === tag.toLowerCase()}
-                                onClick={() => onTagClick(tag)}
-                                {...stylex.props(styles.tag)}
-                            >
-                                #{tag}
-                            </button>
-                        ))}
+                        {q.tags.map((tag) => {
+                            // Toggle state, not decoration: the pressed chip is the active filter,
+                            // and it is active because it is IN the selected set — not because a
+                            // search string happens to look like it.
+                            const isActiveTag = selectedTagSet.has(tag);
+                            return (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    title={`Filter by tag: ${tag}`}
+                                    aria-pressed={isActiveTag}
+                                    onClick={() => onTagClick(tag)}
+                                    {...stylex.props(
+                                        styles.tag,
+                                        isActiveTag && styles.tagPressed,
+                                    )}
+                                >
+                                    #{tag}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -166,45 +235,14 @@ function QuestionBankCard({
                             usageCount > 0 ? styles.badgeUsed : styles.badgeUnused,
                         )}>{usageCount > 0 ? `Used in ${usageCount} ${usageCount === 1 ? 'quiz' : 'quizzes'}` : 'Not used in any quiz'}</span>
                     </div>
-                    <div {...stylex.props(styles.cardActions)}>
-                        {q.status === 'draft' && (
-                            <Button
-                                label={`Publish question: ${q.prompt}`}
-                                variant="secondary"
-                                icon={<CheckCircle size={14} />}
-                                isIconOnly
-                                tooltip="Publish"
-                                onClick={() => onPublish(q)}
-                            />
-                        )}
-                        <Button
-                            label={`Edit question: ${q.prompt}`}
-                            variant="secondary"
-                            icon={<Pencil size={14} />}
-                            isIconOnly
-                            tooltip="Edit"
-                            onClick={() => onEdit(q)}
-                        />
-                        {q.status === 'archived' && onUnarchive ? (
-                            <Button
-                                label={`Restore question: ${q.prompt}`}
-                                variant="secondary"
-                                icon={<ArchiveRestore size={14} />}
-                                isIconOnly
-                                tooltip="Restore"
-                                onClick={() => onUnarchive(q)}
-                            />
-                        ) : (
-                            <Button
-                                label={`Archive question: ${q.prompt}`}
-                                variant="danger"
-                                icon={<Archive size={14} />}
-                                isIconOnly
-                                tooltip="Archive"
-                                onClick={() => onArchiveRequest(q, usageCount)}
-                            />
-                        )}
-                    </div>
+                    <QuestionCardActions
+                        question={q}
+                        usageCount={usageCount}
+                        onEdit={onEdit}
+                        onPublish={onPublish}
+                        onArchiveRequest={onArchiveRequest}
+                        onUnarchive={onUnarchive}
+                    />
                 </div>
             </div>
         </Card>
@@ -229,6 +267,15 @@ export function QuestionBankTab({
     const { showToast } = useToast();
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebounce(search, 300);
+    // The Bank's tag filter is its own state — a multi-select set, exactly like the Material
+    // Library's. Chips toggle membership here and NEVER write into the search field, so the two
+    // mechanisms are independent: clearing the search cannot clear the tag filter, and toggling a
+    // tag cannot change the search text. Matching is OR across selected tags (a question is shown
+    // if it carries ANY selected tag), mirroring the Library's per-chip `isActive` model.
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    // A Set for membership tests: the array is toggled, but both the list predicate and every
+    // card's chip loop test membership, so the lookups belong on a Set (not `Array.includes`).
+    const selectedTagSet = useMemo(() => new Set(selectedTags), [selectedTags]);
     const [typeFilter, setTypeFilter] = useState<QuestionType | ''>('');
     const [difficultyFilter, setDifficultyFilter] = useState<QuestionDifficulty | ''>('');
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | ''>('');
@@ -246,9 +293,21 @@ export function QuestionBankTab({
 
     // Leading '#' is stripped so typing '#skin' or 'skin' both find tag 'skin'.
     const searchQuery = debouncedSearch.trim().toLowerCase().replace(/^#/, '');
-    // Live (non-debounced) query — chip toggles and pressed state must respond
-    // immediately, not after the 300ms debounce window.
-    const activeTagQuery = search.trim().toLowerCase().replace(/^#/, '');
+
+    // Tag facet for the filter bar — the same derivation the Material Library uses: unique tags of
+    // the questions in scope, ranked by how many carry them (desc), alphabetical tiebreak. A
+    // selected tag is appended even when the in-scope set no longer carries it, so an active filter
+    // keeps its deselect affordance; the bar's capped row pins it in place on top of that.
+    const allTags = useMemo(() => {
+        const counts = new Map<string, number>();
+        questions.forEach((q) => q.tags?.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1)));
+        const ranked = Array.from(counts.entries())
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([tag]) => tag);
+        if (selectedTags.length === 0) return ranked;
+        const rankedSet = new Set(ranked);
+        return [...ranked, ...selectedTags.filter((t) => !rankedSet.has(t))];
+    }, [questions, selectedTags]);
 
     const filtered = useMemo(() => {
         return questions
@@ -258,13 +317,21 @@ export function QuestionBankTab({
                     const matchesTags = (q.tags ?? []).some((t) => t.toLowerCase().includes(searchQuery));
                     if (!matchesPrompt && !matchesTags) return false;
                 }
+                // Tag filter, OR within the facet: a question survives if it carries any selected
+                // tag. AND across facets (search, tag, type, difficulty, status), as in the Library.
+                if (
+                    selectedTags.length > 0 &&
+                    !(q.tags ?? []).some((t) => selectedTagSet.has(t))
+                ) {
+                    return false;
+                }
                 if (typeFilter && q.type !== typeFilter) return false;
                 if (difficultyFilter && q.difficulty !== difficultyFilter) return false;
                 if (statusFilter && q.status !== statusFilter) return false;
                 return true;
             })
             .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[a.status] ?? 0) || a.prompt.localeCompare(b.prompt));
-    }, [questions, searchQuery, typeFilter, difficultyFilter, statusFilter]);
+    }, [questions, searchQuery, selectedTags, selectedTagSet, typeFilter, difficultyFilter, statusFilter]);
 
     const handleSave = (input: CreateQuestionInput | UpdateQuestionInput, id?: string) => {
         if (id) {
@@ -284,9 +351,13 @@ export function QuestionBankTab({
     };
 
     const handleTagClick = (tag: string) => {
-        // Clicking the already-active tag clears the filter; any other tag filters by it.
-        const isActive = activeTagQuery === tag.toLowerCase();
-        setSearch(isActive ? '' : `#${tag}`);
+        // Toggle membership in the selected set. This deliberately does NOT touch `search`:
+        // the search field and the tag filter are independent controls that happen to narrow the
+        // same list. Selecting a second tag adds to the set rather than replacing the first, so
+        // two tags narrow by both (OR).
+        setSelectedTags((current) =>
+            current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
+        );
     };
 
     const handlePublish = (question: Question) => {
@@ -321,6 +392,9 @@ export function QuestionBankTab({
                 onDifficultyFilterChange={setDifficultyFilter}
                 statusFilter={statusFilter}
                 onStatusFilterChange={setStatusFilter}
+                allTags={allTags}
+                selectedTags={selectedTags}
+                onToggleTag={handleTagClick}
                 activeFilterCount={activeFilterCount}
                 canGenerate={Boolean(documentMarkdown)}
                 onOpenGenerator={generator.open}
@@ -357,6 +431,7 @@ export function QuestionBankTab({
                             variant="secondary"
                             onClick={() => {
                                 setSearch('');
+                                setSelectedTags([]);
                                 setTypeFilter('');
                                 setDifficultyFilter('');
                                 setStatusFilter('');
@@ -375,7 +450,7 @@ export function QuestionBankTab({
                                 key={q.id}
                                 question={q}
                                 usageCount={usageCount}
-                                activeTagQuery={activeTagQuery}
+                                selectedTagSet={selectedTagSet}
                                 onEdit={openEdit}
                                 onPublish={handlePublish}
                                 onArchiveRequest={handleArchiveRequest}

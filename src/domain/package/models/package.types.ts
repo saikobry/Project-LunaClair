@@ -39,13 +39,6 @@ export interface PackageQuestion {
     points: number;
     explanation?: string;
     tags?: string[];
-    /**
-     * Optional provenance label carried from `Question.sourceSection` — the section the
-     * question was generated from. Additive and OPTIONAL: absence is valid and stays valid
-     * forever (see `src/domain/package/AGENTS.md` for the compatibility policy). Both the
-     * client validator and the Worker's `validateServerStudyPackage` must agree on that.
-     */
-    sourceSection?: string;
 }
 
 export interface PackageQuizItem {

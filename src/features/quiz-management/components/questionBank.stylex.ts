@@ -67,10 +67,15 @@ export const styles = stylex.create({
         margin: 0,
         maxWidth: '80%',
     },
+    /**
+     * Tag row. The material card fits its tags on one measured line and collapses the rest into a
+     * `+N` viewer; the Bank is a wrapping list, so its row wraps instead — the chips carry the
+     * same treatment, the overflow strategy stays the Bank's own.
+     */
     tagsRow: {
         display: 'flex',
         flexWrap: 'wrap',
-        gap: 4,
+        gap: 6,
     },
     cardFooter: {
         display: 'flex',
@@ -131,21 +136,50 @@ export const styles = stylex.create({
         backgroundColor: 'var(--color-background-muted)',
         color: 'var(--color-text-secondary)',
     },
+    /**
+     * Card tag toggle. A Question Bank question card tag is a filter toggle (`aria-pressed`), so it
+     * carries the treatment of the material card's tag toggle — `tagButton` / `tagButtonActive` in
+     * `features/materials/components/materialCard.stylex.ts` (compact 11px font, 3px 10px padding,
+     * radius 999, transparent background). The filter bar uses its own `filterPill` rule set from
+     * `questionBankFilterBar.stylex.ts` (mirroring `LibraryView.tsx`'s `filterPill`).
+     *
+     * The rules are duplicated rather than imported: a StyleX rule set is not a feature contract,
+     * and a `materials` import in this feature would be a new cross-feature edge. They must move
+     * together — this set is the look, that feature owns it. `maxWidth` + `overflowWrap` are the one
+     * deliberate addition: the card's row is single-line, the Bank's wraps, so a pathologically long
+     * tag wraps inside its own chip instead of widening the card. Never a literal colour.
+     */
     tag: {
-        fontSize: 10.5,
-        padding: '1px 7px',
-        border: 'none',
-        borderRadius: 4,
-        backgroundColor: 'var(--color-background-muted)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '3px 10px',
+        borderRadius: 999,
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor: 'var(--color-border)',
+        backgroundColor: 'transparent',
+        fontFamily: 'inherit',
+        fontSize: 11,
+        fontWeight: 600,
         color: 'var(--color-text-secondary)',
         cursor: 'pointer',
-        transition: 'background-color 0.15s ease, color 0.15s ease',
+        maxWidth: '100%',
+        overflowWrap: 'anywhere',
+        transition: 'background-color 0.15s, border-color 0.15s, color 0.15s',
         ':hover': {
-            backgroundColor: 'var(--color-accent-muted)',
-            color: 'var(--color-accent)',
+            borderColor: 'var(--color-accent)',
+            color: 'var(--color-text-primary)',
         },
-        ':active': {
-            opacity: 0.8,
+        ':focus-visible': {
+            outline: '2px solid var(--color-accent)',
+            outlineOffset: '2px',
         },
+    },
+    /** Pressed tag toggle — the active-filter state (`aria-pressed`). */
+    tagPressed: {
+        backgroundColor: 'var(--color-accent-muted)',
+        borderColor: 'var(--color-accent)',
+        color: 'var(--color-text-accent)',
     },
 });

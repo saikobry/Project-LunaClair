@@ -204,13 +204,6 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
             if (q.tags !== undefined && (!Array.isArray(q.tags) || q.tags.some(t => typeof t !== 'string'))) {
                 errors.push(`Question "${String(q.id || idx)}" tags must be an array of strings.`);
             }
-
-            // `sourceSection` is ADDITIVE and optional: a package published before the field
-            // existed is valid and stays valid. Only a present-but-wrong value is rejected, so
-            // the rule is identical on the Worker's publish validator.
-            if (q.sourceSection !== undefined && typeof q.sourceSection !== 'string') {
-                errors.push(`Question "${String(q.id || idx)}" sourceSection must be a string.`);
-            }
         });
     }
 

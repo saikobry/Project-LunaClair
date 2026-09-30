@@ -60,7 +60,6 @@ export function validateQuestionDraft(
 
   const points = typeof obj.points === 'number' && obj.points > 0 ? obj.points : 1;
   const explanation = typeof obj.explanation === 'string' ? obj.explanation.trim() : undefined;
-  const sourceSection = typeof obj.sourceSection === 'string' ? obj.sourceSection.trim() : undefined;
   const tags = Array.isArray(obj.tags) ? obj.tags.filter((t): t is string => typeof t === 'string') : [];
 
   let validatedPayload: QuestionAnswerPayload;
@@ -218,7 +217,6 @@ export function validateQuestionDraft(
       points,
       explanation,
       tags,
-      sourceSection,
     },
   };
 }

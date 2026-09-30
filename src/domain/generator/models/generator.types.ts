@@ -48,5 +48,4 @@ export interface GeneratedQuestionDraft {
     points: number;
     explanation?: string;
     tags?: string[];
-    sourceSection?: string;
 }

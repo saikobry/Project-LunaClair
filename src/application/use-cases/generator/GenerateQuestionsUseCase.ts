@@ -129,7 +129,7 @@ export class GenerateQuestionsUseCase {
     // request may ask the provider for.
     const descriptor = getAiModelDescriptor(DEFAULT_AI_MODEL_CATALOG, request.model);
 
-    const { contextText, sectionHeading } = extractSectionContext(
+    const { contextText } = extractSectionContext(
       sourceMarkdown,
       undefined,
       { maxCharacters: descriptor.maxDocumentContextChars },
@@ -183,15 +183,11 @@ Generate ${count} questions matching the schema.`;
     );
 
     // Tags are classification, not provenance. Nothing is stamped on top of the model's own topic
-    // tags: an `ai-generated` marker does not help anyone find or group a question, and a `sec:`
-    // marker duplicated the section the draft already carries. `sourceSection` is the real record
-    // of where the question came from — a dedicated optional field on `Question`, not a tag — and
-    // `BatchCreateQuestionsUseCase` persists it as-is.
+    // tags: an `ai-generated` marker does not help anyone find or group a question.
     return {
       drafts: rawBatch.drafts.map((draft) => ({
         ...draft,
         tags: draft.tags ?? [],
-        sourceSection: sectionHeading || draft.sourceSection,
       })),
       rejected: rawBatch.rejected,
     };

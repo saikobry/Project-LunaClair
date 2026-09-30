@@ -271,62 +271,6 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
       expect(json.details.some((d) => d.includes('tags must be an array of strings'))).toBe(true);
     });
 
-    it('rejects a question whose sourceSection is not a string, with 422', async () => {
-      // The client validator refuses the same shape, so client and Worker agree: a package
-      // the app can clone is a package the Worker accepts, and vice versa.
-      const badSourceSectionPackage = {
-        ...sampleValidPackage,
-        questions: [
-          { ...sampleValidPackage.questions[0], sourceSection: ['Cell Organelles'] },
-        ],
-      };
-
-      const req = new Request('http://localhost/api/shares', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ package: badSourceSectionPackage }),
-      });
-      const res = await worker.fetch(req, env);
-      expect(res.status).toBe(422);
-      const json = await res.json() as { details: string[] };
-      expect(json.details.some((d) => d.includes('sourceSection must be a string'))).toBe(true);
-    });
-
-    it('accepts a question sourceSection, and accepts its absence', async () => {
-      // Additive and optional: a package published before the field existed (the shape the
-      // base fixture already has) must keep publishing, and a labelled one must publish too.
-      const labelledPackage = {
-        ...sampleValidPackage,
-        questions: [
-          { ...sampleValidPackage.questions[0], sourceSection: 'Cell Organelles' },
-        ],
-      };
-
-      const labelledRes = await worker.fetch(
-        new Request('http://localhost/api/shares', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ package: labelledPackage }),
-        }),
-        env,
-      );
-      expect(labelledRes.status).toBe(201);
-
-      // The unlabelled control: `sampleValidPackage` questions carry no sourceSection.
-      expect(
-        sampleValidPackage.questions.every((q) => !('sourceSection' in q)),
-      ).toBe(true);
-      const unlabelledRes = await worker.fetch(
-        new Request('http://localhost/api/shares', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ package: sampleValidPackage }),
-        }),
-        env,
-      );
-      expect(unlabelledRes.status).toBe(201);
-    });
-
     it('rejects a question with a structurally malformed cloze payload with 422', async () => {
       // Publish-time strictness: a marker/answer mismatch is malformed content, and the client's
       // tolerant import path (which keeps such a legacy share cloneable and reports it) does not

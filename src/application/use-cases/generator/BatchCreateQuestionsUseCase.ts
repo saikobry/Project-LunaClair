@@ -38,8 +38,8 @@ export interface BatchCreateQuestionsResult {
  * This is the **single** AI persistence path. A generated flashcard is a `fill_in_blank`
  * question here, not a separate record type: the card projection reads typed questions and
  * expands a cloze into one card per blank, each with its own SM-2 schedule. The draft's
- * declared type, difficulty, and `sourceSection` therefore persist as authored — nothing is
- * stamped onto a `type: 'identification'` row and nothing is hardcoded to `'medium'`.
+ * declared type and difficulty therefore persist as authored — nothing is stamped onto a
+ * `type: 'identification'` row and nothing is hardcoded to `'medium'`.
  *
  * **The write boundary re-validates rather than trusting its input.** The cloze guarantee — a
  * card's front always carries a valid `___` marker — otherwise rests on the generator having
@@ -97,8 +97,7 @@ export class BatchCreateQuestionsUseCase {
       const normalized = validation.data;
 
       // Tags are whatever classification the draft carries — persistence adds no provenance marker.
-      // `sourceSection` is the provenance record itself, so unlike a tag it IS persisted: the
-      // draft's declared difficulty, payload type, and section all reach the bank intact.
+      // The draft's declared difficulty and payload type reach the bank intact.
       createInputs.push({
         materialId: input.materialId,
         type: normalized.type,
@@ -108,7 +107,6 @@ export class BatchCreateQuestionsUseCase {
         points: normalized.points,
         explanation: normalized.explanation,
         tags: normalized.tags ?? [],
-        sourceSection: normalized.sourceSection,
         status: input.status ?? 'draft',
       });
     });

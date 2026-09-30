@@ -265,38 +265,6 @@ Repolarization is driven by potassium ion (K+) efflux.
       expect(payload.blanks).toHaveLength(1);
     });
 
-    it('carries the section label onto the draft as provenance, not as a tag', async () => {
-      // Whole-material grounding resolves no section heading, so the label the draft keeps
-      // is the model's own. What matters here is that it survives as a dedicated field
-      // rather than being rendered-then-dropped or folded into the filterable tag list.
-      const mockAi = new MockAiAdapter({
-        structuredResponse: [
-          { ...clozePayload[0], sourceSection: 'Action Potentials' },
-        ],
-      });
-      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
-
-      const batch = await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
-
-      // Computed during generation, carried on the draft, and persisted by
-      // `BatchCreateQuestionsUseCase`.
-      expect(batch.drafts[0].sourceSection).toBe('Action Potentials');
-      // Provenance is metadata, not a tag: it must not leak into the tag list.
-      expect(batch.drafts[0].tags).toEqual(['action potentials']);
-      expect(batch.drafts[0].tags).not.toContain('Action Potentials');
-    });
-
-    it('leaves the label absent when the draft supplies none', async () => {
-      const mockAi = new MockAiAdapter({ structuredResponse: clozePayload });
-      const useCase = new GenerateQuestionsUseCase(mockAi, stubResolver(sampleMaterialMarkdown));
-
-      const batch = await useCase.execute({ materialId: 'mat-bio-1', types: ['fill_in_blank'] });
-
-      // Absent is a legitimate state, not a gap to fill: a hand-grounded generation with no
-      // section heading simply has no provenance to record.
-      expect(batch.drafts[0].sourceSection).toBeUndefined();
-    });
-
     it('rejects a cloze whose marker and answer counts disagree, keeping its valid siblings', async () => {
       const mockAi = new MockAiAdapter({
         structuredResponse: [

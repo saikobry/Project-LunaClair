@@ -41,7 +41,6 @@ test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
             },
             difficulty: 'easy',
             points: 1,
-            sourceSection: 'Glycolysis',
             tags: ['biology', 'organelles'],
             explanation: 'Glycolysis itself occurs in the cytoplasm.',
           },
@@ -85,7 +84,6 @@ test.describe('AI Content Generator E2E — Questions & Flashcards', () => {
           difficulty: 'easy',
           points: 1,
           explanation: 'Mitochondria generate cellular energy in the form of ATP through oxidative phosphorylation.',
-          sourceSection: 'Cell Organelles',
           tags: ['biology', 'organelles'],
         },
       ]);

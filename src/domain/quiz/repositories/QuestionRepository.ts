@@ -9,8 +9,6 @@ export interface CreateQuestionInput {
     points?: number;
     explanation?: string;
     tags?: string[];
-    /** Provenance label captured at generation time. See `Question.sourceSection`. */
-    sourceSection?: string;
     status?: QuestionStatus;
 }
 
@@ -21,19 +19,6 @@ export interface UpdateQuestionInput {
     points?: number;
     explanation?: string;
     tags?: string[];
-    /**
-     * Provenance label. A **three-state** field, and the states are told apart on this raw
-     * value, before any normalizer runs, because "absent" and "present but blank" both
-     * normalize to nothing and must not collapse:
-     *
-     * - **absent** (`undefined`) — leave the stored label alone. This is what a
-     *   difficulty-only save (publish, archive, points) takes, so an unrelated edit can never
-     *   erase provenance it never knew about.
-     * - **present but blank** (`''`, `'   '`) — **clear** the label. This is how a caller
-     *   states "this question has no known origin"; it is a deliberate act, not a default.
-     * - **labelled** — replace the stored label.
-     */
-    sourceSection?: string;
     status?: QuestionStatus;
 }
 

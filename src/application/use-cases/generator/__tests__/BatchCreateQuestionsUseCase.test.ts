@@ -123,7 +123,6 @@ describe('BatchCreateQuestionsUseCase', () => {
         },
         difficulty: 'hard',
         points: 1,
-        sourceSection: 'Glycolysis',
         tags: ['organelles'],
       };
 
@@ -167,49 +166,6 @@ describe('BatchCreateQuestionsUseCase', () => {
       expect(captured.map((c) => c.difficulty)).toEqual(['easy', 'medium', 'hard']);
     });
 
-    it('carries the section label to the write boundary, where it is provenance and not a tag', async () => {
-      const { repo, captured } = repoCapturingInputs();
-
-      await new BatchCreateQuestionsUseCase(repo).execute({
-        materialId: 'mat-cell-1',
-        questions: [
-          {
-            type: 'fill_in_blank',
-            prompt: 'P',
-            payload: { type: 'fill_in_blank', template: 'A ___.', blanks: ['B'] },
-            difficulty: 'easy',
-            points: 1,
-            sourceSection: 'Glycolysis',
-            tags: ['bio'],
-          },
-        ],
-      });
-
-      expect(captured[0].sourceSection).toBe('Glycolysis');
-      // It is its own field, never folded into the tag list: a section label is provenance
-      // metadata, and a tag is something a user filters on.
-      expect(captured[0].tags).toEqual(['bio']);
-      expect(captured[0].tags).not.toContain('Glycolysis');
-    });
-
-    it('leaves the section absent when the draft carries none', async () => {
-      const { repo, captured } = repoCapturingInputs();
-
-      await new BatchCreateQuestionsUseCase(repo).execute({
-        materialId: 'mat-cell-1',
-        questions: [
-          {
-            type: 'fill_in_blank',
-            prompt: 'P',
-            payload: { type: 'fill_in_blank', template: 'A ___.', blanks: ['B'] },
-            difficulty: 'easy',
-            points: 1,
-          },
-        ],
-      });
-
-      expect(captured[0].sourceSection).toBeUndefined();
-    });
   });
 
   /**
