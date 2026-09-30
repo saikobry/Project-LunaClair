@@ -50,7 +50,6 @@ export function inspectStudyPackage(pkg: StudyPackage): StudyPackageSummary {
         materialCount: pkg.materials.length,
         questionCount: pkg.questions.length,
         quizCount: pkg.quizzes.length,
-        flashcardCount: pkg.flashcards?.length ?? 0,
         assetCount: pkg.assets?.length ?? 0,
         questionsByType,
         totalPoints,

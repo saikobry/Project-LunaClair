@@ -30,7 +30,6 @@ describe('useExportStudyPackage', () => {
     ],
     questions: [],
     quizzes: [],
-    flashcards: [],
   };
 
   let mockMaterializeExecute: ReturnType<typeof vi.fn>;

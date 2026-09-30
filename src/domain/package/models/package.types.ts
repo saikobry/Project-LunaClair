@@ -8,7 +8,6 @@ export type QuestionPayload = QuestionAnswerPayload;
 export type PackageMaterialId = `pkg_mat_${string}`;
 export type PackageQuestionId = `pkg_q_${string}`;
 export type PackageQuizId = `pkg_quiz_${string}`;
-export type PackageFlashcardId = `pkg_card_${string}`;
 export type PackageAssetId = `pkg_asset_${string}`;
 
 export interface StudyPackageMetadata {
@@ -57,14 +56,6 @@ export interface PackageQuiz {
     items: PackageQuizItem[];
 }
 
-export interface PackageFlashcard {
-    id: `pkg_card_${string}`;
-    materialId: `pkg_mat_${string}`;
-    front: string;
-    back: string;
-    hints?: string[];
-}
-
 export interface PackageAsset {
     id: PackageAssetId;
     materialId?: PackageMaterialId;
@@ -80,7 +71,6 @@ export interface StudyPackage {
     materials: PackageMaterial[];
     questions: PackageQuestion[];
     quizzes: PackageQuiz[];
-    flashcards?: PackageFlashcard[];
     assets?: PackageAsset[];
 }
 
@@ -100,13 +90,6 @@ export interface RemappedStudyPackage {
     }>;
     questions: Question[];
     quizzes: Quiz[];
-    flashcards: Array<{
-        id: string;
-        materialId: string;
-        front: string;
-        back: string;
-        hints?: string[];
-    }>;
     assets: Array<{
         id: string;
         materialId?: string;
@@ -141,7 +124,6 @@ export interface StudyPackageSummary {
     materialCount: number;
     questionCount: number;
     quizCount: number;
-    flashcardCount: number;
     assetCount: number;
     questionsByType: Record<string, number>;
     totalPoints: number;

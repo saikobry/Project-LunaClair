@@ -203,4 +203,32 @@ describe('question payload corpus ↔ client/Worker parity', () => {
     expect(validateStudyPackage(pkg).isValid).toBe(true);
     expect(validateServerStudyPackage(pkg).isValid).toBe(true);
   });
+
+  it('rejects packages carrying a flashcards property identically on both client and Worker', () => {
+    const basePkg = packageWith(
+      question('true_false', { type: 'true_false', correctAnswer: true }),
+    );
+
+    const probeVariants = [
+      { flashcards: [] },
+      { flashcards: [{ id: 'pkg_card_1', front: 'Q', back: 'A' }] },
+      { flashcards: null },
+      { flashcards: undefined },
+      { flashcards: 'unsupported' },
+    ];
+
+    for (const variant of probeVariants) {
+      const pkg = { ...basePkg, ...variant };
+      const client = validateStudyPackage(pkg);
+      const worker = validateServerStudyPackage(pkg);
+
+      expect(client.isValid, `client verdict for ${JSON.stringify(variant)}`).toBe(false);
+      expect(worker.isValid, `Worker verdict for ${JSON.stringify(variant)}`).toBe(false);
+      expect(client.errors).toContain('Package "flashcards" is not supported.');
+      expect(worker.errors).toContain('Package "flashcards" is not supported.');
+      expect(worker.errors.filter((e) => e.includes('flashcards'))).toEqual(
+        client.errors.filter((e) => e.includes('flashcards')),
+      );
+    }
+  });
 });

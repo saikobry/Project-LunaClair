@@ -10,8 +10,8 @@ const defaultIdGenerator: LocalIdGenerator = {
  * Pure remapper for importing a StudyPackage into local state.
  * 
  * Invariants:
- * - Generates fresh collision-free UUIDs for every material, document, question, quiz, flashcard, and asset.
- * - Rewires all foreign keys across questions, quizzes, quiz items, flashcards, and assets.
+ * - Generates fresh collision-free UUIDs for every material, document, question, quiz, and asset.
+ * - Rewires all foreign keys across questions, quizzes, quiz items, and assets.
  * - Rewrites embedded markdown `lc-asset://pkg_asset_...` references to point to newly generated asset IDs.
  * - Returns a full `idMap` tracking package ID -> local UUID mappings.
  */
@@ -33,10 +33,6 @@ export function remapStudyPackage(
 
     pkg.quizzes.forEach((quiz) => {
         idMap.set(quiz.id, idGenerator.generate());
-    });
-
-    (pkg.flashcards ?? []).forEach((card) => {
-        idMap.set(card.id, idGenerator.generate());
     });
 
     (pkg.assets ?? []).forEach((asset) => {
@@ -122,21 +118,7 @@ export function remapStudyPackage(
         };
     });
 
-    // 5. Remap flashcards
-    const flashcards = (pkg.flashcards ?? []).map((card) => {
-        const newCardId = idMap.get(card.id)!;
-        const newMatId = idMap.get(card.materialId) ?? card.materialId;
-
-        return {
-            id: newCardId,
-            materialId: newMatId,
-            front: card.front,
-            back: card.back,
-            hints: card.hints ? [...card.hints] : undefined,
-        };
-    });
-
-    // 6. Remap assets
+    // 5. Remap assets
     const defaultMatId = materials[0]?.id ?? '';
     const assets = (pkg.assets ?? []).map((asset) => {
         const newAssetId = idMap.get(asset.id)!;
@@ -155,7 +137,6 @@ export function remapStudyPackage(
         materials,
         questions,
         quizzes,
-        flashcards,
         assets,
         idMap,
     };

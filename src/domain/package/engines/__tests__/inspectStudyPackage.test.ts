@@ -125,14 +125,6 @@ describe('inspectStudyPackage', () => {
                     ],
                 },
             ],
-            flashcards: [
-                {
-                    id: 'pkg_card_1',
-                    materialId: 'pkg_mat_ds_1',
-                    front: 'BST',
-                    back: 'Binary Search Tree',
-                },
-            ],
             assets: [
                 {
                     id: 'pkg_asset_1',
@@ -152,7 +144,6 @@ describe('inspectStudyPackage', () => {
         expect(summary.materialCount).toBe(2);
         expect(summary.questionCount).toBe(3);
         expect(summary.quizCount).toBe(1);
-        expect(summary.flashcardCount).toBe(1);
         expect(summary.assetCount).toBe(1);
         expect(summary.questionsByType).toEqual({
             multiple_choice: 2,
@@ -179,7 +170,6 @@ describe('inspectStudyPackage', () => {
         expect(summary.materialCount).toBe(0);
         expect(summary.questionCount).toBe(0);
         expect(summary.quizCount).toBe(0);
-        expect(summary.flashcardCount).toBe(0);
         expect(summary.assetCount).toBe(0);
         expect(summary.questionsByType).toEqual({});
         expect(summary.totalPoints).toBe(0);

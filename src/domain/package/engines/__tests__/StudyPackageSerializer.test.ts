@@ -64,14 +64,6 @@ describe('StudyPackageSerializer', () => {
         ],
       },
     ],
-    flashcards: [
-      {
-        id: 'pkg_card_1',
-        materialId: 'pkg_mat_1',
-        front: 'What is ATP?',
-        back: 'Adenosine Triphosphate, energy currency of the cell.',
-      },
-    ],
     assets: [
       {
         id: 'pkg_asset_1',

@@ -14,20 +14,19 @@ const summary: StudyPackageSummary = {
   materialCount: 1,
   questionCount: 2,
   quizCount: 1,
-  flashcardCount: 1,
   assetCount: 1,
   questionsByType: { multiple_choice: 1, true_false: 1 },
   totalPoints: 15,
 };
 
 describe('PackageStatsGrid', () => {
-  it('renders all six package metrics from a pre-fetched summary', () => {
+  it('renders all five package metrics from a pre-fetched summary', () => {
     render(<PackageStatsGrid summary={summary} />);
 
     expect(screen.getByText('Materials')).toBeInTheDocument();
     expect(screen.getByText('Questions')).toBeInTheDocument();
     expect(screen.getByText('Quizzes')).toBeInTheDocument();
-    expect(screen.getByText('Flashcards')).toBeInTheDocument();
+    expect(screen.queryByText('Flashcards')).not.toBeInTheDocument();
     expect(screen.getByText('Assets')).toBeInTheDocument();
     expect(screen.getByText('Total Points')).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();

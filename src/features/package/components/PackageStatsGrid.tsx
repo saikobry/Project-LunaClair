@@ -3,7 +3,6 @@ import {
   BookOpen,
   HelpCircle,
   Award,
-  Layers,
   Image as ImageIcon,
   Sparkles,
 } from 'lucide-react';
@@ -16,17 +15,16 @@ export interface PackageStatsGridProps {
 }
 
 /**
- * Package metric stat cards (materials, questions, quizzes, flashcards,
- * assets, total points). Unifies the `StudyPackagePreviewModal` inline grid
- * with the `SharedPackageScreen` local `PackageStatsGrid` — same shape,
- * style, icons, and order in both.
+ * Package metric stat cards (materials, questions, quizzes, assets, total
+ * points). Unifies the `StudyPackagePreviewModal` inline grid with the
+ * `SharedPackageScreen` local `PackageStatsGrid` — same shape, style, icons,
+ * and order in both.
  */
 export function PackageStatsGrid({ summary }: PackageStatsGridProps) {
   const stats: Array<{ label: string; value: number; icon: React.ReactNode }> = [
     { label: 'Materials', value: summary.materialCount, icon: <BookOpen size={15} /> },
     { label: 'Questions', value: summary.questionCount, icon: <HelpCircle size={15} /> },
     { label: 'Quizzes', value: summary.quizCount, icon: <Award size={15} /> },
-    { label: 'Flashcards', value: summary.flashcardCount, icon: <Layers size={15} /> },
     { label: 'Assets', value: summary.assetCount, icon: <ImageIcon size={15} /> },
     { label: 'Total Points', value: summary.totalPoints, icon: <Sparkles size={15} /> },
   ];

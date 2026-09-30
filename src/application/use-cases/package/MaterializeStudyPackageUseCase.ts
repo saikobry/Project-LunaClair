@@ -5,7 +5,6 @@ import type { QuizRepository } from '../../../domain/quiz/repositories/QuizRepos
 import type { AssetRepository } from '../../../domain/assets/repositories/AssetRepository';
 import type {
   PackageAsset,
-  PackageFlashcard,
   PackageMaterial,
   PackageQuestion,
   PackageQuiz,
@@ -172,8 +171,6 @@ export class MaterializeStudyPackageUseCase {
       tags: input.tags || input.metadata?.tags,
     };
 
-    const packageFlashcards: PackageFlashcard[] = [];
-
     return {
       format: 'lcpack',
       schemaVersion: 1,
@@ -181,7 +178,6 @@ export class MaterializeStudyPackageUseCase {
       materials: packageMaterials,
       questions: packageQuestions,
       quizzes: packageQuizzes,
-      flashcards: packageFlashcards,
       assets: packageAssets.length > 0 ? packageAssets : undefined,
     };
   }

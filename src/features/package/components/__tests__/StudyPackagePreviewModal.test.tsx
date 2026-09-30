@@ -60,14 +60,6 @@ describe('StudyPackagePreviewModal', () => {
         ],
       },
     ],
-    flashcards: [
-      {
-        id: 'pkg_card_1',
-        materialId: 'pkg_mat_1',
-        front: 'Action Potential',
-        back: 'A rapid rise and subsequent fall in voltage or membrane potential across a cellular membrane.',
-      },
-    ],
     assets: [
       {
         id: 'pkg_asset_1',

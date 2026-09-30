@@ -13,7 +13,6 @@ const VALID_DIFFICULTIES: ReadonlySet<QuestionDifficulty> = new Set([
 const MATERIAL_ID_REGEX = /^pkg_mat_[a-zA-Z0-9_-]+$/;
 const QUESTION_ID_REGEX = /^pkg_q_[a-zA-Z0-9_-]+$/;
 const QUIZ_ID_REGEX = /^pkg_quiz_[a-zA-Z0-9_-]+$/;
-const FLASHCARD_ID_REGEX = /^pkg_card_[a-zA-Z0-9_-]+$/;
 const ASSET_ID_REGEX = /^pkg_asset_[a-zA-Z0-9_-]+$/;
 const ASSET_URI_REGEX = /lc-asset:\/\/([^\s)"'>]+)/g;
 
@@ -23,12 +22,13 @@ const ASSET_URI_REGEX = /lc-asset:\/\/([^\s)"'>]+)/g;
  * Invariants enforced:
  * - format must equal 'lcpack'
  * - schemaVersion must equal 1
- * - Entity IDs must strictly match their canonical prefixes (pkg_mat_, pkg_q_, pkg_quiz_, pkg_card_, pkg_asset_)
+ * - Entity IDs must strictly match their canonical prefixes (pkg_mat_, pkg_q_, pkg_quiz_, pkg_asset_)
  * - No duplicate IDs across any entities in the package
- * - Foreign keys (question.materialId, quiz.materialId, quizItem.questionId, flashcard.materialId, asset.materialId)
+ * - Foreign keys (question.materialId, quiz.materialId, quizItem.questionId, asset.materialId)
  *   must resolve to declared entities
  * - Markdown asset URIs (lc-asset://...) must resolve to declared package assets
  * - Every question payload must be structurally valid for its declared type
+ * - Package must not carry unsupported properties ("flashcards")
  *
  * **There is ONE tier, and it is strict.** This function used to take `{ strictness }` with a
  * tolerant `read` default that recorded a malformed payload as a non-blocking `warning`, imported
@@ -267,40 +267,9 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
         });
     }
 
-    // 6. Flashcards validation (optional)
-    if (raw.flashcards !== undefined) {
-        if (!Array.isArray(raw.flashcards)) {
-            errors.push('Package "flashcards" must be an array if provided.');
-        } else {
-            raw.flashcards.forEach((card, idx) => {
-                if (!card || typeof card !== 'object' || Array.isArray(card)) {
-                    errors.push(`Flashcard at index ${idx} must be an object.`);
-                    return;
-                }
-                if (typeof card.id !== 'string') {
-                    errors.push(`Flashcard at index ${idx} has invalid ID "${String(card.id)}": must match "pkg_card_<id>".`);
-                } else {
-                    checkUniqueId(card.id, `flashcards (index ${idx})`);
-                    if (!FLASHCARD_ID_REGEX.test(card.id)) {
-                        errors.push(`Flashcard at index ${idx} has invalid ID "${card.id}": must match "pkg_card_<id>".`);
-                    }
-                }
-
-                if (typeof card.materialId !== 'string' || !MATERIAL_ID_REGEX.test(card.materialId)) {
-                    errors.push(`Flashcard "${String(card.id || idx)}" has invalid materialId "${String(card.materialId)}".`);
-                }
-
-                if (typeof card.front !== 'string') {
-                    errors.push(`Flashcard "${String(card.id || idx)}" front must be a string.`);
-                }
-                if (typeof card.back !== 'string') {
-                    errors.push(`Flashcard "${String(card.id || idx)}" back must be a string.`);
-                }
-                if (card.hints !== undefined && (!Array.isArray(card.hints) || card.hints.some(h => typeof h !== 'string'))) {
-                    errors.push(`Flashcard "${String(card.id || idx)}" hints must be an array of strings.`);
-                }
-            });
-        }
+    // 6. Flashcards rejection (unsupported property)
+    if (Object.prototype.hasOwnProperty.call(raw, 'flashcards')) {
+        errors.push('Package "flashcards" is not supported.');
     }
 
     // 7. Assets validation (optional)
@@ -366,16 +335,7 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
         });
     }
 
-    // 8c. Flashcards -> Materials
-    if (Array.isArray(raw.flashcards)) {
-        raw.flashcards.forEach((card) => {
-            if (card && typeof card.materialId === 'string' && !declaredMaterialIds.has(card.materialId)) {
-                errors.push(`Flashcard "${card.id}" references non-existent material "${card.materialId}".`);
-            }
-        });
-    }
-
-    // 8d. Assets -> Materials (if materialId specified)
+    // 8c. Assets -> Materials (if materialId specified)
     if (Array.isArray(raw.assets)) {
         raw.assets.forEach((asset) => {
             if (asset && typeof asset.materialId === 'string' && !declaredMaterialIds.has(asset.materialId)) {
@@ -384,7 +344,7 @@ export function validateStudyPackage(input: unknown): PackageValidationResult {
         });
     }
 
-    // 8e. Markdown Asset References (lc-asset://...) -> Assets
+    // 8d. Markdown Asset References (lc-asset://...) -> Assets
     if (Array.isArray(raw.materials)) {
         raw.materials.forEach((mat) => {
             if (mat && typeof mat.documentContent === 'string') {

@@ -12,7 +12,7 @@
  * The E2E suite declares one fixture per published graph it exercises. The
  * cellular-respiration payload is deliberately the minimal markdown-only notes
  * fixture for writer, reader, and AI generator coverage; the cell-structure
- * payload carries the full graph for quiz, flashcard, and package assertions.
+ * payload carries the full graph for quiz, question-projected flashcard, and package assertions.
  * Both payloads are built from canonical content so the clone path, relationship
  * assertions, and fixture freshness contract share the same source of truth.
  */

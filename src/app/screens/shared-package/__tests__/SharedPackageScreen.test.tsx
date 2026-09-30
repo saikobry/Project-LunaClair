@@ -72,14 +72,6 @@ describe('SharedPackageScreen', () => {
         ],
       },
     ],
-    flashcards: [
-      {
-        id: 'pkg_card_1',
-        materialId: 'pkg_mat_1',
-        front: 'Hexokinase',
-        back: 'Phosphorylates glucose to glucose-6-phosphate.',
-      },
-    ],
     assets: [
       {
         id: 'pkg_asset_1',

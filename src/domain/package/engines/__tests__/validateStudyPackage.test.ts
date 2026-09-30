@@ -75,15 +75,6 @@ const createValidPackage = (): StudyPackage => ({
             ],
         },
     ],
-    flashcards: [
-        {
-            id: 'pkg_card_mitochondria',
-            materialId: 'pkg_mat_cell_intro',
-            front: 'Mitochondria',
-            back: 'Cellular powerhouse producing ATP',
-            hints: ['Organelle', 'ATP'],
-        },
-    ],
     assets: [
         {
             id: 'pkg_asset_cell_diagram',
@@ -103,9 +94,8 @@ describe('validateStudyPackage', () => {
         expect(result.errors).toEqual([]);
     });
 
-    it('validates a minimal package without optional flashcards or assets', () => {
+    it('validates a minimal package without optional assets', () => {
         const pkg = createValidPackage();
-        delete pkg.flashcards;
         delete pkg.assets;
         pkg.materials[0].documentContent = '# Simple text without assets';
 
@@ -155,7 +145,6 @@ describe('validateStudyPackage', () => {
         (pkg.materials[0] as any).id = 'mat_1';
         (pkg.questions[0] as any).id = 'q_1';
         (pkg.quizzes[0] as any).id = 'quiz_1';
-        (pkg.flashcards![0] as any).id = 'card_1';
         (pkg.assets![0] as any).id = 'asset_1';
 
         const result = validateStudyPackage(pkg);
@@ -163,7 +152,6 @@ describe('validateStudyPackage', () => {
         expect(result.errors.some(e => e.includes('pkg_mat_'))).toBe(true);
         expect(result.errors.some(e => e.includes('pkg_q_'))).toBe(true);
         expect(result.errors.some(e => e.includes('pkg_quiz_'))).toBe(true);
-        expect(result.errors.some(e => e.includes('pkg_card_'))).toBe(true);
         expect(result.errors.some(e => e.includes('pkg_asset_'))).toBe(true);
     });
 
@@ -210,15 +198,50 @@ describe('validateStudyPackage', () => {
         expect(result.errors).toContain('Quiz "pkg_quiz_cell_basics" item references non-existent question "pkg_q_ghost".');
     });
 
-    it('detects orphaned foreign keys in flashcards and assets', () => {
+    it('detects orphaned foreign keys in assets', () => {
         const pkg = createValidPackage();
-        pkg.flashcards![0].materialId = 'pkg_mat_ghost';
         pkg.assets![0].materialId = 'pkg_mat_ghost';
 
         const result = validateStudyPackage(pkg);
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Flashcard "pkg_card_mitochondria" references non-existent material "pkg_mat_ghost".');
         expect(result.errors).toContain('Asset "pkg_asset_cell_diagram" references non-existent material "pkg_mat_ghost".');
+    });
+
+    it('rejects a package carrying flashcards as unsupported', () => {
+        const pkgWithArray = {
+            ...createValidPackage(),
+            flashcards: [
+                {
+                    id: 'pkg_card_1',
+                    materialId: 'pkg_mat_cell_intro',
+                    front: 'Q',
+                    back: 'A',
+                },
+            ],
+        };
+        const result1 = validateStudyPackage(pkgWithArray);
+        expect(result1.isValid).toBe(false);
+        expect(result1.errors).toContain('Package "flashcards" is not supported.');
+
+        const pkgWithEmptyArray = { ...createValidPackage(), flashcards: [] };
+        const result2 = validateStudyPackage(pkgWithEmptyArray);
+        expect(result2.isValid).toBe(false);
+        expect(result2.errors).toContain('Package "flashcards" is not supported.');
+
+        const pkgWithNull = { ...createValidPackage(), flashcards: null };
+        const result3 = validateStudyPackage(pkgWithNull);
+        expect(result3.isValid).toBe(false);
+        expect(result3.errors).toContain('Package "flashcards" is not supported.');
+
+        const pkgWithUndefined = { ...createValidPackage(), flashcards: undefined };
+        const result4 = validateStudyPackage(pkgWithUndefined);
+        expect(result4.isValid).toBe(false);
+        expect(result4.errors).toContain('Package "flashcards" is not supported.');
+
+        const pkgWithString = { ...createValidPackage(), flashcards: 'invalid' };
+        const result5 = validateStudyPackage(pkgWithString);
+        expect(result5.isValid).toBe(false);
+        expect(result5.errors).toContain('Package "flashcards" is not supported.');
     });
 
     it('accepts materials without tags (tags are optional)', () => {

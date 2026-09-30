@@ -55,15 +55,6 @@ const createSamplePackage = (): StudyPackage => ({
             ],
         },
     ],
-    flashcards: [
-        {
-            id: 'pkg_card_inertia',
-            materialId: 'pkg_mat_newton_laws',
-            front: 'Inertia',
-            back: 'Resistance of an object to a change in its state of motion.',
-            hints: ['Mass related'],
-        },
-    ],
     assets: [
         {
             id: 'pkg_asset_force_diag',
@@ -99,7 +90,7 @@ describe('remapStudyPackage', () => {
         expect(remapped.materials).toHaveLength(1);
         const remappedMat = remapped.materials[0];
         expect(remappedMat.id).toBe('test_uuid_1');
-        expect(remappedMat.documentId).toBe('test_uuid_6'); // 5 package entities mapped (mat, q, quiz, card, asset) then docId generated
+        expect(remappedMat.documentId).toBe('test_uuid_5'); // 4 package entities mapped (mat, q, quiz, asset) then docId generated
         expect(remappedMat.title).toBe(pkg.materials[0].title);
         expect(remappedMat.tags).toEqual(['physics', 'mechanics']);
 
@@ -127,28 +118,21 @@ describe('remapStudyPackage', () => {
             points: 10,
         });
 
-        // Flashcards remapped with correct FKs
-        expect(remapped.flashcards).toHaveLength(1);
-        const remappedCard = remapped.flashcards[0];
-        expect(remappedCard.id).toBe('test_uuid_4');
-        expect(remappedCard.materialId).toBe('test_uuid_1');
-
         // Assets remapped with correct FKs
         expect(remapped.assets).toHaveLength(1);
         const remappedAsset = remapped.assets[0];
-        expect(remappedAsset.id).toBe('test_uuid_5');
+        expect(remappedAsset.id).toBe('test_uuid_4');
         expect(remappedAsset.materialId).toBe('test_uuid_1');
 
         // Embedded asset URI in markdown is rewritten
-        expect(remappedMat.documentContent).toContain('lc-asset://test_uuid_5');
+        expect(remappedMat.documentContent).toContain('lc-asset://test_uuid_4');
         expect(remappedMat.documentContent).not.toContain('pkg_asset_force_diag');
 
         // ID map contains all package IDs
         expect(remapped.idMap.get('pkg_mat_newton_laws')).toBe('test_uuid_1');
         expect(remapped.idMap.get('pkg_q_first_law')).toBe('test_uuid_2');
         expect(remapped.idMap.get('pkg_quiz_mechanics_eval')).toBe('test_uuid_3');
-        expect(remapped.idMap.get('pkg_card_inertia')).toBe('test_uuid_4');
-        expect(remapped.idMap.get('pkg_asset_force_diag')).toBe('test_uuid_5');
+        expect(remapped.idMap.get('pkg_asset_force_diag')).toBe('test_uuid_4');
     });
 
     it('generates unique collision-free UUIDs by default', () => {
@@ -160,7 +144,6 @@ describe('remapStudyPackage', () => {
             ...remapped.materials.map(m => m.documentId),
             ...remapped.questions.map(q => q.id),
             ...remapped.quizzes.map(qz => qz.id),
-            ...remapped.flashcards.map(c => c.id),
             ...remapped.assets.map(a => a.id),
         ];
 

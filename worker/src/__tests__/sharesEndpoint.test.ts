@@ -156,14 +156,6 @@ const sampleValidPackage = {
       ],
     },
   ],
-  flashcards: [
-    {
-      id: 'pkg_card_001',
-      materialId: 'pkg_mat_001',
-      front: 'Mitochondria',
-      back: 'Powerhouse of the cell',
-    },
-  ],
   assets: [
     {
       id: 'pkg_asset_001',
@@ -301,6 +293,23 @@ describe('Cloud Sharing Protocol (Worker Endpoints)', () => {
       expect(json.details).toContain(
         'Question "pkg_q_001": fill_in_blank payload requires exactly one answer per "___" placeholder (2 in template, 1 supplied).',
       );
+    });
+
+    it('rejects packages carrying flashcards with 422', async () => {
+      const cardPackage = {
+        ...sampleValidPackage,
+        flashcards: [{ id: 'pkg_card_001', materialId: 'pkg_mat_001', front: 'A', back: 'B' }],
+      };
+
+      const req = new Request('http://localhost/api/shares', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package: cardPackage }),
+      });
+      const res = await worker.fetch(req, env);
+      expect(res.status).toBe(422);
+      const json = await res.json() as { details: string[] };
+      expect(json.details).toContain('Package "flashcards" is not supported.');
     });
 
     it('rejects passcode accessType when passcode is missing', async () => {      const req = new Request('http://localhost/api/shares', {

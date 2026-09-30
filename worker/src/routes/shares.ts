@@ -303,7 +303,6 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
   const materials = pkg.materials as Array<Record<string, unknown>>;
   const questions = pkg.questions as Array<Record<string, unknown>>;
   const quizzes = pkg.quizzes as Array<Record<string, unknown>>;
-  const flashcards = Array.isArray(pkg.flashcards) ? (pkg.flashcards as Array<Record<string, unknown>>) : [];
   const assets = Array.isArray(pkg.assets) ? (pkg.assets as Array<Record<string, unknown>>) : [];
 
   const materialIdSet = new Set<string>();
@@ -400,21 +399,10 @@ export function validateServerStudyPackage(input: unknown): { isValid: boolean; 
     }
   });
 
-  // 4. Validate Flashcards
-  flashcards.forEach((card, idx) => {
-    const id = card.id;
-    if (typeof id !== 'string' || !id.startsWith('pkg_card_')) {
-      errors.push(`Flashcard at index ${idx} has invalid ID: must start with "pkg_card_".`);
-    } else if (allIdSet.has(id)) {
-      errors.push(`Duplicate ID detected: "${id}".`);
-    } else {
-      allIdSet.add(id);
-    }
-
-    if (typeof card.materialId !== 'string' || !materialIdSet.has(card.materialId)) {
-      errors.push(`Flashcard "${String(id || idx)}" materialId "${String(card.materialId)}" does not exist in package.`);
-    }
-  });
+  // 4. Flashcards rejection (unsupported property)
+  if (Object.prototype.hasOwnProperty.call(pkg, 'flashcards')) {
+    errors.push('Package "flashcards" is not supported.');
+  }
 
   // 5. Validate Assets
   assets.forEach((asset, idx) => {
