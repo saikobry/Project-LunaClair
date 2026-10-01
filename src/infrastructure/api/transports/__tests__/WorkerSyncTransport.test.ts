@@ -26,7 +26,6 @@ describe('WorkerSyncTransport', () => {
   };
 
   const validPushResponseBody: SyncPushResponse = {
-    serverCursor: 42,
     accepted: [{ clientMutationId: 'mut-1', entityId: 'doc-1', newVersion: 2 }],
     conflicts: [],
     rejected: [],
@@ -235,7 +234,7 @@ describe('WorkerSyncTransport', () => {
       }
     });
 
-    it('throws SyncProtocolError when push response schema is missing serverCursor', async () => {
+    it('accepts push response schema without serverCursor', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -245,14 +244,18 @@ describe('WorkerSyncTransport', () => {
         }),
       });
 
-      await expect(transport.push(credentials, samplePushRequest)).rejects.toThrow(SyncProtocolError);
+      const response = await transport.push(credentials, samplePushRequest);
+      expect(response).toEqual({
+        accepted: [],
+        conflicts: [],
+        rejected: [],
+      });
     });
 
     it('throws SyncProtocolError when push response schema has invalid accepted items', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          serverCursor: 1,
           accepted: [{ clientMutationId: 'm1' }], // missing entityId
           conflicts: [],
           rejected: [],
@@ -266,7 +269,6 @@ describe('WorkerSyncTransport', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          serverCursor: 1,
           accepted: [],
           conflicts: [{ clientMutationId: 'm1', entityId: 'doc-1' }], // missing serverVersion & serverPayload
           rejected: [],
@@ -280,7 +282,6 @@ describe('WorkerSyncTransport', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          serverCursor: 1,
           accepted: [],
           conflicts: [],
           rejected: [{ clientMutationId: 'm1' }], // missing reason

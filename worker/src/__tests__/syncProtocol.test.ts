@@ -228,7 +228,6 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       });
       expect(body.conflicts).toHaveLength(0);
       expect(body.rejected).toHaveLength(0);
-      expect(body.serverCursor).toBe(1);
 
       // Verify pull returns this document
       const pullRes = await pullChanges(0);
@@ -290,7 +289,6 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
         entityId: 'doc-102',
         newVersion: 2,
       });
-      expect(body.serverCursor).toBe(2);
 
       // Verify pull returns both changes in sequence order
       const pullRes = await pullChanges(0);
@@ -551,7 +549,6 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
 
       expect(body1.accepted).toHaveLength(1);
       expect(body1.accepted[0].entityId).toBe('session-xyz');
-      expect(body1.serverCursor).toBe(1);
 
       // Step 2: Duplicate append with different mutationId (e.g. multi-device concurrent sync)
       const { body: body2 } = await pushMutations([
@@ -566,7 +563,6 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       ]);
 
       expect(body2.accepted).toHaveLength(1);
-      expect(body2.serverCursor).toBe(1); // No new change log sequence created
 
       // Pull returns exactly 1 change
       const pullRes = await pullChanges(0);
@@ -597,13 +593,11 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       // Push once
       const { body: body1 } = await pushMutations([mutation]);
       expect(body1.accepted).toHaveLength(1);
-      expect(body1.serverCursor).toBe(1);
 
       // Replay same mutation
       const { body: body2 } = await pushMutations([mutation]);
       expect(body2.accepted).toHaveLength(1);
       expect(body2.accepted[0].clientMutationId).toBe('mut-replay-test');
-      expect(body2.serverCursor).toBe(1); // Server cursor did NOT advance
 
       // Check pull only has 1 change
       const pullRes = await pullChanges(0);

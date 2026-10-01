@@ -138,7 +138,6 @@ export interface SyncPushResponse {
   accepted: AcceptedMutation[];
   conflicts: ConflictMutation[];
   rejected: RejectedMutation[];
-  serverCursor: number;
 }
 
 /**

@@ -310,7 +310,6 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
         ],
         conflicts: [],
         rejected: [],
-        serverCursor: 50,
       };
 
       const result = await reconciler.applyPushResult(
@@ -333,7 +332,7 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
 
       // Sync state updated
       const syncState = await testDb.syncState.get(`${userId}:${deviceId}`);
-      expect(syncState?.lastServerCursor).toBe(50);
+      expect(syncState?.lastServerCursor).toBe(0);
     });
 
     it('stashes ConflictDraft and updates canonical document when push returns conflict', async () => {
@@ -389,7 +388,6 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
           },
         ],
         rejected: [],
-        serverCursor: 55,
       };
 
       const result = await reconciler.applyPushResult(
@@ -459,7 +457,6 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
             reason: 'Payload validation failed: document content missing',
           },
         ],
-        serverCursor: 60,
       };
 
       await reconciler.applyPushResult(
@@ -474,6 +471,59 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(item?.status).toBe('failed');
       expect(item?.retryCount).toBe(1);
       expect(item?.lastError).toContain('Payload validation failed');
+    });
+
+    it('preserves existing lastServerCursor untouched on push result application', async () => {
+      const stateKey = `${userId}:${deviceId}`;
+      const priorPullCursor = 42;
+      const priorSyncedAt = '2026-08-27T09:00:00.000Z';
+
+      await testDb.syncState.put({
+        key: stateKey,
+        userId,
+        deviceId,
+        lastServerCursor: priorPullCursor,
+        lastSyncedAt: priorSyncedAt,
+      });
+
+      const pushRequest: SyncPushRequest = {
+        deviceId,
+        mutations: [
+          {
+            clientMutationId: 'mut-preserve-cursor',
+            entityType: 'highlight',
+            entityId: 'hl-pres-1',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-08-27T10:00:00.000Z',
+            payload: { text: 'Highlight' },
+          },
+        ],
+      };
+
+      const pushResponse: SyncPushResponse = {
+        accepted: [
+          {
+            clientMutationId: 'mut-preserve-cursor',
+            entityType: 'highlight',
+            entityId: 'hl-pres-1',
+          },
+        ],
+        conflicts: [],
+        rejected: [],
+      };
+
+      await reconciler.applyPushResult(
+        testDb,
+        userId,
+        deviceId,
+        pushRequest,
+        pushResponse
+      );
+
+      const state = await testDb.syncState.get(stateKey);
+      expect(state).toBeDefined();
+      expect(state?.lastServerCursor).toBe(priorPullCursor);
+      expect(state?.lastSyncedAt).not.toBe(priorSyncedAt);
     });
   });
 
@@ -560,7 +610,6 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
         ],
         conflicts: [],
         rejected: [],
-        serverCursor: 70,
       };
 
       const originalPut = testDb.syncState.put;

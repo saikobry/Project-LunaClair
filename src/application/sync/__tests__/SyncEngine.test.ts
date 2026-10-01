@@ -49,7 +49,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
         accepted: [],
         conflicts: [],
         rejected: [],
-        serverCursor: 1,
       } satisfies SyncPushResponse),
     };
   });
@@ -100,7 +99,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
       accepted: [{ clientMutationId: 'mut-1', entityId: 'hl-1' }],
       conflicts: [],
       rejected: [],
-      serverCursor: 11,
     };
 
     const pull2: SyncPullResponse = {
@@ -127,7 +125,7 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     // Verify pull was called twice (Step 1 and Step 3)
     expect(mockTransport.pull).toHaveBeenCalledTimes(2);
     expect(mockTransport.pull).toHaveBeenNthCalledWith(1, credentials, 0, 100);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 11, 100);
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 10, 100);
 
     // Verify push was called once (Step 2)
     expect(mockTransport.push).toHaveBeenCalledTimes(1);
@@ -239,7 +237,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
         })),
         conflicts: [],
         rejected: [],
-        serverCursor: 500,
       };
     });
 
@@ -406,7 +403,6 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
         },
       ],
       rejected: [],
-      serverCursor: 80,
     });
 
     const engine = new SyncEngine({

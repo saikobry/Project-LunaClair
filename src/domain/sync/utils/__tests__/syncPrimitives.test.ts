@@ -101,7 +101,7 @@ describe('Sync Domain Primitives & Models', () => {
     });
 
     it('instantiates SyncProtocolError as non-retryable with details', () => {
-      const details = { field: 'serverCursor', expected: 'number' };
+      const details = { field: 'newCursor', expected: 'number' };
       const err = new SyncProtocolError('Schema validation failure', details);
       expect(err).toBeInstanceOf(Error);
       expect(err).toBeInstanceOf(SyncProtocolError);

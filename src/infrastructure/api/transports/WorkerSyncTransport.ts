@@ -29,13 +29,6 @@ function validatePushResponse(data: unknown): SyncPushResponse {
     );
   }
 
-  if (typeof data.serverCursor !== 'number' || !Number.isFinite(data.serverCursor) || data.serverCursor < 0) {
-    throw new SyncProtocolError(
-      `Push response missing valid non-negative 'serverCursor' (received ${String(data.serverCursor)})`,
-      data
-    );
-  }
-
   if (!Array.isArray(data.accepted)) {
     throw new SyncProtocolError(
       "Push response missing 'accepted' array",

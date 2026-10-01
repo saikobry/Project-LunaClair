@@ -94,7 +94,6 @@ export interface SyncPushResponse {
   accepted: AcceptedMutation[];
   conflicts: ConflictMutation[];
   rejected: RejectedMutation[];
-  serverCursor: number;
 }
 
 export interface SyncChangeItem {
@@ -617,20 +616,10 @@ export async function handleSyncPush(
     }
   }
 
-  // Calculate current server sequence cursor for this user
-  const maxSeqResult = await env.DB.prepare(
-    `SELECT MAX(sequence) as lastSeq FROM sync_changes WHERE user_id = ?`,
-  )
-    .bind(userId)
-    .first<{ lastSeq: number | null }>();
-
-  const serverCursor = maxSeqResult?.lastSeq ?? 0;
-
   const responseBody: SyncPushResponse = {
     accepted,
     conflicts,
     rejected,
-    serverCursor,
   };
 
   // Retention for the idempotency ledger rides the push path, because a push is the only traffic that

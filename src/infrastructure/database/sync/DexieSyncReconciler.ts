@@ -453,16 +453,13 @@ export class DexieSyncReconciler implements SyncReconciler {
           await db.syncState.put({
             ...existingState,
             lastSyncedAt: now,
-            ...(pushResponse.serverCursor
-              ? { lastServerCursor: Math.max(existingState.lastServerCursor, pushResponse.serverCursor) }
-              : {}),
           });
         } else {
           await db.syncState.put({
             key: stateKey,
             userId,
             deviceId,
-            lastServerCursor: pushResponse.serverCursor ?? 0,
+            lastServerCursor: 0,
             lastSyncedAt: now,
           });
         }

@@ -124,8 +124,7 @@ export class SyncEngine {
       let cursor = pullResult.cursor;
 
       // Step 2: Push pending batches
-      const pushResult = await this.pushPendingBatches(credentials, stateKey, cursor);
-      cursor = pushResult.cursor;
+      const pushResult = await this.pushPendingBatches(credentials);
 
       // Step 3: Pull again ONLY if mutations were pushed or remote changes were applied in step 1
       if (pushResult.pushedCount > 0 || pullResult.appliedChangesCount > 0) {
@@ -213,11 +212,8 @@ export class SyncEngine {
    * Drains the local outbox queue in chunks of 50 up to maxBatchesPerCycle = 10.
    */
   private async pushPendingBatches(
-    credentials: SessionCredentials,
-    stateKey: string,
-    currentCursor: number
-  ): Promise<{ cursor: number; pushedCount: number }> {
-    let cursor = currentCursor;
+    credentials: SessionCredentials
+  ): Promise<{ pushedCount: number }> {
     let pushedCount = 0;
     const maxBatchesPerCycle = 10;
 
@@ -242,22 +238,11 @@ export class SyncEngine {
         pushResponse
       );
 
-      if (pushResponse.serverCursor !== undefined && pushResponse.serverCursor > cursor) {
-        cursor = pushResponse.serverCursor;
-        this.statusStore.setState({ lastServerCursor: cursor });
-        await this.stateRepo.saveSyncState({
-          key: stateKey,
-          userId: credentials.userId,
-          deviceId: credentials.deviceId,
-          lastServerCursor: cursor,
-        });
-      }
-
       const remaining = await this.queueRepo.countPending();
       this.statusStore.setState({ pendingCount: remaining });
     }
 
-    return { cursor, pushedCount };
+    return { pushedCount };
   }
 
   public getRetryPolicy(): SyncRetryPolicy {
