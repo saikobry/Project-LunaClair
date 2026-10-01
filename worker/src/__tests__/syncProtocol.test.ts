@@ -58,11 +58,21 @@ function createMockD1(): D1Database {
     private params: unknown[];
 
     constructor(query: string, params: unknown[] = []) {
+      if (params.length > 100) {
+        throw new Error(
+          `D1_ERROR: too many SQL variables at offset 0: SQLITE_ERROR (bound ${params.length} parameters, max is 100)`,
+        );
+      }
       this.query = query;
       this.params = params;
     }
 
     bind(...values: unknown[]): D1PreparedStatement {
+      if (values.length > 100) {
+        throw new Error(
+          `D1_ERROR: too many SQL variables at offset 0: SQLITE_ERROR (bound ${values.length} parameters, max is 100)`,
+        );
+      }
       return new MockD1PreparedStatement(this.query, values);
     }
 
@@ -677,6 +687,83 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       const alphaPull = await pullChanges(0, 10, 'user-alpha');
       expect(alphaPull.body.changes).toHaveLength(1);
       expect(alphaPull.body.changes[0].entityId).toBe('hl-alpha');
+    });
+
+    it('hydrates a pull page with more than 49 distinct entity pairs without exceeding D1 bound-parameter ceiling', async () => {
+      // 60 distinct entity pairs: 1 + (2 * 60) = 121 bound params without chunking.
+      // D1 caps statements at 100 parameters, requiring hydration in chunks <= 49.
+      const entityCount = 60;
+      const mutations = Array.from({ length: entityCount }, (_, i) => ({
+        clientMutationId: `mut-bound-entity-${i + 1}`,
+        entityType: i % 2 === 0 ? 'highlight' : 'drawing',
+        entityId: `entity-${i + 1}`,
+        operation: 'UPSERT',
+        clientTimestamp: `2026-08-27T16:00:00.${String(i).padStart(3, '0')}Z`,
+        payload: {
+          id: `entity-${i + 1}`,
+          data: `content-${i + 1}`,
+        },
+      }));
+
+      const { status: pushStatus, body: pushBody } = await pushMutations(
+        mutations,
+        'user-bound-entity',
+      );
+      expect(pushStatus).toBe(200);
+      expect(pushBody.accepted).toHaveLength(entityCount);
+
+      const pullRes = await pullChanges(0, 100, 'user-bound-entity');
+      expect(pullRes.status).toBe(200);
+      expect(pullRes.body.changes).toHaveLength(entityCount);
+
+      for (let i = 0; i < entityCount; i++) {
+        const expectedId = `entity-${i + 1}`;
+        const change = pullRes.body.changes.find((c) => c.entityId === expectedId);
+        expect(change).toBeDefined();
+        expect(change?.data).toMatchObject({
+          id: expectedId,
+          data: `content-${i + 1}`,
+        });
+      }
+    });
+
+    it('hydrates a pull page with more than 98 document ids without exceeding D1 bound-parameter ceiling', async () => {
+      // 105 distinct documents: 1 + 105 = 106 bound params without chunking.
+      // D1 caps statements at 100 parameters, requiring hydration in chunks <= 98.
+      const docCount = 105;
+      const mutations = Array.from({ length: docCount }, (_, i) => ({
+        clientMutationId: `mut-bound-doc-${i + 1}`,
+        entityType: 'document',
+        entityId: `doc-${i + 1}`,
+        operation: 'UPSERT',
+        baseVersion: 0,
+        clientTimestamp: `2026-08-27T17:00:00.${String(i).padStart(3, '0')}Z`,
+        payload: {
+          title: `Document ${i + 1}`,
+          content: `Content for doc ${i + 1}`,
+        },
+      }));
+
+      const { status: pushStatus, body: pushBody } = await pushMutations(
+        mutations,
+        'user-bound-doc',
+      );
+      expect(pushStatus).toBe(200);
+      expect(pushBody.accepted).toHaveLength(docCount);
+
+      const pullRes = await pullChanges(0, 150, 'user-bound-doc');
+      expect(pullRes.status).toBe(200);
+      expect(pullRes.body.changes).toHaveLength(docCount);
+
+      for (let i = 0; i < docCount; i++) {
+        const expectedId = `doc-${i + 1}`;
+        const change = pullRes.body.changes.find((c) => c.entityId === expectedId);
+        expect(change).toBeDefined();
+        expect(change?.data).toMatchObject({
+          title: `Document ${i + 1}`,
+          content: `Content for doc ${i + 1}`,
+        });
+      }
     });
   });
 

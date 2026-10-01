@@ -27,6 +27,32 @@ export const SYNC_MODELS: Record<string, SyncModelType> = {
   quizSession: 'append',
 };
 
+/**
+ * Maximum number of bound parameters D1 accepts in a single statement.
+ *
+ * D1's ceiling is 100, which is far below SQLite's own (999, or 32766 on newer builds). Reasoning
+ * about SQLite's limit here produces statements D1 rejects at runtime with
+ * `D1_ERROR: too many SQL variables` — so every hydration query must be sized against THIS number.
+ * See https://developers.cloudflare.com/d1/platform/limits/
+ */
+const D1_MAX_BOUND_PARAMS = 100;
+
+/** Every hydration query binds `user_id` in addition to its per-item parameters. */
+const HYDRATION_FIXED_PARAMS = 1;
+
+/**
+ * Entity pairs bind two parameters each (`entity_type`, `entity_id`), so the chunk is half the
+ * remaining budget. 49 pairs + 1 fixed = 99 binds, leaving one spare.
+ */
+const ENTITY_CHUNK_SIZE = Math.floor(
+  (D1_MAX_BOUND_PARAMS - HYDRATION_FIXED_PARAMS) / 2,
+);
+
+/**
+ * Document ids bind one parameter each. 98 ids + 1 fixed = 99 binds, leaving one spare.
+ */
+const DOC_CHUNK_SIZE = D1_MAX_BOUND_PARAMS - HYDRATION_FIXED_PARAMS;
+
 export interface SyncMutation<T = unknown> {
   clientMutationId: string;
   entityType: string;
@@ -704,23 +730,29 @@ export async function handleSyncPull(
   >();
 
   if (docIds.size > 0) {
+    // Hydrate in bounded chunks. `limit` is client-supplied and clamped only at
+    // Math.min(limit, 500), so an unchunked IN (...) list would bind up to 501 parameters and
+    // exceed the D1 ceiling by 5x. Chunk sizes come from D1_MAX_BOUND_PARAMS, not from SQLite's.
     const docIdList = Array.from(docIds);
-    const placeholders = docIdList.map(() => '?').join(',');
-    const docsResult = await env.DB.prepare(
-      `SELECT document_id as documentId, title, content, updated_at as updatedAt, deleted_at as deletedAt, version FROM user_documents WHERE user_id = ? AND document_id IN (${placeholders})`,
-    )
-      .bind(userId, ...docIdList)
-      .all<{
-        documentId: string;
-        title: string;
-        content: string;
-        updatedAt: string;
-        deletedAt: string | null;
-        version: number;
-      }>();
+    for (let i = 0; i < docIdList.length; i += DOC_CHUNK_SIZE) {
+      const chunk = docIdList.slice(i, i + DOC_CHUNK_SIZE);
+      const placeholders = chunk.map(() => '?').join(',');
+      const docsResult = await env.DB.prepare(
+        `SELECT document_id as documentId, title, content, updated_at as updatedAt, deleted_at as deletedAt, version FROM user_documents WHERE user_id = ? AND document_id IN (${placeholders})`,
+      )
+        .bind(userId, ...chunk)
+        .all<{
+          documentId: string;
+          title: string;
+          content: string;
+          updatedAt: string;
+          deletedAt: string | null;
+          version: number;
+        }>();
 
-    for (const doc of docsResult.results ?? []) {
-      docMap.set(doc.documentId, doc);
+      for (const doc of docsResult.results ?? []) {
+        docMap.set(doc.documentId, doc);
+      }
     }
   }
 
@@ -736,9 +768,9 @@ export async function handleSyncPull(
 
   if (entityKeys.size > 0) {
     // Hydrate only the referenced (entity_type, entity_id) pairs in bounded chunks
-    // instead of slurping every entity for the user; each chunk keeps the WHERE
-    // clause well under SQLite's bound-parameter limit (1 + 2 per pair).
-    const ENTITY_CHUNK_SIZE = 100;
+    // instead of slurping every entity for the user. Chunk sizes derive from
+    // D1_MAX_BOUND_PARAMS (100) rather than SQLite's ceiling, keeping total bound
+    // parameters at or under D1's limit (1 fixed user_id + 2 per pair = 99 max).
     const entityPairs = Array.from(entityKeys).map((key) => {
       const separatorIndex = key.indexOf(':::');
       return {
