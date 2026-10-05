@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration Tests for Cloud Sync Protocol (POST /api/sync/push, GET /api/sync/pull)
  */
 import { DatabaseSync } from 'node:sqlite';
@@ -26,6 +26,7 @@ function createMockD1(): D1Database {
       device_id text NOT NULL,
       entity_type text NOT NULL,
       entity_id text NOT NULL,
+      result_version integer,
       processed_at text NOT NULL
     );
 
@@ -54,8 +55,8 @@ function createMockD1(): D1Database {
   `);
 
   class MockD1PreparedStatement implements D1PreparedStatement {
-    private query: string;
-    private params: unknown[];
+    public readonly query: string;
+    public readonly params: unknown[];
 
     constructor(query: string, params: unknown[] = []) {
       if (params.length > 100) {
@@ -130,16 +131,71 @@ function createMockD1(): D1Database {
     }
   }
 
-  const d1Mock: Partial<D1Database> = {
+  const d1Mock: Partial<D1Database> & { _sqlite?: DatabaseSync } = {
+    _sqlite: db,
     prepare(query: string): D1PreparedStatement {
       return new MockD1PreparedStatement(query);
     },
     async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
-      const results: D1Result<T>[] = [];
-      for (const stmt of statements) {
-        results.push(await stmt.all<T>());
+      db.exec('BEGIN');
+      try {
+        const results: D1Result<T>[] = [];
+        for (const stmt of statements) {
+          const mockStmt = stmt as MockD1PreparedStatement;
+          if (mockStmt.params && mockStmt.params.length > 100) {
+            throw new Error(
+              `D1_ERROR: too many SQL variables at offset 0: SQLITE_ERROR (bound ${mockStmt.params.length} parameters, max is 100)`,
+            );
+          }
+          const trimmed = mockStmt.query.trim();
+          const isSelect = /^SELECT\b/i.test(trimmed);
+          const s = db.prepare(mockStmt.query);
+          if (isSelect) {
+            const rows = (s.all as any)(...mockStmt.params) as T[];
+            results.push({
+              results: rows,
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 0,
+                served_by: 'mock',
+                size_after: 0,
+                rows_read: rows.length,
+                rows_written: 0,
+                changed_db: false,
+              },
+            });
+          } else {
+            const res = (s.run as any)(...mockStmt.params);
+            const changesCount = Number(res.changes);
+            results.push({
+              results: [] as T[],
+              success: true,
+              meta: {
+                changes: changesCount,
+                last_row_id: Number(res.lastInsertRowid),
+                duration: 0,
+                served_by: 'mock',
+                size_after: 0,
+                rows_read: 0,
+                rows_written: changesCount,
+                changed_db: changesCount > 0,
+              },
+            });
+          }
+        }
+        db.exec('COMMIT');
+        return results;
+      } catch (err: unknown) {
+        try {
+          db.exec('ROLLBACK');
+        } catch {
+          // Ignore rollback error if transaction already closed
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`D1_ERROR: ${message}`);
       }
-      return results;
     },
     async exec(query: string): Promise<D1ExecResult> {
       db.exec(query);
@@ -1019,5 +1075,841 @@ describe('Worker Cloud Sync Protocol Endpoints', () => {
       expect(pullBody.changes).toHaveLength(1);
       expect(pullBody.changes[0].entityId).toBe('hl-def-1');
     });
+  });
+
+  describe('Atomic Push & Replay-Version Ledger (Phase 3b)', () => {
+    const rawSqlite = () => (env.DB as any)._sqlite as DatabaseSync;
+
+    it('1. CAS hit writes exactly one document, one journal row, one ledger row; accepted carries recorded version', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-hit-init',
+          entityType: 'document',
+          entityId: 'doc-atom-1',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      // CAS hit: baseVersion = 1 -> v2
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-hit-v2',
+          entityType: 'document',
+          entityId: 'doc-atom-1',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'V2 Title', content: 'V2 Content' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(1);
+      expect(body.accepted[0]).toEqual({
+        clientMutationId: 'mut-hit-v2',
+        entityType: 'document',
+        entityId: 'doc-atom-1',
+        newVersion: 2,
+      });
+
+      // Verify DB: exactly 1 doc with version 2
+      const doc = rawSqlite()
+        .prepare('SELECT version, title FROM user_documents WHERE document_id = ?')
+        .get('doc-atom-1') as { version: number; title: string };
+      expect(doc.version).toBe(2);
+      expect(doc.title).toBe('V2 Title');
+
+      // Exactly 1 journal row for v2
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ? AND version = 2')
+        .all('doc-atom-1');
+      expect(changes).toHaveLength(1);
+
+      // Exactly 1 ledger row carrying result_version = 2
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-hit-v2') as { client_mutation_id: string; result_version: number };
+      expect(ledger).toBeDefined();
+      expect(ledger.result_version).toBe(2);
+    });
+
+    it('2. CAS miss writes none of those three and returns a conflict', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-miss-init',
+          entityType: 'document',
+          entityId: 'doc-atom-2',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      // CAS miss: baseVersion = 999
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-miss-v999',
+          entityType: 'document',
+          entityId: 'doc-atom-2',
+          operation: 'UPSERT',
+          baseVersion: 999,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'Conflicted Title', content: 'Conflicted' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(0);
+      expect(body.conflicts).toHaveLength(1);
+      expect(body.conflicts[0]).toMatchObject({
+        clientMutationId: 'mut-miss-v999',
+        entityType: 'document',
+        entityId: 'doc-atom-2',
+        serverVersion: 1,
+      });
+
+      // Verify DB: doc still version 1
+      const doc = rawSqlite()
+        .prepare('SELECT version, title FROM user_documents WHERE document_id = ?')
+        .get('doc-atom-2') as { version: number; title: string };
+      expect(doc.version).toBe(1);
+      expect(doc.title).toBe('V1 Title');
+
+      // No journal row for mut-miss-v999
+      const changesCount = rawSqlite()
+        .prepare('SELECT COUNT(*) as c FROM sync_changes WHERE entity_id = ?')
+        .get('doc-atom-2') as { c: number };
+      expect(changesCount.c).toBe(1); // Only the initial v1 insert
+
+      // No ledger row for mut-miss-v999
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-miss-v999');
+      expect(ledger).toBeUndefined();
+    });
+
+    it('3. Inject journal-insert failure after successful CAS: proves document update and ledger row are rolled back', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-fail-j-init',
+          entityType: 'document',
+          entityId: 'doc-atom-3',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      // Inject trigger that aborts INSERT into sync_changes
+      rawSqlite().exec(`
+        CREATE TRIGGER inject_fail_journal BEFORE INSERT ON sync_changes
+        BEGIN
+          SELECT RAISE(ABORT, 'injected journal failure');
+        END;
+      `);
+
+      const { status } = await pushMutations([
+        {
+          clientMutationId: 'mut-fail-j-v2',
+          entityType: 'document',
+          entityId: 'doc-atom-3',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'Should Rollback Title', content: 'Rolled back' },
+        },
+      ]);
+
+      expect(status).toBe(500);
+
+      // Verify document update rolled back (still v1)
+      const doc = rawSqlite()
+        .prepare('SELECT version, title FROM user_documents WHERE document_id = ?')
+        .get('doc-atom-3') as { version: number; title: string };
+      expect(doc.version).toBe(1);
+      expect(doc.title).toBe('V1 Title');
+
+      // Verify ledger row is absent
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-fail-j-v2');
+      expect(ledger).toBeUndefined();
+
+      // Drop trigger for clean cleanup
+      rawSqlite().exec('DROP TRIGGER inject_fail_journal;');
+    });
+
+    it('4. Inject ledger-insert failure after journal insert: proves document update and journal row are rolled back', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-fail-l-init',
+          entityType: 'document',
+          entityId: 'doc-atom-4',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      // Inject trigger that aborts INSERT into sync_idempotency
+      rawSqlite().exec(`
+        CREATE TRIGGER inject_fail_ledger BEFORE INSERT ON sync_idempotency
+        BEGIN
+          SELECT RAISE(ABORT, 'injected ledger failure');
+        END;
+      `);
+
+      const { status } = await pushMutations([
+        {
+          clientMutationId: 'mut-fail-l-v2',
+          entityType: 'document',
+          entityId: 'doc-atom-4',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'Should Rollback Title 2', content: 'Rolled back 2' },
+        },
+      ]);
+
+      expect(status).toBe(500);
+
+      // Verify document update rolled back (still v1)
+      const doc = rawSqlite()
+        .prepare('SELECT version, title FROM user_documents WHERE document_id = ?')
+        .get('doc-atom-4') as { version: number; title: string };
+      expect(doc.version).toBe(1);
+      expect(doc.title).toBe('V1 Title');
+
+      // Verify no v2 journal row exists
+      const changesCount = rawSqlite()
+        .prepare('SELECT COUNT(*) as c FROM sync_changes WHERE entity_id = ?')
+        .get('doc-atom-4') as { c: number };
+      expect(changesCount.c).toBe(1); // Only v1
+
+      // Verify ledger row is absent
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-fail-l-v2');
+      expect(ledger).toBeUndefined();
+
+      rawSqlite().exec('DROP TRIGGER inject_fail_ledger;');
+    });
+
+    it('5. Retry after each injected failure: exactly one successful entity change and one journal row eventually exist', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-retry-init',
+          entityType: 'document',
+          entityId: 'doc-atom-5',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      // Inject temporary failure
+      rawSqlite().exec(`
+        CREATE TRIGGER inject_fail_temp BEFORE INSERT ON sync_changes
+        BEGIN
+          SELECT RAISE(ABORT, 'temporary error');
+        END;
+      `);
+
+      const failRes = await pushMutations([
+        {
+          clientMutationId: 'mut-retry-v2',
+          entityType: 'document',
+          entityId: 'doc-atom-5',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'V2 Title After Failure', content: 'Content' },
+        },
+      ]);
+      expect(failRes.status).toBe(500);
+
+      // Remove failure condition
+      rawSqlite().exec('DROP TRIGGER inject_fail_temp;');
+
+      // Retry the exact same mutation
+      const retryRes = await pushMutations([
+        {
+          clientMutationId: 'mut-retry-v2',
+          entityType: 'document',
+          entityId: 'doc-atom-5',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'V2 Title After Failure', content: 'Content' },
+        },
+      ]);
+
+      expect(retryRes.status).toBe(200);
+      expect(retryRes.body.accepted).toHaveLength(1);
+      expect(retryRes.body.accepted[0].newVersion).toBe(2);
+
+      // Verify exactly 1 doc row with version 2
+      const doc = rawSqlite()
+        .prepare('SELECT version, title FROM user_documents WHERE document_id = ?')
+        .get('doc-atom-5') as { version: number; title: string };
+      expect(doc.version).toBe(2);
+      expect(doc.title).toBe('V2 Title After Failure');
+
+      // Exactly 2 journal rows (v1 + v2)
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ?')
+        .all('doc-atom-5');
+      expect(changes).toHaveLength(2);
+
+      // Exactly 1 ledger row for mut-retry-v2
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-retry-v2') as { result_version: number };
+      expect(ledger.result_version).toBe(2);
+    });
+
+    it('6. Two concurrent requests with the same document clientMutationId: one commit, one accepted replay, no duplicate journal row', async () => {
+      // Setup v1
+      await pushMutations([
+        {
+          clientMutationId: 'mut-conc-init',
+          entityType: 'document',
+          entityId: 'doc-atom-6',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'V1 Title', content: 'V1 Content' },
+        },
+      ]);
+
+      const mutation = {
+        clientMutationId: 'mut-conc-v2',
+        entityType: 'document',
+        entityId: 'doc-atom-6',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-10-01T10:01:00.000Z',
+        payload: { title: 'Concurrent V2', content: 'Concurrent Content' },
+      };
+
+      // Request 1 arrives and commits
+      const res1 = await pushMutations([mutation]);
+      expect(res1.status).toBe(200);
+      expect(res1.body.accepted[0].newVersion).toBe(2);
+
+      // Request 2 arrives (e.g. concurrent push past pre-check or retry)
+      // Even if baseVersion is 1, it must be recognized as accepted replay with newVersion: 2
+      const res2 = await pushMutations([mutation]);
+      expect(res2.status).toBe(200);
+      expect(res2.body.accepted).toHaveLength(1);
+      expect(res2.body.accepted[0].newVersion).toBe(2);
+      expect(res2.body.conflicts).toHaveLength(0);
+
+      // Exactly one journal row for v2
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ? AND version = 2')
+        .all('doc-atom-6');
+      expect(changes).toHaveLength(1);
+    });
+
+    it('7. LWW: newer write applies; older timestamp is accepted drop writing ledger but no entity/journal update', async () => {
+      // 1. Initial write
+      const res1 = await pushMutations([
+        {
+          clientMutationId: 'mut-lww-1',
+          entityType: 'highlight',
+          entityId: 'hl-lww-1',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T12:00:00.000Z',
+          payload: { color: 'yellow' },
+        },
+      ]);
+      expect(res1.status).toBe(200);
+      expect(res1.body.accepted).toHaveLength(1);
+
+      // Entity has yellow
+      let entity = rawSqlite()
+        .prepare('SELECT payload, updated_at FROM user_entities WHERE entity_id = ?')
+        .get('hl-lww-1') as { payload: string; updated_at: string };
+      expect(JSON.parse(entity.payload).color).toBe('yellow');
+
+      // 2. Incoming write with older timestamp -> accepted no-op
+      const res2 = await pushMutations([
+        {
+          clientMutationId: 'mut-lww-older',
+          entityType: 'highlight',
+          entityId: 'hl-lww-1',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z', // older than 12:00:00
+          payload: { color: 'pink' },
+        },
+      ]);
+      expect(res2.status).toBe(200);
+      expect(res2.body.accepted).toHaveLength(1);
+
+      // Entity is UNCHANGED (still yellow)
+      entity = rawSqlite()
+        .prepare('SELECT payload, updated_at FROM user_entities WHERE entity_id = ?')
+        .get('hl-lww-1') as { payload: string; updated_at: string };
+      expect(JSON.parse(entity.payload).color).toBe('yellow');
+
+      // Journal has ONLY 1 row (older mutation was NOT journaled)
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ?')
+        .all('hl-lww-1');
+      expect(changes).toHaveLength(1);
+
+      // Ledger HAS record for older mutation
+      const ledger = rawSqlite()
+        .prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?')
+        .get('mut-lww-older');
+      expect(ledger).toBeDefined();
+
+      // Retry of mut-lww-older dedupes cleanly
+      const resRetry = await pushMutations([
+        {
+          clientMutationId: 'mut-lww-older',
+          entityType: 'highlight',
+          entityId: 'hl-lww-1',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { color: 'pink' },
+        },
+      ]);
+      expect(resRetry.status).toBe(200);
+      expect(resRetry.body.accepted).toHaveLength(1);
+    });
+
+    it('8. Append: new row inserts; duplicate writes ledger row but no second journal row', async () => {
+      // Initial append
+      const res1 = await pushMutations([
+        {
+          clientMutationId: 'mut-app-1',
+          entityType: 'quizSession',
+          entityId: 'qs-atom-1',
+          operation: 'APPEND',
+          clientTimestamp: '2026-10-01T12:00:00.000Z',
+          payload: { score: 90 },
+        },
+      ]);
+      expect(res1.status).toBe(200);
+      expect(res1.body.accepted).toHaveLength(1);
+
+      // Second append with same entityId but different clientMutationId
+      const res2 = await pushMutations([
+        {
+          clientMutationId: 'mut-app-2',
+          entityType: 'quizSession',
+          entityId: 'qs-atom-1',
+          operation: 'APPEND',
+          clientTimestamp: '2026-10-01T12:05:00.000Z',
+          payload: { score: 95 },
+        },
+      ]);
+      expect(res2.status).toBe(200);
+      expect(res2.body.accepted).toHaveLength(1);
+
+      // Entity has original payload
+      const entity = rawSqlite()
+        .prepare('SELECT payload FROM user_entities WHERE entity_id = ?')
+        .get('qs-atom-1') as { payload: string };
+      expect(JSON.parse(entity.payload).score).toBe(90);
+
+      // Only ONE journal row
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ?')
+        .all('qs-atom-1');
+      expect(changes).toHaveLength(1);
+
+      // Both ledger rows exist
+      const l1 = rawSqlite().prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?').get('mut-app-1');
+      const l2 = rawSqlite().prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?').get('mut-app-2');
+      expect(l1).toBeDefined();
+      expect(l2).toBeDefined();
+    });
+
+    it('9. A mixed request: one accepted mutation plus one CAS conflict leaves accepted mutation committed and conflict isolated', async () => {
+      // Setup doc A (v1) and doc B (v1)
+      await pushMutations([
+        {
+          clientMutationId: 'mut-mix-init-a',
+          entityType: 'document',
+          entityId: 'doc-mix-a',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Doc A v1', content: 'A' },
+        },
+        {
+          clientMutationId: 'mut-mix-init-b',
+          entityType: 'document',
+          entityId: 'doc-mix-b',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Doc B v1', content: 'B' },
+        },
+      ]);
+
+      // Push mixed batch:
+      // Mutation 1: Doc A with baseVersion = 1 (valid CAS)
+      // Mutation 2: Doc B with baseVersion = 999 (conflicted CAS)
+      const res = await pushMutations([
+        {
+          clientMutationId: 'mut-mix-up-a',
+          entityType: 'document',
+          entityId: 'doc-mix-a',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:05:00.000Z',
+          payload: { title: 'Doc A v2', content: 'A2' },
+        },
+        {
+          clientMutationId: 'mut-mix-up-b',
+          entityType: 'document',
+          entityId: 'doc-mix-b',
+          operation: 'UPSERT',
+          baseVersion: 999,
+          clientTimestamp: '2026-10-01T10:05:00.000Z',
+          payload: { title: 'Doc B conflict', content: 'B conflict' },
+        },
+      ]);
+
+      expect(res.status).toBe(200);
+      expect(res.body.accepted).toHaveLength(1);
+      expect(res.body.accepted[0].entityId).toBe('doc-mix-a');
+      expect(res.body.accepted[0].newVersion).toBe(2);
+
+      expect(res.body.conflicts).toHaveLength(1);
+      expect(res.body.conflicts[0].entityId).toBe('doc-mix-b');
+      expect(res.body.conflicts[0].serverVersion).toBe(1);
+
+      // Doc A is v2 in DB
+      const docA = rawSqlite().prepare('SELECT version FROM user_documents WHERE document_id = ?').get('doc-mix-a') as { version: number };
+      expect(docA.version).toBe(2);
+
+      // Doc B is still v1 in DB
+      const docB = rawSqlite().prepare('SELECT version FROM user_documents WHERE document_id = ?').get('doc-mix-b') as { version: number };
+      expect(docB.version).toBe(1);
+    });
+
+    it('10. Create-path race: two concurrent creates of same document produce one document, one journal, one ledger', async () => {
+      // First create
+      const res1 = await pushMutations([
+        {
+          clientMutationId: 'mut-race-c1',
+          entityType: 'document',
+          entityId: 'doc-race-1',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'First Create', content: 'C1' },
+        },
+      ]);
+      expect(res1.status).toBe(200);
+      expect(res1.body.accepted).toHaveLength(1);
+      expect(res1.body.accepted[0].newVersion).toBe(1);
+
+      // Second create with different clientMutationId for same document
+      const res2 = await pushMutations([
+        {
+          clientMutationId: 'mut-race-c2',
+          entityType: 'document',
+          entityId: 'doc-race-1',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:01.000Z',
+          payload: { title: 'Second Create', content: 'C2' },
+        },
+      ]);
+
+      expect(res2.status).toBe(200);
+      expect(res2.body.accepted).toHaveLength(0);
+      expect(res2.body.conflicts).toHaveLength(1);
+      expect(res2.body.conflicts[0].entityId).toBe('doc-race-1');
+      expect(res2.body.conflicts[0].serverVersion).toBe(1);
+
+      // DB has exactly one document
+      const doc = rawSqlite()
+        .prepare('SELECT title, version FROM user_documents WHERE document_id = ?')
+        .get('doc-race-1') as { title: string; version: number };
+      expect(doc.version).toBe(1);
+      expect(doc.title).toBe('First Create');
+
+      // Exactly 1 journal row
+      const changes = rawSqlite()
+        .prepare('SELECT * FROM sync_changes WHERE entity_id = ?')
+        .all('doc-race-1');
+      expect(changes).toHaveLength(1);
+
+      // Exactly 1 ledger row (from mut-race-c1)
+      const l1 = rawSqlite().prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?').get('mut-race-c1');
+      const l2 = rawSqlite().prepare('SELECT * FROM sync_idempotency WHERE client_mutation_id = ?').get('mut-race-c2');
+      expect(l1).toBeDefined();
+      expect(l2).toBeUndefined();
+
+      // Concurrent retry with SAME clientMutationId returns accepted replay
+      const resRetry = await pushMutations([
+        {
+          clientMutationId: 'mut-race-c1',
+          entityType: 'document',
+          entityId: 'doc-race-1',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'First Create', content: 'C1' },
+        },
+      ]);
+      expect(resRetry.status).toBe(200);
+      expect(resRetry.body.accepted).toHaveLength(1);
+      expect(resRetry.body.accepted[0].newVersion).toBe(1);
+    });
+
+    // Phase 3b Item A â€” idempotency pre-check scope + legacy-version fallback.
+    // The pre-check is the one place that acknowledges a replay purely from the
+    // clientMutationId lookup, and the ledger PK is client_mutation_id alone, so
+    // both the ownership comparison and the NULL result_version fallback are only
+    // as good as the code in that branch. These seed ledger rows directly because
+    // the current push path always writes a non-NULL result_version.
+    const seedLegacyLedgerRow = (
+      clientMutationId: string,
+      userId: string,
+      entityType: string,
+      entityId: string,
+    ): void => {
+      rawSqlite()
+        .prepare(
+          `INSERT INTO sync_idempotency (client_mutation_id, user_id, device_id, entity_type, entity_id, result_version, processed_at)
+           VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+        )
+        .run(clientMutationId, userId, 'device-alpha', entityType, entityId, '2026-09-01T00:00:00.000Z');
+    };
+
+    it('11. Legacy NULL result_version update replay returns baseVersion + 1, not baseVersion', async () => {
+      // Legacy state: doc at v2 (a committed CAS from baseVersion = 1), whose ledger
+      // row predates the result_version column, so result_version is NULL.
+      rawSqlite()
+        .prepare(
+          `INSERT INTO user_documents (user_id, document_id, version, title, content, updated_at, deleted_at)
+           VALUES (?, ?, 2, ?, ?, ?, NULL)`,
+        )
+        .run('test-user-1', 'doc-legacy-1', 'V2 Title', 'V2 Content', '2026-10-01T10:01:00.000Z');
+      seedLegacyLedgerRow('mut-legacy-v2', 'test-user-1', 'document', 'doc-legacy-1');
+
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-legacy-v2',
+          entityType: 'document',
+          entityId: 'doc-legacy-1',
+          operation: 'UPSERT',
+          baseVersion: 1,
+          clientTimestamp: '2026-10-01T10:01:00.000Z',
+          payload: { title: 'V2 Title', content: 'V2 Content' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(1);
+      // The mutation produced baseVersion + 1 = 2. Returning baseVersion (1) would hand
+      // the client the version from *before* the mutation it is replaying.
+      expect(body.accepted[0].newVersion).toBe(2);
+      expect(body.accepted[0].newVersion).not.toBe(1);
+      expect(body.conflicts).toHaveLength(0);
+      expect(body.rejected).toHaveLength(0);
+    });
+
+    it('12. Legacy NULL result_version create replay returns 1 for both an explicit 0 and an omitted baseVersion', async () => {
+      // Explicit baseVersion: 0 (the create form a client actually sends).
+      rawSqlite()
+        .prepare(
+          `INSERT INTO user_documents (user_id, document_id, version, title, content, updated_at, deleted_at)
+           VALUES (?, ?, 1, ?, ?, ?, NULL)`,
+        )
+        .run('test-user-1', 'doc-legacy-c0', 'Created', 'C0', '2026-10-01T10:00:00.000Z');
+      seedLegacyLedgerRow('mut-legacy-c0', 'test-user-1', 'document', 'doc-legacy-c0');
+
+      const res0 = await pushMutations([
+        {
+          clientMutationId: 'mut-legacy-c0',
+          entityType: 'document',
+          entityId: 'doc-legacy-c0',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Created', content: 'C0' },
+        },
+      ]);
+
+      expect(res0.status).toBe(200);
+      expect(res0.body.accepted).toHaveLength(1);
+      expect(res0.body.accepted[0].newVersion).toBe(1);
+
+      // Omitted baseVersion. A create has no baseVersion, so an unguarded
+      // baseVersion + 1 would surface as NaN here.
+      rawSqlite()
+        .prepare(
+          `INSERT INTO user_documents (user_id, document_id, version, title, content, updated_at, deleted_at)
+           VALUES (?, ?, 1, ?, ?, ?, NULL)`,
+        )
+        .run('test-user-1', 'doc-legacy-none', 'Created', 'CNone', '2026-10-01T10:00:00.000Z');
+      seedLegacyLedgerRow('mut-legacy-none', 'test-user-1', 'document', 'doc-legacy-none');
+
+      const resNone = await pushMutations([
+        {
+          clientMutationId: 'mut-legacy-none',
+          entityType: 'document',
+          entityId: 'doc-legacy-none',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Created', content: 'CNone' },
+        },
+      ]);
+
+      expect(resNone.status).toBe(200);
+      expect(resNone.body.accepted).toHaveLength(1);
+      expect(resNone.body.accepted[0].newVersion).toBe(1);
+      expect(Number.isNaN(resNone.body.accepted[0].newVersion as number)).toBe(false);
+    });
+
+    it('13. A ledger row owned by a different user, entity type, or entity is rejected rather than accepted as a replay', async () => {
+      // (a) Same clientMutationId already recorded under a different user.
+      seedLegacyLedgerRow('mut-foreign-user', 'someone-else', 'document', 'doc-shared-id');
+      // (b) Same clientMutationId recorded for a different entity type.
+      seedLegacyLedgerRow('mut-foreign-type', 'test-user-1', 'highlight', 'doc-shared-id');
+      // (c) Same clientMutationId recorded for a different entity id.
+      seedLegacyLedgerRow('mut-foreign-entity', 'test-user-1', 'document', 'doc-not-mine');
+
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-foreign-user',
+          entityType: 'document',
+          entityId: 'doc-shared-id',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Mine', content: 'Mine' },
+        },
+        {
+          clientMutationId: 'mut-foreign-type',
+          entityType: 'document',
+          entityId: 'doc-shared-id',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Mine', content: 'Mine' },
+        },
+        {
+          clientMutationId: 'mut-foreign-entity',
+          entityType: 'document',
+          entityId: 'doc-shared-id',
+          operation: 'UPSERT',
+          baseVersion: 0,
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { title: 'Mine', content: 'Mine' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(0);
+      expect(body.rejected).toHaveLength(3);
+
+      for (const mutationId of ['mut-foreign-user', 'mut-foreign-type', 'mut-foreign-entity']) {
+        const rejection = body.rejected.find((r) => r.clientMutationId === mutationId);
+        expect(rejection).toBeDefined();
+        expect(rejection!.entityType).toBe('document');
+        expect(rejection!.entityId).toBe('doc-shared-id');
+        expect(rejection!.reason).toContain('different user or entity');
+
+        // The stored row belongs to another user, so its identity must not cross the
+        // trust boundary in this response body. Each seed value below is a value the
+        // caller never supplied, so its presence means the reason leaked it.
+        expect(rejection!.reason).not.toContain('someone-else');
+        expect(rejection!.reason).not.toContain('doc-not-mine');
+        expect(rejection!.reason).not.toContain('highlight');
+
+        // The caller's own clientMutationId is safe to echo and must remain, so the
+        // rejection stays diagnosable without naming the stored owner.
+        expect(rejection!.reason).toContain(mutationId);
+      }
+
+      // A rejected replay must not write the document it claimed to acknowledge.
+      const docs = rawSqlite()
+        .prepare("SELECT COUNT(*) as c FROM user_documents WHERE document_id = 'doc-shared-id'")
+        .get() as { c: number };
+      expect(docs.c).toBe(0);
+    });
+
+    it('14. The scope check also gates LWW replays, not just versioned documents', async () => {
+      seedLegacyLedgerRow('mut-foreign-lww', 'someone-else', 'highlight', 'hl-1');
+
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-foreign-lww',
+          entityType: 'highlight',
+          entityId: 'hl-1',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { text: 'mine', note: 'mine' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(0);
+      expect(body.rejected).toHaveLength(1);
+      expect(body.rejected[0].clientMutationId).toBe('mut-foreign-lww');
+      expect(body.rejected[0].reason).toContain('different user or entity');
+
+      // No entity write leaked through under the caller's user id.
+      const entities = rawSqlite()
+        .prepare('SELECT COUNT(*) as c FROM user_entities WHERE entity_id = ?')
+        .get('hl-1') as { c: number };
+      expect(entities.c).toBe(0);
+    });
+
+    it('15. A matching ledger row on the LWW path is still acknowledged as a replay', async () => {
+      await pushMutations([
+        {
+          clientMutationId: 'mut-lww-replay',
+          entityType: 'highlight',
+          entityId: 'hl-2',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { text: 'original', note: 'original' },
+        },
+      ]);
+
+      const { status, body } = await pushMutations([
+        {
+          clientMutationId: 'mut-lww-replay',
+          entityType: 'highlight',
+          entityId: 'hl-2',
+          operation: 'UPSERT',
+          clientTimestamp: '2026-10-01T10:00:00.000Z',
+          payload: { text: 'original', note: 'original' },
+        },
+      ]);
+
+      expect(status).toBe(200);
+      expect(body.accepted).toHaveLength(1);
+      expect(body.accepted[0]).toEqual({
+        clientMutationId: 'mut-lww-replay',
+        entityType: 'highlight',
+        entityId: 'hl-2',
+      });
+      expect(body.rejected).toHaveLength(0);
+    });
+
   });
 });

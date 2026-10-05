@@ -1,0 +1,1 @@
+ALTER TABLE `sync_idempotency` ADD `result_version` integer;

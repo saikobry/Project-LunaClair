@@ -87,6 +87,7 @@ export const syncIdempotency = sqliteTable(
     deviceId: text('device_id').notNull(),
     entityType: text('entity_type').notNull(),
     entityId: text('entity_id').notNull(),
+    resultVersion: integer('result_version'),
     processedAt: text('processed_at').notNull(),
   },
   (table) => [index('idx_sync_idempotency_processed_at').on(table.processedAt)],

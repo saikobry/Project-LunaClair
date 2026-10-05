@@ -11,10 +11,8 @@ import { drizzle } from 'drizzle-orm/d1';
 import { pruneSyncIdempotency } from '../core/retention';
 import type { Env, RouteContext } from '../core/types';
 import {
-  syncChanges,
   syncIdempotency,
   userDocuments,
-  userEntities,
 } from '../schema';
 
 export type SyncModelType = 'versioned' | 'lww' | 'append';
@@ -239,6 +237,11 @@ export async function handleSyncPush(
       continue;
     }
 
+    // A mutation is a "create" when it carries no prior version (or an explicit 0).
+    // Hoisted above the idempotency pre-check so a legacy ledger replay can resolve
+    // the correct historical version (1 for a create, baseVersion + 1 for a CAS update).
+    const isCreate = baseVersion === undefined || baseVersion === 0;
+
     const now = new Date().toISOString();
     const timestamp = clientTimestamp || now;
 
@@ -250,23 +253,37 @@ export async function handleSyncPush(
       .get();
 
     if (existingIdempotency) {
-      if (model === 'versioned') {
-        const doc = await db
-          .select({ version: userDocuments.version })
-          .from(userDocuments)
-          .where(
-            and(
-              eq(userDocuments.userId, userId),
-              eq(userDocuments.documentId, entityId),
-            ),
-          )
-          .get();
+      // The ledger's primary key is `client_mutation_id` alone, so the key is global.
+      // A row recorded for a different user, entity type, or entity is NOT a replay of
+      // this mutation and must never be acknowledged as one.
+      const isSameMutation =
+        existingIdempotency.userId === userId &&
+        existingIdempotency.entityType === entityType &&
+        existingIdempotency.entityId === entityId;
 
+      if (!isSameMutation) {
+        // Never disclose the stored row's identity: `existingIdempotency` belongs to
+        // another user, so its userId/entityType/entityId must not cross the trust
+        // boundary in this response body. Echo only the caller's own clientMutationId,
+        // which arrived on this request.
+        rejected.push({
+          clientMutationId,
+          entityType,
+          entityId,
+          reason: `clientMutationId ${clientMutationId} is already in use by a different user or entity`,
+        });
+        continue;
+      }
+
+      if (model === 'versioned') {
         accepted.push({
           clientMutationId,
           entityType,
           entityId,
-          newVersion: doc?.version ?? baseVersion ?? 1,
+          // A NULL `result_version` predates the Phase 3b migration. Pre-Phase-3b code
+          // inserted a versioned ledger row only after a successful CAS, so the version
+          // that mutation produced was 1 for a create and baseVersion + 1 for an update.
+          newVersion: existingIdempotency.resultVersion ?? (isCreate ? 1 : baseVersion! + 1),
         });
       } else {
         accepted.push({
@@ -280,7 +297,6 @@ export async function handleSyncPush(
 
     // 2. Document (Versioned - Model C)
     if (model === 'versioned') {
-      const isCreate = baseVersion === undefined || baseVersion === 0;
       const docPayload = (payload ?? {}) as {
         title?: string;
         content?: string;
@@ -291,98 +307,108 @@ export async function handleSyncPush(
       const deletedAt = operation === 'DELETE' ? timestamp : (docPayload.deletedAt ?? null);
 
       if (isCreate) {
-        const existingDoc = await db
-          .select()
-          .from(userDocuments)
-          .where(
-            and(
-              eq(userDocuments.userId, userId),
-              eq(userDocuments.documentId, entityId),
-            ),
-          )
-          .get();
+        // Atomic batch for document creation:
+        // 1. Insert initial document version (only if absent)
+        // 2. Journal insert gated on changes() = 1
+        // 3. Ledger insert with result_version = 1 gated on changes() = 1
+        const results = await env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO user_documents (user_id, document_id, version, title, content, updated_at, deleted_at)
+             VALUES (?, ?, 1, ?, ?, ?, ?)
+             ON CONFLICT (user_id, document_id) DO NOTHING`,
+          ).bind(userId, entityId, title, content, timestamp, deletedAt),
+          env.DB.prepare(
+            `INSERT INTO sync_changes (user_id, entity_type, entity_id, operation, version, changed_at)
+             SELECT ?, ?, ?, ?, 1, ? WHERE changes() = 1`,
+          ).bind(userId, entityType, entityId, operation, timestamp),
+          env.DB.prepare(
+            `INSERT INTO sync_idempotency (client_mutation_id, user_id, device_id, entity_type, entity_id, result_version, processed_at)
+             SELECT ?, ?, ?, ?, ?, 1, ? WHERE changes() = 1`,
+          ).bind(clientMutationId, userId, deviceId, entityType, entityId, now),
+        ]);
 
-        if (existingDoc) {
-          conflicts.push({
-            clientMutationId,
-            entityType,
-            entityId,
-            serverVersion: existingDoc.version,
-            serverPayload: {
-              title: existingDoc.title,
-              content: existingDoc.content,
-              updatedAt: existingDoc.updatedAt,
-              deletedAt: existingDoc.deletedAt,
-            },
-          });
-          continue;
-        }
-
-        // Insert initial document version
-        await db.insert(userDocuments).values({
-          userId,
-          documentId: entityId,
-          version: 1,
-          title,
-          content,
-          updatedAt: timestamp,
-          deletedAt,
-        });
-
-        await db.insert(syncChanges).values({
-          userId,
-          entityType,
-          entityId,
-          operation,
-          version: 1,
-          changedAt: timestamp,
-        });
-
-        await db.insert(syncIdempotency).values({
-          clientMutationId,
-          userId,
-          deviceId,
-          entityType,
-          entityId,
-          processedAt: now,
-        });
-
-        accepted.push({
-          clientMutationId,
-          entityType,
-          entityId,
-          newVersion: 1,
-        });
-      } else {
-        // Atomic CAS update: only update if current version equals baseVersion
-        const casResult = await env.DB.prepare(
-          `UPDATE user_documents SET version = version + 1, title = ?, content = ?, updated_at = ?, deleted_at = ? WHERE user_id = ? AND document_id = ? AND version = ?`,
-        )
-          .bind(title, content, timestamp, deletedAt, userId, entityId, baseVersion)
-          .run();
-
-        const rowsAffected = casResult.meta?.changes ?? (casResult as unknown as { changes?: number }).changes ?? 0;
+        const rowsAffected = results[0].meta?.changes ?? 0;
 
         if (rowsAffected === 1) {
-          const nextVer = baseVersion + 1;
-          await db.insert(syncChanges).values({
-            userId,
-            entityType,
-            entityId,
-            operation,
-            version: nextVer,
-            changedAt: timestamp,
-          });
-
-          await db.insert(syncIdempotency).values({
+          accepted.push({
             clientMutationId,
-            userId,
-            deviceId,
             entityType,
             entityId,
-            processedAt: now,
+            newVersion: 1,
           });
+        } else {
+          // Re-check sync_idempotency for concurrent replay
+          const existing = await db
+            .select()
+            .from(syncIdempotency)
+            .where(eq(syncIdempotency.clientMutationId, clientMutationId))
+            .get();
 
+          if (
+            existing &&
+            existing.userId === userId &&
+            existing.entityType === entityType &&
+            existing.entityId === entityId
+          ) {
+            accepted.push({
+              clientMutationId,
+              entityType,
+              entityId,
+              newVersion: existing.resultVersion ?? 1,
+            });
+          } else {
+            // Document already existed under a different mutation: conflict
+            const existingDoc = await db
+              .select()
+              .from(userDocuments)
+              .where(
+                and(
+                  eq(userDocuments.userId, userId),
+                  eq(userDocuments.documentId, entityId),
+                ),
+              )
+              .get();
+
+            conflicts.push({
+              clientMutationId,
+              entityType,
+              entityId,
+              serverVersion: existingDoc?.version ?? 1,
+              serverPayload: existingDoc
+                ? {
+                    title: existingDoc.title,
+                    content: existingDoc.content,
+                    updatedAt: existingDoc.updatedAt,
+                    deletedAt: existingDoc.deletedAt,
+                  }
+                : null,
+            });
+          }
+        }
+      } else {
+        // Atomic CAS update:
+        // 1. Update version = version + 1 only if current version equals baseVersion
+        // 2. Journal insert gated on changes() = 1
+        // 3. Ledger insert with result_version = nextVer gated on changes() = 1
+        const nextVer = baseVersion! + 1;
+        const results = await env.DB.batch([
+          env.DB.prepare(
+            `UPDATE user_documents SET version = version + 1, title = ?, content = ?, updated_at = ?, deleted_at = ?
+             WHERE user_id = ? AND document_id = ? AND version = ?`,
+          ).bind(title, content, timestamp, deletedAt, userId, entityId, baseVersion),
+          env.DB.prepare(
+            `INSERT INTO sync_changes (user_id, entity_type, entity_id, operation, version, changed_at)
+             SELECT ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+          ).bind(userId, entityType, entityId, operation, nextVer, timestamp),
+          env.DB.prepare(
+            `INSERT INTO sync_idempotency (client_mutation_id, user_id, device_id, entity_type, entity_id, result_version, processed_at)
+             SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+          ).bind(clientMutationId, userId, deviceId, entityType, entityId, nextVer, now),
+        ]);
+
+        const rowsAffected = results[0].meta?.changes ?? 0;
+
+        if (rowsAffected === 1) {
           accepted.push({
             clientMutationId,
             entityType,
@@ -390,39 +416,60 @@ export async function handleSyncPush(
             newVersion: nextVer,
           });
         } else {
-          // Version mismatch: fetch current server version and content
-          const storedDoc = await db
+          // CAS miss: recheck idempotency for concurrent replay
+          const existing = await db
             .select()
-            .from(userDocuments)
-            .where(
-              and(
-                eq(userDocuments.userId, userId),
-                eq(userDocuments.documentId, entityId),
-              ),
-            )
+            .from(syncIdempotency)
+            .where(eq(syncIdempotency.clientMutationId, clientMutationId))
             .get();
 
-          if (storedDoc) {
-            conflicts.push({
+          if (
+            existing &&
+            existing.userId === userId &&
+            existing.entityType === entityType &&
+            existing.entityId === entityId
+          ) {
+            accepted.push({
               clientMutationId,
               entityType,
               entityId,
-              serverVersion: storedDoc.version,
-              serverPayload: {
-                title: storedDoc.title,
-                content: storedDoc.content,
-                updatedAt: storedDoc.updatedAt,
-                deletedAt: storedDoc.deletedAt,
-              },
+              newVersion: existing.resultVersion ?? nextVer,
             });
           } else {
-            conflicts.push({
-              clientMutationId,
-              entityType,
-              entityId,
-              serverVersion: 0,
-              serverPayload: null,
-            });
+            // Version mismatch: fetch current server version and content
+            const storedDoc = await db
+              .select()
+              .from(userDocuments)
+              .where(
+                and(
+                  eq(userDocuments.userId, userId),
+                  eq(userDocuments.documentId, entityId),
+                ),
+              )
+              .get();
+
+            if (storedDoc) {
+              conflicts.push({
+                clientMutationId,
+                entityType,
+                entityId,
+                serverVersion: storedDoc.version,
+                serverPayload: {
+                  title: storedDoc.title,
+                  content: storedDoc.content,
+                  updatedAt: storedDoc.updatedAt,
+                  deletedAt: storedDoc.deletedAt,
+                },
+              });
+            } else {
+              conflicts.push({
+                clientMutationId,
+                entityType,
+                entityId,
+                serverVersion: 0,
+                serverPayload: null,
+              });
+            }
           }
         }
       }
@@ -436,111 +483,54 @@ export async function handleSyncPush(
           ? timestamp
           : ((payload as Record<string, unknown> | undefined)?.deletedAt as string | null | undefined) ?? null;
 
-      const existingEntity = await db
-        .select()
-        .from(userEntities)
-        .where(
-          and(
-            eq(userEntities.userId, userId),
-            eq(userEntities.entityType, entityType),
-            eq(userEntities.entityId, entityId),
-          ),
-        )
-        .get();
-
-      if (existingEntity) {
-        if (timestamp >= existingEntity.updatedAt) {
-          // Incoming update is newer or equal: update row and record sync_changes
-          await db
-            .update(userEntities)
-            .set({
-              payload: payloadStr,
-              updatedAt: timestamp,
-              deletedAt,
-            })
-            .where(
-              and(
-                eq(userEntities.userId, userId),
-                eq(userEntities.entityType, entityType),
-                eq(userEntities.entityId, entityId),
-              ),
-            );
-
-          await db.insert(syncChanges).values({
-            userId,
-            entityType,
-            entityId,
-            operation,
-            version: null,
-            changedAt: timestamp,
-          });
-
-          await db.insert(syncIdempotency).values({
-            clientMutationId,
-            userId,
-            deviceId,
-            entityType,
-            entityId,
-            processedAt: now,
-          });
-
-          accepted.push({
-            clientMutationId,
-            entityType,
-            entityId,
-          });
-        } else {
-          // Incoming update is older: ignore update and do not insert sync_changes
-          // Record idempotency so retries don't re-evaluate
-          await db.insert(syncIdempotency).values({
-            clientMutationId,
-            userId,
-            deviceId,
-            entityType,
-            entityId,
-            processedAt: now,
-          });
-
-          accepted.push({
-            clientMutationId,
-            entityType,
-            entityId,
-          });
-        }
-      } else {
-        // First time insertion
-        await db.insert(userEntities).values({
-          userId,
-          entityType,
-          entityId,
-          payload: payloadStr,
-          updatedAt: timestamp,
-          deletedAt,
-        });
-
-        await db.insert(syncChanges).values({
-          userId,
-          entityType,
-          entityId,
-          operation,
-          version: null,
-          changedAt: timestamp,
-        });
-
-        await db.insert(syncIdempotency).values({
-          clientMutationId,
-          userId,
-          deviceId,
-          entityType,
-          entityId,
-          processedAt: now,
-        });
+      try {
+        await env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO user_entities (user_id, entity_type, entity_id, payload, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT (user_id, entity_type, entity_id)
+             DO UPDATE SET
+               payload = excluded.payload,
+               updated_at = excluded.updated_at,
+               deleted_at = excluded.deleted_at
+             WHERE excluded.updated_at >= user_entities.updated_at`,
+          ).bind(userId, entityType, entityId, payloadStr, timestamp, deletedAt),
+          env.DB.prepare(
+            `INSERT INTO sync_changes (user_id, entity_type, entity_id, operation, version, changed_at)
+             SELECT ?, ?, ?, ?, NULL, ? WHERE changes() = 1`,
+          ).bind(userId, entityType, entityId, operation, timestamp),
+          env.DB.prepare(
+            `INSERT INTO sync_idempotency (client_mutation_id, user_id, device_id, entity_type, entity_id, result_version, processed_at)
+             VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+          ).bind(clientMutationId, userId, deviceId, entityType, entityId, now),
+        ]);
 
         accepted.push({
           clientMutationId,
           entityType,
           entityId,
         });
+      } catch (err: unknown) {
+        const existing = await db
+          .select()
+          .from(syncIdempotency)
+          .where(eq(syncIdempotency.clientMutationId, clientMutationId))
+          .get();
+
+        if (
+          existing &&
+          existing.userId === userId &&
+          existing.entityType === entityType &&
+          existing.entityId === entityId
+        ) {
+          accepted.push({
+            clientMutationId,
+            entityType,
+            entityId,
+          });
+        } else {
+          throw err;
+        }
       }
     }
 
@@ -548,70 +538,49 @@ export async function handleSyncPush(
     else if (model === 'append') {
       const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload ?? {});
 
-      const existingEntity = await db
-        .select()
-        .from(userEntities)
-        .where(
-          and(
-            eq(userEntities.userId, userId),
-            eq(userEntities.entityType, entityType),
-            eq(userEntities.entityId, entityId),
-          ),
-        )
-        .get();
+      try {
+        await env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO user_entities (user_id, entity_type, entity_id, payload, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, NULL)
+             ON CONFLICT (user_id, entity_type, entity_id) DO NOTHING`,
+          ).bind(userId, entityType, entityId, payloadStr, timestamp),
+          env.DB.prepare(
+            `INSERT INTO sync_changes (user_id, entity_type, entity_id, operation, version, changed_at)
+             SELECT ?, ?, ?, 'APPEND', NULL, ? WHERE changes() = 1`,
+          ).bind(userId, entityType, entityId, timestamp),
+          env.DB.prepare(
+            `INSERT INTO sync_idempotency (client_mutation_id, user_id, device_id, entity_type, entity_id, result_version, processed_at)
+             VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+          ).bind(clientMutationId, userId, deviceId, entityType, entityId, now),
+        ]);
 
-      if (existingEntity) {
-        // PK conflict / duplicate append: ignore duplicate payload, ensure idempotency recorded
-        await db
-          .insert(syncIdempotency)
-          .values({
+        accepted.push({
+          clientMutationId,
+          entityType,
+          entityId,
+        });
+      } catch (err: unknown) {
+        const existing = await db
+          .select()
+          .from(syncIdempotency)
+          .where(eq(syncIdempotency.clientMutationId, clientMutationId))
+          .get();
+
+        if (
+          existing &&
+          existing.userId === userId &&
+          existing.entityType === entityType &&
+          existing.entityId === entityId
+        ) {
+          accepted.push({
             clientMutationId,
-            userId,
-            deviceId,
             entityType,
             entityId,
-            processedAt: now,
-          })
-          .onConflictDoNothing();
-
-        accepted.push({
-          clientMutationId,
-          entityType,
-          entityId,
-        });
-      } else {
-        await db.insert(userEntities).values({
-          userId,
-          entityType,
-          entityId,
-          payload: payloadStr,
-          updatedAt: timestamp,
-          deletedAt: null,
-        });
-
-        await db.insert(syncChanges).values({
-          userId,
-          entityType,
-          entityId,
-          operation: 'APPEND',
-          version: null,
-          changedAt: timestamp,
-        });
-
-        await db.insert(syncIdempotency).values({
-          clientMutationId,
-          userId,
-          deviceId,
-          entityType,
-          entityId,
-          processedAt: now,
-        });
-
-        accepted.push({
-          clientMutationId,
-          entityType,
-          entityId,
-        });
+          });
+        } else {
+          throw err;
+        }
       }
     }
   }
