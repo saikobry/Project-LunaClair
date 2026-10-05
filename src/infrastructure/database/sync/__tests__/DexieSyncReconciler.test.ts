@@ -417,6 +417,182 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(await testDb.syncQueue.get('q-push-conf')).toBeUndefined();
     });
 
+    it('writes no ConflictDraft and leaves the document untouched when the conflicting queue row was already drained by another tab', async () => {
+      // Simulates the second tab: the user edited the document again *after* the first
+      // tab resolved the conflict, and the outbox row for this mutation is already gone.
+      await testDb.documentContents.put({
+        documentId: 'doc-already-resolved',
+        title: 'Doc Resolved',
+        content: '# Local Edit Made After Resolution',
+        updatedAt: '2026-08-27T11:00:00.000Z',
+      });
+
+      // Deliberately NO syncQueue row: this call drained nothing.
+      const pushRequest: SyncPushRequest = {
+        deviceId,
+        mutations: [
+          {
+            clientMutationId: 'mut-already-resolved',
+            entityType: 'document',
+            entityId: 'doc-already-resolved',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-08-27T11:00:00.000Z',
+            payload: { content: '# Local Edit Made After Resolution' },
+          },
+        ],
+      };
+
+      // Same conflict array the first tab already handled.
+      const pushResponse: SyncPushResponse = {
+        accepted: [],
+        conflicts: [
+          {
+            clientMutationId: 'mut-already-resolved',
+            entityType: 'document',
+            entityId: 'doc-already-resolved',
+            serverVersion: 2,
+            serverPayload: {
+              title: 'Server Master Doc',
+              content: '# Server Master Content v2',
+              updatedAt: '2026-08-27T10:10:00.000Z',
+            },
+          },
+        ],
+        rejected: [],
+      };
+
+      await reconciler.applyPushResult(
+        testDb,
+        userId,
+        deviceId,
+        pushRequest,
+        pushResponse
+      );
+
+      // No duplicate draft for an already-resolved mutation.
+      expect(await testDb.conflictDrafts.toArray()).toHaveLength(0);
+
+      // The more dangerous half: the stale server payload must NOT clobber the local
+      // edit made after the first tab resolved the conflict.
+      const doc = await testDb.documentContents.get('doc-already-resolved');
+      expect(doc?.content).toBe('# Local Edit Made After Resolution');
+      expect(doc?.updatedAt).toBe('2026-08-27T11:00:00.000Z');
+    });
+
+
+
+    it('drafts only the conflicts whose queue rows were drained in a mixed batch', async () => {
+      await testDb.documentContents.put({
+        documentId: 'doc-mixed-a',
+        title: 'Doc A',
+        content: '# Local A',
+        updatedAt: '2026-08-27T10:00:00.000Z',
+      });
+      await testDb.documentContents.put({
+        documentId: 'doc-mixed-b',
+        title: 'Doc B',
+        content: '# Local B',
+        updatedAt: '2026-08-27T10:00:00.000Z',
+      });
+
+      // Only mutation A still has an outbox row; B was drained by the other tab.
+      await testDb.syncQueue.put({
+        id: 'q-mixed-a',
+        clientMutationId: 'mut-mixed-a',
+        entityType: 'document',
+        entityId: 'doc-mixed-a',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-08-27T10:00:00.000Z',
+        payload: { content: '# Local A' },
+        status: 'pending',
+        createdAt: '2026-08-27T10:00:00.000Z',
+        retryCount: 0,
+      });
+
+      const pushRequest: SyncPushRequest = {
+        deviceId,
+        mutations: [
+          {
+            clientMutationId: 'mut-mixed-a',
+            entityType: 'document',
+            entityId: 'doc-mixed-a',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-08-27T10:00:00.000Z',
+            payload: { content: '# Local A' },
+          },
+          {
+            clientMutationId: 'mut-mixed-b',
+            entityType: 'document',
+            entityId: 'doc-mixed-b',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-08-27T10:00:00.000Z',
+            payload: { content: '# Local B' },
+          },
+        ],
+      };
+
+      const pushResponse: SyncPushResponse = {
+        accepted: [],
+        conflicts: [
+          {
+            clientMutationId: 'mut-mixed-a',
+            entityType: 'document',
+            entityId: 'doc-mixed-a',
+            serverVersion: 2,
+            serverPayload: {
+              title: 'Server A',
+              content: '# Server A Content v2',
+              updatedAt: '2026-08-27T10:10:00.000Z',
+            },
+          },
+          {
+            clientMutationId: 'mut-mixed-b',
+            entityType: 'document',
+            entityId: 'doc-mixed-b',
+            serverVersion: 3,
+            serverPayload: {
+              title: 'Server B',
+              content: '# Server B Content v3',
+              updatedAt: '2026-08-27T10:11:00.000Z',
+            },
+          },
+        ],
+        rejected: [],
+      };
+
+      const result = await reconciler.applyPushResult(
+        testDb,
+        userId,
+        deviceId,
+        pushRequest,
+        pushResponse
+      );
+
+      // Exactly one draft, and it belongs to the drained mutation.
+      const drafts = await testDb.conflictDrafts.toArray();
+      expect(drafts).toHaveLength(1);
+      expect(drafts[0].documentId).toBe('doc-mixed-a');
+      expect(drafts[0].serverContent).toBe('# Server A Content v2');
+
+      // Only the drained document was rewritten; B's local content survives.
+      const docA = await testDb.documentContents.get('doc-mixed-a');
+      expect(docA?.content).toBe('# Server A Content v2');
+      const docB = await testDb.documentContents.get('doc-mixed-b');
+      expect(docB?.content).toBe('# Local B');
+
+      // The queue row this call owned is gone.
+      expect(await testDb.syncQueue.get('q-mixed-a')).toBeUndefined();
+
+      // The response still reported both conflicts; the gate affects what is written,
+      // not what the server said.
+      expect(result.conflictCount).toBe(2);
+    });
+
+
     it('marks outbox item status as failed when mutation is rejected', async () => {
       await testDb.syncQueue.put({
         id: 'q-push-rej',

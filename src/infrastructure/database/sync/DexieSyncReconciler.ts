@@ -385,7 +385,21 @@ export class DexieSyncReconciler implements SyncReconciler {
             await db.syncQueue.bulkDelete(conflictQueueItems.map((q) => q.id));
           }
 
+          // Only conflicts whose outbox row this call actually drained are ours to
+          // surface. A second tab (or a retry) can receive the same `conflicts` array
+          // after the first tab already deleted the queue row; it must not write a
+          // duplicate draft, nor re-apply the server payload over local edits made
+          // since. Match on `clientMutationId` — the wire key the response carries —
+          // not `q.id`, which is the Dexie primary key used only for the delete above.
+          const drainedMutationIds = new Set(
+            conflictQueueItems.map((q) => q.clientMutationId)
+          );
+
           for (const conflict of pushResponse.conflicts) {
+            if (!drainedMutationIds.has(conflict.clientMutationId)) {
+              continue;
+            }
+
             const matchingMutation = mutationsByClientMutationId.get(conflict.clientMutationId);
             const localDoc = await db.documentContents.get(conflict.entityId);
             const serverPayload = (conflict.serverPayload ?? {}) as Partial<DocumentSyncPayload>;
