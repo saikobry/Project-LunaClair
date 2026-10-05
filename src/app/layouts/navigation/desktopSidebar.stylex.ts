@@ -1,6 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
 
-const nonDesktop = '@media (max-width: 1023px)';
 
 export const styles = stylex.create({
   desktopNav: {
@@ -24,7 +23,7 @@ export const styles = stylex.create({
     paddingRight: 16,
     boxSizing: 'border-box',
     zIndex: 100,
-    [nonDesktop]: {
+    '@media (max-width: 1023px)': {
       display: 'none',
     },
   },

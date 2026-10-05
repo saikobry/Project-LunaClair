@@ -1,7 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 
 const mobile = '@media (max-width: 768px)';
-const nonMobile = '@media (min-width: 769px)';
 const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 const desktop = '@media (min-width: 1024px)';
 
@@ -26,7 +25,7 @@ export const styles = stylex.create({
     // Desktop/tablet: the brand island is hidden (brand lives in the nav
     // chrome), leaving the actions island as the only child — pin it right,
     // since space-between with a single child would park it left.
-    [nonMobile]: {
+    '@media (min-width: 769px)': {
       justifyContent: 'flex-end',
     },
     // Desktop/tablet: the bar spans the screens column only — it starts
@@ -81,7 +80,7 @@ export const styles = stylex.create({
       'background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1), padding 0.24s cubic-bezier(0.4, 0, 0.2, 1)',
     // Desktop/tablet brand lives in the navigation chrome (sidebar lockup /
     // rail logo), so the header keeps it on mobile only.
-    [nonMobile]: {
+    '@media (min-width: 769px)': {
       display: 'none',
     },
   },

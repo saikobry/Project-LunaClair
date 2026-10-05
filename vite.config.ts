@@ -108,6 +108,18 @@ export default defineConfig(({ mode }) => {
     }),
   ],
   build: {
+    // Ship ALL CSS as one file linked from index.html instead of code-splitting it
+    // per dynamic import. Correctness, not preference: StyleX's generated CSS for
+    // the app shell was being attributed to the `WriterEditor` chunk — a LAZY
+    // import that `/` never loads — so the navigation's viewport rules
+    // (`position: fixed`, and the media queries that hide each nav slice) were
+    // fetched only after the Writer opened. On the Home screen every slice then
+    // rendered at once, with the tablet rail falling into normal flow beside the
+    // sidebar. `cssCodeSplit: false` removes the mis-attribution entirely.
+    // Cost: ~97 KB of writer CSS joins the initial payload, which the PWA
+    // precaches as part of the offline shell anyway — so it is downloaded once
+    // and works offline, rather than being fetched later under a second URL.
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

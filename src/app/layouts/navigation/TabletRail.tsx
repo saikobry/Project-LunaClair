@@ -7,7 +7,6 @@ import { PRIMARY_NAV_ITEMS } from './navItems';
 import { CompactCollectionsPopover } from './CompactCollectionsPopover';
 import logoSvg from '../../../assets/logo.svg';
 
-const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
 
 /** Combined top + bottom dock insets: the full-height rail fills everything between. */
 const RAIL_VERTICAL_INSETS_PX = 32;
@@ -237,7 +236,7 @@ const styles = stylex.create({
     overflow: 'hidden', // Clips child content while shrinking to avoid ghosting
     zIndex: 150,
     pointerEvents: 'auto',
-    [nonTablet]: {
+    '@media (max-width: 768px), (min-width: 1024px)': {
       display: 'none',
     },
   },

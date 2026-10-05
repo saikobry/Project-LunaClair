@@ -6,7 +6,6 @@ import type { ViewportNavProps } from './navigation.types';
 import { PRIMARY_NAV_ITEMS } from './navItems';
 import { CompactCollectionsPopover } from './CompactCollectionsPopover';
 
-const nonMobile = '@media (min-width: 769px)';
 
 export function MobileBottomDock({
   active,
@@ -201,7 +200,7 @@ const styles = stylex.create({
     overflow: 'hidden',
     zIndex: 150,
     pointerEvents: 'auto',
-    [nonMobile]: {
+    '@media (min-width: 769px)': {
       display: 'none',
     },
   },

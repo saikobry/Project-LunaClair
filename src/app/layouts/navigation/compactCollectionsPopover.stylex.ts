@@ -1,7 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
 
-const nonMobile = '@media (min-width: 769px)';
-const nonTablet = '@media (max-width: 768px), (min-width: 1024px)';
 
 const fadeIn = stylex.keyframes({
   from: { opacity: 0 },
@@ -73,7 +71,7 @@ export const styles = stylex.create({
     boxShadow: '0 16px 48px -8px rgba(0, 0, 0, 0.35)',
     boxSizing: 'border-box',
     overflow: 'hidden',
-    [nonTablet]: {
+    '@media (max-width: 768px), (min-width: 1024px)': {
       display: 'none',
     },
   },
@@ -249,7 +247,7 @@ export const styles = stylex.create({
     animationName: slideUp,
     animationDuration: '0.24s',
     animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-    [nonMobile]: {
+    '@media (min-width: 769px)': {
       display: 'none',
     },
     '::backdrop': {
