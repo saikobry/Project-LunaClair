@@ -56,7 +56,7 @@ These capabilities were delivered alongside Phases 6.1/6.2/7 and are documented 
 LunaClair is installable and offline-capable. Offline readiness is separate from cloud synchronization:
 
 - ✅ **PWA foundation:** `vite-plugin-pwa` provides the app-shell service worker, web manifest, and generated install icons. Registration and manifest injection are handled by the build.
-- ✅ **Content delivery caching:** canonical study materials live under `content/materials/`, are seeded into Cloudflare D1, served by the API Worker, and cached on demand by the service worker. Imported document markdown is persisted locally in Dexie's `documentContents` store.
+- ✅ **Content delivery caching:** canonical study materials live under `content/materials/`, are seeded into Cloudflare D1, served by the API Worker, and cached on demand by the service worker. Imported document markdown is persisted locally in Dexie's `documentContents` store. *(Catalog seeding and Worker delivery superseded 2026-09-06 by `59b36ed` — `.lcpack` share distribution is now the exclusive path, see 12F. The Dexie persistence clause still holds.)*
 - ✅ **Offline UX:** `OfflineBanner` communicates connectivity, and TanStack Query uses `networkMode: 'offlineFirst'` so IndexedDB-backed queries and mutations continue while disconnected.
 - ✅ **Install discovery:** an opt-in sidebar install entry and a one-time iOS-specific install card are available without deferred `beforeinstallprompt` machinery.
 - ✅ **First-run onboarding:** a bundled, skippable tutorial marks the first-run flow complete in local settings when dismissed or completed.
@@ -94,7 +94,7 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
 ---
 
 - ✅ **Phase 11 — Collaboration & Sharing**
-  - **11A (Study Package Domain & Specification):** Portable `.lcpack` JSON bundle format (Schema v1), SHA-256 integrity verification, ID prefix namespaces (`pkg_mat_*`, `pkg_q_*`, `pkg_quiz_*`, `pkg_card_*`, `pkg_asset_*`), pure structural and referential validator (`validateStudyPackage`), collision-free relational UUID remapper (`remapStudyPackage`), and pure metrics inspector (`inspectStudyPackage`).
+  - **11A (Study Package Domain & Specification):** Portable `.lcpack` JSON bundle format (Schema v1), SHA-256 integrity verification, ID prefix namespaces (`pkg_mat_*`, `pkg_q_*`, `pkg_quiz_*`, `pkg_card_*`, `pkg_asset_*`), pure structural and referential validator (`validateStudyPackage`), collision-free relational UUID remapper (`remapStudyPackage`), and pure metrics inspector (`inspectStudyPackage`). *(`pkg_card_*` retired 2026-09-30 by `cca335b` — see 12F.)*
   - **11B (Package Import/Export UI & Staging):** Export triggers across `MaterialWorkspace`, `FlashcardScreen`, and `QuizManagementScreen`; `useExportStudyPackage` browser downloader; pre-import inspection dialog (`StudyPackagePreviewModal`) with question type breakdown, point totals, and destination Subject/Term pickers; file ingestion integration in `ImporterScreen`.
   - **11C (Cloudflare D1 Sharing Infrastructure):** D1 `share_links` and `share_stats` replication schema, Worker REST API endpoints (`/api/shares`, `/api/shares/:id`, `/api/shares/short/:code`, `/api/shares/public`, `/api/shares/:id/track-download`), access control models (`public`, `unlisted`, `passcode` with salted PBKDF2/SHA-256 hashing), and optional expiration dates.
   - **11D (Cloud Share UI & Landing Screen):** Publishing dialog (`ShareStudyPackageModal`) with access configuration and link copy; standalone landing screen (`SharedPackageScreen` for `/share/:id` and `/s/:code`) with passcode unlock modal, package metrics preview, 1-click **Clone to Library**, and `.lcpack` export downloading with telemetry tracking.
@@ -128,10 +128,55 @@ Offline-ready ≠ offline-sync: synchronization (sync queue, conflict resolution
     - Metric milestone: achieved **1,210 passing Vitest tests across 266 test files** with 0 failures, 0 oxlint warnings, and 0 typecheck errors.
     - Playwright real-browser E2E acceptance suites: added comprehensive suites for first-run onboarding tutorial progression, reader annotations & canvas drawing persistence across page reloads, active quiz runner grading, and 3D flip flashcard study sessions with SM-2.
 
+### Phase 12 continued (2026-09-26 → 2026-10-05)
+
+Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c3`, 2026-09-25). Everything below was shipped after that point and is additive — no earlier entry was rewritten. Where an earlier entry has since been reversed, the original sentence is kept verbatim and marked with a dated supersede note rather than edited. Sub-phases 12F–12K are listed in **chronological order**; each carries its own date range.
+
+- ✅ **12F (Question Payload Validation & Package Fidelity — Sep 26–30):**
+  - E2E fixture fidelity (`783ab39`): share mock envelopes and committed fixtures are validated against the Worker contract rather than hand-maintained.
+  - AI draft parity (`d654f6f`): generated `fill_in_blank` drafts must carry at least one `___` placeholder and exactly one non-empty answer per placeholder; whitespace-only answers are reported as missing answers rather than count mismatches, and malformed drafts are rejected individually without discarding valid siblings.
+  - One validation tier (`49b1c30`): a single `validateQuestionPayload` is enforced at every write boundary — Question Bank authoring, `SaveQuizUseCase`, AI batch generation (with salvage policy: valid drafts persist, rejected ones are reported), `.lcpack` publish, `.lcpack` import, the publisher seeder, and the Worker's `validateServerStudyPackage`. `worker/src/__tests__/questionPayloadParity.test.ts` fails on any client/Worker wording drift.
+  - Tolerant read tier deleted (`49b1c30`): a read-only query of the remote `shares` table showed the population it protected was empty, so the legacy-shaped branch was removed rather than retained as a vestige, taking the defensive ingress guards it had forced downstream (`clozeCardFront`, `clozeReviewReset`, `questionToCards`, `FillBlankStrategy`, `IdentificationStrategy`) with it.
+  - Removal-only library contract (`fc6a990`): the uncallable catalog-era `importMaterial` / `importMaterialBatch` methods are deleted from `LibraryImportService` and `DexieLibraryImportService`, closing the last ungated write surface into question storage.
+  - Flashcards channel retired (`cca335b`): `PackageFlashcardId` / `PackageFlashcard` are removed from the package domain model, remapping, and `inspectStudyPackage` metrics, and a package carrying the retired `flashcards` property is refused outright on both client and Worker rather than silently stripped.
+
+- ✅ **12G (Flashcard Projection & Review Quality — Sep 26–29):**
+  - Shape-discriminated cards (`70d9513`): `Flashcard` is a discriminated union (`RecallCard | ChoiceCard`) keyed on presentation shape rather than source question type; choice cards render their option list ungraded on the front and reveal correct answers only on flip.
+  - Cloze expansion (`20b6f8a`): `questionToCards` replaces `questionToCard`, projecting `fill_in_blank` into one Anki-style cloze card per blank with independent review keys (`q:${questionId}#${blankIndex}`); deck statistics and ordering operate on projected cards, not question counts.
+  - Independent scheduling verified end to end (`82b0f78`): canonical content gained a 3-blank cloze question (`q-cell-fb-001`) and its regenerated share fixture asserts 53 questions / 3 practice items; Playwright covers 3/3 inline blank scoring and proves that rating one blank removes only that blank from the due pool while sibling blanks schedule independently.
+  - Schedule invalidation (`c486dfa`): editing a `fill_in_blank` question compares normalized resolved fronts (`affectedClozeBlankIndices`) and clears the affected schedules via `ResetFlashcardReviewsUseCase`, so an altered cloze returns to the new-card pool instead of keeping intervals earned on prior answers — cleared reviews written as atomic sync tombstones.
+  - Accessibility & layout (`10c98ba`): card faces bounded in scrollable flip controls with the rating bar kept reachable.
+  - Honest empty states (`1f9c741`, `3d1436d`): `resolveDeckEmptyState` distinguishes filter exclusions from future-scheduled SM-2 cards, the start trigger is disabled when nothing is studyable (`aria-describedby` linked), and `selectScopedCards`/`resolveSelectedQuiz` unify setup and session-start selection with fail-closed resolution of stale quiz ids.
+
+- ✅ **12H (Question Bank Unification & Analytics Scoping — Sep 27–30):**
+  - Pool-scoped analytics (`44fa0d4`): card maturity, review forecast, and `cardsWithReviewHistory` measure against the projected card-key pool (`buildCardKeyPool`) rather than raw question counts, preserving multi-blank cloze cardinality and reporting `orphanReviewCount` as an explicit diagnostic instead of repairing it with a `Math.max`. Question/material removal cascades review deletions with sync tombstones, and cross-feature cache invalidation is coordinated at the composition root to avoid introducing feature-to-feature DAG edges.
+  - Single authoring path (`bca08d9`): standalone flashcard generation is retired — cards are always projected from typed Question Bank questions. A one-shot launch-intent handoff carries the Flashcards tab's request into the generator.
+  - Tag filtering (`06af12a`): Question Bank gains an independent multi-select tag facet and a responsive three-row filter bar matching the Materials Library design; the `sourceSection` provenance field introduced in `bca08d9` is removed again across models, packages, and API routes once it proved unused.
+
+- ✅ **12I (Workspace Tab Boundaries & Agent Tooling — Sep 29–30):**
+  - Agent tooling (`1531ab1`): the terminal orchestrator gained a Freebuff runner and lost its duplicate prompt delivery.
+  - Tab naming (`71ea4d0`): `ReaderScreen`/`QuizScreen`/`QuizManagementScreen`/`FlashcardScreen` renamed to `*Tab`, establishing the boundary between workspace tabs and top-level routed screens.
+
+- ✅ **12J (Sync Correctness Remediation — Oct 1–5):**
+  - D1 bound-parameter ceiling (`d9f3afb`): pull hydration is chunked to D1's 100-variable platform limit (`DOC_CHUNK_SIZE = 99`, `ENTITY_CHUNK_SIZE = 49` after reserving `user_id`), with `MockD1PreparedStatement` now throwing `D1_ERROR: too many SQL variables` so the harness fails rather than silently succeeding.
+  - Cursor ownership (`02279ed`): `serverCursor` is removed from the push contract entirely — only pull advances the sequence cursor, and `SyncEngine` no longer reconciles it from push responses.
+  - Atomic push (`e19dbe1`): each client mutation is applied in a single D1 `batch()` so document/entity writes cannot interleave with another device's push, and the idempotency ledger records `result_version` rather than inferring it. Migration `20261001105700_condemned_gargoyle`.
+  - Conflict-draft gate (`e89b48a`): `DexieSyncReconciler` builds `drainedMutationIds` from `conflictQueueItems[].clientMutationId` and skips the loop iteration for any outbox mutation the server already consumed, so a drained mutation no longer produces a spurious conflict draft (and no longer writes a duplicate `documentContents` row).
+
+- ✅ **12K (Isolated Staging Environment — Oct 5, `8be5fb4`):**
+  - `env.staging` in `wrangler.jsonc` provisions a separate `api-staging` Worker and `lunaclair_staging` D1 database, with non-inheritable bindings repeated per environment.
+  - `deploy:api:staging`, `dev:api:staging`, `db:apply:staging:local|remote`, `db:list:staging`, and `preview:staging` scripts were added; `vite.config.ts` resolves the preview `/api` proxy from `VITE_API_TARGET` (defaulting to production) so `.env.staging` yields a genuine A/B target.
+  - The 12J remediation was verified against this database: replayed pushes return the correct prior `newVersion`, `sync_changes` holds one row per real change, the ledger's `result_version` matches, and owner disclosure returns `rejected[]`. **Production remains unmigrated.**
+
+**Current metrics (as of `8be5fb4`):** 349 Vitest test files (329 under `src/`, 20 under `worker/`; the Playwright E2E suite is separate — 20 `*.spec.ts` under `tests/e2e/`), superseding the 12E milestone figure. 22 commits landed in the 12F–12K window (+16,088 / −4,104 across 198 files).
+
 ---
 
 ## Planned Phases
 
-*(To be determined / scoped during upcoming planning sessions.)*
+- **Production release of the Phase 12 line (`v0.3.0`) — not yet done:** apply the pending production D1 migrations (which permanently drop the legacy catalog tables) and deploy the Worker. Both are one-way; do not run without explicit approval.
+- **Worker authentication — parked:** `worker/src/core/security.ts` derives the caller identity from an unsigned base64 bearer token and falls back to `x-user-id`, then to a literal `user_default`. Deliberately unresolved; must be closed before any real user data is written to production D1.
+
+*(Further phases to be determined / scoped during upcoming planning sessions.)*
 
 

@@ -4,7 +4,7 @@
 
 Project LunaClair is an AI-powered learning platform. The long-term vision is to transform learning materials into structured study datasets that power quizzes, flashcards, practice exams, progress tracking, and other study experiences.
 
-**Current status:** Phase 12 (Responsive Shell Experience & Architectural Hardening) is complete.
+**Current status:** v0.3.0 — the legacy content catalog is retired and `.lcpack` StudyPackage sharing is the sole content-distribution path. Cloud sync (outbox, D1 replication, conflict resolution) is implemented.
 
 ## Tech Stack
 
@@ -16,12 +16,12 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | StyleX | Styling, design tokens (`*.stylex.ts`) |
 | @astryxdesign/core + theme-neutral | UI component kit and theme |
 | TanStack Query | Server-state caching & mutations (`networkMode: 'offlineFirst'`) |
-| Dexie.js | IndexedDB persistence (Schema v11) |
+| Dexie.js | IndexedDB persistence (Schema v15) |
 | GSAP | Animation, viewport morphing, and drag interactions |
 | react-markdown + remark-gfm + rehype-slug | Markdown rendering |
 | vite-plugin-pwa | PWA / offline app shell |
 | Cloudflare Workers + D1 + Workers AI | Edge API, serverless SQLite cloud sync/shares, Llama 3.3 LLM |
-| Vitest + Testing Library | Unit, transformer, fidelity, state & persistence test suite (1,210+ tests) |
+| Vitest + Testing Library | Unit, transformer, fidelity, state & persistence test suite (2,400+ tests) |
 | Playwright | Real-browser E2E acceptance tests |
 
 ## Features
@@ -29,6 +29,7 @@ Project LunaClair is an AI-powered learning platform. The long-term vision is to
 | Feature | Status | Scope |
 |---|---|---|
 | `materials/` | ✅ Implemented | Local study material management — material entities, `MaterialCard`, `MaterialGrid`, `LibraryView`, CRUD modals |
+| `collections/` | ✅ Implemented | User-curated material collections with custom ordering and collection modals |
 | `subjects/` | ✅ Implemented | Academic subject hierarchy — subject entities, workspaces, cards, CRUD modals |
 | `terms/` | ✅ Implemented | Academic terms & subject-term junctions — term management, usage counters, and association modals |
 | `discovery/` | ✅ Implemented | Content discovery & Explore Hub — remote catalog exploration, community shares, and read-only previews |
@@ -80,13 +81,19 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 | Lint | `npm run lint` |
 | Unit & Integration Tests | `npm run test:run` / `npm run test` / `npm run test:coverage` |
 | E2E Acceptance Tests | `npm run test:e2e` |
-| Preview production build | `npm run preview` |
+| Preview production build | `npm run preview` (proxies `/api` to **production**) |
+| Preview against staging Worker | `npm run preview:staging` (proxies `/api` to the isolated staging Worker) |
 | Regenerate PWA icons | `npm run generate:pwa-assets` |
 | Dev API Worker | `npm run dev:api` |
-| Deploy API Worker | `npm run deploy:api` |
+| Deploy API Worker | `npm run deploy:api` (production) |
+| Deploy API Worker to staging | `npm run deploy:api:staging` |
+| Dev API Worker (staging env) | `npm run dev:api:staging` |
+| Apply D1 migrations (staging) | `npm run db:apply:staging:local` / `npm run db:apply:staging:remote` |
+| List pending staging migrations | `npm run db:list:staging` |
 | Regenerate Worker types | `npm run types:worker` |
 | Generate D1 migration | `npm run db:generate` |
 | Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:remote` |
+| Seed StudyPackage shares | `npm run seed:shares:local` / `npm run seed:shares:remote` (dry-run validators) |
 
 **Build process:** `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
@@ -94,11 +101,11 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 
 ## PWA / Offline
 
-- Installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the lightweight app shell (~1.5 MB), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
-- Study materials (documents & figures) live in Cloudflare D1, served on-demand by the `api` Worker and cached by the service worker via Workbox `CacheFirst` runtime caching (materials work offline after their first open).
-- Canonical study materials live at `content/materials/` and are seeded to D1 via `npm run seed:materials:local` / `npm run seed:materials:remote`.
+- Installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the lightweight app shell (~2.9 MB across 56 entries), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
+- **Content distribution is `.lcpack` StudyPackage sharing only.** The legacy content catalog and its raw document/figure endpoints are retired; `POST /api/shares` plus `SharedPackageScreen` is the exclusive mechanism. A fresh install starts with an empty library — users build it from the Explore Hub by cloning published shares. Canonical sources live at `content/materials/`, transformed by `scripts/lib/studyPackageBuilder.mjs` and published via `node scripts/seed-shares.mjs`; the `seed:shares:*` npm scripts are **dry-run validators only**.
+- Imported materials are read from IndexedDB, never re-fetched — including `lc-asset://` figures, which resolve to local object URLs.
 - Install discovery: quiet opt-in `Install app` / `Add to Home Screen` sidebar entry plus a one-time iOS-only card from the second visit. Deliberately no `beforeinstallprompt` machinery.
-- Offline synchronization (sync queue, conflict resolution) is **Phase 10** scope; offline-readiness is shipped.
+- Offline synchronization is **implemented** — a transactional outbox, D1 replication with optimistic versioning, and conflict resolution. Cloudflare D1 is the sync/sharing backing store; IndexedDB remains the source of truth for library membership.
 - Icons regenerate from `public/app-icon.svg` via `npm run generate:pwa-assets`.
 
 ## Linter

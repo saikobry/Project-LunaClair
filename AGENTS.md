@@ -79,7 +79,7 @@ Default section order:
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 12 complete (Responsive Shell Experience & Architectural Hardening)
+**Phase:** 12 in progress (Responsive Shell Experience & Architectural Hardening — through 12K, 2026-10-05; see `docs/roadmap.md`)
 
 ## Stack
 
