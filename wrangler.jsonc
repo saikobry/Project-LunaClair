@@ -42,5 +42,40 @@
   "ai": {
     "binding": "AI",
     "remote": true
+  },
+
+  // Staging — a SEPARATE Worker bound to a SEPARATE D1 database.
+  //
+  // `wrangler deploy` (no --env) targets the top level above: production.
+  // `wrangler deploy --env staging` targets this block, deploying Worker
+  // `api-staging` at api-staging.<subdomain>.workers.dev against D1
+  // `lunaclair_staging`. Nothing here touches production.
+  //
+  // Bindings and vars are NON-INHERITABLE, so `vars`, `d1_databases` and `ai`
+  // are repeated deliberately rather than inherited — change one, change both.
+  "env": {
+    "staging": {
+      "name": "api-staging",
+      "compatibility_date": "2026-07-30",
+      "compatibility_flags": ["nodejs_compat"],
+      "vars": {
+        "CORS_ORIGINS": "",
+        "AI_DISABLED_MODELS": "",
+        "AI_CHAT_DISABLED": "false"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "lunaclair_staging",
+          "database_id": "86cbd170-3bc7-4bd1-82d3-b880057ff870",
+          "migrations_dir": "worker/migrations",
+          "migrations_pattern": "worker/migrations/*/migration.sql"
+        }
+      ],
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      }
+    }
   }
 }

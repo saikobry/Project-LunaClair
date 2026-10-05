@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { unplugin } from '@stylexjs/unplugin'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -32,23 +32,38 @@ function fixStylexWindows(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  // Which Worker `vite preview` proxies /api to.
+  //
+  // Defaults to PRODUCTION, so an ordinary `npm run preview` behaves exactly as
+  // it always has. `npm run preview:staging` runs `vite preview --mode staging`,
+  // which loads `.env.staging` and points at the STAGING Worker — a separate
+  // Worker bound to a separate D1, so a staging preview can never touch prod data.
+  //
+  // Read via `--mode` rather than a bare `VITE_API_TARGET=... vite` shell prefix,
+  // which fails under npm on Windows (cmd.exe has no inline env assignment) and
+  // would need a `cross-env` dependency. See wrangler.jsonc "env.staging".
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  const previewApiTarget =
+    env.VITE_API_TARGET ?? 'https://api.project-lunaclair.workers.dev'
+
+  return {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+        },
       },
     },
-  },
-  preview: {
-    proxy: {
-      '/api': {
-        target: 'https://api.project-lunaclair.workers.dev',
-        changeOrigin: true,
+    preview: {
+      proxy: {
+        '/api': {
+          target: previewApiTarget,
+          changeOrigin: true,
+        },
       },
     },
-  },
   plugins: [
     imageBase64(),
     unplugin.vite(),
@@ -138,4 +153,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })

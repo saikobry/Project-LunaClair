@@ -16,13 +16,19 @@
     "generate:pwa-assets": "pwa-assets-generator public/app-icon.svg --preset minimal",
     "dev:api": "wrangler dev",
     "deploy:api": "wrangler deploy",
+    "deploy:api:staging": "wrangler deploy --env staging",
+    "dev:api:staging": "wrangler dev --env staging",
     "types:worker": "wrangler types worker/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "db:apply:local": "wrangler d1 migrations apply lunaclair --local",
     "db:apply:remote": "wrangler d1 migrations apply lunaclair --remote",
+    "db:apply:staging:local": "wrangler d1 migrations apply lunaclair_staging --env staging --local",
+    "db:apply:staging:remote": "wrangler d1 migrations apply lunaclair_staging --env staging --remote",
+    "db:list:staging": "wrangler d1 migrations list lunaclair_staging --env staging --remote",
     "seed:shares:local": "node scripts/seed-shares.mjs --dry-run",
     "seed:shares:remote": "node scripts/seed-shares.mjs --remote --dry-run",
-    "generate:e2e-fixtures": "node scripts/generate-e2e-fixtures.mjs"
+    "generate:e2e-fixtures": "node scripts/generate-e2e-fixtures.mjs",
+    "preview:staging": "vite preview --mode staging"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.1.8",
