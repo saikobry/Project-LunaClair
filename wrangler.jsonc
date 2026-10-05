@@ -4,7 +4,16 @@
   "main": "worker/src/index.ts",
   "compatibility_date": "2026-07-30",
   "compatibility_flags": ["nodejs_compat"],
-  "pages_build_output_dir": "dist",
+
+  // NOTE: `pages_build_output_dir` is deliberately ABSENT. Cloudflare's Pages
+  // build image reads this root config; when that key is present it validates
+  // the file as a Pages config and rejects the Worker-only keys `main` and
+  // `env.*`, so every Pages build fails with
+  // "Configuration file cannot contain both `main` and `pages_build_output_dir`".
+  // Verified: master (6beeefe) builds 200 without it; e89b48a and 23385d0 both
+  // 404 with it. This file is a WORKER config only — Pages gets its build
+  // command and output directory from the dashboard, and no npm script runs
+  // `wrangler pages deploy`. Adding it back will silently break Pages again.
 
   // Comma-separated allowlist of browser origins; empty = local dev defaults.
   "vars": {
