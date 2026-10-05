@@ -22,9 +22,10 @@
  * Usage:
  *   node scripts/seed-shares.mjs --dry-run
  *   node scripts/seed-shares.mjs --local
- *   node scripts/seed-shares.mjs --remote
+ *   node scripts/seed-shares.mjs --production
+ *   node scripts/seed-shares.mjs --staging
  *   node scripts/seed-shares.mjs --url https://example.com --token mysecret
- *   node scripts/seed-shares.mjs --remote --force   (delete + republish existing titles)
+ *   node scripts/seed-shares.mjs --production --force   (delete + republish existing titles)
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -46,7 +47,15 @@ const CATALOG_DIR = resolve(ROOT_DIR, 'content', 'catalog');
 const QUIZ_DIR = resolve(ROOT_DIR, 'content', 'quiz');
 
 const DEFAULT_LOCAL_URL = 'http://127.0.0.1:8787';
-const REMOTE_URL = 'https://api.project-lunaclair.workers.dev';
+const PRODUCTION_URL = 'https://api.project-lunaclair.workers.dev';
+const STAGING_URL = 'https://api-staging.project-lunaclair.workers.dev';
+
+/** Maps a `--local`/`--production`/`--staging` target to its Worker origin. */
+const TARGET_URLS = {
+  local: DEFAULT_LOCAL_URL,
+  production: PRODUCTION_URL,
+  staging: STAGING_URL,
+};
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -59,10 +68,12 @@ function parseArgs() {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--remote') {
-      target = 'remote';
+      if (arg === '--production') {
+      target = 'production';
     } else if (arg === '--local') {
       target = 'local';
+    } else if (arg === '--staging') {
+      target = 'staging';
     } else if (arg === '--dry-run') {
       dryRun = true;
     } else if (arg === '--force') {
@@ -83,7 +94,8 @@ against the ${formatBytes(MAX_SHARE_PAYLOAD_BYTES)} share ceiling before publish
 
 Options:
   --local             Target local dev Worker (${DEFAULT_LOCAL_URL}) [default]
-  --remote            Target deployed production Worker (${REMOTE_URL})
+  --production        Target deployed production Worker (${PRODUCTION_URL})
+  --staging           Target deployed staging Worker (${STAGING_URL})
   --dry-run           Validate + report sizes only; publish nothing
   --force             Delete and re-publish shares whose title already exists
   --dump-dir <dir>    Debug: write each built package payload as <materialId>.json
@@ -92,7 +104,7 @@ Options:
   --help, -h          Show this help message
 
 Environment:
-  SEED_SHARES_URL     Fallback base URL when --url/--local/--remote are absent
+  SEED_SHARES_URL     Fallback base URL when no --url/--local/--production/--staging is given
   SEED_TOKEN          Bearer token for publishing (publish mode only)
 
 Oversized or invalid packages are reported loudly and skipped; the process
@@ -316,7 +328,7 @@ async function main() {
   let baseUrl =
     customUrl ??
     process.env.SEED_SHARES_URL ??
-    (target === 'remote' ? REMOTE_URL : DEFAULT_LOCAL_URL);
+    (TARGET_URLS[target] ?? DEFAULT_LOCAL_URL);
   baseUrl = baseUrl.replace(/\/+$/, '');
 
   const catalogMaterials = loadCatalogMaterials();
@@ -352,16 +364,31 @@ async function main() {
     console.log(`\n💾 Dumped ${results.length} package payloads to ${dumpDir}`);
   }
 
+  // Label the RESOLVED URL, not the raw flag: `--url`/`SEED_SHARES_URL` bypass
+  // `target` entirely, so labelling the flag misreported where the write landed.
+  const targetLabel =
+    Object.entries(TARGET_URLS).find(([, url]) => url === baseUrl)?.[0] ?? 'custom';
+
   if (dryRun) {
     console.log('\n🏃 Dry run complete — nothing was published.');
     if (failures.length > 0) {
+      console.log('   Not showing a publish command — the run above failed; fix it first.');
       process.exit(1);
     }
+    // Promote a dry run to a real one by copy-paste rather than flag recall. The
+    // npm scripts hide their own `--dry-run`, so without this the publish step is
+    // only reachable from documentation. Keyed off the resolved URL like the banner,
+    // so a `--url`/`SEED_SHARES_URL` run echoes the URL instead of a wrong flag.
+    const publishCmd =
+      targetLabel === 'custom'
+        ? `node scripts/seed-shares.mjs --url ${baseUrl}`
+        : `node scripts/seed-shares.mjs --${targetLabel}`;
+    console.log(`   To publish for real: ${publishCmd}${force ? ' --force' : ''}`);
     return;
   }
 
   const token = getSeedToken(customToken);
-  console.log(`\n🚀 Publishing to: ${baseUrl} (${target} mode)`);
+  console.log(`\n🚀 Publishing to: ${baseUrl} (${targetLabel})`);
 
   let publishedCount = 0;
   let skippedExistingCount = 0;

@@ -87,13 +87,12 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 | Dev API Worker | `npm run dev:api` |
 | Deploy API Worker | `npm run deploy:api` (production) |
 | Deploy API Worker to staging | `npm run deploy:api:staging` |
-| Dev API Worker (staging env) | `npm run dev:api:staging` |
-| Apply D1 migrations (staging) | `npm run db:apply:staging:local` / `npm run db:apply:staging:remote` |
+| Apply D1 migrations (staging) | `npm run db:apply:staging` |
 | List pending staging migrations | `npm run db:list:staging` |
 | Regenerate Worker types | `npm run types:worker` |
 | Generate D1 migration | `npm run db:generate` |
-| Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:remote` |
-| Seed StudyPackage shares | `npm run seed:shares:local` / `npm run seed:shares:remote` (dry-run validators) |
+| Apply D1 migrations | `npm run db:apply:local` / `npm run db:apply:production` |
+| Seed StudyPackage shares | `npm run seed:shares:local` / `seed:shares:production` / `seed:shares:staging` — all dry-run validators; each prints the exact command to publish for real |
 
 **Build process:** `tsc -b` (type-check) then `vite build`. No separate typecheck command — `npm run build` covers it.
 
@@ -102,7 +101,7 @@ See [docs/architecture/architecture.md](docs/architecture/architecture.md) for t
 ## PWA / Offline
 
 - Installable, offline-capable PWA. `vite-plugin-pwa` emits a service worker precaching the lightweight app shell (~2.9 MB across 56 entries), plus a web manifest (`display: standalone`, white theme). SW registration and the manifest link are auto-injected at build — no manual `registerSW` call.
-- **Content distribution is `.lcpack` StudyPackage sharing only.** The legacy content catalog and its raw document/figure endpoints are retired; `POST /api/shares` plus `SharedPackageScreen` is the exclusive mechanism. A fresh install starts with an empty library — users build it from the Explore Hub by cloning published shares. Canonical sources live at `content/materials/`, transformed by `scripts/lib/studyPackageBuilder.mjs` and published via `node scripts/seed-shares.mjs`; the `seed:shares:*` npm scripts are **dry-run validators only**.
+- **Content distribution is `.lcpack` StudyPackage sharing only.** The legacy content catalog and its raw document/figure endpoints are retired; `POST /api/shares` plus `SharedPackageScreen` is the exclusive mechanism. A fresh install starts with an empty library — users build it from the Explore Hub by cloning published shares. Canonical sources live at `content/materials/`, transformed by `scripts/lib/studyPackageBuilder.mjs` and published via `node scripts/seed-shares.mjs`. Every `seed:shares:*` npm script is a **dry-run validator only** — none of them publish. Each one ends by printing the exact command that would publish for real (idempotent by title). The CLI targets environments by name: `--local`, `--production`, and `--staging`.
 - Imported materials are read from IndexedDB, never re-fetched — including `lc-asset://` figures, which resolve to local object URLs.
 - Install discovery: quiet opt-in `Install app` / `Add to Home Screen` sidebar entry plus a one-time iOS-only card from the second visit. Deliberately no `beforeinstallprompt` machinery.
 - Offline synchronization is **implemented** — a transactional outbox, D1 replication with optimistic versioning, and conflict resolution. Cloudflare D1 is the sync/sharing backing store; IndexedDB remains the source of truth for library membership.
