@@ -1,12 +1,16 @@
 import { useContext } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
-import type { CreateQuizInput, UpdateQuizInput } from '../../../domain/quiz/repositories/QuizRepository';
-import type { Question } from '../../../domain/quiz/models/Question';
 
 /**
- * Hook managing quiz creation/editing, version pinning, and question associations.
+ * Hook managing quiz publishing and lifecycle transitions.
  * Thin React adapter for quiz-management use cases.
+ *
+ * Creation and editing are NOT here: a quiz is authored on the canvas, whose
+ * write path is `SaveQuizUseCase` (atomic draft commit). The former
+ * `createQuiz` / `updateQuiz` mutations had no consumer left after the editor
+ * dialog was replaced by the canvas route and were removed rather than kept as
+ * an unused second write path into the quiz catalog.
  */
 export function useQuizBuilder() {
     const context = useContext(ApplicationContext);
@@ -17,18 +21,6 @@ export function useQuizBuilder() {
     const queryClient = useQueryClient();
     const invalidate = () =>
         queryClient.invalidateQueries({ queryKey: ['assessment'] });
-
-    const createQuiz = useMutation({
-        mutationFn: ({ input, questions }: { input: CreateQuizInput; questions: Question[] }) =>
-            context.useCases.quizManagement.createQuiz.execute(input, questions),
-        onSettled: invalidate,
-    });
-
-    const updateQuiz = useMutation({
-        mutationFn: ({ id, input }: { id: string; input: UpdateQuizInput }) =>
-            context.useCases.quizManagement.updateQuiz.execute(id, input),
-        onSettled: invalidate,
-    });
 
     const publishQuiz = useMutation({
         mutationFn: (id: string) => context.useCases.quizManagement.publishQuiz.execute(id),
@@ -45,5 +37,5 @@ export function useQuizBuilder() {
         onSettled: invalidate,
     });
 
-    return { createQuiz, updateQuiz, publishQuiz, archiveQuiz, unarchiveQuiz };
+    return { publishQuiz, archiveQuiz, unarchiveQuiz };
 }
