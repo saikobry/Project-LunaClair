@@ -66,7 +66,7 @@ Default section order:
 
 ### Single-Source Rules
 
-Every rule has exactly one owning statement. These five rules enforce that, and a doc that breaks them is over-budget even when it is accurate.
+Every rule has exactly one owning statement. These five rules enforce that, and a doc that breaks them is over-budget even when it is accurate. `src/__tests__/architecture/doxConsistency.test.ts` mechanically enforces the checkable ones — phantom paths, symbols cited live after removal, verbatim duplicate bullets, list-nesting jumps, and oversized-line growth — so a defect in this corpus fails the suite instead of waiting for a reader.
 
 - **State a rule once, in the doc that owns it.** Every other mention is a pointer: name the owner and restate only what is local to that scope (`see \`<path>\``). A rule written out twice is two rules that will drift — the second copy is what makes a doc feel bloated without making it safer. The owner is the nearest doc whose subject the rule decides; for a value (a colour, radius, easing, constant, schema field) the owner is the **source artifact** that holds it, not prose.
 - **One rule per bullet, and a bullet reads in one screen.** A bullet or table cell must not carry a multi-hundred-word paragraph. Split it into named sub-rules — `**Name.** contract` — one contract each. When a table cell needs an essay, the table is the wrong shape: leave ownership in the table and move the detail to `Local Contracts` as named sub-rules.
@@ -188,7 +188,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 ## Conventions
 
-- No CI, no tests, no formatting config (beyond oxlint).
+- No CI.
 - Commit messages: use `commit-message` skill (`.agents/skills/commit-message/SKILL.md`) — generates conventional commits from staged changes.
 - React code quality: use `react-doctor` skill (`.agents/skills/react-doctor/SKILL.md`) — scans for React anti-patterns, performance, security, architecture, accessibility. Run after any React code changes.
 - React Doctor false positives: proven detector false positives are recorded in `.react-doctor/false-positives.md` with the rule's own suppression predicate, the observed evidence, and a review condition. The CLI does not read this file — it is a reviewable record, so rejected diagnostics are expected to keep appearing in scans. Do not disable a correctness rule globally to clear one occurrence.
