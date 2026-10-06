@@ -19,7 +19,7 @@ LunaClair Writer is the WYSIWYG authoring and study material editing engine buil
 - `theme/writerTheme.ts` — Lexical theme class mappings adhering to LunaClair typography and surface tokens.
 - `theme/writer.css` — Scoped CSS stylesheets for Lexical editor surfaces, tables, code blocks, and blockquotes.
 - `utils/markdownNormalizer.ts` — Conservative Markdown normalization utility standardizing representation differences (table padding, bullet canonicalization, block separation) for dirty-state checks and fidelity tests.
-- `tests/` — Three-layer test suite (Vitest + React Testing Library + Playwright):
+- `__tests__/` — Three-layer test suite (Vitest + React Testing Library + Playwright):
   - `contracts/fidelity-contract.md` — Formal Markdown fidelity specification and classification matrix.
   - `fixtures/real-material/` — Full-length canonical curriculum markdown fixtures (*Anatomy & Physiology*, *Cellular Respiration*, *Photosynthesis*, *Genetics*, *Ancient Civilizations*, *Spanish Verbs*, *Cell Structure*).
   - `fixtures/synthetic/` — Granular synthetic markdown fixtures.
@@ -53,8 +53,8 @@ LunaClair Writer is the WYSIWYG authoring and study material editing engine buil
 
 ## Verification
 
-- `npm run test:run` — Vitest unit, transformer, fidelity, Dexie persistence, and UI state test execution (76 tests passing across 11 test suites).
-- `npm run test:e2e` — Playwright real-browser acceptance test execution (10 tests passing in Chromium, validating P0 reload persistence, P0 reader formatting sync + Dexie persistence, P1 bidirectional mode switching, P1 unsaved navigation / beforeunload protection, and P2 toolbar accessibility + selection preservation).
+- `npm run test:run` — Vitest unit, transformer, fidelity, Dexie persistence, and UI state test execution across `__tests__/` (`transformers/`, `fidelity/`, `state/`, `integration/`). Do not restate a pass count here: it is owned by the suite and drifts.
+- `npm run test:e2e` — Playwright real-browser acceptance coverage in Chromium: P0 reload persistence, P0 reader formatting sync + Dexie persistence, P1 bidirectional mode switching, P1 unsaved navigation / `beforeunload` protection, and P2 toolbar accessibility + selection preservation.
 - `npm run test:coverage` — Test coverage analysis.
 - `npm run build` — TypeScript (`tsc -b`) and Vite production bundle check.
 - `npm run lint` — Oxlint static boundary analysis.

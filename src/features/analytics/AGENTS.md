@@ -6,7 +6,7 @@ Provides learning insights, performance telemetry, spaced-repetition retention m
 
 ## Ownership
 
-- `AnalyticsScreen.tsx` — Feature surface consumed by the app-layer route screen `app/screens/analytics/AnalyticsScreen.tsx` at `/analytics` via `ShellRoutes.tsx`. This feature owns no route screen.
+- **This feature owns no route screen and no root screen file (ADR-014).** The `/analytics` route is `src/app/screens/analytics/AnalyticsScreen.tsx` (registered in `ShellRoutes.tsx`), which composes this feature's components and `useGlobalAnalytics` directly. Everything this feature owns is under `queries/`, `hooks/`, and `components/` below.
 - `queries/analyticsQueryKeys.ts` — Query key factory owning the `['analytics']` cache namespace.
 - `hooks/queries/useGlobalAnalytics.ts` — Data hook querying `GetGlobalAnalyticsUseCase` via `ApplicationContext`.
 - `components/` — Modular, lightweight, accessible UI visualizations (zero charting libraries):
@@ -25,7 +25,7 @@ Provides learning insights, performance telemetry, spaced-repetition retention m
 - **The overview's own figures are split by the question each answers, and the current-workload ones take the pool.** `cardsWithReviewHistory` counts **current** cards — keys in the active pool that have history — so it cannot disagree with the maturity bar sitting directly above it on the same screen. Its label says `active card(s) with history`; do not relabel it back to an unqualified "cards with history". `totalCardReviews`, the review-event and last-activity inputs, and the streak stay on **full** review history, orphans included: they describe what happened, not what exists, and an orphaned schedule was still reviewed. `computeStudyOverview(sessions, reviews, cardKeys, …)` therefore takes the same `cardKeys` set `computeCardMaturity` and `computeReviewForecast` receive, and `DexieAnalyticsRepository` passes one pool to all three. There is deliberately no separate all-time distinct-card figure — an unqualified one would silently include archived and removed cards.
 - Analytics cache (`['analytics']`) is invalidated on quiz session completions (`useQuizPersistence`) and flashcard review recordings (`useFlashcardRating`). **Question writes and question deletions are invalidated at the app composition root, not from here or from `quiz-management`** — see `src/app/bootstrap/analyticsInvalidation.ts`; this feature keeps zero feature-to-feature dependencies.
 - No charting libraries are used; all visualizations use lightweight, responsive StyleX-styled CSS/SVG structures.
-- Direct-path import contract: `ShellRoutes` consumes `features/analytics/AnalyticsScreen` directly.
+- Direct-path import contract: `ShellRoutes` lazy-imports the app-layer screen (`screens/analytics/AnalyticsScreen`), which composes `features/analytics/hooks/queries/useGlobalAnalytics` and the feature's components by direct path. There is no `features/analytics/AnalyticsScreen` module to import.
 
 ## Work Guidance
 
