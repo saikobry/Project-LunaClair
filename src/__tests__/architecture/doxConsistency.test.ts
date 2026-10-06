@@ -74,13 +74,7 @@ const OVERSIZED_LINE_WORDS = 300;
  * split is the intended direction of travel, and any file absent from this map
  * is held to zero. Do not add an entry to silence a new violation; split the rule.
  */
-const OVERSIZED_LINE_DEBT: Record<string, number> = {
-  'src/app/AGENTS.md': 1,
-  'src/features/ai/AGENTS.md': 2,
-  'src/features/importer/AGENTS.md': 1,
-  'src/features/materials/AGENTS.md': 1,
-  'src/infrastructure/AGENTS.md': 1,
-};
+const OVERSIZED_LINE_DEBT: Record<string, number> = {};
 
 /**
  * Documented references that legitimately do not resolve, each with a reason.
