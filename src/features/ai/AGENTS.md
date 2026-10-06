@@ -48,6 +48,7 @@ AI Study Assistant and Content Generation bounded context. Provides conversation
   - `ai/components/AiDrawerToggleButton`
   - `ai/components/AiSettingsSection`
   - `ai/generator/components/AiQuestionGeneratorDialog`
+- **The generation surfaces own the prompts' presentation wording and the per-draft review step.** The `blanks`/`correctAnswer` prompts ask for **2-4 subject-matter topic tags** per item and rule out provenance tagging; the review step re-validates each draft through the domain's own validator because a user can edit a draft between generation and persistence, and it reports a partial batch's dropped count instead of silently returning fewer items (owners: `src/application/AGENTS.md` for the generation contract, `src/domain/AGENTS.md` for the validator).
 
 ## Verification
 

@@ -76,14 +76,10 @@ const OVERSIZED_LINE_WORDS = 300;
  */
 const OVERSIZED_LINE_DEBT: Record<string, number> = {
   'src/app/AGENTS.md': 1,
-  'src/app/screens/AGENTS.md': 3,
-  'src/application/AGENTS.md': 2,
-  'src/domain/AGENTS.md': 4,
   'src/features/ai/AGENTS.md': 2,
   'src/features/importer/AGENTS.md': 1,
   'src/features/materials/AGENTS.md': 1,
   'src/infrastructure/AGENTS.md': 1,
-  'worker/AGENTS.md': 4,
 };
 
 /**
