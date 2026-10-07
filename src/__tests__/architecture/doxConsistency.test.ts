@@ -158,16 +158,7 @@ before after until unless whether though although however therefore thus hence
  * Delete an entry once the duplication is resolved; the stale guard below will
  * remind you. Every entry names which contract it is about.
  */
-const KNOWN_PARAPHRASE_PAIRS: Record<string, string> = {
-  'src/app/AGENTS.md <> src/app/screens/AGENTS.md':
-    'both name the same screen-level hooks (`useGlobalAnalytics`, `useLibrary`), so the shared-vocabulary score is high without one rule being restated — review whether the app bullet should simply point at `src/app/screens/AGENTS.md`',
-  'src/domain/AGENTS.md <> src/features/analytics/AGENTS.md':
-    'both state the analytics card-projection contract (`questionToCards` and its review-history fields)',
-  'src/application/AGENTS.md <> src/features/package/AGENTS.md':
-    'both state the package import/materialize pipeline (`MaterializeStudyPackageUseCase`, `PublishStudyPackageUseCase`)',
-  'src/features/quiz-management/AGENTS.md <> src/features/quiz-management/canvas/AGENTS.md':
-    'the canvas sub-doc restates its parent\'s boundary rule (`AppShell` consumes `QuizCanvasBuilder` directly, no barrel)',
-};
+const KNOWN_PARAPHRASE_PAIRS: Record<string, string> = {};
 
 // ---------------------------------------------------------------------------
 // Discovery
@@ -504,7 +495,11 @@ describe('Architecture: DOX (AGENTS.md) Consistency', () => {
     }
   });
 
-  it('never cites a symbol as live when it is absent from source', () => {
+  // Reads the source index built in beforeAll and walks every symbol cited across all
+  // AGENTS.md files. That is filesystem-bound and sits close to Vitest's 5s default, so it
+  // times out under full-suite parallel load. The budget reflects real scan cost, not a
+  // hung test: standalone it completes in ~2s.
+  it('never cites a symbol as live when it is absent from source', { timeout: 30000 }, () => {
     if (SOURCE_READ_FAILURES.length > 0) {
       expect.fail(
         `The source index is incomplete — ${SOURCE_READ_FAILURES.length} file(s) could not be read, ` +

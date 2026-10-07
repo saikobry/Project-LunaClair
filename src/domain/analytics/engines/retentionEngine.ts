@@ -4,14 +4,8 @@ import { toLocalDateKey, addDays } from './dateUtils';
 
 /**
  * Computes mutually exclusive flashcard maturity buckets across a **projected
- * card pool**. Does not mutate input arrays or sets.
- *
- * The pool is the set of card keys, not a count, and not a count of questions:
- * `buildCardKeyPool` derives it from the same `questionToCards` projection the
- * study deck uses, so a `fill_in_blank` question contributes one key per blank
- * and the "N total flashcards" figure is the deck's own cardinality. Passing a
- * set is what makes a wrong pool a *visible* bug — a bare number cannot be
- * checked against anything.
+ * card pool** (card keys from `buildCardKeyPool`, not a question count).
+ * Does not mutate input arrays or sets.
  *
  * Precedence Partitioning (evaluated per pool key):
  * 1. New: no ReviewState for the key, or its reviewCount === 0
@@ -19,23 +13,11 @@ import { toLocalDateKey, addDays } from './dateUtils';
  * 3. Review: (intervalDays >= 7 && intervalDays < 21) || (intervalDays >= 21 && lapses > 1)
  * 4. Mastered: intervalDays >= 21 && lapses <= 1
  *
- * **A review only counts if its key is in the pool.** A review whose key is not
- * is an *orphan* — a schedule outside the active card pool, which is the
- * condition and not one cause. Three real causes produce it, and the list is
- * not closed by this engine: the question was **deleted**, the question was
- * **archived** (archiving is the app's soft delete, so the question still
- * exists and only its keys left the pool — `buildCardKeyPool` is what excludes
- * it), or a **cloze blank was retired**. Presentation must therefore name the
- * condition and never assert a single one of them. Orphans are returned as
- * `orphanReviewCount` instead of being folded into a bucket. They never widen
- * `totalCards`, so `newCount + learningCount + reviewCount + masteredCount ===
- * cardKeys.size` holds exactly. Orphans are a *diagnostic*, not a failure: rows
- * left behind by pre-release data exist and must not break the Insights screen,
- * so this never throws — strictness is asserted in tests instead.
- *
- * There is deliberately **no `Math.max` repair** on `totalCards` (the previous
- * signature widened the pool to cover orphan reviews, which made an incorrect
- * pool undetectable and relabelled a question count as a flashcard count).
+ * A review whose key is not in the pool is an *orphan*: returned as
+ * `orphanReviewCount`, never folded into a bucket or counted by `totalCards`
+ * (so the buckets sum exactly to `cardKeys.size`). Orphans are a diagnostic,
+ * never a failure — this never throws. Causes + presentation rule:
+ * `src/features/analytics/AGENTS.md`.
  *
  * @param reviews Array of ReviewState records
  * @param cardKeys The projected card keys in scope (see `buildCardKeyPool`)
