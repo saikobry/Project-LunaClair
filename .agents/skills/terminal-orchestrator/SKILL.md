@@ -197,6 +197,15 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
 - **`freebuff-prompt.ps1`**:
   Dedicated prompt runner for Freebuff agents in Herdr.
   - **Why it exists**: Freebuff uses an OpenTUI/React composer with an explicit focus guard; keystrokes delivered to an unfocused pane are dropped by Windows ConPTY. Additionally, Freebuff prompts display an interactive wallet credit confirmation modal (`Enter: confirm and send`) before execution starts.
+  - **Freebuff pane lifecycle (learned the hard way).** Freebuff is NOT one of Herdr's agent kinds, so `herdr agent start --kind freebuff` always fails with `unsupported interactive agent kind`. It must be launched by the operator *inside* a Herdr pane:
+    ```
+    herdr pane split --current --direction right --no-focus
+    herdr pane run <pane-id> "freebuff-herdr"
+    ```
+    `dispatch.ps1` performs these two steps itself when no Freebuff pane exists. `herdr pane split --direction` accepts only `right|down` — unlike `herdr pane focus --direction`, which also takes `left|up`.
+  - **`freebuff-herdr` is what registers the pane**, because it gates on `HERDR_ENV=1` + `HERDR_PANE_ID` and calls `pane report-agent`. That registration is the only thing that makes Herdr's `agent_status` track the pane (verified: a registered pane goes `idle -> working -> idle`).
+  - **A pane that lost registration is permanently unrecoverable.** `freebuff-herdr`'s `finally` block calls `pane release-agent` when it exits. After that the pane ignores `report-agent` forever — a direct `report-agent --state working` call returns exit 0 and changes nothing. Relaunching Freebuff inside that pane cannot fix it; only a new pane can. Symptom: `agent_status` frozen at `idle`, `state_change_seq` absent, and every wait burning its full timeout.
+  - **`state_change_seq` is never exposed for Freebuff panes**, even correctly registered ones. Do not treat its absence as evidence of a dead watcher, and do not use it as a submission signal.
   - **What it does**: Auto-detects the Freebuff pane (or uses `-TargetPane`), delivers prompt text via `herdr pane run`, dynamically navigates focus to Freebuff, waits for the composer to absorb the text (scaled by prompt size, capped at 20s), then submits and **verifies submission from Herdr's `agent_status`** before reporting success. Restores the caller's focus on every path and optionally waits for turn completion via `-Wait`.
   - **Submission is verified, not assumed.** `exit 0` plus `Prompt delivered` means the pane reached `working`/`blocked`. A prompt that never runs exits **2** with an explicit error instead of reporting a delivery that did not happen.
   - **Pane IDs are not stable.** A Freebuff session reset (quota expiry, crash) re-creates the pane at a new ID, so prefer auto-detection over a hardcoded `-TargetPane`.
@@ -222,7 +231,7 @@ These are observed constraints of the Herdr CLI + terminal agent TUIs. They expl
 - **Herdr writes failures to stderr while the exit code stays 0.** Capture stderr to a file and scan it for `"error"` / `agent_prompt_stalled` / `agent_blocked`; `2>&1` in PowerShell turns those lines into `ErrorRecord`s that abort the calling statement.
 - **Target form matters.** Agent-scoped commands may reject agent names (`agent target codex not found`) while accepting pane ids (`herdr agent get w6:pB` works). Always keep a pane id in hand.
 - **Keep `.ps1` sources ASCII-only.** Without a UTF-8 BOM PowerShell 5.1 reads scripts as ANSI, so a single non-ASCII byte (an em dash's `0x94`) decodes into a stray quote and produces cascading, misleading parse errors.
-- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused, and prompts for interactive wallet credit confirmation before processing. Always launch Freebuff sessions in Herdr panes via `freebuff-herdr` (which initializes Herdr metadata and spawns the detached `status-watcher.sh`).
+- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused, and prompts for interactive wallet credit confirmation before processing. Freebuff must be launched *inside* a Herdr pane via `freebuff-herdr`; that is what registers the pane with Herdr's lifecycle authority. See `freebuff-prompt.ps1` above for the exact commands and for why an unregistered pane cannot be recovered.
 
   Three distinct things can swallow a submit Enter, and a naive single-Enter script silently reports success while the prompt sits unsubmitted in the composer (observed: 3 of 6 dispatches lost this way, on 4KB+ prompts):
 

@@ -289,8 +289,60 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         elseif ($workerItem -like "opencode*") { $kind = "opencode" }
         elseif ($workerItem -like "codex*") { $kind = "codex" }
         elseif ($workerItem -like "cline*") { $kind = "cline" }
-        elseif ($workerItem -like "freebuff*") { $kind = "freebuff" }
+        elseif ($workerItem -like "freebuff*") {
+            # Herdr has no `freebuff` agent kind (its 22 kinds do not include it), so
+            # `herdr agent start --kind freebuff` always fails with
+            # "unsupported interactive agent kind". Auto-spawning Freebuff is impossible.
+            #
+            # It must instead be launched by the operator inside a Herdr pane, because
+            # `freebuff-herdr` gates on HERDR_ENV=1 + HERDR_PANE_ID and is what registers
+            # the pane with Herdr's lifecycle authority. That registration is what makes
+            # agent_status track the pane -- and it is released again when freebuff-herdr
+            # exits, so a pane launched any other way can never be recovered.
+            $newPaneId = $null
+            try {
+                $sb = "herdr pane split"
+                if ($AnchorPane) { $sb += " --pane $AnchorPane" }
+                $sb += " --direction $SplitDirection --no-focus"
+                $sbRaw = Invoke-Expression "$sb 2>`$null"
+                if ($sbRaw) {
+                    $newPaneId = ($sbRaw | ConvertFrom-Json).result.pane.pane_id
+                    Start-Sleep -Milliseconds 1200
+                    # NOTE: `herdr pane split --direction` accepts only right|down, unlike
+                    # `herdr pane focus --direction` which also accepts left|up.
+                    herdr pane run $newPaneId "freebuff-herdr" 2>$null | Out-Null
+                    Write-Host "Started Freebuff in new pane '$newPaneId' via freebuff-herdr. Waiting for registration..." -ForegroundColor Cyan
+                    Start-Sleep -Seconds 10
+                }
+            } catch {
+                Write-Warning "Could not auto-launch Freebuff: $_"
+            }
+            if (-not $newPaneId) {
+                Write-Error @"
+No Freebuff pane is registered with Herdr, and this script cannot launch one for you.
 
+Herdr has no 'freebuff' agent kind, so 'herdr agent start --kind freebuff' always fails.
+Freebuff must be started by you, inside a Herdr pane, so that freebuff-herdr registers
+the pane with Herdr's lifecycle authority (that registration is what makes agent_status
+update, and it is released again when freebuff-herdr exits):
+
+  1. Create a pane:      herdr pane split --current --direction right --no-focus
+  2. Run inside it:      herdr pane run <pane-id> "freebuff-herdr"
+  3. Then re-run this dispatch; the pane is auto-detected.
+
+Until then, target the pane directly by id: -Worker w3:p8
+"@
+                exit 1
+            }
+            $paneIdOverride = $newPaneId
+            $matchedAgent = $null
+        }
+
+        if ($paneIdOverride) {
+            # Freebuff was launched above via freebuff-herdr; the generic
+            # `herdr agent start` path must not run for it (unsupported kind).
+            $matchedAgent = $null
+        } else {
         try {
             $splitCmd = "herdr pane split"
             if ($AnchorPane) {
@@ -317,6 +369,7 @@ foreach ($workerItem in $dispatchPlan.Keys) {
             }
         } catch {
             Write-Warning "Auto-spawn failed for '$workerItem': $_"
+        }
         }
     }
 
