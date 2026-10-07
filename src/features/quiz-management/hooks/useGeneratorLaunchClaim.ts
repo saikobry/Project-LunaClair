@@ -5,14 +5,8 @@ import type { QuestionType } from '../../../domain/quiz/models/QuestionType';
 
 /**
  * A one-shot request to open the Question Bank's AI generator for a material, plus the way
- * back to the surface that asked for it.
- *
- * This exists because a cross-tab handoff needs a return path, and the workspace's only URL
- * state is `?tab=`. Encoding "the dialog is open" in the URL would be a lie: a dialog is not a
- * destination, so a link could not restore it, and Back would have to un-open it. The intent
- * is therefore **in-memory and transient** — it is retired the moment the surface that acts on
- * it has claimed it, and a fresh page load (including a deep link) starts with no intent at
- * all, so nothing fires spuriously.
+ * back to the surface that asked for it. The handoff contract and lifecycle are owned by
+ * `src/features/quiz-management/AGENTS.md`.
  */
 export interface GeneratorLaunchIntent {
     /** Material whose Question Bank the generator writes into. */
@@ -26,12 +20,6 @@ export interface GeneratorLaunchIntent {
 /**
  * The workspace-held half of the handoff, threaded down to the Bank as one prop so the pending
  * request and the single command that retires it cannot be passed apart.
- *
- * Ownership is the workspace screen's, deliberately: the intent is a one-shot command scoped to
- * one material's workspace (armed by the Flashcards tab, acted on by the Question Bank), not a
- * persistent cross-cutting mode, so it is state on the screen rather than a channel on the app
- * shell. `FocusModeProvider` is the counter-example that shows why — that holds a mode that
- * outlives any single route, which is exactly what this does not.
  */
 export interface GeneratorLaunchChannel {
     /** The pending request, or `null`. Read it to know what a launch asked for. */
@@ -72,30 +60,18 @@ export interface GeneratorLaunchClaim {
  * Owns the generator dialog's open state for one material, including the **launch handoff** a
  * study surface (Flashcards) can send it.
  *
- * The launch is **one-shot**, and it is spent in two ordered steps:
+ * The claim is taken during render so the dialog is configured on the first paint — that is why
+ * the latch exists, and why the retirement effect keys on the *latched claim* rather than on an
+ * "unclaimed" flag. A flag would not work: the render that claims calls `setState` during
+ * render, so React re-renders this hook before committing and the flag is already `false` by
+ * the time any effect registers. Keyed on the latch, the effect runs on the committing render —
+ * after the dialog is open and configured. Retiring earlier (during the claim, or by clearing
+ * the latch) would empty the channel and close the dialog on the same commit, so the latch is
+ * load-bearing, not bookkeeping. Retirement is asked for rather than written into the owner,
+ * because emptying the owner's state during render is a cross-component render-phase update,
+ * which React rejects.
  *
- * 1. **LATCH.** The claim is taken during render (the guarded pattern `useVisitedTabs` uses)
- *    and the claimed intent is copied into this hook's own state. The latch is what the dialog
- *    is configured from — `initialTypes` and the return label are read from it, never from the
- *    channel — so the claim is what makes the dialog correct on the first paint after the
- *    handoff rather than a frame later.
- * 2. **RETIRE.** An effect keyed on the *latched claim* then asks the owner to retire it.
- *
- * The effect has to key on the latch rather than on an "unclaimed" flag to exist at all: the
- * render that takes the claim calls `setState` during render, so React re-renders this hook
- * before committing and the flag is already `false` by the time any effect is registered. Keyed
- * on the latch, the effect runs on the render that commits, i.e. *after* the dialog is already
- * open and configured — which is the whole point of the ordering. Retiring earlier (during the
- * claim, or by clearing the latch) would empty the channel and close the dialog on the same
- * commit, so the latch is load-bearing, not bookkeeping.
- *
- * Retirement is asked for rather than written into the owner mid-render, because emptying the
- * owner's state during render is a cross-component render-phase update, which React rejects.
- *
- * `close()` remains, as the **idempotent** fallback: it retires the latched claim too, so a
- * launch is spent whichever way the user leaves (cancel, save, or the way back) even if the
- * effect has not run, and closing a dialog opened with no claim at all retires nothing. See
- * `components/__tests__/QuestionBankTab.test.tsx`, which pins all of it.
+ * See `components/__tests__/QuestionBankTab.test.tsx`, which pins the lifecycle.
  */
 export function useGeneratorLaunchClaim(
     materialId: string,
@@ -130,18 +106,15 @@ export function useGeneratorLaunchClaim(
     );
 
     /**
-     * The commit-time retirement — step 2 of the two-step handoff, and the reason the latch
-     * exists at all. It runs after the claim has committed, so the dialog is already open and
-     * configured. What it hands back is **the channel's own pending intent** rather than this
-     * hook's private latch state: the request being retired is the owner's, so the owner is
-     * told about its own object and the latch is only ever the trigger.
+     * Hands back **the channel's own pending intent** rather than this hook's private latch
+     * state: the request being retired is the owner's, so the owner is told about its own object
+     * and the latch is only ever the trigger.
      *
-     * `intent === claimed` is the real condition, and it is load-bearing rather than a
-     * convenience — it is what makes the call a retirement *of this claim*. A launch that
+     * `intent === claimed` is what makes the call a retirement *of this claim*. A launch that
      * arrived while another was latched is a different object, so this leaves it alone to be
      * claimed when the current dialog closes; an already-retired channel holds `null`, so
-     * nothing is re-requested. `retire` then makes the call at-most-once per claim, and
-     * `onRetire` confirms the same identity again at the owner.
+     * nothing is re-requested. `retire` makes the call at-most-once per claim, and `onRetire`
+     * confirms the same identity again at the owner.
      */
     useEffect(() => {
         if (intent !== null && intent === claimed) retire(intent);
@@ -150,11 +123,8 @@ export function useGeneratorLaunchClaim(
     const open = useCallback(() => setIsOpen(true), []);
 
     const close = useCallback(() => {
-        // Retiring the LATCHED claim — not the channel's current one — is what makes the
-        // handoff one-shot: a return to this Bank afterwards finds nothing to re-open, and a
-        // dialog a newer launch has already superseded cannot clear that newer launch. A
-        // dialog opened with no claim at all retires nothing. Idempotent by construction: a
-        // claim the effect already retired is a no-op here.
+        // Retires the LATCHED claim, not the channel's current one, so a dialog a newer launch
+        // already superseded cannot clear that newer launch. Idempotent by construction.
         if (claimed !== null) retire(claimed);
         retiredClaimRef.current = null;
         setClaimed(null);

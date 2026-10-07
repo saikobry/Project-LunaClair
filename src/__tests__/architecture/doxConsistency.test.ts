@@ -97,6 +97,78 @@ const KNOWN_NON_RESOLVING: Record<string, string> = {
 /** A doc may say a thing was removed; it may not say a removed thing still exists. */
 const REMOVAL_FRAMING = /\b(removed|deleted|retired|dropped|no longer|there is no|not exist|former|vestige|gone|unused|unconsumed|no manual|would add|no meaningful|do not add|belongs to the deleted)\b/i;
 
+/**
+ * Paraphrase-level duplication — one contract restated in different words.
+ *
+ * The verbatim check above compares WHOLE normalized lines, so a rule stated in
+ * six docs at ~5% literal overlap passes it untouched — which is how one launch
+ * handoff came to be documented in five AGENTS.md files and a hook comment.
+ *
+ * This check works at the level of ONE CONTRACT instead. For every symbol a doc
+ * backticks, it collects the content words of every line outside the Child DOX
+ * Index that names that symbol, and compares that statement against the same
+ * symbol's statement in every other doc. Two docs that each spend a substantial
+ * statement on the same rare symbol, and agree on most of its vocabulary, are
+ * stating one rule twice.
+ *
+ * Metric: containment (`|A ∩ B| / min(|A|, |B|)`) over stop-worded content words,
+ * deliberately not Jaccard. One doc stating a rule briefly and another at length
+ * is exactly the shape of this duplication; Jaccard penalises the length
+ * difference instead of measuring the overlap.
+ *
+ * Threshold basis — measured on this corpus (27 AGENTS.md files, Oct 2026): the
+ * 312 rare symbol ids yield 9 doc-pair candidates at 0.60, 6 at 0.65, 5 at 0.70
+ * and 2 at 0.75. The head of the ranked distribution is
+ * `0.811 0.793 0.743 0.741 0.722 | 0.660 0.640 0.604 …`, so 0.70 sits in the
+ * widest gap of that head (0.722 → 0.660) rather than being picked by taste.
+ * Raising it to 0.75 silently drops the very case this check exists for;
+ * lowering it to 0.60 starts admitting shared-vocabulary noise.
+ *
+ * Statement floor: 25 content words. At 15 the tail floods (7 candidates at
+ * 0.70); at 40 the motivating restatement — a 36-token statement — is excluded.
+ */
+const PARAPHRASE_CONTAINMENT_THRESHOLD = 0.7;
+const PARAPHRASE_MIN_STATEMENT_TOKENS = 25;
+/**
+ * A symbol cited by more docs than this is shared vocabulary, not a contract.
+ * Without the cap a common type name would pair unrelated docs on its own.
+ */
+const PARAPHRASE_RARE_MAX_DOCS = 8;
+/**
+ * A recorded pair is only stale once it falls this far below the threshold, so a
+ * routine wording edit does not churn the list.
+ */
+const PARAPHRASE_STALE_GRACE = 0.05;
+
+/** Words that carry no contract meaning; a contract's vocabulary is its nouns. */
+const PARAPHRASE_STOPWORDS = new Set(`
+a an the and or but if then than that this these those is are was were be been being am do does did
+doing have has had having will would shall should can could may might must not no nor so as at by for
+from in into of on onto out over under up down off again further once during between among against about
+above below to within without it its they them their theirs we us our ours you your yours he she him his
+her hers i me my mine who whom whose which what when where why how all any both each few more most other
+others some such only own same too very don now here there via per also never always every because while
+before after until unless whether though although however therefore thus hence
+`.trim().split(/\s+/));
+
+/**
+ * Recorded restatements: doc pairs that already state one contract twice. This is
+ * a no-growth baseline, not a target — each entry is a known defect awaiting a
+ * docs pass, and a NEW pair fails the check so the corpus cannot drift further.
+ * Delete an entry once the duplication is resolved; the stale guard below will
+ * remind you. Every entry names which contract it is about.
+ */
+const KNOWN_PARAPHRASE_PAIRS: Record<string, string> = {
+  'src/app/AGENTS.md <> src/app/screens/AGENTS.md':
+    'both name the same screen-level hooks (`useGlobalAnalytics`, `useLibrary`), so the shared-vocabulary score is high without one rule being restated — review whether the app bullet should simply point at `src/app/screens/AGENTS.md`',
+  'src/domain/AGENTS.md <> src/features/analytics/AGENTS.md':
+    'both state the analytics card-projection contract (`questionToCards` and its review-history fields)',
+  'src/application/AGENTS.md <> src/features/package/AGENTS.md':
+    'both state the package import/materialize pipeline (`MaterializeStudyPackageUseCase`, `PublishStudyPackageUseCase`)',
+  'src/features/quiz-management/AGENTS.md <> src/features/quiz-management/canvas/AGENTS.md':
+    'the canvas sub-doc restates its parent\'s boundary rule (`AppShell` consumes `QuizCanvasBuilder` directly, no barrel)',
+};
+
 // ---------------------------------------------------------------------------
 // Discovery
 // ---------------------------------------------------------------------------
@@ -247,6 +319,107 @@ function looksLikeSymbol(token: string): boolean {
 /** The line the token sits on is the removal's own sentence in this corpus. */
 function lineOfToken(raw: string, token: string): string {
   return linesOf(raw).find((l) => l.includes('`' + token + '`')) ?? '';
+}
+
+// ---------------------------------------------------------------------------
+// Check 8 — no two docs restate one contract in different words
+// ---------------------------------------------------------------------------
+
+/** Content words of a line: markdown and punctuation stripped, stop words gone. */
+function contentWords(line: string): string[] {
+  return line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+    .filter((w) => w.length >= 3 && !PARAPHRASE_STOPWORDS.has(w));
+}
+
+/**
+ * One symbol → one doc → the union of content words on every non-index line that
+ * backticks that symbol. The union is the point: a doc states a contract across
+ * however many lines it uses, and it is the whole statement being compared.
+ */
+function collectContractStatements(): Map<string, Map<string, Set<string>>> {
+  const bySymbol = new Map<string, Map<string, Set<string>>>();
+
+  for (const doc of DOX_FILES) {
+    let fence = false;
+    let inIndex = false;
+
+    for (const line of linesOf(readDox(doc))) {
+      if (/^\s*```/.test(line)) {
+        fence = !fence;
+        continue;
+      }
+      if (fence) continue;
+      // The Child DOX Index is a mandated pointer table, not a restated rule.
+      if (/^#{2,3}\s+Child DOX Index/i.test(line)) {
+        inIndex = true;
+        continue;
+      }
+      if (inIndex && /^#/.test(line)) inIndex = false;
+      if (inIndex || /^\s*#/.test(line)) continue;
+
+      const ids = [...new Set(backtickedTokens(line).filter(looksLikeSymbol))];
+      if (ids.length === 0) continue;
+      const words = contentWords(line);
+      if (words.length === 0) continue;
+
+      for (const id of ids) {
+        let perDoc = bySymbol.get(id);
+        if (!perDoc) {
+          perDoc = new Map<string, Set<string>>();
+          bySymbol.set(id, perDoc);
+        }
+        let statement = perDoc.get(doc);
+        if (!statement) {
+          statement = new Set<string>();
+          perDoc.set(doc, statement);
+        }
+        for (const w of words) statement.add(w);
+      }
+    }
+  }
+
+  return bySymbol;
+}
+
+interface ParaphraseCandidate {
+  /** `docA <> docB`, both posix repo-relative, alphabetically ordered. */
+  key: string;
+  containment: number;
+  /** The rare symbol whose statement both docs carry. */
+  symbol: string;
+  /** Content words in the shorter of the two statements. */
+  shorter: number;
+}
+
+/** Every doc pair, with its strongest single-contract overlap. */
+function findParaphraseCandidates(): ParaphraseCandidate[] {
+  const bySymbol = collectContractStatements();
+  const perPair = new Map<string, ParaphraseCandidate>();
+
+  for (const [symbol, perDoc] of bySymbol) {
+    const docs = [...perDoc.keys()].sort();
+    if (docs.length < 2 || docs.length > PARAPHRASE_RARE_MAX_DOCS) continue;
+
+    for (let i = 0; i < docs.length; i += 1) {
+      for (let j = i + 1; j < docs.length; j += 1) {
+        const a = perDoc.get(docs[i])!;
+        const b = perDoc.get(docs[j])!;
+        const shorter = Math.min(a.size, b.size);
+        if (shorter < PARAPHRASE_MIN_STATEMENT_TOKENS) continue;
+
+        let shared = 0;
+        for (const word of a) if (b.has(word)) shared += 1;
+        const containment = shared / shorter;
+        const key = `${docs[i]} <> ${docs[j]}`;
+        const previous = perPair.get(key);
+        if (!previous || containment > previous.containment) {
+          perPair.set(key, { key, containment, symbol, shorter });
+        }
+      }
+    }
+  }
+
+  return [...perPair.values()].sort((x, y) => y.containment - x.containment);
 }
 
 // ---------------------------------------------------------------------------
@@ -403,6 +576,38 @@ describe('Architecture: DOX (AGENTS.md) Consistency', () => {
 
     if (stale.length > 0) {
       expect.fail(`Recorded oversized-line debt is stale:\n${stale.join('\n')}`);
+    }
+  });
+
+  it('no two docs restate one contract in different words', () => {
+    const candidates = findParaphraseCandidates();
+    const overThreshold = candidates
+      .filter((c) => c.containment >= PARAPHRASE_CONTAINMENT_THRESHOLD);
+
+    const violations = overThreshold
+      .filter((c) => !KNOWN_PARAPHRASE_PAIRS[c.key])
+      .map((c) => `  ${c.key} — ${c.containment.toFixed(3)} containment on \`${c.symbol}\` (${c.shorter} words)`);
+
+    if (violations.length > 0) {
+      expect.fail(
+        `Two docs are stating one contract twice — one rule needs one owning statement.\n` +
+        `Either point the non-owner at the owner, or record the pair in KNOWN_PARAPHRASE_PAIRS ` +
+        `with the contract it duplicates:\n${violations.join('\n')}`,
+      );
+    }
+
+    // A recorded pair that has fallen well below the threshold is unused
+    // headroom, the same stale-debt hazard the oversized-line ceiling guards.
+    const stale = Object.keys(KNOWN_PARAPHRASE_PAIRS).filter((key) => {
+      const best = candidates.find((c) => c.key === key)?.containment ?? 0;
+      return best < PARAPHRASE_CONTAINMENT_THRESHOLD - PARAPHRASE_STALE_GRACE;
+    });
+
+    if (stale.length > 0) {
+      expect.fail(
+        `Recorded paraphrase pairs no longer restate a contract — remove them from ` +
+        `KNOWN_PARAPHRASE_PAIRS:\n${stale.map((key) => `  ${key}`).join('\n')}`,
+      );
     }
   });
 });
