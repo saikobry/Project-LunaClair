@@ -197,9 +197,12 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
 - **`freebuff-prompt.ps1`**:
   Dedicated prompt runner for Freebuff agents in Herdr.
   - **Why it exists**: Freebuff uses an OpenTUI/React composer with an explicit focus guard; keystrokes delivered to an unfocused pane are dropped by Windows ConPTY. Additionally, Freebuff prompts display an interactive wallet credit confirmation modal (`Enter: confirm and send`) before execution starts.
-  - **What it does**: Auto-detects the Freebuff pane (or uses `-TargetPane`), delivers prompt text via `herdr pane run`, dynamically navigates focus to Freebuff, allows 500ms for ConPTY/OpenTUI focus propagation, delivers submit Enter, confirms the credit modal automatically, restores original caller focus, and optionally waits for turn completion via `-Wait`.
+  - **What it does**: Auto-detects the Freebuff pane (or uses `-TargetPane`), delivers prompt text via `herdr pane run`, dynamically navigates focus to Freebuff, waits for the composer to absorb the text (scaled by prompt size, capped at 20s), then submits and **verifies submission from Herdr's `agent_status`** before reporting success. Restores the caller's focus on every path and optionally waits for turn completion via `-Wait`.
+  - **Submission is verified, not assumed.** `exit 0` plus `Prompt delivered` means the pane reached `working`/`blocked`. A prompt that never runs exits **2** with an explicit error instead of reporting a delivery that did not happen.
+  - **Pane IDs are not stable.** A Freebuff session reset (quota expiry, crash) re-creates the pane at a new ID, so prefer auto-detection over a hardcoded `-TargetPane`.
   - `powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/freebuff-prompt.ps1 -Prompt "<text>" [-TargetPane <pane_id>] [-Wait]`
   - Used automatically as **Transport 0** inside `dispatch.ps1` whenever `-Worker freebuff` (or a Freebuff pane ID) is targeted.
+  - **The runner lives outside the repo**, at `~/.herdr/plugins/freebuff/scripts/prompt.js` (auto-spawned Freebuff sessions use `%APPDATA%\herdr\plugins\github\freebuff.integration*\scripts\prompt.js`). Its files are untracked by that plugin's git, so there is no revert history — copy one aside before editing.
 
 - **`clean.ps1`**:
   Wipes temporary specs and reports in `.orchestrator/`.
@@ -219,7 +222,17 @@ These are observed constraints of the Herdr CLI + terminal agent TUIs. They expl
 - **Herdr writes failures to stderr while the exit code stays 0.** Capture stderr to a file and scan it for `"error"` / `agent_prompt_stalled` / `agent_blocked`; `2>&1` in PowerShell turns those lines into `ErrorRecord`s that abort the calling statement.
 - **Target form matters.** Agent-scoped commands may reject agent names (`agent target codex not found`) while accepting pane ids (`herdr agent get w6:pB` works). Always keep a pane id in hand.
 - **Keep `.ps1` sources ASCII-only.** Without a UTF-8 BOM PowerShell 5.1 reads scripts as ANSI, so a single non-ASCII byte (an em dash's `0x94`) decodes into a stray quote and produces cascading, misleading parse errors.
-- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused and prompts for interactive wallet credit confirmation before processing. Always launch Freebuff sessions in Herdr panes via `freebuff-herdr` (which initializes Herdr metadata and spawns the detached `status-watcher.sh`). Dispatching via `dispatch.ps1 -Worker freebuff` or `freebuff-prompt.ps1` handles the temporary focus navigation and modal confirmation automatically.
+- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused, and prompts for interactive wallet credit confirmation before processing. Always launch Freebuff sessions in Herdr panes via `freebuff-herdr` (which initializes Herdr metadata and spawns the detached `status-watcher.sh`).
+
+  Three distinct things can swallow a submit Enter, and a naive single-Enter script silently reports success while the prompt sits unsubmitted in the composer (observed: 3 of 6 dispatches lost this way, on 4KB+ prompts):
+
+  1. **Focus was never acquired** — an unfocused pane drops the keystroke via ConPTY. Recover by re-focusing *before* each retry; pressing Enter again does nothing.
+  2. **The credit modal ate the Enter** — it consumes one submission, so a second is needed. The runner handles this by retrying, not by matching modal text.
+  3. **The TUI is still absorbing a large paste** — Enter sent too early lands in an empty composer and vanishes. Settle time must scale with prompt length; a flat cap applies the same 2.5s to a 100-char and a 4,200-char paste.
+
+  **Never treat the composer's `Add to the current task` placeholder as a delivery signal.** It renders in *both* states — an empty composer and one holding an unsubmitted multi-KB attachment card. Herdr's `agent_status` is the only trustworthy signal.
+
+  `dispatch.ps1 -Worker freebuff` and `freebuff-prompt.ps1` both route through this corrected runner and now fail loudly (`exit 2`) instead of reporting a phantom delivery.
 
 ---
 

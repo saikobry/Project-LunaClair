@@ -173,10 +173,34 @@ if ($Target -and $Target.Count -gt 0) {
             $dispatchPlan[$w] = $Spec
         }
     }
+} elseif ($InstructionPrompt) {
+    # Inline dispatch: the prompt text is delivered directly, so no spec file is required.
+    # Without this branch the documented `-InstructionPrompt` form fell through to the
+    # usage error below, because the plan was only ever built from -Spec/-Target.
+    if ($Worker) {
+        $dispatchPlan[$Worker] = $Spec
+    } elseif ($Workers) {
+        foreach ($w in ($Workers -split ",")) {
+            if ($w.Trim()) { $dispatchPlan[$w.Trim()] = $Spec }
+        }
+    } else {
+        Write-Error @"
+Usage:
+  dispatch.ps1 -Worker <agent|pane_id> -Spec <specPath> [-Wait] [-TimeoutSeconds <sec>]
+  dispatch.ps1 -Worker <agent|pane_id> -InstructionPrompt "<text>" [-Wait]
+  dispatch.ps1 -Workers <target1,target2> -Spec <specPath> [-Wait]
+  dispatch.ps1 -Target @{ target1 = 'spec1.md'; target2 = 'spec2.md' }
+
+Targets can be Herdr agent names (e.g. 'codex', 'kilo-scout', 'opencode-worker', 'cline')
+or Herdr pane IDs (e.g. 'w3:p5', 'w4:p7').
+"@
+        exit 1
+    }
 } else {
     Write-Error @"
 Usage:
   dispatch.ps1 -Worker <agent|pane_id> -Spec <specPath> [-Wait] [-TimeoutSeconds <sec>]
+  dispatch.ps1 -Worker <agent|pane_id> -InstructionPrompt "<text>" [-Wait]
   dispatch.ps1 -Workers <target1,target2> -Spec <specPath> [-Wait]
   dispatch.ps1 -Target @{ target1 = 'spec1.md'; target2 = 'spec2.md' }
 
@@ -208,8 +232,9 @@ if (Test-Path .git) {
     }
 }
 
-# 4. Verify all spec files exist
+# 4. Verify all spec files exist. In inline mode there is no spec to verify.
 foreach ($specPath in $dispatchPlan.Values) {
+    if (-not $specPath) { continue }
     if (-not (Test-Path $specPath)) {
         Write-Error "Specification file '$specPath' does not exist."
         exit 1
@@ -407,7 +432,16 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         # successful dispatch, because the follow-up wait would return instantly and its report
         # would present the worker's previous turn as this task's answer.
         $allowNudge = ($deliveryPath -like 'pane-paste:*') -or ($deliveryPath -like 'agent-prompt:*')
-        if (Wait-PromptAccepted -AgentName $agentName -PaneId $paneId -ResubmitEnter:$allowNudge) {
+
+        # The Freebuff runner already verifies submission, and verifies it more strictly than
+        # this script can: it accepts agent_status, an advanced state_change_seq, OR a new
+        # answered prompt card in the transcript. Re-checking here with agent_status alone
+        # would downgrade that verdict to "unconfirmed" on any pane whose status-watcher is
+        # not alive -- and Herdr's agent_status stays frozen 'idle' there even for turns
+        # that ran and answered. Observed: 5/5 delivered, reported as failures.
+        if ($deliveryPath -like 'freebuff-prompt:*') {
+            Write-Host "  -> Delivery confirmed by the Freebuff runner, which verifies via status, seq, and transcript." -ForegroundColor Green
+        } elseif (Wait-PromptAccepted -AgentName $agentName -PaneId $paneId -ResubmitEnter:$allowNudge) {
             Write-Host "  -> Delivery confirmed via ${deliveryPath}: '$workerItem' entered 'working'." -ForegroundColor Green
         } else {
             $deliveryFailures += $workerItem
@@ -421,7 +455,11 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         }
     }
 
-    Write-Host "Dispatched task to '$workerItem' using spec: $specPath" -ForegroundColor Green
+    if ($InstructionPrompt) {
+        Write-Host "Dispatched inline prompt to '$workerItem' ($($InstructionPrompt.Length) chars)" -ForegroundColor Green
+    } else {
+        Write-Host "Dispatched task to '$workerItem' using spec: $specPath" -ForegroundColor Green
+    }
 }
 
 if ($deliveryFailures.Count -gt 0) {
