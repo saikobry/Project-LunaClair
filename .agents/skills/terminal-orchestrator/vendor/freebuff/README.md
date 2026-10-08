@@ -1,6 +1,8 @@
 # Vendored: Freebuff Herdr prompt runner
 
 `prompt.js` is a **vendored copy** of a file that normally lives outside this repository.
+See [HERDR-INTEGRATION.md](./HERDR-INTEGRATION.md) for the plugin, the lifecycle watchers,
+and the removal checklist.
 
 | | |
 |---|---|
