@@ -154,7 +154,7 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - Tag filtering (`06af12a`): Question Bank gains an independent multi-select tag facet and a responsive three-row filter bar matching the Materials Library design; the `sourceSection` provenance field introduced in `bca08d9` is removed again across models, packages, and API routes once it proved unused.
 
 - ✅ **12I (Workspace Tab Boundaries & Agent Tooling — Sep 29–30):**
-  - Agent tooling (`1531ab1`): the terminal orchestrator gained a Freebuff runner and lost its duplicate prompt delivery.
+  - Agent tooling (`1531ab1`): the terminal orchestrator gained a dedicated agent runner and lost its duplicate prompt delivery.
   - Tab naming (`71ea4d0`): `ReaderScreen`/`QuizScreen`/`QuizManagementScreen`/`FlashcardScreen` renamed to `*Tab`, establishing the boundary between workspace tabs and top-level routed screens.
 
 - ✅ **12J (Sync Correctness Remediation — Oct 1–5):**

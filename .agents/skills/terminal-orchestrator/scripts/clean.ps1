@@ -10,9 +10,6 @@ if (Test-Path $sentinelsDir) {
 
 # Clean any root fallback sentinel files
 Get-ChildItem -Path . -Filter ".done_*" -ErrorAction SilentlyContinue | Remove-Item -Force
-if (Test-Path ".freebuff_done") {
-    Remove-Item ".freebuff_done" -Force
-}
 
 if ($All) {
     $specsDir = ".orchestrator/specs"

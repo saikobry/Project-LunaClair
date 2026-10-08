@@ -289,60 +289,7 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         elseif ($workerItem -like "opencode*") { $kind = "opencode" }
         elseif ($workerItem -like "codex*") { $kind = "codex" }
         elseif ($workerItem -like "cline*") { $kind = "cline" }
-        elseif ($workerItem -like "freebuff*") {
-            # Herdr has no `freebuff` agent kind (its 22 kinds do not include it), so
-            # `herdr agent start --kind freebuff` always fails with
-            # "unsupported interactive agent kind". Auto-spawning Freebuff is impossible.
-            #
-            # It must instead be launched by the operator inside a Herdr pane, because
-            # `freebuff-herdr` gates on HERDR_ENV=1 + HERDR_PANE_ID and is what registers
-            # the pane with Herdr's lifecycle authority. That registration is what makes
-            # agent_status track the pane -- and it is released again when freebuff-herdr
-            # exits, so a pane launched any other way can never be recovered.
-            $newPaneId = $null
-            try {
-                $sb = "herdr pane split"
-                if ($AnchorPane) { $sb += " --pane $AnchorPane" }
-                $sb += " --direction $SplitDirection --no-focus"
-                $sbRaw = Invoke-Expression "$sb 2>`$null"
-                if ($sbRaw) {
-                    $newPaneId = ($sbRaw | ConvertFrom-Json).result.pane.pane_id
-                    Start-Sleep -Milliseconds 1200
-                    # NOTE: `herdr pane split --direction` accepts only right|down, unlike
-                    # `herdr pane focus --direction` which also accepts left|up.
-                    herdr pane run $newPaneId "freebuff-herdr" 2>$null | Out-Null
-                    Write-Host "Started Freebuff in new pane '$newPaneId' via freebuff-herdr. Waiting for registration..." -ForegroundColor Cyan
-                    Start-Sleep -Seconds 10
-                }
-            } catch {
-                Write-Warning "Could not auto-launch Freebuff: $_"
-            }
-            if (-not $newPaneId) {
-                Write-Error @"
-No Freebuff pane is registered with Herdr, and this script cannot launch one for you.
 
-Herdr has no 'freebuff' agent kind, so 'herdr agent start --kind freebuff' always fails.
-Freebuff must be started by you, inside a Herdr pane, so that freebuff-herdr registers
-the pane with Herdr's lifecycle authority (that registration is what makes agent_status
-update, and it is released again when freebuff-herdr exits):
-
-  1. Create a pane:      herdr pane split --current --direction right --no-focus
-  2. Run inside it:      herdr pane run <pane-id> "freebuff-herdr"
-  3. Then re-run this dispatch; the pane is auto-detected.
-
-Until then, target the pane directly by id: -Worker w3:p8
-"@
-                exit 1
-            }
-            $paneIdOverride = $newPaneId
-            $matchedAgent = $null
-        }
-
-        if ($paneIdOverride) {
-            # Freebuff was launched above via freebuff-herdr; the generic
-            # `herdr agent start` path must not run for it (unsupported kind).
-            $matchedAgent = $null
-        } else {
         try {
             $splitCmd = "herdr pane split"
             if ($AnchorPane) {
@@ -369,7 +316,6 @@ Until then, target the pane directly by id: -Worker w3:p8
             }
         } catch {
             Write-Warning "Auto-spawn failed for '$workerItem': $_"
-        }
         }
     }
 
@@ -406,20 +352,6 @@ Until then, target the pane directly by id: -Worker w3:p8
     $promptTarget = if ($paneId) { $paneId } else { $agentName }
     $shortPromptMaxChars = 1000
     $isLargeOrMultiline = ($prompt.Length -gt $shortPromptMaxChars) -or ($prompt.Contains("`n"))
-
-    # Transport 0 (Freebuff): Freebuff's OpenTUI composer requires focus and enter keystroke choreography
-    $isFreebuff = ($agentName -eq 'freebuff') -or ($matchedPane -and ($matchedPane.agent -eq 'freebuff' -or $matchedPane.display_agent -eq 'freebuff'))
-    if (-not $promptDelivered -and $isFreebuff) {
-        Write-Host "Dispatching to Freebuff pane '$paneId' via freebuff-prompt..." -ForegroundColor Cyan
-        $fbScript = Join-Path $PSScriptRoot "freebuff-prompt.ps1"
-        if (Test-Path $fbScript) {
-            & $fbScript -Prompt $prompt -TargetPane $paneId
-            if ($LASTEXITCODE -eq 0) {
-                $promptDelivered = $true
-                $deliveryPath = "freebuff-prompt:$paneId"
-            }
-        }
-    }
 
     # If pane ID is known and prompt is large or multi-line, bypass Transport 1 to prevent
     # agent_prompt_stalled false-failures and double-paste races.
@@ -486,15 +418,7 @@ Until then, target the pane directly by id: -Worker w3:p8
         # would present the worker's previous turn as this task's answer.
         $allowNudge = ($deliveryPath -like 'pane-paste:*') -or ($deliveryPath -like 'agent-prompt:*')
 
-        # The Freebuff runner already verifies submission, and verifies it more strictly than
-        # this script can: it accepts agent_status, an advanced state_change_seq, OR a new
-        # answered prompt card in the transcript. Re-checking here with agent_status alone
-        # would downgrade that verdict to "unconfirmed" on any pane whose status-watcher is
-        # not alive -- and Herdr's agent_status stays frozen 'idle' there even for turns
-        # that ran and answered. Observed: 5/5 delivered, reported as failures.
-        if ($deliveryPath -like 'freebuff-prompt:*') {
-            Write-Host "  -> Delivery confirmed by the Freebuff runner, which verifies via status, seq, and transcript." -ForegroundColor Green
-        } elseif (Wait-PromptAccepted -AgentName $agentName -PaneId $paneId -ResubmitEnter:$allowNudge) {
+        if (Wait-PromptAccepted -AgentName $agentName -PaneId $paneId -ResubmitEnter:$allowNudge) {
             Write-Host "  -> Delivery confirmed via ${deliveryPath}: '$workerItem' entered 'working'." -ForegroundColor Green
         } else {
             $deliveryFailures += $workerItem

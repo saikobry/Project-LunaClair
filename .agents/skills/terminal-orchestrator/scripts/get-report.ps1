@@ -62,7 +62,6 @@ function Get-SingleReport {
         $agentName = $TargetWorker
         if ($TargetWorker -like "opencode*") { $agentName = "opencode" }
         elseif ($TargetWorker -like "kilo*") { $agentName = "kilo" }
-        elseif ($TargetWorker -like "freebuff*") { $agentName = "freebuff" }
         elseif ($TargetWorker -like "cline*") { $agentName = "cline" }
         elseif ($TargetWorker -like "codex*") { $agentName = "codex" }
         elseif ($TargetWorker -like "agy*" -or $TargetWorker -like "antigravity*") { $agentName = "antigravity-cli" }
@@ -159,7 +158,7 @@ function Get-SingleReport {
                     })
 
                     if ($SinceIso -and $msgs.Count -gt 0) {
-                        # Accommodate agents that record timestamps with minute-only precision (e.g. Freebuff logs HH:mm:00Z).
+                        # Accommodate agents that record timestamps with minute-only precision (e.g. HH:mm:00Z).
                         # Subtracting 60 seconds avoids rejecting turns dispatched in the middle of a minute.
                         $since = [DateTime]::Parse($SinceIso, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal).AddSeconds(-60)
                         $msgs = @($msgs | Where-Object {

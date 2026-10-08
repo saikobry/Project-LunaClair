@@ -2,7 +2,7 @@
 name: terminal-orchestrator
 description: >-
   Agent-agnostic multi-worker orchestrator inside Herdr (native Windows multiplexer).
-  Dispatches tasks to one or multiple terminal agents (Freebuff, OpenCode, Codex,
+  Dispatches tasks to one or multiple terminal agents (OpenCode, Codex,
   Kilo, Cline, Claude, etc.) in token-saver pairing (Architect + Pair Programmer),
   scout & specialist, parallel (Divide & Conquer), sequential (Builder + Reviewer),
   or broadcast (Council) using gitignored staging, Herdr lifecycle monitoring,
@@ -13,7 +13,7 @@ description: >-
 
 A universal, agent-agnostic multi-worker orchestrator that coordinates interactive terminal AI agents running natively inside **Herdr** (native Windows multiplexer).
 
-Supported agents include: **Codex**, **Kilo**, **OpenCode**, **Freebuff**, **Cline**, and **Antigravity CLI**.
+Supported agents include: **Codex**, **Kilo**, **OpenCode**, **Cline**, and **Antigravity CLI**.
 
 ---
 
@@ -134,9 +134,8 @@ All ephemeral orchestration files are staged in `.orchestrator/` (automatically 
 Located in: `.agents/skills/terminal-orchestrator/scripts/`
 
 - **`dispatch.ps1`**:
-  Verifies targets (Herdr agent name or pane ID, e.g. `kilo-scout`, `cline`, `w3:p5`), stages the spec, formats a clean task prompt, and delivers via a three-step transport ladder, then **confirms delivery**.
+  Verifies targets (Herdr agent name or pane ID, e.g. `kilo-scout`, `cline`, `w3:p5`), stages the spec, formats a clean task prompt, and delivers via a two-step transport ladder, then **confirms delivery**.
   - **Transport ladder**:
-    - **Transport 0 (Freebuff)**: Focused OpenTUI keystroke choreography via `freebuff-prompt.ps1`.
     - **Transport 1 (`herdr agent prompt`)**: Used for short, single-line prompts (<= 1,000 chars) or targets lacking a resolved pane ID. If Herdr returns `agent_prompt_stalled` (the agent took >5s to enter `working`), Herdr has already sent the text; the dispatcher marks it delivered and proceeds to confirmation wait without falling back to paste, completely preventing double-paste duplication.
     - **Transport 2 (`herdr pane send-text`)**: Used directly for any large or multi-line prompt up to the **20,000-char inline budget** when a pane ID is available, or as fallback if Transport 1 was rejected before input was sent (`agent_not_found`).
     - Anything above the 20,000-char budget is **refused** with an actionable warning (see Platform Limits below). Pane ids are preferred over agent names.
@@ -185,7 +184,7 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
     - **Plan Review / Second Opinion**: When asked to *"consult <worker> about our plan"* or *"get a second opinion on this implementation"*: save the prompt into `.orchestrator/specs/<topic>[-roundN].md` and run `consult-inline.ps1 <worker> .orchestrator/specs/<topic>.md -Topic "<title>"`. **Do not use `consult.ps1 <worker> <specPath>` for a no-tools review**: dispatch delivers only the *prompt text*, never the spec's contents, so a tool-less reviewer cannot read the staged file and will refuse (observed: "I couldn't read the plan under the constraints given"). `consult-inline.ps1` reads the prompt in-process and inlines it, so the reviewer needs no tools at all. The target agent receives the full prompt, reviews the architecture, and returns feedback in pure prose.
   - **Automatic Diff Size-Guard**: Diffs >150KB or >1500 lines automatically filter out lockfiles (`package-lock.json`, `pnpm-lock.yaml`), prepend `git diff --stat` (capped at 100 files), and truncate the diff body to the first 1,000 lines with an informative measurement notice. Use `-FullDiff` to bypass when the full raw diff is explicitly required.
   - **Freshness-bound verdicts**: consult records an ISO timestamp immediately before dispatch and passes it to `get-report.ps1 -SinceIso`, so the extracted verdict can only be a turn that completed after the dispatch. If the worker produces no such turn, consult warns that the consultation has **no verdict** instead of letting a previous turn stand in for it.
-  - Fully agent-agnostic: `<worker>` can be `codex`, `kilo`, `cline`, `freebuff`, `opencode`, or any active pane ID (e.g. `w5:p2`).
+  - Fully agent-agnostic: `<worker>` can be `codex`, `kilo`, `cline`, `opencode`, or any active pane ID (e.g. `w5:p2`).
 
 - **`consult-inline.ps1`**:
   One-shot consultation whose prompt is **read from a file and inlined**, which is the supported way to run a no-tools review of a long prompt.
@@ -193,25 +192,6 @@ Located in: `.agents/skills/terminal-orchestrator/scripts/`
   - **Why the file indirection exists**: the text must never cross a shell argument boundary. Handing a long multi-line prompt to PowerShell as an argument re-splits it (observed: a 19KB prompt reaching Herdr as `unknown option: by`), so the read has to happen inside PowerShell. A small bespoke runner script per consultation is no longer needed -- that was the workaround this script replaces.
   - **Budget guard**: prompts above **20,000 chars** are refused up front with guidance (condense into rounds, or consult a self-contained spec with `-AllowTools`), and prompts within 10% of the budget warn. The dispatcher enforces the same limit independently.
   - `-AllowTools`: lets the worker read the staged file itself, for cases where the content genuinely cannot be inlined.
-
-- **`freebuff-prompt.ps1`**:
-  Dedicated prompt runner for Freebuff agents in Herdr.
-  - **Why it exists**: Freebuff uses an OpenTUI/React composer with an explicit focus guard; keystrokes delivered to an unfocused pane are dropped by Windows ConPTY. Additionally, Freebuff prompts display an interactive wallet credit confirmation modal (`Enter: confirm and send`) before execution starts.
-  - **Freebuff pane lifecycle (learned the hard way).** Freebuff is NOT one of Herdr's agent kinds, so `herdr agent start --kind freebuff` always fails with `unsupported interactive agent kind`. It must be launched by the operator *inside* a Herdr pane:
-    ```
-    herdr pane split --current --direction right --no-focus
-    herdr pane run <pane-id> "freebuff-herdr"
-    ```
-    `dispatch.ps1` performs these two steps itself when no Freebuff pane exists. `herdr pane split --direction` accepts only `right|down` — unlike `herdr pane focus --direction`, which also takes `left|up`.
-  - **`freebuff-herdr` is what registers the pane**, because it gates on `HERDR_ENV=1` + `HERDR_PANE_ID` and calls `pane report-agent`. That registration is the only thing that makes Herdr's `agent_status` track the pane (verified: a registered pane goes `idle -> working -> idle`).
-  - **A pane that lost registration is permanently unrecoverable.** `freebuff-herdr`'s `finally` block calls `pane release-agent` when it exits. After that the pane ignores `report-agent` forever — a direct `report-agent --state working` call returns exit 0 and changes nothing. Relaunching Freebuff inside that pane cannot fix it; only a new pane can. Symptom: `agent_status` frozen at `idle`, `state_change_seq` absent, and every wait burning its full timeout.
-  - **`state_change_seq` is never exposed for Freebuff panes**, even correctly registered ones. Do not treat its absence as evidence of a dead watcher, and do not use it as a submission signal.
-  - **What it does**: Auto-detects the Freebuff pane (or uses `-TargetPane`), delivers prompt text via `herdr pane run`, dynamically navigates focus to Freebuff, waits for the composer to absorb the text (scaled by prompt size, capped at 20s), then submits and **verifies submission from Herdr's `agent_status`** before reporting success. Restores the caller's focus on every path and optionally waits for turn completion via `-Wait`.
-  - **Submission is verified, not assumed.** `exit 0` plus `Prompt delivered` means the pane reached `working`/`blocked`. A prompt that never runs exits **2** with an explicit error instead of reporting a delivery that did not happen.
-  - **Pane IDs are not stable.** A Freebuff session reset (quota expiry, crash) re-creates the pane at a new ID, so prefer auto-detection over a hardcoded `-TargetPane`.
-  - `powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/freebuff-prompt.ps1 -Prompt "<text>" [-TargetPane <pane_id>] [-Wait]`
-  - Used automatically as **Transport 0** inside `dispatch.ps1` whenever `-Worker freebuff` (or a Freebuff pane ID) is targeted.
-  - **The runner lives outside the repo**, at `~/.herdr/plugins/freebuff/scripts/prompt.js` (auto-spawned Freebuff sessions use `%APPDATA%\herdr\plugins\github\freebuff.integration*\scripts\prompt.js`). Its files are untracked by that plugin's git, so there is no revert history — copy one aside before editing.
 
 - **`clean.ps1`**:
   Wipes temporary specs and reports in `.orchestrator/`.
@@ -231,17 +211,6 @@ These are observed constraints of the Herdr CLI + terminal agent TUIs. They expl
 - **Herdr writes failures to stderr while the exit code stays 0.** Capture stderr to a file and scan it for `"error"` / `agent_prompt_stalled` / `agent_blocked`; `2>&1` in PowerShell turns those lines into `ErrorRecord`s that abort the calling statement.
 - **Target form matters.** Agent-scoped commands may reject agent names (`agent target codex not found`) while accepting pane ids (`herdr agent get w6:pB` works). Always keep a pane id in hand.
 - **Keep `.ps1` sources ASCII-only.** Without a UTF-8 BOM PowerShell 5.1 reads scripts as ANSI, so a single non-ASCII byte (an em dash's `0x94`) decodes into a stray quote and produces cascading, misleading parse errors.
-- **Freebuff requires `freebuff-herdr` and focus choreography.** Freebuff's OpenTUI/React composer drops keystrokes when the pane is unfocused, and prompts for interactive wallet credit confirmation before processing. Freebuff must be launched *inside* a Herdr pane via `freebuff-herdr`; that is what registers the pane with Herdr's lifecycle authority. See `freebuff-prompt.ps1` above for the exact commands and for why an unregistered pane cannot be recovered.
-
-  Three distinct things can swallow a submit Enter, and a naive single-Enter script silently reports success while the prompt sits unsubmitted in the composer (observed: 3 of 6 dispatches lost this way, on 4KB+ prompts):
-
-  1. **Focus was never acquired** — an unfocused pane drops the keystroke via ConPTY. Recover by re-focusing *before* each retry; pressing Enter again does nothing.
-  2. **The credit modal ate the Enter** — it consumes one submission, so a second is needed. The runner handles this by retrying, not by matching modal text.
-  3. **The TUI is still absorbing a large paste** — Enter sent too early lands in an empty composer and vanishes. Settle time must scale with prompt length; a flat cap applies the same 2.5s to a 100-char and a 4,200-char paste.
-
-  **Never treat the composer's `Add to the current task` placeholder as a delivery signal.** It renders in *both* states — an empty composer and one holding an unsubmitted multi-KB attachment card. Herdr's `agent_status` is the only trustworthy signal.
-
-  `dispatch.ps1 -Worker freebuff` and `freebuff-prompt.ps1` both route through this corrected runner and now fail loudly (`exit 2`) instead of reporting a phantom delivery.
 
 ---
 
@@ -381,4 +350,3 @@ Instead of dumping a raw 30,000+ token diff into an expensive model:
    ```
 3. **Outcome**:
    The expensive model reads ~1,500–2,500 tokens of concentrated architectural signal instead of 40,000 tokens of raw diff, delivering superior architectural critique at a tiny fraction of the cost.
-
