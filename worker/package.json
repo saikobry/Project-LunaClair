@@ -10,6 +10,6 @@
     "types": "cf workers types"
   },
   "devDependencies": {
-    "wrangler": "^4.151.0"
+    "@cloudflare/vite-plugin": "^2.0.0-beta.sha-67fa336fd"
   }
 }
