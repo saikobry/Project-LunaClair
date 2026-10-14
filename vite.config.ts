@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
   //
   // Read via `--mode` rather than a bare `VITE_API_TARGET=... vite` shell prefix,
   // which fails under npm on Windows (cmd.exe has no inline env assignment) and
-  // would need a `cross-env` dependency. See wrangler.jsonc "env.staging".
+  // would need a `cross-env` dependency. See worker/cloudflare.config.ts "staging" mode.
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const previewApiTarget =
     env.VITE_API_TARGET ?? 'https://api.project-lunaclair.workers.dev'

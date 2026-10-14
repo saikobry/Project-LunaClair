@@ -7,11 +7,11 @@ export interface AiBinding {
 }
 
 export interface Env {
-  /** Cloudflare D1 binding (see wrangler.jsonc -> d1_databases). */
+  /** Cloudflare D1 binding (see worker/cloudflare.config.ts). */
   DB: D1Database;
   /** Comma-separated allowlist of browser origins; empty = local dev defaults. */
   CORS_ORIGINS?: string;
-  /** Write-gate secret for the PUT ingest endpoints. Set via .dev.vars / wrangler secret put. */
+  /** Write-gate secret for the PUT ingest endpoints. Set via .dev.vars / cf secrets. */
   SEED_TOKEN?: string;
   /** Cloudflare Workers AI binding for serverless edge inference. */
   AI?: AiBinding;

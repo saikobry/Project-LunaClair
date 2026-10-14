@@ -9,7 +9,7 @@ import type { AiTokenUsage } from '../core/aiUsage';
  * is rate-limited for users who are not the one testing it, what a turn costs, and which party gives
  * up first when a provider stalls. This record answers those without a second sink to operate: it is
  * a structured object, written with `console`, so Cloudflare stores it in Workers Logs with its
- * fields indexed and queryable. That requires the Worker's `observability` setting (`wrangler.jsonc`) —
+ * fields indexed and queryable. That requires the Worker's `observability` setting (`worker/cloudflare.config.ts`) —
  * without it `console` output is only visible live through `wrangler tail` and is not retained.
  *
  * **It must never carry prompt, document, or selection content.** Ids, counts, durations, and the
