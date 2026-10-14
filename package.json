@@ -1,6 +1,9 @@
 {
   "name": "project-lunaclair",
   "private": true,
+  "workspaces": [
+    "worker"
+  ],
   "version": "0.3.0",
   "type": "module",
   "scripts": {

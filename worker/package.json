@@ -1,0 +1,15 @@
+{
+  "name": "lunaclair-worker",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cf dev",
+    "deploy": "cf deploy",
+    "deploy:staging": "cf deploy --mode staging",
+    "types": "cf workers types"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.0"
+  }
+}
