@@ -7,7 +7,11 @@
     "dev": "cf dev",
     "deploy": "cf deploy",
     "deploy:staging": "cf deploy --mode staging",
-    "types": "cf workers types"
+    "types": "cf workers types",
+    "db:apply:local": "cf d1 migrations apply c3548105-43de-46f0-9f87-9480d774b808 --local --dir migrations --pattern \"migrations/*/migration.sql\"",
+    "db:apply:production": "cf d1 migrations apply c3548105-43de-46f0-9f87-9480d774b808 --dir migrations --pattern \"migrations/*/migration.sql\"",
+    "db:apply:staging": "cf d1 migrations apply 86cbd170-3bc7-4bd1-82d3-b880057ff870 --dir migrations --pattern \"migrations/*/migration.sql\"",
+    "db:list:staging": "cf d1 migrations list 86cbd170-3bc7-4bd1-82d3-b880057ff870 --dir migrations --pattern \"migrations/*/migration.sql\""
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-beta.sha-67fa336fd"

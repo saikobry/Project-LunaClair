@@ -17,15 +17,15 @@
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "generate:pwa-assets": "pwa-assets-generator public/app-icon.svg --preset minimal",
-    "dev:api": "wrangler dev",
-    "deploy:api": "wrangler deploy",
-    "deploy:api:staging": "wrangler deploy --env staging",
-    "types:worker": "wrangler types worker/worker-configuration.d.ts",
+    "dev:api": "npm run dev -w worker",
+    "deploy:api": "npm run deploy -w worker",
+    "deploy:api:staging": "npm run deploy:staging -w worker",
+    "types:worker": "npm run types -w worker",
     "db:generate": "drizzle-kit generate",
-    "db:apply:local": "wrangler d1 migrations apply lunaclair --local",
-    "db:apply:production": "wrangler d1 migrations apply lunaclair --remote",
-    "db:apply:staging": "wrangler d1 migrations apply lunaclair_staging --env staging --remote",
-    "db:list:staging": "wrangler d1 migrations list lunaclair_staging --env staging --remote",
+    "db:apply:local": "npm run db:apply:local -w worker",
+    "db:apply:production": "npm run db:apply:production -w worker",
+    "db:apply:staging": "npm run db:apply:staging -w worker",
+    "db:list:staging": "npm run db:list:staging -w worker",
     "seed:shares:local": "node scripts/seed-shares.mjs --dry-run",
     "seed:shares:production": "node scripts/seed-shares.mjs --production --dry-run",
     "seed:shares:staging": "node scripts/seed-shares.mjs --staging --dry-run",
@@ -82,8 +82,7 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.127.1"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "sharp": "^0.35.3"
