@@ -1,6 +1,7 @@
 import { methodNotAllowed, notFound } from './core/responses';
 import type { Env, RouteContext, RouteHandler } from './core/types';
 import { handleAiChat, handleAiModels } from './routes/ai';
+import { handleGoogleTokenExchange, handleGoogleTokenRefresh } from './routes/auth';
 import { handleHealth } from './routes/health';
 import {
   handleCreateShare,
@@ -174,6 +175,10 @@ export function createRouter(): Router {
   );
   router.register(['GET', 'HEAD'], '/api/shares/:id', handleGetShare);
   router.register('DELETE', '/api/shares/:id', handleDeleteShare);
+
+  // Google OAuth stateless authentication
+  router.register('POST', '/api/auth/google/token', handleGoogleTokenExchange);
+  router.register('POST', '/api/auth/google/refresh', handleGoogleTokenRefresh);
 
   return router;
 }

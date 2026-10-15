@@ -19,6 +19,9 @@ export default defineConfig((ctx) => {
 						CORS_ORIGINS: bindings.text(""),
 						AI_DISABLED_MODELS: bindings.text(""),
 						AI_CHAT_DISABLED: bindings.text("false"),
+						GOOGLE_CLIENT_ID: bindings.text(""),
+						GOOGLE_CLIENT_SECRET: bindings.secret(),
+						AUTH_MASTER_KEY: bindings.secret(),
 						DB: bindings.d1({
 							name: "lunaclair_staging",
 							id: "86cbd170-3bc7-4bd1-82d3-b880057ff870",
@@ -48,6 +51,9 @@ export default defineConfig((ctx) => {
 						CORS_ORIGINS: bindings.text(""),
 						AI_DISABLED_MODELS: bindings.text(""),
 						AI_CHAT_DISABLED: bindings.text("false"),
+						GOOGLE_CLIENT_ID: bindings.text(""),
+						GOOGLE_CLIENT_SECRET: bindings.secret(),
+						AUTH_MASTER_KEY: bindings.secret(),
 						DB: bindings.d1({
 							name: "lunaclair",
 							id: "c3548105-43de-46f0-9f87-9480d774b808",

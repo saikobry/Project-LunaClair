@@ -1,0 +1,18 @@
+# Cloudflare Worker Local Development Variables & Secrets
+# Copy to worker/.dev.vars for local development with `cf dev` (npm run dev:api)
+
+# Google OAuth 2.0 Web Client ID
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+
+# Google OAuth 2.0 Web Client Secret (used for authorization code exchange and token refresh)
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# 256-bit AES-256-GCM Master Key as a 64-character hexadecimal string
+# Generate with: node -e "console.log(crypto.randomBytes(32).toString('hex'))"
+AUTH_MASTER_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+# Optional: Write-gate secret for PUT ingest endpoints
+# SEED_TOKEN=local-seed-token
+
+# Optional: Comma-separated browser origin allowlist (empty allows default dev/prod origins)
+# CORS_ORIGINS=http://localhost:5173,http://localhost:4173

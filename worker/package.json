@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "vitest run --root .. worker/src",
     "dev": "cf dev",
     "deploy": "cf deploy",
     "deploy:staging": "cf deploy --mode staging",

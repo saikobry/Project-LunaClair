@@ -29,6 +29,12 @@ export interface Env {
    * before it even reads the body. Independent of `AI_DISABLED_MODELS` by design.
    */
   AI_CHAT_DISABLED?: string;
+  /** Google OAuth Client ID for token exchange. */
+  GOOGLE_CLIENT_ID?: string;
+  /** Google OAuth Client Secret for token exchange. Set via .dev.vars / cf secrets. */
+  GOOGLE_CLIENT_SECRET?: string;
+  /** 256-bit hex master key for AES-256-GCM token sealing. Set via .dev.vars / cf secrets. */
+  AUTH_MASTER_KEY?: string;
 }
 
 export interface RouteContext {
