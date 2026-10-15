@@ -598,4 +598,78 @@ describe('DriveCompactor', () => {
       expect(dominatesCoverage(newer, older)).toBe(false);
     });
   });
+
+  describe('404 Delete Resiliency (Peer Compaction Race)', () => {
+    it('deleteFile treats 404 as successful deletion and returns true', async () => {
+      mockDriveClient.deleteFile.mockRejectedValueOnce(
+        new DriveHttpError('File not found: j-already-deleted', 404, 'Not Found')
+      );
+
+      const compactor = createCompactor();
+      const result = await compactor.deleteFile('j-already-deleted', 'test-token');
+
+      expect(result).toBe(true);
+      expect(mockDriveClient.deleteFile).toHaveBeenCalledWith('j-already-deleted', 'test-token');
+    });
+
+    it('deleteFile rethrows non-404 errors', async () => {
+      mockDriveClient.deleteFile.mockRejectedValueOnce(
+        new DriveHttpError('Internal Server Error', 500, 'Server Error')
+      );
+
+      const compactor = createCompactor();
+      await expect(compactor.deleteFile('j-server-err', 'test-token')).rejects.toThrow(
+        DriveHttpError
+      );
+    });
+
+    it('compact treats 404 on deleteCoveredJournals as successful deletion', async () => {
+      const journals: DriveFileMetadata[] = [
+        {
+          id: 'j-404',
+          name: 'journal_404.json.gz',
+          createdTime: new Date(fixedNow.getTime() - 60 * 60 * 1000).toISOString(),
+          appProperties: { type: 'journal', hlc: '2026-10-15T10:00:00.000Z_0000_device-1' },
+        },
+        {
+          id: 'j-normal',
+          name: 'journal_normal.json.gz',
+          createdTime: new Date(fixedNow.getTime() - 50 * 60 * 1000).toISOString(),
+          appProperties: { type: 'journal', hlc: '2026-10-15T10:10:00.000Z_0000_device-1' },
+        },
+        {
+          id: 'j-recent-1',
+          name: 'journal_r1.json.gz',
+          createdTime: new Date(fixedNow.getTime() - 5 * 60 * 1000).toISOString(),
+          appProperties: { type: 'journal', hlc: '2026-10-15T11:55:00.000Z_0000_device-1' },
+        },
+        {
+          id: 'j-recent-2',
+          name: 'journal_r2.json.gz',
+          createdTime: new Date(fixedNow.getTime() - 1 * 60 * 1000).toISOString(),
+          appProperties: { type: 'journal', hlc: '2026-10-15T11:59:00.000Z_0000_device-1' },
+        },
+      ];
+
+      mockDriveClient.uploadCompressedJson?.mockResolvedValue({ id: 'new-snap-id' });
+      mockDriveClient.deleteFile.mockImplementation(async (id: string) => {
+        if (id === 'j-404') {
+          throw new DriveHttpError('File not found', 404, 'Not Found');
+        }
+      });
+
+      const compactor = createCompactor();
+      const result = await compactor.compact({
+        files: journals,
+        force: true,
+      });
+
+      expect(result.compacted).toBe(true);
+      expect(result.coveredJournalFileIds).toEqual(['j-404', 'j-normal']);
+      // j-404 must be included in deletedJournalFileIds despite throwing 404
+      expect(result.deletedJournalFileIds).toContain('j-404');
+      expect(result.deletedJournalFileIds).toContain('j-normal');
+    });
+  });
 });
+

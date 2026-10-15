@@ -196,7 +196,12 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 ## Planned Phases
 
-- **D1 Private Sync Tables Retirement:** After Phase 14 verification, drop `sync_changes`, `user_documents`, `user_entities`, and `sync_idempotency` from D1 schema.
+- **Phase 15 — D1 Private Sync Decommissioning & Zero-Server-Footprint Purge:**
+  - Generate D1 schema migration dropping `sync_changes`, `user_documents`, `user_entities`, and `sync_idempotency` tables from D1.
+  - Delete retired `POST /api/sync/push` and `GET /api/sync/pull` route handlers from Cloudflare Worker.
+  - Deprecate `WorkerSyncTransport` on the frontend, standardizing exclusively on `GoogleDriveSyncTransport`.
+  - Retain D1 exclusively for public `.lcpack` study-package sharing (`/api/shares`), achieving $0 database storage cost for private user data.
 
-
-
+- **Phase 16 — Deterministic Explore Clone Identity & Multi-Device Linking:**
+  - Remap cloned Explore study packages with deterministic `documentId` derived from `originShareId` (e.g. `doc_share_${originShareId}`).
+  - Ensure highlights, drawings, and flashcard review progress attach seamlessly across multiple devices of the same user without primary key collisions.

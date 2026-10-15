@@ -68,6 +68,10 @@ export interface SyncState {
   deviceId: string;
   lastServerCursor: SyncCursor;
   lastSyncedAt?: string;
+  /** Google Drive BYOS transport state */
+  pageToken?: string;
+  appliedFileIds?: string[];
+  peerWatermarks?: Record<string, string>;
 }
 
 /**

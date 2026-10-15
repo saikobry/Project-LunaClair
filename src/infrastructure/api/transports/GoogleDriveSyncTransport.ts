@@ -12,6 +12,7 @@ import type {
   SyncMutation,
   SyncPushRequest,
   SyncPushResponse,
+  SyncState,
 } from '../../../domain/sync/models/sync.types';
 import type {
   SyncPullResponse,
@@ -33,7 +34,8 @@ import {
   compareHlc,
   type HybridLogicalClock,
 } from '../../../domain/sync/utils/hlc';
-import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
+import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
+import { dexieSyncStateRepository } from '../../database/repositories/DexieSyncStateRepository';
 
 export interface JournalPayload {
   hlc: string;
@@ -42,31 +44,19 @@ export interface JournalPayload {
   mutations: SyncMutation[];
 }
 
-export interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem?(key: string): void;
-}
-
 export const MAX_PERSISTED_APPLIED_FILES = 1000;
-
-interface PersistedGDriveTransportState {
-  pageTokens?: Record<string, string>;
-  appliedFileIds?: string[];
-  peerWatermarks?: Record<string, string>;
-}
 
 export interface GoogleDriveSyncTransportOptions {
   driveClient?: GoogleDrivePort;
   authService?: GoogleAuthPort;
   hlc?: HybridLogicalClock;
-  storage?: StorageLike;
+  stateRepo?: SyncStateRepository;
 }
 
 export class GoogleDriveSyncTransport implements SyncTransport {
   private readonly driveClient: GoogleDrivePort;
   private readonly authService: GoogleAuthPort;
-  private readonly storage?: StorageLike;
+  private readonly stateRepo: SyncStateRepository;
   private readonly hlcs: Map<string, HybridLogicalClock>;
   private readonly pageTokens: Map<string, string>;
   private readonly appliedFileIds: Set<string>;
@@ -77,8 +67,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   constructor(options: GoogleDriveSyncTransportOptions = {}) {
     this.driveClient = options.driveClient ?? googleDriveClient;
     this.authService = options.authService ?? googleAuthService;
-    this.storage =
-      options.storage ?? (typeof localStorage === 'undefined' ? undefined : localStorage);
+    this.stateRepo = options.stateRepo ?? dexieSyncStateRepository;
     this.hlcs = new Map();
     if (options.hlc) {
       this.hlcs.set('default', options.hlc);
@@ -88,8 +77,6 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     this.peerWatermarks = {};
     this.currentSequence = 0;
     this.pushSequence = 0;
-
-    this.loadState();
   }
 
   /**
@@ -110,6 +97,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         rejected: [],
       };
     }
+
+    await this.loadStateForCredentials(credentials);
+    signal?.throwIfAborted();
 
     const accessToken = await this.authService.getValidAccessToken();
     signal?.throwIfAborted();
@@ -157,7 +147,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     // Mark our uploaded file as applied to avoid re-ingesting our own journal on pull
     if (uploadedFile?.id) {
       this.markFileApplied(uploadedFile.id);
-      this.saveState();
+      await this.saveStateForCredentials(credentials);
     }
 
     const accepted = request.mutations.map((mutation) => ({
@@ -186,6 +176,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   ): Promise<SyncPullResponse> {
     signal?.throwIfAborted();
 
+    await this.loadStateForCredentials(credentials);
+    signal?.throwIfAborted();
+
     const accessToken = await this.authService.getValidAccessToken();
     signal?.throwIfAborted();
 
@@ -194,16 +187,19 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     let changesResponse: DriveChangesResponse;
     let recoveredMissingFiles: DriveFileMetadata[] = [];
+    let pendingTokenToCommit: string | undefined;
 
     if (!pageToken) {
-      // Clean / first-time sync on new device/browser:
-      // 1. Obtain fresh startPageToken first to anchor future incremental changes
-      const newPageToken = await this.driveClient.getStartPageToken(accessToken);
-      this.pageTokens.set(tokenKey, newPageToken);
+      // Cursor-First Hydration Invariant:
+      // 1. Call candidateToken = await this.driveClient.getStartPageToken(accessToken) FIRST at t0.
+      const candidateToken = await this.driveClient.getStartPageToken(accessToken);
+      pendingTokenToCommit = candidateToken;
 
-      // 2. Discover all existing journal files in appDataFolder to hydrate past journals
-      const existingFiles = await this.driveClient.listFiles(accessToken);
-      for (const file of existingFiles) {
+      // 2. Call allFiles = await this.driveClient.listFiles(accessToken) at t1.
+      const allFiles = await this.driveClient.listFiles(accessToken);
+
+      // 3. Discover all existing unapplied journal files in appDataFolder to hydrate past journals.
+      for (const file of allFiles) {
         if (this.isJournalFile(file) && !this.appliedFileIds.has(file.id)) {
           recoveredMissingFiles.push(file);
         }
@@ -211,13 +207,14 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
       changesResponse = {
         changes: [],
-        newStartPageToken: newPageToken,
+        newStartPageToken: candidateToken,
       };
-
-      this.saveState();
+      // NOTE: candidateToken is NOT committed to this.pageTokens yet!
+      // Only after downloading and applying hydrated candidate journals is candidateToken committed.
     } else {
       try {
         changesResponse = await this.driveClient.listChanges(pageToken, accessToken);
+        pendingTokenToCommit = changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
       } catch (err) {
         if (this.is410Error(err)) {
           const recoveryParams: Recover410Params = {
@@ -231,13 +228,12 @@ export class GoogleDriveSyncTransport implements SyncTransport {
               ? await this.driveClient.recoverFromInvalidPageToken(recoveryParams)
               : await this.driveClient.recover410Cursor(recoveryParams);
 
-          this.pageTokens.set(tokenKey, recoveryResult.newPageToken);
+          pendingTokenToCommit = recoveryResult.newPageToken;
           changesResponse = {
             changes: [],
             newStartPageToken: recoveryResult.newPageToken,
           };
           recoveredMissingFiles = recoveryResult.missingFiles;
-          this.saveState();
         } else {
           throw err;
         }
@@ -308,10 +304,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
           });
           journal = JSON.parse(text) as JournalPayload;
         }
-      } catch {
-        // Prevent repeated failures on corrupted file
-        this.markFileApplied(candidate.fileId);
-        continue;
+      } catch (err) {
+        if (this.isCorruptedFileError(err)) {
+          // Prevent repeated failures on corrupted file
+          this.markFileApplied(candidate.fileId);
+          continue;
+        }
+        throw err;
       }
 
       this.markFileApplied(candidate.fileId);
@@ -346,12 +345,14 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       }
     }
 
-    const nextToken = changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
-    if (nextToken) {
-      this.pageTokens.set(tokenKey, nextToken);
+    // Only after downloading and applying hydrated files, commit pageToken and persist transport state
+    const tokenToCommit =
+      pendingTokenToCommit ?? changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
+    if (tokenToCommit) {
+      this.pageTokens.set(tokenKey, tokenToCommit);
     }
 
-    this.saveState();
+    await this.saveStateForCredentials(credentials);
 
     const returnedChanges =
       typeof limit === 'number' && limit > 0 ? changes.slice(0, limit) : changes;
@@ -393,85 +394,92 @@ export class GoogleDriveSyncTransport implements SyncTransport {
    */
   setPageToken(userId: string, deviceId: string, pageToken: string): void {
     this.pageTokens.set(`${userId}:${deviceId}`, pageToken);
-    this.saveState();
+    void this.saveStateForCredentials({ userId, deviceId, token: '' });
   }
 
   /**
    * Clears in-memory and persisted transport state (for testing / logout).
    */
-  clearState(): void {
+  clearState(credentials?: SessionCredentials): void {
+    void this.clearStateAsync(credentials);
+  }
+
+  async clearStateAsync(credentials?: SessionCredentials): Promise<void> {
     this.pageTokens.clear();
     this.appliedFileIds.clear();
     for (const key of Object.keys(this.peerWatermarks)) {
       delete this.peerWatermarks[key];
     }
-    try {
-      this.storage?.removeItem?.(STORAGE_KEYS.sync.gdriveTransportState);
-    } catch {
-      // Ignore
+    if (credentials) {
+      const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
+      try {
+        const existing = await this.stateRepo.getSyncState(tokenKey);
+        if (existing) {
+          await this.stateRepo.saveSyncState({
+            ...existing,
+            pageToken: undefined,
+            appliedFileIds: [],
+            peerWatermarks: {},
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
     }
   }
 
-  private loadState(): void {
-    if (!this.storage) {
-      return;
-    }
+  private async loadStateForCredentials(credentials: SessionCredentials): Promise<void> {
+    const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
     try {
-      const raw = this.storage.getItem(STORAGE_KEYS.sync.gdriveTransportState);
-      if (!raw) {
-        return;
-      }
-      const state = JSON.parse(raw) as PersistedGDriveTransportState;
-      if (state && typeof state === 'object') {
-        if (state.pageTokens && typeof state.pageTokens === 'object') {
-          for (const [key, value] of Object.entries(state.pageTokens)) {
-            if (typeof value === 'string') {
-              this.pageTokens.set(key, value);
-            }
-          }
+      const stored = await this.stateRepo.getSyncState(tokenKey);
+      if (stored) {
+        if (stored.pageToken && !this.pageTokens.has(tokenKey)) {
+          this.pageTokens.set(tokenKey, stored.pageToken);
         }
-        if (Array.isArray(state.appliedFileIds)) {
-          const ids = state.appliedFileIds.slice(-MAX_PERSISTED_APPLIED_FILES);
-          for (const id of ids) {
+        if (Array.isArray(stored.appliedFileIds)) {
+          for (const id of stored.appliedFileIds) {
             if (typeof id === 'string') {
-              this.appliedFileIds.add(id);
+              this.markFileApplied(id);
             }
           }
         }
-        if (state.peerWatermarks && typeof state.peerWatermarks === 'object') {
-          for (const [key, value] of Object.entries(state.peerWatermarks)) {
-            if (typeof value === 'string') {
-              this.peerWatermarks[key] = value;
+        if (stored.peerWatermarks && typeof stored.peerWatermarks === 'object') {
+          for (const [deviceId, hlc] of Object.entries(stored.peerWatermarks)) {
+            if (typeof hlc === 'string') {
+              const current = this.peerWatermarks[deviceId];
+              if (!current || compareHlc(hlc, current) > 0) {
+                this.peerWatermarks[deviceId] = hlc;
+              }
             }
           }
         }
       }
     } catch {
-      // Storage access or parse errors are non-fatal
+      // Non-fatal if state repository read fails
     }
   }
 
-  private saveState(): void {
-    if (!this.storage) {
-      return;
-    }
+  private async saveStateForCredentials(credentials: SessionCredentials): Promise<void> {
+    const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
     try {
-      const pageTokensObj: Record<string, string> = {};
-      for (const [key, value] of this.pageTokens.entries()) {
-        pageTokensObj[key] = value;
-      }
-
+      const existing = await this.stateRepo.getSyncState(tokenKey);
+      const pageToken = this.pageTokens.get(tokenKey);
       const appliedList = Array.from(this.appliedFileIds).slice(-MAX_PERSISTED_APPLIED_FILES);
 
-      const state: PersistedGDriveTransportState = {
-        pageTokens: pageTokensObj,
+      const state: SyncState = {
+        key: tokenKey,
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        lastServerCursor: existing?.lastServerCursor ?? 0,
+        lastSyncedAt: existing?.lastSyncedAt,
+        pageToken: pageToken ?? existing?.pageToken,
         appliedFileIds: appliedList,
         peerWatermarks: { ...this.peerWatermarks },
       };
 
-      this.storage.setItem(STORAGE_KEYS.sync.gdriveTransportState, JSON.stringify(state));
+      await this.stateRepo.saveSyncState(state);
     } catch {
-      // Storage quota or privacy sandbox errors must not crash sync
+      // Storage quota or IndexedDB transaction errors must not crash sync
     }
   }
 
@@ -506,6 +514,25 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       this.hlcs.set(deviceId, hlc);
     }
     return hlc;
+  }
+
+  private isCorruptedFileError(err: unknown): boolean {
+    if (err instanceof SyntaxError) {
+      return true;
+    }
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase();
+      if (
+        msg.includes('unexpected token') ||
+        msg.includes('bad gzip') ||
+        msg.includes('corrupted') ||
+        msg.includes('invalid json') ||
+        msg.includes('decompression')
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private is410Error(err: unknown): boolean {

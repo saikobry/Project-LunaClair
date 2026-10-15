@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   GoogleDriveSyncTransport,
   MAX_PERSISTED_APPLIED_FILES,
-  type StorageLike,
 } from '../GoogleDriveSyncTransport';
 import type {
   GoogleDrivePort,
@@ -13,9 +12,9 @@ import type {
 } from '../../../../domain/drive/models/drive.types';
 import { DriveHttpError } from '../../../../domain/drive/models/drive.types';
 import type { GoogleAuthPort, GoogleAuthSession } from '../../../../domain/auth/models/auth.types';
-import type { SessionCredentials, SyncPushRequest } from '../../../../domain/sync/models/sync.types';
+import type { SessionCredentials, SyncPushRequest, SyncState } from '../../../../domain/sync/models/sync.types';
+import type { SyncStateRepository } from '../../../../domain/sync/repositories/SyncStateRepository';
 import { createHlc } from '../../../../domain/sync/utils/hlc';
-import { STORAGE_KEYS } from '../../../../shared/constants/storageKeys';
 
 describe('Infrastructure: GoogleDriveSyncTransport', () => {
   const credentials: SessionCredentials = {
@@ -234,12 +233,8 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
   });
 
   describe('pull()', () => {
-    it('clean/first-time pull without cached pageToken calls listFiles, discovers existing journals, and downloads them', async () => {
-      const transport = new GoogleDriveSyncTransport({
-        driveClient: mockDriveClient,
-        authService: mockAuthService,
-      });
-
+    it('clean/first-time pull without cached pageToken calls getStartPageToken first, discovers existing journals, and downloads them', async () => {
+      const callOrder: string[] = [];
       const remoteMetadata: DriveFileMetadata = {
         id: 'journal-file-peer-1',
         name: 'journal_2026-10-15T12:05:00.000Z_0000_peer-dev.json.gz',
@@ -251,7 +246,15 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         },
       };
 
-      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteMetadata]);
+      vi.mocked(mockDriveClient.getStartPageToken).mockImplementation(async () => {
+        callOrder.push('getStartPageToken');
+        return 'start-token-100';
+      });
+
+      vi.mocked(mockDriveClient.listFiles).mockImplementation(async () => {
+        callOrder.push('listFiles');
+        return [remoteMetadata];
+      });
 
       vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
         hlc: '2026-10-15T12:05:00.000Z_0000_peer-dev',
@@ -270,8 +273,15 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         ],
       });
 
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+
       const pullResponse = await transport.pull(credentials, 0);
 
+      // Invariant: getStartPageToken at t0 MUST precede listFiles at t1
+      expect(callOrder).toEqual(['getStartPageToken', 'listFiles']);
       expect(mockDriveClient.getStartPageToken).toHaveBeenCalledTimes(1);
       expect(mockDriveClient.listFiles).toHaveBeenCalledWith('valid-access-token-999');
       expect(mockDriveClient.listChanges).not.toHaveBeenCalled();
@@ -297,12 +307,41 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       expect(transport.getPeerWatermarks()['peer-dev']).toBe(
         '2026-10-15T12:05:00.000Z_0000_peer-dev'
       );
-      // Cached pageToken must advance to newStartPageToken
+      // Cached pageToken must advance to newStartPageToken only after successful download
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
         'start-token-100'
       );
       // Applied files must register hydrated journal
       expect(transport.getAppliedFileIds().has('journal-file-peer-1')).toBe(true);
+    });
+
+    it('does not commit candidateToken if hydration fails during journal download', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+
+      const remoteMetadata: DriveFileMetadata = {
+        id: 'journal-file-peer-fail',
+        name: 'journal_2026-10-15T12:05:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-15T12:05:00.000Z_0000_peer-dev',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteMetadata]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockRejectedValueOnce(
+        new Error('Network disconnected during initial hydration')
+      );
+
+      await expect(transport.pull(credentials, 0)).rejects.toThrow(
+        'Network disconnected during initial hydration'
+      );
+
+      // candidateToken must NOT be committed on failure
+      expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
     });
 
     it('subsequent pull with existing pageToken calls listChanges without calling listFiles', async () => {
@@ -543,23 +582,23 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
     });
   });
 
-  describe('State persistence across browser sessions', () => {
-    it('persists pageTokens, appliedFileIds, and peerWatermarks to storage and restores them across instances', async () => {
-      const memoryStore = new Map<string, string>();
-      const customStorage: StorageLike = {
-        getItem: (k) => memoryStore.get(k) ?? null,
-        setItem: (k, v) => {
-          memoryStore.set(k, v);
-        },
-        removeItem: (k) => {
-          memoryStore.delete(k);
-        },
+  describe('Transport state persistence in Dexie vault (syncState)', () => {
+    it('persists pageTokens, appliedFileIds, and peerWatermarks to SyncStateRepository (Dexie vault) and restores them across instances without touching localStorage', async () => {
+      const inMemorySyncStore = new Map<string, SyncState>();
+      const mockStateRepo: SyncStateRepository = {
+        getSyncState: vi.fn(async (key: string) => inMemorySyncStore.get(key) ?? null),
+        saveSyncState: vi.fn(async (state: SyncState) => {
+          inMemorySyncStore.set(state.key, { ...state });
+        }),
       };
+
+      const localStorageSetSpy = vi.spyOn(Storage.prototype, 'setItem');
+      const localStorageGetSpy = vi.spyOn(Storage.prototype, 'getItem');
 
       const transport1 = new GoogleDriveSyncTransport({
         driveClient: mockDriveClient,
         authService: mockAuthService,
-        storage: customStorage,
+        stateRepo: mockStateRepo,
       });
 
       // 1. Push a mutation to generate an applied file ID
@@ -597,26 +636,29 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
       await transport1.pull(credentials, 0);
 
-      expect(memoryStore.has(STORAGE_KEYS.sync.gdriveTransportState)).toBe(true);
-
-      // 3. Create fresh transport2 with the same storage (simulating browser reload / new tab)
-      const transport2 = new GoogleDriveSyncTransport({
-        driveClient: mockDriveClient,
-        authService: mockAuthService,
-        storage: customStorage,
-      });
-
-      // Assert state restored
-      expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'start-token-100'
-      );
-      expect(transport2.getAppliedFileIds().has('uploaded-journal-id-1')).toBe(true);
-      expect(transport2.getAppliedFileIds().has('remote-journal-persist')).toBe(true);
-      expect(transport2.getPeerWatermarks()['peer-persist']).toBe(
+      // Verify state was saved to SyncStateRepository
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      expect(inMemorySyncStore.has(stateKey)).toBe(true);
+      const savedState = inMemorySyncStore.get(stateKey)!;
+      expect(savedState.pageToken).toBe('start-token-100');
+      expect(savedState.appliedFileIds).toContain('uploaded-journal-id-1');
+      expect(savedState.appliedFileIds).toContain('remote-journal-persist');
+      expect(savedState.peerWatermarks?.['peer-persist']).toBe(
         '2026-10-15T12:00:00.000Z_0000_peer-persist'
       );
 
-      // Subsequent pull on transport2 should call listChanges directly with restored token
+      // Invariant: localStorage must NOT be touched
+      expect(localStorageSetSpy).not.toHaveBeenCalled();
+      expect(localStorageGetSpy).not.toHaveBeenCalled();
+
+      // 3. Create fresh transport2 with the same stateRepo (simulating tab reload / independent transport)
+      const transport2 = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        stateRepo: mockStateRepo,
+      });
+
+      // Subsequent pull on transport2 should restore state and call listChanges directly with restored token
       vi.mocked(mockDriveClient.listFiles).mockClear();
       vi.mocked(mockDriveClient.getStartPageToken).mockClear();
       vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce({
@@ -636,71 +678,81 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
         'token-after-reload-pull'
       );
+      expect(transport2.getAppliedFileIds().has('uploaded-journal-id-1')).toBe(true);
+      expect(transport2.getAppliedFileIds().has('remote-journal-persist')).toBe(true);
+      expect(transport2.getPeerWatermarks()['peer-persist']).toBe(
+        '2026-10-15T12:00:00.000Z_0000_peer-persist'
+      );
     });
 
-    it('caps persisted appliedFileIds to MAX_PERSISTED_APPLIED_FILES using LRU ordering', () => {
-      const memoryStore = new Map<string, string>();
-      const customStorage: StorageLike = {
-        getItem: (k) => memoryStore.get(k) ?? null,
-        setItem: (k, v) => {
-          memoryStore.set(k, v);
-        },
-      };
+    it('caps persisted appliedFileIds to MAX_PERSISTED_APPLIED_FILES using LRU ordering', async () => {
+      const inMemorySyncStore = new Map<string, SyncState>();
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
 
-      // Seed 1,050 file IDs into storage
+      // Seed 1,050 file IDs into syncState
       const initialIds: string[] = [];
       for (let i = 0; i < 1050; i++) {
         initialIds.push(`file-seed-${i}`);
       }
-      memoryStore.set(
-        STORAGE_KEYS.sync.gdriveTransportState,
-        JSON.stringify({
-          appliedFileIds: initialIds,
-        })
-      );
+      inMemorySyncStore.set(stateKey, {
+        key: stateKey,
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        lastServerCursor: 0,
+        pageToken: 'token-seeded',
+        appliedFileIds: initialIds,
+      });
+
+      const mockStateRepo: SyncStateRepository = {
+        getSyncState: vi.fn(async (key: string) => inMemorySyncStore.get(key) ?? null),
+        saveSyncState: vi.fn(async (state: SyncState) => {
+          inMemorySyncStore.set(state.key, { ...state });
+        }),
+      };
 
       const transport = new GoogleDriveSyncTransport({
         driveClient: mockDriveClient,
         authService: mockAuthService,
-        storage: customStorage,
+        stateRepo: mockStateRepo,
       });
 
-      // Loaded state must be capped to MAX_PERSISTED_APPLIED_FILES (1,000)
+      vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce({
+        changes: [],
+        newStartPageToken: 'token-after-changes',
+      });
+
+      // Pull loads state and enforces MAX_PERSISTED_APPLIED_FILES (1,000)
+      await transport.pull(credentials, 0);
+
       expect(transport.getAppliedFileIds().size).toBe(MAX_PERSISTED_APPLIED_FILES);
       expect(transport.getAppliedFileIds().has('file-seed-0')).toBe(false);
       expect(transport.getAppliedFileIds().has('file-seed-49')).toBe(false);
       expect(transport.getAppliedFileIds().has('file-seed-50')).toBe(true);
       expect(transport.getAppliedFileIds().has('file-seed-1049')).toBe(true);
 
-      // Trigger a state save and verify persisted state stays capped
-      transport.setPageToken(credentials.userId, credentials.deviceId, 'saved-token');
-      const savedRaw = memoryStore.get(STORAGE_KEYS.sync.gdriveTransportState);
-      const parsed = JSON.parse(savedRaw!) as { appliedFileIds: string[] };
-
-      expect(parsed.appliedFileIds).toHaveLength(MAX_PERSISTED_APPLIED_FILES);
-      expect(parsed.appliedFileIds[0]).toBe('file-seed-50');
-      expect(parsed.appliedFileIds[parsed.appliedFileIds.length - 1]).toBe('file-seed-1049');
+      const savedState = inMemorySyncStore.get(stateKey)!;
+      expect(savedState.appliedFileIds).toHaveLength(MAX_PERSISTED_APPLIED_FILES);
+      expect(savedState.appliedFileIds![0]).toBe('file-seed-50');
+      expect(savedState.appliedFileIds![savedState.appliedFileIds!.length - 1]).toBe(
+        'file-seed-1049'
+      );
     });
 
-    it('handles corrupted storage data and storage write errors gracefully', async () => {
-      const throwingStorage: StorageLike = {
-        getItem: () => '{invalid-json-corrupt!',
-        setItem: () => {
-          throw new Error('QuotaExceededError: storage full');
-        },
-        removeItem: vi.fn(),
+    it('handles repository errors gracefully without crashing push or pull', async () => {
+      const throwingRepo: SyncStateRepository = {
+        getSyncState: vi.fn().mockRejectedValue(new Error('IndexedDB transaction failed')),
+        saveSyncState: vi.fn().mockRejectedValue(new Error('QuotaExceededError: disk full')),
       };
 
-      // Initialization does not throw on invalid JSON
       const transport = new GoogleDriveSyncTransport({
         driveClient: mockDriveClient,
         authService: mockAuthService,
-        storage: throwingStorage,
+        stateRepo: throwingRepo,
       });
 
       expect(transport.getAppliedFileIds().size).toBe(0);
 
-      // Push does not crash when storage setItem throws
+      // Push does not crash when saveSyncState throws
       await expect(
         transport.push(credentials, {
           deviceId: credentials.deviceId,
@@ -717,13 +769,10 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         })
       ).resolves.toBeDefined();
 
-      // clearState clears in-memory structures and calls removeItem safely
+      // clearState clears in-memory structures safely
       transport.setPageToken(credentials.userId, credentials.deviceId, 'some-token');
-      transport.clearState();
+      transport.clearState(credentials);
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
-      expect(throwingStorage.removeItem).toHaveBeenCalledWith(
-        STORAGE_KEYS.sync.gdriveTransportState
-      );
     });
   });
 });

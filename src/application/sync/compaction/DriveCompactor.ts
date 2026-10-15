@@ -15,6 +15,7 @@ import type {
 } from '../../../domain/drive/models/drive.types';
 import {
   DriveQuotaExceededError,
+  DriveHttpError,
 } from '../../../domain/drive/models/drive.types';
 import type { GoogleAuthPort } from '../../../domain/auth/models/auth.types';
 import {
@@ -451,6 +452,22 @@ export class DriveCompactor {
     });
   }
 
+  /**
+   * Deletes a file on Google Drive. If the file is already deleted (HTTP 404),
+   * treats it as a successful deletion rather than a failed deletion.
+   */
+  async deleteFile(fileId: string, accessToken: string): Promise<boolean> {
+    try {
+      await this.driveClient.deleteFile(fileId, accessToken);
+      return true;
+    } catch (err) {
+      if (this.isNotFoundError(err)) {
+        return true;
+      }
+      throw err;
+    }
+  }
+
   private async deleteReserveSlot(
     accessToken: string,
     cachedFiles?: DriveFileMetadata[]
@@ -472,8 +489,12 @@ export class DriveCompactor {
     }
 
     if (reserveFile?.id) {
-      await this.driveClient.deleteFile(reserveFile.id, accessToken);
-      return true;
+      try {
+        await this.deleteFile(reserveFile.id, accessToken);
+        return true;
+      } catch {
+        return false;
+      }
     }
     return false;
   }
@@ -495,7 +516,7 @@ export class DriveCompactor {
         continue;
       }
       try {
-        await this.driveClient.deleteFile(journal.id, accessToken);
+        await this.deleteFile(journal.id, accessToken);
         deletedIds.push(journal.id);
       } catch {
         // Continue attempting to delete remaining journals
@@ -533,8 +554,12 @@ export class DriveCompactor {
         }
 
         if (dominatesCoverage(newPayload, olderPayload)) {
-          await this.driveClient.deleteFile(snap.id, accessToken);
-          deletedSnapshotFileIds.push(snap.id);
+          try {
+            await this.deleteFile(snap.id, accessToken);
+            deletedSnapshotFileIds.push(snap.id);
+          } catch {
+            // Failed to delete snapshot
+          }
         }
       } catch {
         // If cannot download or parse, preserve older snapshot safely
@@ -542,6 +567,27 @@ export class DriveCompactor {
     }
 
     return deletedSnapshotFileIds;
+  }
+
+  private isNotFoundError(err: unknown): boolean {
+    if (err instanceof DriveHttpError) {
+      return err.status === 404;
+    }
+    if (typeof err === 'object' && err !== null) {
+      const errorObj = err as { status?: number; message?: string };
+      if (errorObj.status === 404) {
+        return true;
+      }
+      if (
+        typeof errorObj.message === 'string' &&
+        (errorObj.message.includes('404') ||
+          errorObj.message.toLowerCase().includes('not found') ||
+          errorObj.message.toLowerCase().includes('file not found'))
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private isQuotaExceededError(err: unknown): boolean {

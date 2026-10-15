@@ -135,8 +135,10 @@ export class SyncEngine {
       // Step 4: Finalize and mark idle
       const finalPending = await this.queueRepo.countPending();
       const now = new Date().toISOString();
+      const existingState = await this.stateRepo.getSyncState(stateKey);
 
       await this.stateRepo.saveSyncState({
+        ...existingState,
         key: stateKey,
         userId: credentials.userId,
         deviceId: credentials.deviceId,
@@ -195,6 +197,7 @@ export class SyncEngine {
       this.statusStore.setState({ lastServerCursor: cursor });
 
       await this.stateRepo.saveSyncState({
+        ...syncState,
         key: stateKey,
         userId: credentials.userId,
         deviceId: credentials.deviceId,
