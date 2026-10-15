@@ -188,9 +188,14 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 ## Planned Phases
 
+- **Phase 14 — Bring-Your-Own-Storage: Google Drive appDataFolder Sync & Stateless Auth:**
+  - **BYOS architecture:** Private user study data (highlights, notes, flashcard reviews, quiz sessions) migrates from D1 to the user's personal Google Drive (`appDataFolder`, `drive.appdata` non-sensitive scope). Cloudflare D1 is retained exclusively for public study-package sharing (`/api/shares`), achieving zero server user data footprint and $0 private database storage cost.
+  - **Lock-free append-only sync:** Single-writer immutable journal chunks (`journal_{hlc}_{deviceId}.json.gz`) discovered via `drive.changes.list`. Ordering resolved deterministically across offline devices using Hybrid Logical Clocks (HLC).
+  - **Pattern B+ stateless auth:** Cloudflare Worker exchanges Google auth codes and seals `refresh_token` using WebCrypto AES-256-GCM (`env.AUTH_MASTER_KEY` + AAD `sub`). The client persists `sealedRefreshToken` in Dexie, avoiding iOS standalone PWA cookie partitioning while storing zero user data on the server.
+  - **Zero-copy vault promotion:** Decouples physical Dexie database names (`lc_vault_${uuid}`) from user identity via `lunaclair_registry` pointer DB, enabling 0 ms, 0 bytes copied promotion from anonymous to Google-authenticated vaults.
+  - **Compaction safety:** Pre-allocated 1 MB `reserve_slot.bin` cushion breaks 100% Google Drive storage compaction deadlocks; 10-minute tail grace window prevents concurrent compactor race conditions.
+  - Implementation plan in `docs/plans/google-drive-sync-plan.md` (ADR-018 to be finalized and committed at phase closeout).
 
-- **Worker authentication — parked:** `worker/src/core/security.ts` derives the caller identity from an unsigned base64 bearer token and falls back to `x-user-id`, then to a literal `user_default`. Deliberately unresolved; must be closed before any real user data is written to production D1.
-
-*(Further phases to be determined / scoped during upcoming planning sessions.)*
+- **D1 Private Sync Tables Retirement:** After Phase 14 verification, drop `sync_changes`, `user_documents`, `user_entities`, and `sync_idempotency` from D1 schema.
 
 
