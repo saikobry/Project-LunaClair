@@ -1,12 +1,18 @@
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
 import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
 import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
-import { db, type HighlightRecord, type DrawingRecord } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase, type HighlightRecord, type DrawingRecord } from '../schema/LunaClairDatabase';
 
 export class DexieAnnotationRepository implements AnnotationRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getHighlights(documentId: string, signal?: AbortSignal): Promise<HighlightItem[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const records = await db.highlights.where('documentId').equals(documentId).toArray();
+        const records = await this.db.highlights.where('documentId').equals(documentId).toArray();
         const results: HighlightItem[] = [];
         for (const r of records) {
             if (!r.deletedAt) {
@@ -18,8 +24,8 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     }
 
     async saveHighlights(documentId: string, highlights: HighlightItem[]): Promise<void> {
-        await db.transaction('rw', [db.highlights, db.syncQueue], async () => {
-            const existing = await db.highlights.where('documentId').equals(documentId).toArray();
+        await this.db.transaction('rw', [this.db.highlights, this.db.syncQueue], async () => {
+            const existing = await this.db.highlights.where('documentId').equals(documentId).toArray();
             const incomingIds = new Set(highlights.map((h) => h.id));
             const now = new Date().toISOString();
 
@@ -86,10 +92,10 @@ export class DexieAnnotationRepository implements AnnotationRepository {
             }
 
             if (highlightsToPut.length > 0) {
-                await db.highlights.bulkPut(highlightsToPut);
+                await this.db.highlights.bulkPut(highlightsToPut);
             }
             if (queueItemsToPut.length > 0) {
-                await db.syncQueue.bulkPut(queueItemsToPut);
+                await this.db.syncQueue.bulkPut(queueItemsToPut);
             }
         });
     }
@@ -100,7 +106,7 @@ export class DexieAnnotationRepository implements AnnotationRepository {
 
     async getDrawings(documentId: string, signal?: AbortSignal): Promise<DrawingPath[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const records = await db.drawings.where('documentId').equals(documentId).toArray();
+        const records = await this.db.drawings.where('documentId').equals(documentId).toArray();
         const results: DrawingPath[] = [];
         for (const r of records) {
             if (!r.deletedAt) {
@@ -112,8 +118,8 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     }
 
     async saveDrawings(documentId: string, paths: DrawingPath[]): Promise<void> {
-        await db.transaction('rw', [db.drawings, db.syncQueue], async () => {
-            const existing = await db.drawings.where('documentId').equals(documentId).toArray();
+        await this.db.transaction('rw', [this.db.drawings, this.db.syncQueue], async () => {
+            const existing = await this.db.drawings.where('documentId').equals(documentId).toArray();
             const incomingIds = new Set(paths.map((p) => p.id));
             const now = new Date().toISOString();
 
@@ -180,10 +186,10 @@ export class DexieAnnotationRepository implements AnnotationRepository {
             }
 
             if (drawingsToPut.length > 0) {
-                await db.drawings.bulkPut(drawingsToPut);
+                await this.db.drawings.bulkPut(drawingsToPut);
             }
             if (queueItemsToPut.length > 0) {
-                await db.syncQueue.bulkPut(queueItemsToPut);
+                await this.db.syncQueue.bulkPut(queueItemsToPut);
             }
         });
     }

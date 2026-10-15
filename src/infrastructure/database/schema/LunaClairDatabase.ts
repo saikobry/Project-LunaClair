@@ -243,5 +243,49 @@ export class LunaClairDatabase extends Dexie {
     }
 }
 
+const vaultDatabases = new Map<string, LunaClairDatabase>();
+
+/**
+ * Opens or retrieves a cached LunaClairDatabase instance for the specified physical database name.
+ */
+export function openVaultDatabase(physicalDbName: string = DB_NAME): LunaClairDatabase {
+    let instance = vaultDatabases.get(physicalDbName);
+    if (!instance) {
+        instance = new LunaClairDatabase(physicalDbName);
+        vaultDatabases.set(physicalDbName, instance);
+    }
+    return instance;
+}
+
+/**
+ * Clears cached vault database instances (primarily for testing).
+ */
+export function clearVaultDatabaseCache(): void {
+    vaultDatabases.clear();
+}
+
 /** Singleton database instance shared across the application. */
-export const db = new LunaClairDatabase();
+export const db = openVaultDatabase(DB_NAME);
+
+let activeVaultDatabase: LunaClairDatabase = db;
+
+/**
+ * Sets the currently active vault database.
+ */
+export function setActiveVaultDatabase(database: LunaClairDatabase): void {
+    activeVaultDatabase = database;
+}
+
+/**
+ * Returns the currently active vault database instance.
+ */
+export function getActiveVaultDatabase(): LunaClairDatabase {
+    return activeVaultDatabase;
+}
+
+/**
+ * Resets the active vault database to the default instance.
+ */
+export function resetActiveVaultDatabase(): void {
+    activeVaultDatabase = db;
+}

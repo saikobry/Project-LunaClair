@@ -45,4 +45,4 @@ export const onRequest: PagesFunction<PagesEnv> = async (context) => {
   const targetUrl = `${origin}${url.pathname}${url.search}`;
   const request = new Request(targetUrl, context.request);
   return fetch(request);
-};
+};

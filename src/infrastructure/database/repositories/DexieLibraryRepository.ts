@@ -4,7 +4,7 @@ import type {
     CreateMaterialInput,
     UpdateMaterialInput,
 } from '../../../domain/library/repositories/LibraryRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { normalizeTags } from '../../../shared/utils/tags';
 
 function generateId(): string {
@@ -12,14 +12,20 @@ function generateId(): string {
 }
 
 export class DexieLibraryRepository implements LibraryRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getMaterials(signal?: AbortSignal): Promise<StudyMaterial[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return db.materials.toArray();
+        return this.db.materials.toArray();
     }
 
     async getMaterialById(id: string, signal?: AbortSignal): Promise<StudyMaterial | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return (await db.materials.get(id)) ?? null;
+        return (await this.db.materials.get(id)) ?? null;
     }
 
     async createMaterial(input: CreateMaterialInput): Promise<StudyMaterial> {
@@ -34,12 +40,12 @@ export class DexieLibraryRepository implements LibraryRepository {
             createdAt: now,
             updatedAt: now,
         };
-        await db.materials.put(material);
+        await this.db.materials.put(material);
         return material;
     }
 
     async updateMaterial(id: string, input: UpdateMaterialInput): Promise<StudyMaterial> {
-        const existing = await db.materials.get(id);
+        const existing = await this.db.materials.get(id);
         if (!existing) throw new Error(`Material not found: ${id}`);
 
         const { tags, ...rest } = input;
@@ -50,10 +56,9 @@ export class DexieLibraryRepository implements LibraryRepository {
             ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
             updatedAt: new Date().toISOString(),
         };
-        await db.materials.put(updated);
+        await this.db.materials.put(updated);
         return updated;
     }
-
 }
 
 export const dexieLibraryRepository = new DexieLibraryRepository();

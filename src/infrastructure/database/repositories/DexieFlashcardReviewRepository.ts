@@ -1,6 +1,6 @@
 import type { FlashcardReviewRepository } from '../../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 export class DexieFlashcardReviewRepository implements FlashcardReviewRepository {
     /**
@@ -14,7 +14,7 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
      */
     private readonly db: LunaClairDatabase;
 
-    constructor(db: LunaClairDatabase = defaultDb) {
+    constructor(db: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = db;
     }
 

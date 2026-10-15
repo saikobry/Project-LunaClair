@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bootstrapApplication } from './bootstrap';
 import { reloadWithFreshServiceWorker } from './serviceWorkerUpdate';
-import { db } from '../infrastructure/database/schema/LunaClairDatabase';
+import { getActiveVaultDatabase } from '../infrastructure/database/schema/LunaClairDatabase';
 import {
   DatabaseReloadRequiredError,
   type DatabaseReloadReason,
@@ -40,13 +40,18 @@ export function useAppBootstrap(): AppBootstrapState {
   useEffect(() => {
     let active = true;
 
-    const unsubscribe = db.onReloadRequired((reason) => {
+    let unsubscribe = getActiveVaultDatabase().onReloadRequired((reason) => {
       if (active) setReloadReason(reason);
     });
 
     bootstrapApplication()
       .then(() => {
-        if (active) setStatus('ready');
+        if (!active) return;
+        unsubscribe();
+        unsubscribe = getActiveVaultDatabase().onReloadRequired((reason) => {
+          if (active) setReloadReason(reason);
+        });
+        setStatus('ready');
       })
       .catch((error: unknown) => {
         if (!active) return;

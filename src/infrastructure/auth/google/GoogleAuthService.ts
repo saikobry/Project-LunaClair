@@ -11,7 +11,17 @@ import type {
   GoogleAuthPort,
   GoogleAuthSession,
 } from '../../../domain/auth/models/auth.types';
+import type {
+  PromotionResult,
+  VaultRegistryPort,
+} from '../../../domain/vault/models/vault.types';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
+import { vaultRegistry as defaultVaultRegistry } from '../../database/registry/VaultRegistry';
+import {
+  openVaultDatabase,
+  setActiveVaultDatabase,
+  getActiveVaultDatabase,
+} from '../../database/schema/LunaClairDatabase';
 import {
   loadGisScript,
   type GisCodeResponse,
@@ -38,6 +48,7 @@ export interface GoogleAuthServiceOptions {
   storage?: AuthStorage;
   loadGis?: (url?: string) => Promise<GoogleGlobal>;
   customFetch?: typeof fetch;
+  vaultRegistry?: VaultRegistryPort;
 }
 
 interface TokenExchangeResponse {
@@ -66,12 +77,14 @@ export class GoogleAuthService implements GoogleAuthPort {
   private readonly storage: AuthStorage;
   private readonly loadGisFn: (url?: string) => Promise<GoogleGlobal>;
   private readonly fetchFn: typeof fetch;
+  private readonly vaultRegistry: VaultRegistryPort;
 
   private session: GoogleAuthSession | null;
   private status: AuthStatus;
   private readonly listeners: Set<(session: GoogleAuthSession | null) => void>;
   private loginPromise: Promise<GoogleAuthSession> | null;
   private refreshPromise: Promise<string> | null;
+  private lastPromotionResult: PromotionResult | null;
 
   constructor(options: GoogleAuthServiceOptions = {}) {
     const envClientId =
@@ -107,6 +120,9 @@ export class GoogleAuthService implements GoogleAuthPort {
             throw new Error('fetch is unavailable in this environment');
           });
 
+    this.vaultRegistry = options.vaultRegistry ?? defaultVaultRegistry;
+    this.lastPromotionResult = null;
+
     this.listeners = new Set();
     this.loginPromise = null;
     this.refreshPromise = null;
@@ -130,6 +146,13 @@ export class GoogleAuthService implements GoogleAuthPort {
    */
   getStatus(): AuthStatus {
     return this.status;
+  }
+
+  /**
+   * Returns the outcome of the most recent vault promotion, or null if none occurred.
+   */
+  getLastPromotionResult(): PromotionResult | null {
+    return this.lastPromotionResult;
   }
 
   /**
@@ -320,6 +343,22 @@ export class GoogleAuthService implements GoogleAuthPort {
         sealedRefreshToken: data.sealedRefreshToken,
       },
     };
+
+    try {
+      const promotionResult = await this.vaultRegistry.promoteAnonymousVault(session.user.sub);
+      this.lastPromotionResult = promotionResult;
+      if (promotionResult.collisionFromAnonDb) {
+        console.warn(
+          `[GoogleAuthService] Vault collision detected: user ${session.user.sub} already had a vault. Anonymous vault ${promotionResult.collisionFromAnonDb} retained for reconciliation.`,
+        );
+      }
+      if (promotionResult.pointer.physicalDbName !== getActiveVaultDatabase().name) {
+        const targetDb = openVaultDatabase(promotionResult.pointer.physicalDbName);
+        setActiveVaultDatabase(targetDb);
+      }
+    } catch (vaultErr) {
+      console.error('[GoogleAuthService] Failed to promote vault during login:', vaultErr);
+    }
 
     this.session = session;
     this.status = 'authenticated';

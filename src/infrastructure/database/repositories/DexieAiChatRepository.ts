@@ -5,7 +5,7 @@ import type {
   AiMessageRecord,
   AiThread,
 } from '../../../domain/ai/models/ai.types';
-import { db, type AiThreadRow, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type AiThreadRow, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Concrete Dexie implementation of AiChatRepository.
@@ -39,7 +39,7 @@ function normalizeThreadRow(row: AiThreadRow): AiThread {
 export class DexieAiChatRepository implements AiChatRepository {
   private readonly database: LunaClairDatabase;
 
-  constructor(database: LunaClairDatabase = db) {
+  constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
     this.database = database;
   }
 

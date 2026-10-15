@@ -12,6 +12,7 @@ import type {
   GisErrorResponse,
 } from '../loadGis';
 import type { GoogleAuthSession } from '../../../../domain/auth/models/auth.types';
+import type { VaultRegistryPort } from '../../../../domain/vault/models/vault.types';
 
 function createInMemoryStorage(): AuthStorage {
   const store = new Map<string, string>();
@@ -27,6 +28,7 @@ describe('Infrastructure: GoogleAuthService', () => {
   let mockInitCodeClient: ReturnType<typeof vi.fn>;
   let mockRevoke: ReturnType<typeof vi.fn>;
   let mockLoadGis: ReturnType<typeof vi.fn>;
+  let mockVaultRegistry: VaultRegistryPort;
   let capturedConfig: GisCodeClientConfig | null;
 
   function createService(options: Partial<GoogleAuthServiceOptions> = {}): GoogleAuthService {
@@ -34,6 +36,7 @@ describe('Infrastructure: GoogleAuthService', () => {
       clientId: 'test-client-id',
       storage: inMemoryStorage,
       loadGis: mockLoadGis as unknown as (url?: string) => Promise<GoogleGlobal>,
+      vaultRegistry: mockVaultRegistry,
       ...options,
     });
   }
@@ -41,6 +44,21 @@ describe('Infrastructure: GoogleAuthService', () => {
   beforeEach(() => {
     inMemoryStorage = createInMemoryStorage();
     capturedConfig = null;
+
+    mockVaultRegistry = {
+      getActiveVault: vi.fn(),
+      promoteAnonymousVault: vi.fn(async (sub: string) => ({
+        pointer: {
+          ownerSub: sub,
+          physicalDbName: 'lc_vault_mock123',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+        },
+      })),
+      listVaults: vi.fn(),
+      switchActiveVault: vi.fn(),
+      deleteVault: vi.fn(),
+    };
 
     mockInitCodeClient = vi.fn((config: GisCodeClientConfig) => {
       capturedConfig = config;
@@ -165,6 +183,92 @@ describe('Infrastructure: GoogleAuthService', () => {
     expect(savedRaw).not.toBeNull();
     const parsed = JSON.parse(savedRaw!);
     expect(parsed.user.sub).toBe('google-sub-777');
+
+    // Verify vault promotion
+    expect(mockVaultRegistry.promoteAnonymousVault).toHaveBeenCalledWith('google-sub-777');
+    expect(service.getLastPromotionResult()?.pointer.ownerSub).toBe('google-sub-777');
+  });
+
+  it('handles vault collision on login gracefully', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockVaultRegistry.promoteAnonymousVault = vi.fn(async (sub: string) => ({
+      pointer: {
+        ownerSub: sub,
+        physicalDbName: 'lc_vault_existing_db',
+        createdAt: 1000,
+        lastActiveAt: 2000,
+      },
+      collisionFromAnonDb: 'lc_vault_anon_db',
+    }));
+
+    const mockFetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          accessToken: 'ya29.token',
+          expiresIn: 3600,
+          sub: 'collision-user-sub',
+          email: 'collision@lunaclair.dev',
+          name: 'Collision User',
+          sealedRefreshToken: 'sealed.token',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    const service = createService({
+      customFetch: mockFetch as unknown as typeof fetch,
+    });
+
+    const loginPromise = service.login();
+    await vi.waitFor(() => expect(mockInitCodeClient).toHaveBeenCalledTimes(1));
+    capturedConfig?.callback?.({ code: 'collision-code' });
+
+    const session = await loginPromise;
+    expect(session.user.sub).toBe('collision-user-sub');
+    expect(mockVaultRegistry.promoteAnonymousVault).toHaveBeenCalledWith('collision-user-sub');
+    expect(service.getLastPromotionResult()?.collisionFromAnonDb).toBe('lc_vault_anon_db');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Vault collision detected'),
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('proceeds with login even if vault promotion throws', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockVaultRegistry.promoteAnonymousVault = vi.fn(async () => {
+      throw new Error('Database locked');
+    });
+
+    const mockFetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          accessToken: 'ya29.token',
+          expiresIn: 3600,
+          sub: 'robust-user-sub',
+          email: 'robust@lunaclair.dev',
+          name: 'Robust User',
+          sealedRefreshToken: 'sealed.token',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    const service = createService({
+      customFetch: mockFetch as unknown as typeof fetch,
+    });
+
+    const loginPromise = service.login();
+    await vi.waitFor(() => expect(mockInitCodeClient).toHaveBeenCalledTimes(1));
+    capturedConfig?.callback?.({ code: 'robust-code' });
+
+    const session = await loginPromise;
+    expect(session.user.sub).toBe('robust-user-sub');
+    expect(service.getStatus()).toBe('authenticated');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to promote vault during login'),
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
   });
 
   it('propagates error when GIS error_callback fires (e.g. popup closed)', async () => {

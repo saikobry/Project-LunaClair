@@ -14,10 +14,13 @@ vi.mock('../serviceWorkerUpdate', () => ({
   reloadWithFreshServiceWorker: (...args: unknown[]) => reloadWithFreshServiceWorker(...args),
 }));
 
-// The real module owns the Dexie singleton; the hook only needs its subscription surface here.
-vi.mock('../../infrastructure/database/schema/LunaClairDatabase', () => ({
-  db: { onReloadRequired: (listener: unknown) => onReloadRequired(listener) },
-}));
+vi.mock('../../infrastructure/database/schema/LunaClairDatabase', () => {
+  const mockDb = { onReloadRequired: (listener: unknown) => onReloadRequired(listener) };
+  return {
+    db: mockDb,
+    getActiveVaultDatabase: () => mockDb,
+  };
+});
 
 import { useAppBootstrap } from '../useAppBootstrap';
 import {

@@ -1,5 +1,5 @@
 import type { ImportedAsset, ImportAssetRepository } from '../../../domain/importer/repositories/ImportAssetRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Dexie-backed `ImportAssetRepository` — writes the original file of a PDF/image import.
@@ -14,8 +14,14 @@ import { db } from '../schema/LunaClairDatabase';
  * commits atomically with the material delete.
  */
 export class DexieImportAssetRepository implements ImportAssetRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async put(record: ImportedAsset): Promise<void> {
-        await db.localAssets.put({
+        await this.db.localAssets.put({
             assetId: record.materialId,
             materialId: record.materialId,
             blob: record.blob,

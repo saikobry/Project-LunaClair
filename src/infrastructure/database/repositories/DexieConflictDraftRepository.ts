@@ -1,6 +1,6 @@
 import type { ConflictDraftRepository, ResolveConflictInput } from '../../../domain/sync/repositories/ConflictDraftRepository';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { runSyncableTransaction } from '../sync/transactionalOutbox';
 
 /**
@@ -9,7 +9,7 @@ import { runSyncableTransaction } from '../sync/transactionalOutbox';
 export class DexieConflictDraftRepository implements ConflictDraftRepository {
     private readonly db: LunaClairDatabase;
 
-    constructor(database: LunaClairDatabase = defaultDb) {
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = database;
     }
 

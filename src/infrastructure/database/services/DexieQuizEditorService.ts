@@ -6,7 +6,7 @@ import type {
     SaveQuizToRepositoryResult,
 } from '../../../domain/quiz/services/QuizEditorService';
 import { normalizeTags } from '../../../shared/utils/tags';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function generateQuestionId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -30,7 +30,7 @@ function generateQuizId(): string {
 export class DexieQuizEditorService implements QuizEditorService {
     private readonly db: LunaClairDatabase;
 
-    constructor(db: LunaClairDatabase = defaultDb) {
+    constructor(db: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = db;
     }
 

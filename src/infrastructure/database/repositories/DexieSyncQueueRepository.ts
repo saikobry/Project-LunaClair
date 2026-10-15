@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 import type { SyncQueueRepository } from '../../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncQueueItem, SyncStatus } from '../../../domain/sync/models/sync.types';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Dexie-backed implementation of `SyncQueueRepository` for local persistent outbox queue.
@@ -9,7 +9,7 @@ import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairData
 export class DexieSyncQueueRepository implements SyncQueueRepository {
     private readonly db: LunaClairDatabase;
 
-    constructor(database: LunaClairDatabase = defaultDb) {
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = database;
     }
 

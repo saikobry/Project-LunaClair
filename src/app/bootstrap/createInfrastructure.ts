@@ -20,42 +20,48 @@ import type { CollectionMaterialRepository } from '../../domain/collections/repo
 import type { PreferencesRepository } from '../../domain/preferences/repositories/PreferencesRepository';
 
 import { HybridDocumentRepository } from '../../infrastructure/storage/repositories/HybridDocumentRepository';
-import { dexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
-import { dexieDocumentContentRepository } from '../../infrastructure/database/repositories/DexieDocumentContentRepository';
-import { dexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';
-import { dexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
-import { dexieQuizDraftRepository } from '../../infrastructure/database/repositories/DexieQuizDraftRepository';
-import { dexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
-import { dexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
-import { dexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
-import { dexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
-import { dexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
-import { dexiePreferencesRepository } from '../../infrastructure/database/repositories/DexiePreferencesRepository';
+import { DexieAnnotationRepository } from '../../infrastructure/database/repositories/DexieAnnotationRepository';
+import { DexieDocumentContentRepository } from '../../infrastructure/database/repositories/DexieDocumentContentRepository';
+import { DexieLibraryRepository } from '../../infrastructure/database/repositories/DexieLibraryRepository';
+import { DexieQuestionRepository } from '../../infrastructure/database/repositories/DexieQuestionRepository';
+import { DexieQuizDraftRepository } from '../../infrastructure/database/repositories/DexieQuizDraftRepository';
+import { DexieQuizRepository } from '../../infrastructure/database/repositories/DexieQuizRepository';
+import { DexieQuizSessionRepository } from '../../infrastructure/database/repositories/DexieQuizSessionRepository';
+import { DexieAnalyticsRepository } from '../../infrastructure/database/repositories/DexieAnalyticsRepository';
+import { DexieFlashcardReviewRepository } from '../../infrastructure/database/repositories/DexieFlashcardReviewRepository';
+import { DexieAiChatRepository } from '../../infrastructure/database/repositories/DexieAiChatRepository';
+import { DexiePreferencesRepository } from '../../infrastructure/database/repositories/DexiePreferencesRepository';
 import { WorkerAiAdapter } from '../../infrastructure/ai/adapters/WorkerAiAdapter';
 import { WorkerAiModelCatalogRepository } from '../../infrastructure/ai/catalog/WorkerAiModelCatalogRepository';
 import { DexieQuizEditorService } from '../../infrastructure/database/services/DexieQuizEditorService';
-import { dexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
-import { dexieAssetRepository } from '../../infrastructure/database/repositories/DexieAssetRepository';
+import { DexieImportAssetRepository } from '../../infrastructure/database/repositories/DexieImportAssetRepository';
+import { DexieAssetRepository } from '../../infrastructure/database/repositories/DexieAssetRepository';
 import { DexieLibraryImportService } from '../../infrastructure/database/services/DexieLibraryImportService';
 import { DexieStudyPackageImportService } from '../../infrastructure/database/services/DexieStudyPackageImportService';
 import { createDefaultImporterRegistry } from '../../infrastructure/importer/registry/createExtractors';
 import { AiVisionExtractor } from '../../infrastructure/importer/engines/AiVisionExtractor';
-import { dexieSyncQueueRepository } from '../../infrastructure/database/repositories/DexieSyncQueueRepository';
-import { dexieSyncStateRepository } from '../../infrastructure/database/repositories/DexieSyncStateRepository';
-import { dexieConflictDraftRepository } from '../../infrastructure/database/repositories/DexieConflictDraftRepository';
-import { dexieCollectionRepository } from '../../infrastructure/database/repositories/DexieCollectionRepository';
-import { dexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
-import { dexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
+import { DexieSyncQueueRepository } from '../../infrastructure/database/repositories/DexieSyncQueueRepository';
+import { DexieSyncStateRepository } from '../../infrastructure/database/repositories/DexieSyncStateRepository';
+import { DexieConflictDraftRepository } from '../../infrastructure/database/repositories/DexieConflictDraftRepository';
+import { DexieCollectionRepository } from '../../infrastructure/database/repositories/DexieCollectionRepository';
+import { DexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
+import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { workerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import { workerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import { localStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
-import { db, type LunaClairDatabase } from '../../infrastructure/database/schema/LunaClairDatabase';
+import {
+    getActiveVaultDatabase,
+    openVaultDatabase,
+    setActiveVaultDatabase,
+    type LunaClairDatabase,
+} from '../../infrastructure/database/schema/LunaClairDatabase';
+import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
+import type { VaultRegistryPort } from '../../domain/vault/models/vault.types';
 import type { WorkerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import type { WorkerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import type { LocalStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
 import type { AiService } from '../../domain/ai/services/AiService';
 import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
-import type { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import {
     noopAnalyticsCacheInvalidator,
     withAnalyticsPoolInvalidation,
@@ -124,13 +130,33 @@ export interface Infrastructure {
  * root is the one layer that may coordinate that without giving
  * `features/quiz-management` a dependency on `features/analytics`. See
  * `analyticsInvalidation.ts`.
+ *
+ * Repositories, atomic services, and reconcilers are instantiated with `database`,
+ * which defaults to the active vault database.
  */
 export function createInfrastructure(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+    database: LunaClairDatabase = getActiveVaultDatabase(),
 ): Infrastructure {
-    const documentRepository = new HybridDocumentRepository(
-        dexieDocumentContentRepository,
-    );
+    const documentContentRepository = new DexieDocumentContentRepository(database);
+    const documentRepository = new HybridDocumentRepository(documentContentRepository);
+    const annotationRepository = new DexieAnnotationRepository(database);
+    const libraryRepository = new DexieLibraryRepository(database);
+    const questionRepository = new DexieQuestionRepository(database);
+    const quizRepository = new DexieQuizRepository(database);
+    const quizSessionRepository = new DexieQuizSessionRepository(database);
+    const quizDraftRepository = new DexieQuizDraftRepository(database);
+    const flashcardReviewRepository = new DexieFlashcardReviewRepository(database);
+    const analyticsRepository = new DexieAnalyticsRepository(database);
+    const aiChatRepository = new DexieAiChatRepository(database);
+    const preferencesRepository = new DexiePreferencesRepository(database);
+    const importAssetRepository = new DexieImportAssetRepository(database);
+    const assetRepository = new DexieAssetRepository(database);
+    const syncQueueRepository = new DexieSyncQueueRepository(database);
+    const syncStateRepository = new DexieSyncStateRepository(database);
+    const conflictDraftRepository = new DexieConflictDraftRepository(database);
+    const collectionRepository = new DexieCollectionRepository(database);
+    const collectionMaterialRepository = new DexieCollectionMaterialRepository(database);
 
     const aiService = new WorkerAiAdapter();
     const aiVisionExtractor = new AiVisionExtractor(aiService);
@@ -138,34 +164,34 @@ export function createInfrastructure(
 
     const repositories: Repositories = {
         document: documentRepository,
-        documentContent: dexieDocumentContentRepository,
-        annotation: dexieAnnotationRepository,
-        library: dexieLibraryRepository,
-        question: withAnalyticsPoolInvalidation(dexieQuestionRepository, invalidateAnalytics),
-        quiz: dexieQuizRepository,
-        quizSession: dexieQuizSessionRepository,
-        quizDraft: dexieQuizDraftRepository,
-        flashcardReview: dexieFlashcardReviewRepository,
-        analytics: dexieAnalyticsRepository,
-        aiChat: dexieAiChatRepository,
+        documentContent: documentContentRepository,
+        annotation: annotationRepository,
+        library: libraryRepository,
+        question: withAnalyticsPoolInvalidation(questionRepository, invalidateAnalytics),
+        quiz: quizRepository,
+        quizSession: quizSessionRepository,
+        quizDraft: quizDraftRepository,
+        flashcardReview: flashcardReviewRepository,
+        analytics: analyticsRepository,
+        aiChat: aiChatRepository,
         aiModelCatalog: aiModelCatalogRepository,
-        preferences: dexiePreferencesRepository,
-        importAsset: dexieImportAssetRepository,
-        asset: dexieAssetRepository,
-        syncQueue: dexieSyncQueueRepository,
-        syncState: dexieSyncStateRepository,
-        conflictDraft: dexieConflictDraftRepository,
-        collection: dexieCollectionRepository,
-        collectionMaterial: dexieCollectionMaterialRepository,
+        preferences: preferencesRepository,
+        importAsset: importAssetRepository,
+        asset: assetRepository,
+        syncQueue: syncQueueRepository,
+        syncState: syncStateRepository,
+        conflictDraft: conflictDraftRepository,
+        collection: collectionRepository,
+        collectionMaterial: collectionMaterialRepository,
     };
 
     return {
-        db,
+        db: database,
         repositories,
         services: {
-            quizEditor: new DexieQuizEditorService(db),
-            libraryImport: new DexieLibraryImportService(db),
-            studyPackageImport: new DexieStudyPackageImportService(db),
+            quizEditor: new DexieQuizEditorService(database),
+            libraryImport: new DexieLibraryImportService(database),
+            studyPackageImport: new DexieStudyPackageImportService(database),
             ai: aiService,
         },
         transports: {
@@ -176,6 +202,21 @@ export function createInfrastructure(
             credentials: localStorageCredentialsProvider,
         },
         importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
-        syncReconciler: dexieSyncReconciler,
+        syncReconciler: new DexieSyncReconciler(database),
     };
+}
+
+/**
+ * Asynchronously resolves the active vault pointer from `VaultRegistry`, sets it as the active
+ * vault database, and instantiates the application infrastructure.
+ */
+export async function createInfrastructureAsync(
+    invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+    preferredSub?: string,
+    registry: VaultRegistryPort = vaultRegistry,
+): Promise<Infrastructure> {
+    const activeVault = await registry.getActiveVault(preferredSub);
+    const database = openVaultDatabase(activeVault.physicalDbName);
+    setActiveVaultDatabase(database);
+    return createInfrastructure(invalidateAnalytics, database);
 }

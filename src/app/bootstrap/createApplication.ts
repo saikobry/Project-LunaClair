@@ -1,11 +1,12 @@
 import type { Infrastructure, Repositories } from './createInfrastructure';
-import { createInfrastructure } from './createInfrastructure';
+import { createInfrastructure, createInfrastructureAsync } from './createInfrastructure';
 import type { UseCases } from './createUseCases';
 import { createUseCases } from './createUseCases';
 import {
     noopAnalyticsCacheInvalidator,
     type AnalyticsCacheInvalidator,
 } from './analyticsInvalidation';
+import type { LunaClairDatabase } from '../../infrastructure/database/schema/LunaClairDatabase';
 
 /**
  * Top-level application container exposed to the React UI via ApplicationContext.
@@ -32,8 +33,27 @@ export interface Application {
  */
 export function createApplication(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+    database?: LunaClairDatabase,
 ): Application {
-    const infrastructure = createInfrastructure(invalidateAnalytics);
+    const infrastructure = createInfrastructure(invalidateAnalytics, database);
+
+    return {
+        repositories: infrastructure.repositories,
+        useCases: createUseCases(infrastructure, invalidateAnalytics),
+        infrastructure,
+    };
+}
+
+/**
+ * Asynchronous Composition Root.
+ * Resolves the active vault pointer from `VaultRegistry`, binds the active database,
+ * and composes the application container.
+ */
+export async function createApplicationAsync(
+    invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+    preferredSub?: string,
+): Promise<Application> {
+    const infrastructure = await createInfrastructureAsync(invalidateAnalytics, preferredSub);
 
     return {
         repositories: infrastructure.repositories,

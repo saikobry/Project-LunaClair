@@ -8,18 +8,24 @@ import { buildCardKeyPool } from '../../../domain/analytics/engines/cardKeyPool'
 import { computeCardMaturity, computeReviewForecast } from '../../../domain/analytics/engines/retentionEngine';
 import { computeTopicMastery } from '../../../domain/analytics/engines/masteryEngine';
 import { buildActivityCalendar } from '../../../domain/analytics/engines/activityEngine';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 export class DexieAnalyticsRepository implements AnalyticsRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getGlobalAnalytics(signal?: AbortSignal): Promise<GlobalAnalytics> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
         // Fetch all raw datasets concurrently
         const [sessions, reviews, questions] = await Promise.all([
             // Index lookup rather than a full-store scan with a JS predicate (v15 added `status`).
-            db.quizSessions.where('status').equals('completed').toArray(),
-            db.flashcardReviews.toArray(),
-            db.questions.toArray(),
+            this.db.quizSessions.where('status').equals('completed').toArray(),
+            this.db.flashcardReviews.toArray(),
+            this.db.questions.toArray(),
         ]);
 
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -54,13 +60,13 @@ export class DexieAnalyticsRepository implements AnalyticsRepository {
     async getMaterialAnalytics(materialId: string, signal?: AbortSignal): Promise<MaterialAnalytics | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        const material = await db.materials.get(materialId);
+        const material = await this.db.materials.get(materialId);
         if (!material) return null;
 
         const [questions, reviews, sessions] = await Promise.all([
-            db.questions.where('materialId').equals(materialId).toArray(),
-            db.flashcardReviews.where('materialId').equals(materialId).toArray(),
-            db.quizSessions.where('status').equals('completed').toArray(),
+            this.db.questions.where('materialId').equals(materialId).toArray(),
+            this.db.flashcardReviews.where('materialId').equals(materialId).toArray(),
+            this.db.quizSessions.where('status').equals('completed').toArray(),
         ]);
 
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');

@@ -6,27 +6,33 @@ import type {
     QuizSessionRepository,
     CreateSessionInput,
 } from '../../../domain/quiz/repositories/QuizSessionRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
 export class DexieQuizSessionRepository implements QuizSessionRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getSessions(quizId: string, signal?: AbortSignal): Promise<QuizSession[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return db.quizSessions.where('quizId').equals(quizId).toArray();
+        return this.db.quizSessions.where('quizId').equals(quizId).toArray();
     }
 
     async getAllCompletedSessions(signal?: AbortSignal): Promise<QuizSession[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         // Index lookup instead of a full-store scan with a JS predicate (v15 added `status`).
-        return db.quizSessions.where('status').equals('completed').toArray();
+        return this.db.quizSessions.where('status').equals('completed').toArray();
     }
 
     async getSessionById(id: string, signal?: AbortSignal): Promise<QuizSession | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return (await db.quizSessions.get(id)) ?? null;
+        return (await this.db.quizSessions.get(id)) ?? null;
     }
 
     /**
@@ -36,17 +42,17 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
      * Virtual quizzes ({ source: 'virtual' }) are created in-memory without persisting to db.quizzes.
      */
     async createSession(input: CreateSessionInput): Promise<QuizSession> {
-        return db.transaction('rw', [db.quizSessions, db.quizzes, db.questions], async () => {
+        return this.db.transaction('rw', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
             let quiz: Quiz | undefined;
 
             if (input.source === 'virtual') {
                 quiz = input.quiz;
             } else {
-                quiz = await db.quizzes.get(input.quizId);
+                quiz = await this.db.quizzes.get(input.quizId);
                 if (!quiz) throw new Error(`Quiz not found: ${input.quizId}`);
             }
 
-            const questions = await db.questions
+            const questions = await this.db.questions
                 .where('id')
                 .anyOf(quiz.questionIds)
                 .toArray();
@@ -66,7 +72,7 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
                 startedAt: new Date().toISOString(),
             };
 
-            await db.quizSessions.put(session);
+            await this.db.quizSessions.put(session);
             return session;
         });
     }
@@ -76,8 +82,8 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
         answers: SubmittedAnswer[],
         score: QuizSession['score'],
     ): Promise<QuizSession> {
-        return db.transaction('rw', [db.quizSessions, db.syncQueue], async () => {
-            const existing = await db.quizSessions.get(id);
+        return this.db.transaction('rw', [this.db.quizSessions, this.db.syncQueue], async () => {
+            const existing = await this.db.quizSessions.get(id);
             if (!existing) throw new Error(`QuizSession not found: ${id}`);
 
             const updated: QuizSession = {
@@ -87,9 +93,9 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
                 score,
                 completedAt: new Date().toISOString(),
             };
-            await db.quizSessions.put(updated);
+            await this.db.quizSessions.put(updated);
 
-            await db.syncQueue.put({
+            await this.db.syncQueue.put({
                 id: crypto.randomUUID(),
                 clientMutationId: crypto.randomUUID(),
                 entityType: 'quizSession',
@@ -107,7 +113,7 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
     }
 
     async deleteSession(id: string): Promise<void> {
-        await db.quizSessions.delete(id);
+        await this.db.quizSessions.delete(id);
     }
 }
 

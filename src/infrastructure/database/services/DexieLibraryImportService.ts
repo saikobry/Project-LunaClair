@@ -1,6 +1,6 @@
 import type { LibraryImportService } from '../../../domain/library/services/LibraryImportService';
 import { DexieFlashcardReviewRepository } from '../repositories/DexieFlashcardReviewRepository';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Concrete `LibraryImportService` backed by Dexie.
@@ -38,7 +38,7 @@ export class DexieLibraryImportService implements LibraryImportService {
     private readonly db: LunaClairDatabase;
     private readonly flashcardReviews: DexieFlashcardReviewRepository;
 
-    constructor(db: LunaClairDatabase = defaultDb) {
+    constructor(db: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = db;
         this.flashcardReviews = new DexieFlashcardReviewRepository(db);
     }

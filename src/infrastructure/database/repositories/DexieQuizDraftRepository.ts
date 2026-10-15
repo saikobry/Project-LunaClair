@@ -1,6 +1,6 @@
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { QuizDraftRepository } from '../../../application/quiz-management/drafts/QuizDraftRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function latestByUpdatedAt(drafts: QuizDraft[]): QuizDraft | null {
     if (drafts.length === 0) return null;
@@ -16,29 +16,35 @@ function latestByUpdatedAt(drafts: QuizDraft[]): QuizDraft | null {
  * Question Bank / Quiz Catalog state.
  */
 export class DexieQuizDraftRepository implements QuizDraftRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getDraft(draftId: string, signal?: AbortSignal): Promise<QuizDraft | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return (await db.quizEditingDrafts.get(draftId)) ?? null;
+        return (await this.db.quizEditingDrafts.get(draftId)) ?? null;
     }
 
     async getDraftForQuiz(quizId: string, signal?: AbortSignal): Promise<QuizDraft | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const drafts = await db.quizEditingDrafts.where('quizId').equals(quizId).toArray();
+        const drafts = await this.db.quizEditingDrafts.where('quizId').equals(quizId).toArray();
         return latestByUpdatedAt(drafts);
     }
 
     async getDraftForMaterial(materialId: string, signal?: AbortSignal): Promise<QuizDraft | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const drafts = await db.quizEditingDrafts.where('materialId').equals(materialId).toArray();
+        const drafts = await this.db.quizEditingDrafts.where('materialId').equals(materialId).toArray();
         return latestByUpdatedAt(drafts);
     }
 
     async saveDraft(draft: QuizDraft): Promise<void> {
-        await db.quizEditingDrafts.put(draft);
+        await this.db.quizEditingDrafts.put(draft);
     }
 
     async deleteDraft(draftId: string): Promise<void> {
-        await db.quizEditingDrafts.delete(draftId);
+        await this.db.quizEditingDrafts.delete(draftId);
     }
 }
 

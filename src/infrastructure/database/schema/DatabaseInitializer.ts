@@ -1,4 +1,4 @@
-import { db } from './LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from './LunaClairDatabase';
 import { DatabaseMigrator } from './DatabaseMigrator';
 import {
     DatabaseReloadRequiredError,
@@ -31,19 +31,24 @@ ows it (`DatabaseReloadRequiredError`) — the only correct recovery is a reload
 export class DatabaseInitializer {
     private static initialized = false;
 
-    static async initialize(): Promise<void> {
+    static async initialize(database: LunaClairDatabase = getActiveVaultDatabase()): Promise<void> {
         if (DatabaseInitializer.initialized) return;
 
-        const storedVersion = await readStoredDatabaseVersion(db.name);
-        if (storedVersion !== null && isStoredDatabaseNewer(storedVersion, db.verno)) {
-            throw new DatabaseReloadRequiredError('app-updated', db.name);
+        const storedVersion = await readStoredDatabaseVersion(database.name);
+        if (storedVersion !== null && isStoredDatabaseNewer(storedVersion, database.verno)) {
+            throw new DatabaseReloadRequiredError('app-updated', database.name);
         }
 
-        await db.open();
+        await database.open();
 
-        const migrator = new DatabaseMigrator(db);
+        const migrator = new DatabaseMigrator(database);
         await migrator.migrateIfNeeded();
 
         DatabaseInitializer.initialized = true;
+    }
+
+    /** Reset initialization state for testing purposes. */
+    static resetForTesting(): void {
+        DatabaseInitializer.initialized = false;
     }
 }

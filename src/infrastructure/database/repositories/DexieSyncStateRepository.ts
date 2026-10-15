@@ -1,6 +1,6 @@
 import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
 import type { SyncState } from '../../../domain/sync/models/sync.types';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * Dexie-backed implementation of `SyncStateRepository` for local sync checkpoint state.
@@ -8,7 +8,7 @@ import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairData
 export class DexieSyncStateRepository implements SyncStateRepository {
     private readonly db: LunaClairDatabase;
 
-    constructor(database: LunaClairDatabase = defaultDb) {
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
         this.db = database;
     }
 

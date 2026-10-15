@@ -1,11 +1,11 @@
 import type { Collection, UpdateCollectionInput } from '../../../domain/collections/models/Collection';
 import type { CollectionRepository } from '../../../domain/collections/repositories/CollectionRepository';
-import { db, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 export class DexieCollectionRepository implements CollectionRepository {
     private readonly database: LunaClairDatabase;
 
-    constructor(database: LunaClairDatabase = db) {
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
         this.database = database;
     }
 

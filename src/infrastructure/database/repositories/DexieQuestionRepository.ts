@@ -7,7 +7,7 @@ import type {
 import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
 import { normalizeTags } from '../../../shared/utils/tags';
 import { DexieFlashcardReviewRepository } from './DexieFlashcardReviewRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 function generateId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -19,26 +19,32 @@ function blankKeyPrefix(questionId: string): string {
 }
 
 export class DexieQuestionRepository implements QuestionRepository {
+    private readonly db: LunaClairDatabase;
     /**
      * The single owner of review-state clearing for this repository, so a
      * question delete and the authoring use cases share one tombstone path.
      */
-    private readonly flashcardReviews = new DexieFlashcardReviewRepository();
+    private readonly flashcardReviews: DexieFlashcardReviewRepository;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+        this.flashcardReviews = new DexieFlashcardReviewRepository(database);
+    }
 
     async getQuestions(materialId: string, signal?: AbortSignal): Promise<Question[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return db.questions.where('materialId').equals(materialId).toArray();
+        return this.db.questions.where('materialId').equals(materialId).toArray();
     }
 
     async getQuestionById(id: string, signal?: AbortSignal): Promise<Question | null> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        return (await db.questions.get(id)) ?? null;
+        return (await this.db.questions.get(id)) ?? null;
     }
 
     async getQuestionsByIds(ids: string[], signal?: AbortSignal): Promise<Question[]> {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         if (ids.length === 0) return [];
-        return db.questions.where('id').anyOf(ids).toArray();
+        return this.db.questions.where('id').anyOf(ids).toArray();
     }
 
     async createQuestion(input: CreateQuestionInput): Promise<Question> {
@@ -58,7 +64,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             createdAt: now,
             updatedAt: now,
         };
-        await db.questions.put(question);
+        await this.db.questions.put(question);
         return question;
     }
 
@@ -81,15 +87,15 @@ export class DexieQuestionRepository implements QuestionRepository {
             updatedAt: now,
         }));
 
-        await db.transaction('rw', db.questions, async () => {
-            await db.questions.bulkPut(questions);
+        await this.db.transaction('rw', this.db.questions, async () => {
+            await this.db.questions.bulkPut(questions);
         });
 
         return questions;
     }
 
     async updateQuestion(id: string, input: UpdateQuestionInput): Promise<Question> {
-        const existing = await db.questions.get(id);
+        const existing = await this.db.questions.get(id);
         if (!existing) throw new Error(`Question not found: ${id}`);
 
         const updated: Question = {
@@ -99,7 +105,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             version: existing.version + 1,
             updatedAt: new Date().toISOString(),
         };
-        await db.questions.put(updated);
+        await this.db.questions.put(updated);
         return updated;
     }
 
@@ -129,17 +135,17 @@ export class DexieQuestionRepository implements QuestionRepository {
      * outbox writes either all land or none do.
      */
     async deleteQuestion(id: string): Promise<void> {
-        await db.transaction('rw', [db.questions, db.flashcardReviews, db.syncQueue], async () => {
-            const blankKeys = await db.flashcardReviews
+        await this.db.transaction('rw', [this.db.questions, this.db.flashcardReviews, this.db.syncQueue], async () => {
+            const blankKeys = await this.db.flashcardReviews
                 .where('key')
                 .startsWith(blankKeyPrefix(id))
                 .primaryKeys();
 
             const keys: string[] = [...blankKeys];
             const wholeKey = cardKeyForQuestion(id);
-            if (await db.flashcardReviews.get(wholeKey)) keys.push(wholeKey);
+            if (await this.db.flashcardReviews.get(wholeKey)) keys.push(wholeKey);
 
-            await db.questions.delete(id);
+            await this.db.questions.delete(id);
             await this.flashcardReviews.deleteByKeys(keys);
         });
     }

@@ -1,6 +1,6 @@
 import type { AiGroundingMode, AiSelectionThreadMode } from '../../../domain/ai/models/ai.types';
 import type { PreferencesRepository } from '../../../domain/preferences/repositories/PreferencesRepository';
-import { db, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 
 /**
  * The `preferences` row key holding the new-conversation grounding default.
@@ -34,7 +34,7 @@ export const AI_PREFERRED_MODEL_KEY = 'ai.preferredModelId';
 export class DexiePreferencesRepository implements PreferencesRepository {
   private readonly database: LunaClairDatabase;
 
-  constructor(database: LunaClairDatabase = db) {
+  constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
     this.database = database;
   }
 

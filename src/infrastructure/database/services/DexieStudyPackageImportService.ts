@@ -3,7 +3,7 @@ import type {
   ImportStudyPackageRecords,
 } from '../../../domain/package/services/StudyPackageImportService';
 import { base64ToBlob } from '../../../domain/package/engines/StudyPackageSerializer';
-import { db as defaultDb, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
 
 /**
@@ -15,7 +15,7 @@ import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepos
 export class DexieStudyPackageImportService implements StudyPackageImportService {
   private readonly db: LunaClairDatabase;
 
-  constructor(db: LunaClairDatabase = defaultDb) {
+  constructor(db: LunaClairDatabase = getActiveVaultDatabase()) {
     this.db = db;
   }
 

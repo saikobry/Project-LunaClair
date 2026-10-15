@@ -1,6 +1,6 @@
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { DocumentContentRepository } from '../../../domain/reader/repositories/DocumentContentRepository';
-import { db } from '../schema/LunaClairDatabase';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { runSyncableTransaction } from '../sync/transactionalOutbox';
 
 /**
@@ -10,12 +10,18 @@ import { runSyncableTransaction } from '../sync/transactionalOutbox';
  * truth for library membership.
  */
 export class DexieDocumentContentRepository implements DocumentContentRepository {
+    private readonly db: LunaClairDatabase;
+
+    constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+        this.db = database;
+    }
+
     async getByDocumentId(documentId: string): Promise<ImportedDocumentContent | null> {
-        return (await db.documentContents.get(documentId)) ?? null;
+        return (await this.db.documentContents.get(documentId)) ?? null;
     }
 
     async put(record: ImportedDocumentContent): Promise<void> {
-        const existing = await db.documentContents.get(record.documentId);
+        const existing = await this.db.documentContents.get(record.documentId);
         const baseVersion = existing?.version ?? 0;
         const nextVersion = baseVersion + 1;
         const updatedRecord: ImportedDocumentContent = {
@@ -24,8 +30,8 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
         };
 
         await runSyncableTransaction(
-            db,
-            [db.documentContents],
+            this.db,
+            [this.db.documentContents],
             {
                 entityType: 'document',
                 entityId: record.documentId,
@@ -40,18 +46,18 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
                 },
             },
             async () => {
-                await db.documentContents.put(updatedRecord);
+                await this.db.documentContents.put(updatedRecord);
             }
         );
     }
 
     async deleteByDocumentId(documentId: string): Promise<void> {
-        const existing = await db.documentContents.get(documentId);
+        const existing = await this.db.documentContents.get(documentId);
         const baseVersion = existing?.version ?? 1;
 
         await runSyncableTransaction(
-            db,
-            [db.documentContents],
+            this.db,
+            [this.db.documentContents],
             {
                 entityType: 'document',
                 entityId: documentId,
@@ -66,7 +72,7 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
                 },
             },
             async () => {
-                await db.documentContents.delete(documentId);
+                await this.db.documentContents.delete(documentId);
             }
         );
     }

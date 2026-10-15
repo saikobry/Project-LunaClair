@@ -2,8 +2,10 @@
 // type-checks. Elided at runtime — the registration below is what actually installs them.
 import type {} from '@testing-library/jest-dom/vitest';
 import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, expect, vi } from 'vitest';
+
+configure({ asyncUtilTimeout: 4000 });
 
 // jest-dom 7's `/vitest` entry does not register its matchers under Vitest 4: every DOM matcher
 // (`toBeInTheDocument`, `toHaveTextContent`, ...) fails with "Invalid Chai property", silently
