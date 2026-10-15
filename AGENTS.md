@@ -89,7 +89,7 @@ Every rule has exactly one owning statement. These five rules enforce that, and 
 
 **Studio:** Saiko Interactive
 **Type:** AI-powered learning platform
-**Phase:** 12 complete (Responsive Shell Experience & Architectural Hardening — through 12M, 2026-10-06; `v0.3.0` released to production; see `docs/roadmap.md`)
+**Phase:** 13 complete (Cloudflare Developer Platform Modernization — Oct 2026; see `docs/roadmap.md` and `docs/architecture/adr/ADR-017-cloudflare-cli-and-worker-workspace-modernization.md`)
 
 ## Stack
 

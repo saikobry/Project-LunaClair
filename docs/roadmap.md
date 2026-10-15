@@ -177,6 +177,13 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 **Current metrics (as of `8be5fb4`):** 349 Vitest test files (329 under `src/`, 20 under `worker/`; the Playwright E2E suite is separate — 20 `*.spec.ts` under `tests/e2e/`), superseding the 12E milestone figure. 22 commits landed in the 12F–12K window (+16,088 / −4,104 across 198 files).
 
+- ✅ **Phase 13 (Cloudflare Developer Platform Modernization — Oct 2026):**
+  - **Worker workspace decoupling (ADR-017):** isolated `worker/` into an npm workspace package (`worker/package.json`) with dedicated dependencies (`drizzle-orm`, `drizzle-kit`, `cf`, `@cloudflare/vite-plugin`), eliminating `@cloudflare/autoconfig` hijacking the client React Vite pipeline at repo root.
+  - **Tooling modernization:** fully retired legacy Wrangler CLI and `wrangler.jsonc` across all npm scripts and documentation; adopted typed programmatic configuration in `worker/cloudflare.config.ts` (`ctx.mode` branching for staging and production).
+  - **Native Vite Worker runtime:** integrated `@cloudflare/vite-plugin` in `worker/vite.config.ts` with explicit host-binding (`port: 8787, host: true`) providing robust dual-stack IPv4/IPv6 support for the client's local Vite dev proxy (`/api` -> `http://localhost:8787`).
+  - **Local persistence alignment:** unified Miniflare simulated D1 persistence between `@cloudflare/vite-plugin` and `cf d1 migrations apply` via `--persist-to .cloudflare/state`.
+  - **Developer skills & DOX contracts:** aligned global agent skills with official `cf-cli`, documented Phase 13 in `docs/architecture/adr/ADR-017-cloudflare-cli-and-worker-workspace-modernization.md`, and updated root and Worker DOX contracts.
+
 ---
 
 ## Planned Phases
