@@ -36,6 +36,13 @@ import {
 } from '../../../domain/sync/utils/hlc';
 import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
 import { dexieSyncStateRepository } from '../../database/repositories/DexieSyncStateRepository';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../../database/schema/LunaClairDatabase';
+import {
+  collectVaultChunksGzipped,
+  deriveEntityHlc,
+  paginateTable,
+} from '../google/streamVaultChunksGzipped';
+import { compareLwwTimestamps } from '../../../domain/sync/utils/syncVersioning';
 
 export interface JournalPayload {
   hlc: string;
@@ -51,23 +58,27 @@ export interface GoogleDriveSyncTransportOptions {
   authService?: GoogleAuthPort;
   hlc?: HybridLogicalClock;
   stateRepo?: SyncStateRepository;
+  db?: LunaClairDatabase;
 }
 
 export class GoogleDriveSyncTransport implements SyncTransport {
   private readonly driveClient: GoogleDrivePort;
   private readonly authService: GoogleAuthPort;
   private readonly stateRepo: SyncStateRepository;
+  private readonly db: LunaClairDatabase;
   private readonly hlcs: Map<string, HybridLogicalClock>;
   private readonly pageTokens: Map<string, string>;
   private readonly appliedFileIds: Set<string>;
   private readonly peerWatermarks: Record<string, string>;
   private currentSequence: number;
   private pushSequence: number;
+  private driveSeeded: boolean;
 
   constructor(options: GoogleDriveSyncTransportOptions = {}) {
     this.driveClient = options.driveClient ?? googleDriveClient;
     this.authService = options.authService ?? googleAuthService;
     this.stateRepo = options.stateRepo ?? dexieSyncStateRepository;
+    this.db = options.db ?? getActiveVaultDatabase();
     this.hlcs = new Map();
     if (options.hlc) {
       this.hlcs.set('default', options.hlc);
@@ -77,6 +88,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     this.peerWatermarks = {};
     this.currentSequence = 0;
     this.pushSequence = 0;
+    this.driveSeeded = false;
   }
 
   /**
@@ -198,9 +210,20 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       // 2. Call allFiles = await this.driveClient.listFiles(accessToken) at t1.
       const allFiles = await this.driveClient.listFiles(accessToken);
 
-      // 3. Discover all existing unapplied journal files in appDataFolder to hydrate past journals.
+      // Baseline Seeding: Cold remote check when not yet driveSeeded
+      if (!this.driveSeeded) {
+        const syncFiles = allFiles.filter(
+          (file) => !file.trashed && this.isSyncFile(file)
+        );
+        if (syncFiles.length === 0) {
+          // Cold Remote: seed Dexie vault as baseline snapshot
+          await this.seedColdRemote(credentials, accessToken, signal);
+        }
+      }
+
+      // 3. Discover all existing unapplied sync files in appDataFolder to hydrate past journals/snapshots.
       for (const file of allFiles) {
-        if (this.isJournalFile(file) && !this.appliedFileIds.has(file.id)) {
+        if (this.isSyncFile(file) && !this.appliedFileIds.has(file.id)) {
           recoveredMissingFiles.push(file);
         }
       }
@@ -269,7 +292,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     for (const file of recoveredMissingFiles) {
       if (
-        this.isJournalFile(file) &&
+        this.isSyncFile(file) &&
         !this.appliedFileIds.has(file.id) &&
         !seenCandidateFileIds.has(file.id)
       ) {
@@ -345,6 +368,12 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       }
     }
 
+    // Baseline Seeding: Warm remote check when not yet driveSeeded
+    if (!this.driveSeeded) {
+      await this.seedWarmRemoteDeltas(credentials, changes, accessToken, signal);
+      this.driveSeeded = true;
+    }
+
     // Only after downloading and applying hydrated files, commit pageToken and persist transport state
     const tokenToCommit =
       pendingTokenToCommit ?? changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
@@ -404,9 +433,18 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     void this.clearStateAsync(credentials);
   }
 
+  isDriveSeeded(): boolean {
+    return this.driveSeeded;
+  }
+
+  setDriveSeeded(seeded: boolean): void {
+    this.driveSeeded = seeded;
+  }
+
   async clearStateAsync(credentials?: SessionCredentials): Promise<void> {
     this.pageTokens.clear();
     this.appliedFileIds.clear();
+    this.driveSeeded = false;
     for (const key of Object.keys(this.peerWatermarks)) {
       delete this.peerWatermarks[key];
     }
@@ -420,6 +458,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
             pageToken: undefined,
             appliedFileIds: [],
             peerWatermarks: {},
+            driveSeeded: false,
           });
         }
       } catch {
@@ -433,6 +472,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     try {
       const stored = await this.stateRepo.getSyncState(tokenKey);
       if (stored) {
+        if (typeof stored.driveSeeded === 'boolean') {
+          this.driveSeeded = stored.driveSeeded;
+        }
         if (stored.pageToken && !this.pageTokens.has(tokenKey)) {
           this.pageTokens.set(tokenKey, stored.pageToken);
         }
@@ -475,6 +517,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         pageToken: pageToken ?? existing?.pageToken,
         appliedFileIds: appliedList,
         peerWatermarks: { ...this.peerWatermarks },
+        driveSeeded: this.driveSeeded || Boolean(existing?.driveSeeded),
       };
 
       await this.stateRepo.saveSyncState(state);
@@ -500,7 +543,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     if (metadata.appProperties?.hlc) {
       return metadata.appProperties.hlc;
     }
-    const match = /^journal_(.+)\.json\.gz$/.exec(metadata.name ?? '');
+    const match = /^(?:journal|snapshot)_(.+)\.json\.gz$/.exec(metadata.name ?? '');
     if (match?.[1]) {
       return match[1];
     }
@@ -556,7 +599,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     return false;
   }
 
-  private isJournalFile(file: DriveFileMetadata): boolean {
+  isJournalFile(file: DriveFileMetadata): boolean {
     if (file.trashed) {
       return false;
     }
@@ -567,6 +610,287 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       return true;
     }
     return false;
+  }
+
+  isSnapshotFile(file: DriveFileMetadata): boolean {
+    if (file.trashed) {
+      return false;
+    }
+    if (file.appProperties?.type === 'snapshot') {
+      return true;
+    }
+    if (file.name && file.name.startsWith('snapshot_') && file.name.endsWith('.json.gz')) {
+      return true;
+    }
+    return false;
+  }
+
+  isSyncFile(file: DriveFileMetadata): boolean {
+    return this.isJournalFile(file) || this.isSnapshotFile(file);
+  }
+
+  private async seedColdRemote(
+    credentials: SessionCredentials,
+    accessToken: string,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const chunks = await collectVaultChunksGzipped(this.db, credentials.deviceId);
+    signal?.throwIfAborted();
+
+    for (const chunk of chunks) {
+      signal?.throwIfAborted();
+      const fileName = `snapshot_${chunk.hlc}_${credentials.deviceId}.json.gz`;
+      const appProperties: Record<string, string> = {
+        type: 'snapshot',
+        deviceId: credentials.deviceId,
+        hlc: chunk.hlc,
+        count: String(chunk.mutations.length),
+      };
+
+      const snapshotPayload = {
+        version: 1,
+        hlc: chunk.hlc,
+        deviceId: credentials.deviceId,
+        createdAt: chunk.createdAt,
+        coveredJournalFileIds: [],
+        watermarks: { [credentials.deviceId]: chunk.hlc },
+        mutations: chunk.mutations,
+      };
+
+      let uploadedFile: DriveFileMetadata;
+      if (typeof this.driveClient.uploadCompressedJson === 'function') {
+        uploadedFile = await this.driveClient.uploadCompressedJson(
+          fileName,
+          snapshotPayload,
+          appProperties,
+          accessToken,
+          ['appDataFolder']
+        );
+      } else {
+        uploadedFile = await this.driveClient.uploadFile({
+          name: fileName,
+          content: chunk.compressedGzip,
+          compress: false,
+          mimeType: 'application/gzip',
+          parents: ['appDataFolder'],
+          appProperties,
+          accessToken,
+        });
+      }
+
+      if (uploadedFile?.id) {
+        this.markFileApplied(uploadedFile.id);
+      }
+    }
+
+    this.driveSeeded = true;
+    await this.saveStateForCredentials(credentials);
+  }
+
+  private async seedWarmRemoteDeltas(
+    credentials: SessionCredentials,
+    remoteChanges: SyncChangeItem[],
+    accessToken: string,
+    signal?: AbortSignal
+  ): Promise<void> {
+    signal?.throwIfAborted();
+    const remoteTimestamps = new Map<string, string>();
+    for (const ch of remoteChanges) {
+      if (ch.entityId && ch.changedAt) {
+        const current = remoteTimestamps.get(ch.entityId);
+        if (!current || compareLwwTimestamps(ch.changedAt, current) === 'remote_wins') {
+          remoteTimestamps.set(ch.entityId, ch.changedAt);
+        }
+      }
+    }
+
+    const localDeltas: SyncMutation[] = [];
+    await this.collectLocalDeltas(remoteTimestamps, localDeltas, credentials.deviceId);
+    signal?.throwIfAborted();
+
+    if (localDeltas.length > 0) {
+      const hlc = this.getHlc(credentials.deviceId);
+      const currentHlc = hlc.now();
+      this.pushSequence += 1;
+
+      const fileName = `journal_${currentHlc}.json.gz`;
+      const journalPayload: JournalPayload = {
+        hlc: currentHlc,
+        deviceId: credentials.deviceId,
+        createdAt: new Date().toISOString(),
+        mutations: localDeltas,
+      };
+
+      const appProperties: Record<string, string> = {
+        type: 'journal',
+        deviceId: credentials.deviceId,
+        hlc: currentHlc,
+        seq: String(this.pushSequence),
+        count: String(localDeltas.length),
+      };
+
+      let uploadedFile: DriveFileMetadata;
+      if (typeof this.driveClient.uploadCompressedJson === 'function') {
+        uploadedFile = await this.driveClient.uploadCompressedJson(
+          fileName,
+          journalPayload,
+          appProperties,
+          accessToken,
+          ['appDataFolder']
+        );
+      } else {
+        uploadedFile = await this.driveClient.uploadFile({
+          name: fileName,
+          content: JSON.stringify(journalPayload),
+          compress: true,
+          parents: ['appDataFolder'],
+          appProperties,
+          accessToken,
+        });
+      }
+
+      if (uploadedFile?.id) {
+        this.markFileApplied(uploadedFile.id);
+      }
+    }
+
+    this.driveSeeded = true;
+    await this.saveStateForCredentials(credentials);
+  }
+
+  private async collectLocalDeltas(
+    remoteTimestamps: Map<string, string>,
+    deltas: SyncMutation[],
+    deviceId: string
+  ): Promise<void> {
+    // 1. Documents
+    for await (const doc of paginateTable(this.db.documentContents, 100)) {
+      const localTime = doc.updatedAt ?? new Date(0).toISOString();
+      const remoteTime = remoteTimestamps.get(doc.documentId);
+      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
+        const hlc = deriveEntityHlc(doc.updatedAt, deviceId);
+        deltas.push({
+          clientMutationId: `baseline-delta-doc-${doc.documentId}`,
+          entityType: 'document',
+          entityId: doc.documentId,
+          operation: 'UPSERT',
+          baseVersion: doc.version ?? 1,
+          clientTimestamp: hlc,
+          payload: {
+            documentId: doc.documentId,
+            title: doc.title,
+            content: doc.content,
+            updatedAt: doc.updatedAt ?? new Date(0).toISOString(),
+            version: doc.version ?? 1,
+          },
+        });
+      }
+    }
+
+    // 2. Highlights
+    for await (const hl of paginateTable(this.db.highlights, 100)) {
+      const localTime = hl.deletedAt ?? hl.createdAt ?? new Date(0).toISOString();
+      const remoteTime = remoteTimestamps.get(hl.id);
+      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
+        const hlc = deriveEntityHlc(hl.deletedAt ?? hl.createdAt, deviceId);
+        deltas.push({
+          clientMutationId: `baseline-delta-hl-${hl.id}`,
+          entityType: 'highlight',
+          entityId: hl.id,
+          operation: hl.deletedAt ? 'DELETE' : 'UPSERT',
+          clientTimestamp: hlc,
+          payload: {
+            id: hl.id,
+            documentId: hl.documentId,
+            start: hl.start,
+            end: hl.end,
+            color: hl.color,
+            text: hl.text,
+            createdAt: hl.createdAt,
+            deletedAt: hl.deletedAt,
+          },
+        });
+      }
+    }
+
+    // 3. Drawings
+    for await (const dr of paginateTable(this.db.drawings, 100)) {
+      const localTime = dr.deletedAt ?? dr.createdAt ?? new Date(0).toISOString();
+      const remoteTime = remoteTimestamps.get(dr.id);
+      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
+        const hlc = deriveEntityHlc(dr.deletedAt ?? dr.createdAt, deviceId);
+        deltas.push({
+          clientMutationId: `baseline-delta-dr-${dr.id}`,
+          entityType: 'drawing',
+          entityId: dr.id,
+          operation: dr.deletedAt ? 'DELETE' : 'UPSERT',
+          clientTimestamp: hlc,
+          payload: {
+            id: dr.id,
+            documentId: dr.documentId,
+            color: dr.color,
+            thickness: dr.thickness,
+            points: dr.points,
+            isEraser: dr.isEraser,
+            createdAt: dr.createdAt,
+            deletedAt: dr.deletedAt,
+          },
+        });
+      }
+    }
+
+    // 4. Flashcard Reviews
+    for await (const fc of paginateTable(this.db.flashcardReviews, 100)) {
+      const localTime = fc.lastReviewedAt ?? fc.dueAt ?? new Date(0).toISOString();
+      const remoteTime = remoteTimestamps.get(fc.key);
+      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
+        const hlc = deriveEntityHlc(fc.lastReviewedAt ?? fc.dueAt, deviceId);
+        deltas.push({
+          clientMutationId: `baseline-delta-fc-${fc.key}`,
+          entityType: 'flashcardReview',
+          entityId: fc.key,
+          operation: 'UPSERT',
+          clientTimestamp: hlc,
+          payload: {
+            key: fc.key,
+            materialId: fc.materialId,
+            repetitions: fc.repetitions,
+            easeFactor: fc.easeFactor,
+            intervalDays: fc.intervalDays,
+            dueAt: fc.dueAt,
+            lapses: fc.lapses,
+            lastReviewedAt: fc.lastReviewedAt,
+            reviewCount: fc.reviewCount,
+          },
+        });
+      }
+    }
+
+    // 5. Quiz Sessions
+    for await (const qs of paginateTable(this.db.quizSessions, 100)) {
+      const remoteTime = remoteTimestamps.get(qs.id);
+      if (!remoteTime) {
+        const hlc = deriveEntityHlc(qs.completedAt ?? qs.startedAt, deviceId);
+        deltas.push({
+          clientMutationId: `baseline-delta-qs-${qs.id}`,
+          entityType: 'quizSession',
+          entityId: qs.id,
+          operation: 'APPEND',
+          clientTimestamp: hlc,
+          payload: {
+            id: qs.id,
+            quizId: qs.quizId,
+            mode: qs.mode,
+            status: qs.status,
+            questionSnapshots: qs.questionSnapshots,
+            answers: qs.answers,
+            score: qs.score,
+            startedAt: qs.startedAt,
+            completedAt: qs.completedAt,
+          },
+        });
+      }
+    }
   }
 }
 

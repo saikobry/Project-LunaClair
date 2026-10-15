@@ -95,7 +95,7 @@ describe('SyncSettingsSection', () => {
     );
   }
 
-  it('renders unauthenticated state with title, description, and connect button', () => {
+  it('renders unauthenticated state with title, description, connect button, and sync now button', () => {
     renderSection();
 
     expect(screen.getByRole('heading', { name: 'Google Drive Cloud Sync' })).toBeInTheDocument();
@@ -105,8 +105,18 @@ describe('SyncSettingsSection', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Connect Google Drive' })).toBeInTheDocument();
-    expect(screen.queryByText('Sync Now')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
+    expect(screen.getByText('Connect Google Drive to synchronize')).toBeInTheDocument();
     expect(screen.queryByText('Disconnect')).not.toBeInTheDocument();
+  });
+
+  it('invokes login action when Sync Now button is clicked while unauthenticated', async () => {
+    renderSection();
+
+    const syncNowBtn = screen.getByRole('button', { name: 'Sync Now' });
+    fireEvent.click(syncNowBtn);
+
+    expect(mockAuthService.login).toHaveBeenCalledTimes(1);
   });
 
   it('invokes login action when Connect Google Drive button is clicked', async () => {

@@ -160,15 +160,30 @@ export function SyncSettingsSection({ authService: propAuthService }: SyncSettin
 
           {!isAuthenticated ? (
             <div {...stylex.props(syncSettingsStyles.unauthContent)}>
-              <Button
-                label="Connect Google Drive"
-                variant="primary"
-                isLoading={isConnecting}
-                isDisabled={isConnecting}
-                onClick={handleConnect}
-              >
-                Connect Google Drive
-              </Button>
+              <div {...stylex.props(syncSettingsStyles.actionsRow)}>
+                <Button
+                  label="Connect Google Drive"
+                  variant="primary"
+                  isLoading={isConnecting}
+                  isDisabled={isConnecting}
+                  onClick={handleConnect}
+                >
+                  Connect Google Drive
+                </Button>
+                <Button
+                  label="Sync Now"
+                  variant="secondary"
+                  isLoading={isConnecting}
+                  isDisabled={isConnecting}
+                  onClick={handleConnect}
+                  tooltip="Connect Google Drive to synchronize"
+                >
+                  Sync Now
+                </Button>
+              </div>
+              <p {...stylex.props(syncSettingsStyles.unauthNote)}>
+                Connect Google Drive to synchronize
+              </p>
             </div>
           ) : (
             <>

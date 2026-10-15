@@ -72,6 +72,7 @@ export interface SyncState {
   pageToken?: string;
   appliedFileIds?: string[];
   peerWatermarks?: Record<string, string>;
+  driveSeeded?: boolean;
 }
 
 /**

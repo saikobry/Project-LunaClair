@@ -7,6 +7,7 @@ import {
   AlertCircle,
   AlertTriangle,
   PauseCircle,
+  CloudOff,
 } from 'lucide-react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { formatSyncTime } from '../utils/formatSyncTime';
@@ -83,6 +84,14 @@ const styles = stylex.create({
       backgroundColor: 'color-mix(in srgb, var(--color-warning) 22%, transparent)',
     },
   },
+  resting: {
+    color: 'var(--color-text-secondary)',
+    backgroundColor: 'var(--color-background-muted)',
+    borderColor: 'var(--color-border)',
+    ':hover': {
+      backgroundColor: 'var(--color-border)',
+    },
+  },
   offline: {
     color: 'var(--color-text-secondary)',
     backgroundColor: 'var(--color-background-muted)',
@@ -139,11 +148,20 @@ const styles = stylex.create({
 });
 
 export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
-  const { state, conflictCount, lastSyncedAt, lastError, triggerSync, reconnectAuth } = useSyncStatus();
+  const {
+    state,
+    conflictCount,
+    lastSyncedAt,
+    lastError,
+    triggerSync,
+    reconnectAuth,
+    authStatus,
+  } = useSyncStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // If conflict drafts exist, highest priority is conflict indicator
   const hasConflicts = conflictCount > 0;
+  const isUnauthenticated = authStatus === 'unauthenticated';
 
   const handleClick = () => {
     if (onClick) {
@@ -165,6 +183,9 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
       return `${conflictCount} conflict${conflictCount > 1 ? 's' : ''} detected. Click to resolve.`;
     }
     if (state === 'standby') {
+      if (isUnauthenticated) {
+        return 'Sync offline - connect Google Drive in Settings';
+      }
       return 'Cloud sync paused — tap to reconnect';
     }
     if (state === 'syncing') {
@@ -196,6 +217,16 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
 
     switch (state) {
       case 'standby':
+        if (isUnauthenticated) {
+          return (
+            <>
+              <CloudOff size={14} />
+              <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
+                Standby
+              </span>
+            </>
+          );
+        }
         return (
           <>
             <PauseCircle size={14} color="var(--color-warning)" />
@@ -256,7 +287,7 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
       case 'syncing':
         return styles.syncing;
       case 'standby':
-        return styles.standby;
+        return isUnauthenticated ? styles.resting : styles.standby;
       case 'offline':
         return styles.offline;
       case 'error':

@@ -1,22 +1,17 @@
 import type { SessionCredentials } from '../../../domain/sync/models/sync.types';
 import type { SessionCredentialsProvider } from '../../../domain/sync/services/SessionCredentialsProvider';
 import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
-import { getOrCreateDeviceId } from './deviceId';
 
 const CREDENTIALS_KEY = STORAGE_KEYS.sync?.sessionCredentials ?? 'lunaclair.session_credentials';
 
 /**
  * LocalStorage-backed implementation of `SessionCredentialsProvider`.
- * Manages active user authentication credentials and defaults to a guest identity.
+ * Manages active user authentication credentials. Returns null when unauthenticated.
  */
 export class LocalStorageCredentialsProvider implements SessionCredentialsProvider {
   async getCredentials(): Promise<SessionCredentials | null> {
     if (typeof localStorage === 'undefined') {
-      return {
-        userId: 'user_default',
-        deviceId: getOrCreateDeviceId(),
-        token: 'guest_token',
-      };
+      return null;
     }
 
     const raw = localStorage.getItem(CREDENTIALS_KEY);
@@ -32,18 +27,11 @@ export class LocalStorageCredentialsProvider implements SessionCredentialsProvid
           return parsed;
         }
       } catch {
-        // Corrupted credentials entry — proceed to default fallback below
+        // Corrupted credentials entry
       }
     }
 
-    // Default guest identity persisted transparently
-    const fallback: SessionCredentials = {
-      userId: 'user_default',
-      deviceId: getOrCreateDeviceId(),
-      token: 'guest_token',
-    };
-    await this.setCredentials(fallback);
-    return fallback;
+    return null;
   }
 
   async setCredentials(credentials: SessionCredentials): Promise<void> {

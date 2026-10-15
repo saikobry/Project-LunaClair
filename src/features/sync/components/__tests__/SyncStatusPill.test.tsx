@@ -35,7 +35,7 @@ describe('SyncStatusPill', () => {
       login: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),
       getSession: vi.fn().mockReturnValue(null),
-      getStatus: vi.fn().mockReturnValue('unauthenticated'),
+      getStatus: vi.fn().mockReturnValue('authenticated'),
       subscribe: vi.fn().mockReturnValue(() => {}),
       getValidAccessToken: vi.fn().mockResolvedValue('token'),
     };
@@ -185,5 +185,35 @@ describe('SyncStatusPill', () => {
 
     expect(mockAuth.login).toHaveBeenCalledTimes(1);
     expect(mockTriggerSync.execute).not.toHaveBeenCalled();
+  });
+
+  it('renders resting "Standby" affordance when unauthenticated with settings tooltip', () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    renderComponent();
+    expect(screen.getByText('Standby')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute(
+      'aria-label',
+      'Sync offline - connect Google Drive in Settings'
+    );
+  });
+
+  it('triggers auth login when clicked in unauthenticated state', async () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(mockAuth.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not display error state or pending badge when unauthenticated even if store has errors', () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    mockStore.setState({ state: 'error', pendingCount: 5, lastError: 'Fatal network drop' });
+
+    renderComponent();
+
+    expect(screen.getByText('Standby')).toBeInTheDocument();
+    expect(screen.queryByText('Sync error')).not.toBeInTheDocument();
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
   });
 });

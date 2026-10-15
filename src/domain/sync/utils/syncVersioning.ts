@@ -27,8 +27,10 @@ export function compareLwwTimestamps(
   localUpdatedAt: string,
   remoteUpdatedAt: string
 ): 'local_wins' | 'remote_wins' | 'equal' {
-  const localTime = new Date(localUpdatedAt).getTime();
-  const remoteTime = new Date(remoteUpdatedAt).getTime();
+  const localIso = localUpdatedAt.includes('_') ? localUpdatedAt.split('_')[0]! : localUpdatedAt;
+  const remoteIso = remoteUpdatedAt.includes('_') ? remoteUpdatedAt.split('_')[0]! : remoteUpdatedAt;
+  const localTime = new Date(localIso).getTime();
+  const remoteTime = new Date(remoteIso).getTime();
 
   if (isNaN(localTime) || isNaN(remoteTime)) {
     if (localUpdatedAt > remoteUpdatedAt) return 'local_wins';
@@ -38,6 +40,8 @@ export function compareLwwTimestamps(
 
   if (localTime > remoteTime) return 'local_wins';
   if (remoteTime > localTime) return 'remote_wins';
+  if (localUpdatedAt > remoteUpdatedAt) return 'local_wins';
+  if (remoteUpdatedAt > localUpdatedAt) return 'remote_wins';
   return 'equal';
 }
 

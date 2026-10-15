@@ -92,11 +92,7 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
     const infra = createInfrastructure();
     expect(infra.providers.auth).toBe(googleAuthService);
 
-    const workerPushSpy = vi.spyOn(workerSyncTransport, 'push').mockResolvedValueOnce({
-      accepted: [],
-      conflicts: [],
-      rejected: [],
-    });
+    const workerPushSpy = vi.spyOn(workerSyncTransport, 'push');
     const drivePushSpy = vi.spyOn(googleDriveSyncTransport, 'push').mockResolvedValueOnce({
       accepted: [],
       conflicts: [],
@@ -105,10 +101,17 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
 
     const getSessionSpy = vi.spyOn(googleAuthService, 'getSession');
 
-    // Case 1: unauthenticated -> workerSyncTransport
+    // Case 1: unauthenticated -> standbySyncTransport (no calls to worker or drive)
     getSessionSpy.mockReturnValueOnce(null);
-    await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
-    expect(workerPushSpy).toHaveBeenCalledTimes(1);
+    const pushResult = await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
+    expect(pushResult).toEqual({ accepted: [], conflicts: [], rejected: [] });
+    expect(workerPushSpy).not.toHaveBeenCalled();
+    expect(drivePushSpy).not.toHaveBeenCalled();
+
+    getSessionSpy.mockReturnValueOnce(null);
+    const pullResult = await infra.transports.sync.pull({ deviceId: 'dev-1' } as any, 10);
+    expect(pullResult).toEqual({ newCursor: 10, hasMore: false, changes: [] });
+    expect(workerPushSpy).not.toHaveBeenCalled();
     expect(drivePushSpy).not.toHaveBeenCalled();
 
     // Case 2: authenticated -> googleDriveSyncTransport
@@ -118,6 +121,7 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
     });
     await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
     expect(drivePushSpy).toHaveBeenCalledTimes(1);
+    expect(workerPushSpy).not.toHaveBeenCalled();
 
     getSessionSpy.mockRestore();
     workerPushSpy.mockRestore();

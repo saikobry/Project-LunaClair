@@ -46,7 +46,6 @@ import { DexieConflictDraftRepository } from '../../infrastructure/database/repo
 import { DexieCollectionRepository } from '../../infrastructure/database/repositories/DexieCollectionRepository';
 import { DexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
 import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
-import { workerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import { googleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { workerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
@@ -189,17 +188,26 @@ export function createInfrastructure(
         collectionMaterial: collectionMaterialRepository,
     };
 
+    const standbySyncTransport: SyncTransport = {
+        async push() {
+            return { accepted: [], conflicts: [], rejected: [] };
+        },
+        async pull(_credentials, cursor) {
+            return { newCursor: cursor, hasMore: false, changes: [] };
+        },
+    };
+
     const dynamicSyncTransport: SyncTransport = {
         async push(credentials, request, signal) {
             const transport = googleAuthService.getSession()
                 ? googleDriveSyncTransport
-                : workerSyncTransport;
+                : standbySyncTransport;
             return transport.push(credentials, request, signal);
         },
         async pull(credentials, cursor, limit, signal) {
             const transport = googleAuthService.getSession()
                 ? googleDriveSyncTransport
-                : workerSyncTransport;
+                : standbySyncTransport;
             return transport.pull(credentials, cursor, limit, signal);
         },
     };

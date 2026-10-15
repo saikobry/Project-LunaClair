@@ -15,6 +15,7 @@ import { ShellRoutes } from '../routing/ShellRoutes';
 import { useAppRoute } from '../routing/useAppRoute';
 import { useShellFocusMode } from './useShellFocusMode';
 import { BrowserSyncLifecycle } from '../../infrastructure/browser/lifecycle/BrowserSyncLifecycle';
+import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 
 // Re-export for components that consume the route type via the shell.
 export type { AppRoute };
@@ -56,28 +57,51 @@ function getShellRouteContext(currentRoute: AppRoute): {
 
 /**
  * Initializes background cloud auto-synchronization on application mount
- * when credentials are available.
+ * when credentials and an active Google session are available.
  */
 function useBackgroundSync(appContext: ApplicationContextValue | null) {
   useEffect(() => {
     const syncEngine = appContext?.useCases?.sync?.syncEngine;
     const credsProvider = appContext?.infrastructure?.providers?.credentials;
-    if (syncEngine && credsProvider) {
-      let cleanup: (() => void) | undefined;
-      void credsProvider.getCredentials().then((credentials) => {
-        if (credentials) {
+    const authService = appContext?.infrastructure?.providers?.auth ?? googleAuthService;
+
+    if (!syncEngine || !credsProvider) return;
+
+    let lifecycleCleanup: (() => void) | undefined;
+
+    const attachIfAuthenticated = async () => {
+      if (lifecycleCleanup) {
+        lifecycleCleanup();
+        lifecycleCleanup = undefined;
+      }
+
+      if (authService.getSession() !== null) {
+        const credentials = await credsProvider.getCredentials();
+        if (credentials && authService.getSession() !== null) {
           const lifecycle = new BrowserSyncLifecycle({
-            onTrigger: () => syncEngine.sync(credentials),
+            onTrigger: async () => {
+              if (authService.getSession() !== null) {
+                await syncEngine.sync(credentials);
+              }
+            },
           });
-          cleanup = lifecycle.start();
+          lifecycleCleanup = lifecycle.start();
         }
-      });
-      return () => {
-        if (cleanup) {
-          cleanup();
-        }
-      };
-    }
+      }
+    };
+
+    void attachIfAuthenticated();
+
+    const unsubscribeAuth = authService.subscribe(() => {
+      void attachIfAuthenticated();
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (lifecycleCleanup) {
+        lifecycleCleanup();
+      }
+    };
   }, [appContext]);
 }
 

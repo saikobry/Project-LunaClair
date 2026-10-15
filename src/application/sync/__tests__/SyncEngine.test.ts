@@ -9,6 +9,7 @@ import { DexieSyncStateRepository } from '../../../infrastructure/database/repos
 import { DexieConflictDraftRepository } from '../../../infrastructure/database/repositories/DexieConflictDraftRepository';
 import { SyncEngine } from '../SyncEngine';
 import { SyncStatusStore } from '../SyncStatusStore';
+import { VaultSyncLockCoordinator } from '../locks/VaultSyncLockCoordinator';
 import { SyncNetworkError } from '../../../domain/sync/errors/SyncErrors';
 import { type SessionCredentials, type SyncPullResponse, type SyncPushResponse, type SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { type SyncTransport } from '../../../domain/sync/services/SyncTransport';
@@ -124,8 +125,8 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
 
     // Verify pull was called twice (Step 1 and Step 3)
     expect(mockTransport.pull).toHaveBeenCalledTimes(2);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(1, credentials, 0, 100);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 10, 100);
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(1, credentials, 0, 100, expect.any(AbortSignal));
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 10, 100, expect.any(AbortSignal));
 
     // Verify push was called once (Step 2)
     expect(mockTransport.push).toHaveBeenCalledTimes(1);
@@ -201,9 +202,9 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     await engine.sync(credentials);
 
     expect(mockTransport.pull).toHaveBeenCalledTimes(3);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(1, credentials, 0, 100);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 100, 100);
-    expect(mockTransport.pull).toHaveBeenNthCalledWith(3, credentials, 200, 100);
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(1, credentials, 0, 100, expect.any(AbortSignal));
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(2, credentials, 100, 100, expect.any(AbortSignal));
+    expect(mockTransport.pull).toHaveBeenNthCalledWith(3, credentials, 200, 100, expect.any(AbortSignal));
 
     expect(await testDb.documentContents.get('doc-page-1')).toBeDefined();
     expect(await testDb.documentContents.get('doc-page-2')).toBeDefined();
@@ -443,5 +444,81 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
 
     expect(engine.getRetryPolicy()).toBeDefined();
     expect(engine.getRetryPolicy().maxRetries).toBe(5);
+  });
+
+  it('short-circuits to standby state when unauthenticated or credentials missing, preserving syncQueue', async () => {
+    const item: SyncQueueItem = {
+      id: 'q-buffered-1',
+      clientMutationId: 'mut-buf-1',
+      entityType: 'highlight',
+      entityId: 'hl-buf-1',
+      operation: 'UPSERT',
+      clientTimestamp: '2026-08-27T10:00:00.000Z',
+      payload: { text: 'Buffered highlight' },
+      status: 'pending',
+      createdAt: '2026-08-27T10:00:00.000Z',
+      retryCount: 0,
+    };
+    await queueRepo.enqueue(item);
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+    });
+
+    // 1. Null credentials
+    const resultNull = await engine.sync(null as unknown as SessionCredentials);
+    expect(resultNull).toEqual({ status: 'standby' });
+    expect(statusStore.getState().state).toBe('standby');
+    expect(mockTransport.pull).not.toHaveBeenCalled();
+    expect(mockTransport.push).not.toHaveBeenCalled();
+    expect(await queueRepo.countPending()).toBe(1);
+
+    // 2. Missing credentials (undefined)
+    const resultUndefined = await engine.sync(undefined);
+    expect(resultUndefined).toEqual({ status: 'standby' });
+    expect(statusStore.getState().state).toBe('standby');
+    expect(mockTransport.pull).not.toHaveBeenCalled();
+    expect(mockTransport.push).not.toHaveBeenCalled();
+    expect(await queueRepo.countPending()).toBe(1);
+
+    // 3. Guest fallback credentials
+    const guestCreds: SessionCredentials = {
+      userId: 'user_default',
+      deviceId: 'dev-guest-1',
+      token: 'guest_token',
+    };
+    const resultGuest = await engine.sync(guestCreds);
+    expect(resultGuest).toEqual({ status: 'standby' });
+    expect(statusStore.getState().state).toBe('standby');
+    expect(mockTransport.pull).not.toHaveBeenCalled();
+    expect(mockTransport.push).not.toHaveBeenCalled();
+    expect(await queueRepo.countPending()).toBe(1);
+  });
+
+  it('Single-leader Web Lock fencing: returns skipped_concurrent_tab when lock is held by another tab', async () => {
+    const mockLockCoordinator = {
+      runExclusiveSync: vi.fn().mockResolvedValue({ status: 'skipped_concurrent_tab' }),
+    } as unknown as VaultSyncLockCoordinator;
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+      lockCoordinator: mockLockCoordinator,
+    });
+
+    const result = await engine.sync(credentials);
+
+    expect(result).toEqual({ status: 'skipped_concurrent_tab' });
+    expect(mockTransport.pull).not.toHaveBeenCalled();
+    expect(mockTransport.push).not.toHaveBeenCalled();
+    // StatusStore remains untouched in its prior state (idle)
+    expect(statusStore.getState().state).toBe('idle');
   });
 });

@@ -5,12 +5,15 @@ import type { AuthStatus } from '../../../domain/auth/models/auth.types';
 
 export interface UseSyncStatusResult {
   state: 'idle' | 'syncing' | 'offline' | 'error' | 'standby';
+  status: 'idle' | 'syncing' | 'offline' | 'error' | 'standby';
   pendingCount: number;
   lastSyncedAt?: string;
   lastError?: string;
   conflictCount: number;
   triggerSync: () => Promise<void>;
   reconnectAuth?: () => Promise<void>;
+  authStatus: AuthStatus;
+  isAuthenticated: boolean;
 }
 
 /**
@@ -74,12 +77,16 @@ export function useSyncStatus(): UseSyncStatusResult {
   }, [store, getConflictDraftsUseCase]);
 
   const triggerSync = useCallback(async () => {
+    if (authStatus === 'unauthenticated' && auth) {
+      await auth.login();
+      return;
+    }
     const useCase = context?.useCases?.sync?.triggerSync;
     if (useCase) {
       await useCase.execute();
     }
     await loadConflicts();
-  }, [context, loadConflicts]);
+  }, [authStatus, auth, context, loadConflicts]);
 
   const reconnectAuth = useCallback(async () => {
     if (auth) {
@@ -87,15 +94,22 @@ export function useSyncStatus(): UseSyncStatusResult {
     }
   }, [auth]);
 
-  const effectiveState = (authStatus === 'standby' || status.state === 'standby') ? 'standby' : status.state;
+  const isUnauthenticated = authStatus === 'unauthenticated';
+  const isStandby = isUnauthenticated || authStatus === 'standby' || status.state === 'standby';
+  const effectiveState = isStandby ? 'standby' : status.state;
+  const effectivePendingCount = isStandby ? 0 : status.pendingCount;
+  const effectiveLastError = isUnauthenticated ? undefined : status.lastError;
 
   return {
     state: effectiveState,
-    pendingCount: status.pendingCount,
+    status: effectiveState,
+    pendingCount: effectivePendingCount,
     lastSyncedAt: status.lastSyncedAt,
-    lastError: status.lastError,
+    lastError: effectiveLastError,
     conflictCount,
     triggerSync,
     reconnectAuth,
+    authStatus,
+    isAuthenticated: !isUnauthenticated && authStatus === 'authenticated',
   };
 }

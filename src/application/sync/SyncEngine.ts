@@ -8,6 +8,7 @@ import type { SyncRetryPolicy } from '../../domain/sync/policies/SyncRetryPolicy
 import type { SyncReconciler } from '../../domain/sync/services/SyncReconciler';
 import { defaultSyncRetryPolicy } from './policies/syncRetryPolicy';
 import type { SyncStatusStore } from './SyncStatusStore';
+import { VaultSyncLockCoordinator } from './locks/VaultSyncLockCoordinator';
 
 export interface SyncEngineDependencies {
   transport: SyncTransport;
@@ -16,6 +17,7 @@ export interface SyncEngineDependencies {
   stateRepo: SyncStateRepository;
   statusStore: SyncStatusStore;
   retryPolicy?: SyncRetryPolicy;
+  lockCoordinator?: VaultSyncLockCoordinator;
 }
 
 /**
@@ -29,8 +31,9 @@ export class SyncEngine {
   private readonly stateRepo: SyncStateRepository;
   private readonly statusStore: SyncStatusStore;
   private readonly retryPolicy: SyncRetryPolicy;
+  private readonly lockCoordinator: VaultSyncLockCoordinator;
 
-  private runningPromise: Promise<void> | null = null;
+  private runningPromise: Promise<{ status: 'standby' | 'skipped_concurrent_tab' } | void> | null = null;
   private followUpRequested = false;
 
   constructor(dependencies: SyncEngineDependencies);
@@ -40,7 +43,8 @@ export class SyncEngine {
     queueRepo: SyncQueueRepository,
     stateRepo: SyncStateRepository,
     statusStore: SyncStatusStore,
-    retryPolicy?: SyncRetryPolicy
+    retryPolicy?: SyncRetryPolicy,
+    lockCoordinator?: VaultSyncLockCoordinator
   );
   constructor(
     depsOrTransport: SyncEngineDependencies | SyncTransport,
@@ -48,7 +52,8 @@ export class SyncEngine {
     queueRepo?: SyncQueueRepository,
     stateRepo?: SyncStateRepository,
     statusStore?: SyncStatusStore,
-    retryPolicy?: SyncRetryPolicy
+    retryPolicy?: SyncRetryPolicy,
+    lockCoordinator?: VaultSyncLockCoordinator
   ) {
     if ('transport' in depsOrTransport) {
       this.transport = depsOrTransport.transport;
@@ -57,6 +62,7 @@ export class SyncEngine {
       this.stateRepo = depsOrTransport.stateRepo;
       this.statusStore = depsOrTransport.statusStore;
       this.retryPolicy = depsOrTransport.retryPolicy ?? defaultSyncRetryPolicy;
+      this.lockCoordinator = depsOrTransport.lockCoordinator ?? new VaultSyncLockCoordinator();
     } else {
       this.transport = depsOrTransport;
       this.reconciler = reconciler!;
@@ -64,14 +70,28 @@ export class SyncEngine {
       this.stateRepo = stateRepo!;
       this.statusStore = statusStore!;
       this.retryPolicy = retryPolicy ?? defaultSyncRetryPolicy;
+      this.lockCoordinator = lockCoordinator ?? new VaultSyncLockCoordinator();
     }
   }
 
   /**
-   * Triggers a synchronization cycle with the single-flight mutex.
+   * Triggers a synchronization cycle with the single-flight mutex and multi-tab Web Lock.
    * If a cycle is currently running, flags a follow-up run and returns the current running promise.
+   * If credentials are null or unauthenticated, immediately enters standby state without touching syncQueue.
    */
-  sync(credentials: SessionCredentials): Promise<void> {
+  sync(credentials?: SessionCredentials | null): Promise<{ status: 'standby' | 'skipped_concurrent_tab' } | void> {
+    const isUnauthenticated =
+      !credentials ||
+      !credentials.userId ||
+      !credentials.token ||
+      credentials.userId === 'user_default' ||
+      credentials.token === 'guest_token';
+
+    if (isUnauthenticated) {
+      this.statusStore.setState({ state: 'standby' });
+      return Promise.resolve({ status: 'standby' });
+    }
+
     if (this.runningPromise !== null) {
       this.followUpRequested = true;
       return this.runningPromise;
@@ -79,7 +99,16 @@ export class SyncEngine {
 
     const currentRun = (async () => {
       try {
-        await this.executeCycle(credentials);
+        const lockResult = await this.lockCoordinator.runExclusiveSync(
+          credentials.userId,
+          async ({ signal, reportProgress }) => {
+            await this.executeCycle(credentials, signal, reportProgress);
+          }
+        );
+
+        if (lockResult.status === 'skipped_concurrent_tab') {
+          return { status: 'skipped_concurrent_tab' } as const;
+        }
       } finally {
         this.runningPromise = null;
         if (this.followUpRequested) {
@@ -94,12 +123,14 @@ export class SyncEngine {
     return currentRun;
   }
 
-
-
   /**
    * Internal execution of the 4-step convergence cycle.
    */
-  private async executeCycle(credentials: SessionCredentials): Promise<void> {
+  private async executeCycle(
+    credentials: SessionCredentials,
+    signal?: AbortSignal,
+    reportProgress?: () => void
+  ): Promise<void> {
     const isOffline =
       typeof navigator !== 'undefined' &&
       typeof navigator.onLine === 'boolean' &&
@@ -113,26 +144,32 @@ export class SyncEngine {
     this.statusStore.setState({ state: 'syncing', lastError: undefined });
 
     try {
+      if (signal?.aborted) {
+        throw signal.reason ?? new Error('Sync aborted');
+      }
+
       const stateKey = createSyncStateKey(credentials.userId, credentials.deviceId);
 
       // Rehydrate pending count before cycle starts
       const initialPending = await this.queueRepo.countPending();
       this.statusStore.setState({ pendingCount: initialPending });
+      reportProgress?.();
 
       // Step 1: Pull until caught up (Initial pull)
-      const pullResult = await this.pullUntilCaughtUp(credentials, stateKey);
+      const pullResult = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
       let cursor = pullResult.cursor;
 
       // Step 2: Push pending batches
-      const pushResult = await this.pushPendingBatches(credentials);
+      const pushResult = await this.pushPendingBatches(credentials, signal, reportProgress);
 
       // Step 3: Pull again ONLY if mutations were pushed or remote changes were applied in step 1
       if (pushResult.pushedCount > 0 || pullResult.appliedChangesCount > 0) {
-        const secondPull = await this.pullUntilCaughtUp(credentials, stateKey);
+        const secondPull = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
         cursor = secondPull.cursor;
       }
 
       // Step 4: Finalize and mark idle
+      reportProgress?.();
       const finalPending = await this.queueRepo.countPending();
       const now = new Date().toISOString();
       const existingState = await this.stateRepo.getSyncState(stateKey);
@@ -176,7 +213,9 @@ export class SyncEngine {
    */
   private async pullUntilCaughtUp(
     credentials: SessionCredentials,
-    stateKey: string
+    stateKey: string,
+    signal?: AbortSignal,
+    reportProgress?: () => void
   ): Promise<{ cursor: number; appliedChangesCount: number }> {
     const syncState = await this.stateRepo.getSyncState(stateKey);
     let cursor = syncState?.lastServerCursor ?? 0;
@@ -184,13 +223,22 @@ export class SyncEngine {
     let appliedChangesCount = 0;
 
     while (hasMore) {
-      const pullResponse = await this.transport.pull(credentials, cursor, 100);
+      if (signal?.aborted) {
+        throw signal.reason ?? new Error('Sync aborted');
+      }
+
+      const pullResponse = signal
+        ? await this.transport.pull(credentials, cursor, 100, signal)
+        : await this.transport.pull(credentials, cursor, 100);
+      reportProgress?.();
+
       const reconcileResult = await this.reconciler.reconcilePullBatch(
         credentials.userId,
         credentials.deviceId,
         cursor,
         pullResponse
       );
+      reportProgress?.();
       appliedChangesCount += (reconcileResult?.appliedCount ?? 0) + (reconcileResult?.conflictCount ?? 0);
 
       cursor = pullResponse.newCursor;
@@ -215,12 +263,18 @@ export class SyncEngine {
    * Drains the local outbox queue in chunks of 50 up to maxBatchesPerCycle = 10.
    */
   private async pushPendingBatches(
-    credentials: SessionCredentials
+    credentials: SessionCredentials,
+    signal?: AbortSignal,
+    reportProgress?: () => void
   ): Promise<{ pushedCount: number }> {
     let pushedCount = 0;
     const maxBatchesPerCycle = 10;
 
     for (let batch = 0; batch < maxBatchesPerCycle; batch++) {
+      if (signal?.aborted) {
+        throw signal.reason ?? new Error('Sync aborted');
+      }
+
       const pending = await this.queueRepo.peekPending(50);
       if (pending.length === 0) {
         break;
@@ -231,7 +285,10 @@ export class SyncEngine {
         mutations: pending,
       };
 
-      const pushResponse = await this.transport.push(credentials, pushRequest);
+      const pushResponse = signal
+        ? await this.transport.push(credentials, pushRequest, signal)
+        : await this.transport.push(credentials, pushRequest);
+      reportProgress?.();
       pushedCount += pending.length;
 
       await this.reconciler.applyPushResult(
@@ -240,6 +297,7 @@ export class SyncEngine {
         pushRequest,
         pushResponse
       );
+      reportProgress?.();
 
       const remaining = await this.queueRepo.countPending();
       this.statusStore.setState({ pendingCount: remaining });

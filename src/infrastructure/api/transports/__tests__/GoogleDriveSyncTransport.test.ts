@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import 'fake-indexeddb/auto';
+import { getActiveVaultDatabase } from '../../../database/schema/LunaClairDatabase';
 import {
   GoogleDriveSyncTransport,
   MAX_PERSISTED_APPLIED_FILES,
@@ -26,10 +28,21 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
   let mockDriveClient: GoogleDrivePort;
   let mockAuthService: GoogleAuthPort;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
+    }
+    const activeDb = getActiveVaultDatabase();
+    if (activeDb.isOpen()) {
+      await Promise.all([
+        activeDb.syncState.clear(),
+        activeDb.documentContents.clear(),
+        activeDb.highlights.clear(),
+        activeDb.drawings.clear(),
+        activeDb.flashcardReviews.clear(),
+        activeDb.quizSessions.clear(),
+      ]);
     }
 
     mockAuthService = {
@@ -773,6 +786,282 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       transport.setPageToken(credentials.userId, credentials.deviceId, 'some-token');
       transport.clearState(credentials);
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
+    });
+  });
+
+  describe('Vault Baseline Seeding & driveSeeded barrier', () => {
+    it('seeds cold remote with baseline snapshot and commits driveSeeded: true to syncState', async () => {
+      const db = getActiveVaultDatabase();
+      await db.documentContents.put({
+        documentId: 'doc-initial-1',
+        title: 'Initial Note',
+        content: '# Offline note created before connecting Drive',
+        updatedAt: '2026-10-12T10:00:00.000Z',
+        version: 1,
+      });
+
+      // Cold remote: 0 remote snapshots and 0 remote journals
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([]);
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      expect(transport.isDriveSeeded()).toBe(false);
+
+      const pullResponse = await transport.pull(credentials, 0);
+
+      // Uploads synthesized baseline as snapshot_${hlc}_${deviceId}.json.gz
+      expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
+      const [fileName, payload, appProps, token, parents] = vi.mocked(
+        mockDriveClient.uploadCompressedJson!
+      ).mock.calls[0]!;
+
+      expect(fileName).toMatch(/^snapshot_.+_dev-client-1\.json\.gz$/);
+      expect(appProps).toEqual({
+        type: 'snapshot',
+        deviceId: 'dev-client-1',
+        hlc: expect.any(String),
+        count: '1',
+      });
+      expect(token).toBe('valid-access-token-999');
+      expect(parents).toEqual(['appDataFolder']);
+
+      const snapshotPayload = payload as { version: number; mutations: SyncPushRequest['mutations'] };
+      expect(snapshotPayload.version).toBe(1);
+      expect(snapshotPayload.mutations).toHaveLength(1);
+      expect(snapshotPayload.mutations[0]!.entityId).toBe('doc-initial-1');
+      expect(snapshotPayload.mutations[0]!.clientTimestamp).toBe(
+        '2026-10-12T10:00:00.000Z_0000_dev-client-1'
+      );
+
+      // driveSeeded is committed to syncState and marked on transport
+      expect(transport.isDriveSeeded()).toBe(true);
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      const persistedState = await db.syncState.get(stateKey);
+      expect(persistedState?.driveSeeded).toBe(true);
+      expect(transport.getAppliedFileIds().has('uploaded-journal-id-1')).toBe(true);
+
+      // Clean cold return
+      expect(pullResponse.changes).toHaveLength(0);
+      expect(pullResponse.newCursor).toBe(0);
+    });
+
+    it('seeds warm remote with local delta journal when local has newer record', async () => {
+      const db = getActiveVaultDatabase();
+      // Local document updated on 2026-10-15 (newer than remote 2026-10-10)
+      await db.documentContents.put({
+        documentId: 'doc-shared-1',
+        title: 'Local Revision',
+        content: '# Revised locally while offline',
+        updatedAt: '2026-10-15T12:00:00.000Z',
+        version: 2,
+      });
+
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-file-journal-1',
+        name: 'journal_2026-10-10T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'remote-mut-1',
+            entityType: 'document',
+            entityId: 'doc-shared-1',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-10T10:00:00.000Z',
+            payload: {
+              documentId: 'doc-shared-1',
+              title: 'Remote Peer Document',
+              content: '# Remote content from earlier',
+              updatedAt: '2026-10-10T10:00:00.000Z',
+              version: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      const pullResponse = await transport.pull(credentials, 0);
+
+      // Remote file was downloaded
+      expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
+        'remote-file-journal-1',
+        'valid-access-token-999'
+      );
+
+      // Local delta is newer, so emitted as journal_${hlc}_${deviceId}.json.gz
+      expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
+      const [fileName, payload, appProps] = vi.mocked(
+        mockDriveClient.uploadCompressedJson!
+      ).mock.calls[0]!;
+
+      expect(fileName).toMatch(/^journal_.+\.json\.gz$/);
+      expect(appProps?.type).toBe('journal');
+      const journalPayload = payload as { mutations: SyncPushRequest['mutations'] };
+      expect(journalPayload.mutations).toHaveLength(1);
+      expect(journalPayload.mutations[0]!.entityId).toBe('doc-shared-1');
+      expect(journalPayload.mutations[0]!.clientTimestamp).toBe(
+        '2026-10-15T12:00:00.000Z_0000_dev-client-1'
+      );
+
+      // Marked seeded and committed
+      expect(transport.isDriveSeeded()).toBe(true);
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      const state = await db.syncState.get(stateKey);
+      expect(state?.driveSeeded).toBe(true);
+
+      // Returns remote changes in pull response
+      expect(pullResponse.changes).toHaveLength(1);
+      expect(pullResponse.changes[0]!.entityId).toBe('doc-shared-1');
+    });
+
+    it('skips uploading deltas on warm remote when local is clean', async () => {
+      const db = getActiveVaultDatabase();
+      // Vault is clean / empty
+
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-clean-journal-1',
+        name: 'journal_2026-10-10T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'clean-remote-mut',
+            entityType: 'document',
+            entityId: 'doc-remote-only',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-10T10:00:00.000Z',
+            payload: {
+              documentId: 'doc-remote-only',
+              title: 'Remote Note',
+              content: '# Content',
+              updatedAt: '2026-10-10T10:00:00.000Z',
+              version: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      const pullResponse = await transport.pull(credentials, 0);
+
+      // Remote file was downloaded
+      expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledTimes(1);
+
+      // 0 uploads on clean warm remote
+      expect(mockDriveClient.uploadCompressedJson).not.toHaveBeenCalled();
+      expect(mockDriveClient.uploadFile).not.toHaveBeenCalled();
+
+      // Marked seeded and committed
+      expect(transport.isDriveSeeded()).toBe(true);
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      const state = await db.syncState.get(stateKey);
+      expect(state?.driveSeeded).toBe(true);
+
+      expect(pullResponse.changes).toHaveLength(1);
+    });
+
+    it('does not commit driveSeeded: true if upload fails during cold seeding', async () => {
+      const db = getActiveVaultDatabase();
+      await db.documentContents.put({
+        documentId: 'doc-crash-1',
+        title: 'Crash test note',
+        content: '# Content',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+        version: 1,
+      });
+
+      // Cold remote
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([]);
+      // Upload fails
+      vi.mocked(mockDriveClient.uploadCompressedJson!).mockRejectedValueOnce(
+        new Error('Network error during snapshot upload')
+      );
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      await expect(transport.pull(credentials, 0)).rejects.toThrow(
+        'Network error during snapshot upload'
+      );
+
+      // driveSeeded is NOT true
+      expect(transport.isDriveSeeded()).toBe(false);
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      const state = await db.syncState.get(stateKey);
+      expect(state?.driveSeeded).toBeFalsy();
+    });
+
+    it('restores driveSeeded flag from syncState across transport instances', async () => {
+      const db = getActiveVaultDatabase();
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      await db.syncState.put({
+        key: stateKey,
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        lastServerCursor: 5,
+        pageToken: 'token-active-1',
+        driveSeeded: true,
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      expect(transport.isDriveSeeded()).toBe(false);
+
+      vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce({
+        changes: [],
+        newStartPageToken: 'token-active-2',
+      });
+
+      await transport.pull(credentials, 5);
+
+      expect(transport.isDriveSeeded()).toBe(true);
+      // Cold/warm seeding was not triggered
+      expect(mockDriveClient.uploadCompressedJson).not.toHaveBeenCalled();
     });
   });
 });

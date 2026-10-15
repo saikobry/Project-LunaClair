@@ -9,6 +9,7 @@ describe('useSyncStatus', () => {
   let mockStore: SyncStatusStore;
   let mockGetConflictDrafts: { execute: ReturnType<typeof vi.fn> };
   let mockTriggerSync: { execute: ReturnType<typeof vi.fn> };
+  let mockAuth: any;
   let mockContext: any;
 
   beforeEach(() => {
@@ -26,12 +27,26 @@ describe('useSyncStatus', () => {
       execute: vi.fn().mockResolvedValue(undefined),
     };
 
+    mockAuth = {
+      login: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn().mockResolvedValue(undefined),
+      getSession: vi.fn().mockReturnValue(null),
+      getStatus: vi.fn().mockReturnValue('authenticated'),
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      getValidAccessToken: vi.fn().mockResolvedValue('token'),
+    };
+
     mockContext = {
       useCases: {
         sync: {
           syncStatusStore: mockStore,
           getConflictDrafts: mockGetConflictDrafts,
           triggerSync: mockTriggerSync,
+        },
+      },
+      infrastructure: {
+        providers: {
+          auth: mockAuth,
         },
       },
     };
@@ -120,5 +135,42 @@ describe('useSyncStatus', () => {
 
     expect(mockTriggerSync.execute).toHaveBeenCalledTimes(1);
     expect(mockGetConflictDrafts.execute).toHaveBeenCalled();
+  });
+
+  it('resolves to "standby" and suppresses pendingCount and lastError when unauthenticated', () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    mockStore.setState({
+      state: 'error',
+      pendingCount: 5,
+      lastError: 'Worker unavailable',
+    });
+
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    expect(result.current.state).toBe('standby');
+    expect(result.current.status).toBe('standby');
+    expect(result.current.pendingCount).toBe(0);
+    expect(result.current.lastError).toBeUndefined();
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('routes triggerSync to auth.login when unauthenticated', async () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    await act(async () => {
+      await result.current.triggerSync();
+    });
+
+    expect(mockAuth.login).toHaveBeenCalledTimes(1);
+    expect(mockTriggerSync.execute).not.toHaveBeenCalled();
+  });
+
+  it('suppresses pendingCount when store state is standby', () => {
+    mockStore.setState({ state: 'standby', pendingCount: 4 });
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    expect(result.current.state).toBe('standby');
+    expect(result.current.pendingCount).toBe(0);
   });
 });

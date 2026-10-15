@@ -39,15 +39,9 @@ describe('LocalStorageCredentialsProvider & deviceId', () => {
   });
 
   describe('LocalStorageCredentialsProvider', () => {
-    it('returns default guest identity when no credentials are stored', async () => {
+    it('returns null when no credentials are stored', async () => {
       const credentials = await provider.getCredentials();
-
-      expect(credentials).toEqual({
-        userId: 'user_default',
-        deviceId: expect.any(String),
-        token: 'guest_token',
-      });
-      expect(credentials?.deviceId).toBe(getOrCreateDeviceId());
+      expect(credentials).toBeNull();
     });
 
     it('persists and retrieves custom session credentials', async () => {
@@ -66,7 +60,7 @@ describe('LocalStorageCredentialsProvider & deviceId', () => {
       expect(retrieved).toEqual(customCreds);
     });
 
-    it('clears credentials and reverts to guest credentials with stable deviceId', async () => {
+    it('clears credentials and returns null afterwards', async () => {
       const customCreds: SessionCredentials = {
         userId: 'user_bob_789',
         deviceId: 'device-pixel-8',
@@ -80,17 +74,14 @@ describe('LocalStorageCredentialsProvider & deviceId', () => {
       expect(localStorage.getItem(STORAGE_KEYS.sync.sessionCredentials)).toBeNull();
 
       const afterClear = await provider.getCredentials();
-      expect(afterClear?.userId).toBe('user_default');
-      expect(afterClear?.token).toBe('guest_token');
+      expect(afterClear).toBeNull();
     });
 
-    it('gracefully handles corrupted JSON in storage and returns guest credentials', async () => {
+    it('gracefully handles corrupted JSON in storage and returns null', async () => {
       localStorage.setItem(STORAGE_KEYS.sync.sessionCredentials, 'invalid-non-json-string{');
 
       const creds = await provider.getCredentials();
-      expect(creds?.userId).toBe('user_default');
-      expect(creds?.token).toBe('guest_token');
-      expect(creds?.deviceId).toBe(getOrCreateDeviceId());
+      expect(creds).toBeNull();
     });
   });
 });
