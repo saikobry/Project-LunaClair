@@ -50,6 +50,7 @@ Reserved domains:
 - `collections/` — Playlist-model grouping: `Collection` entity with `CreateCollectionInput`/`UpdateCollectionInput` DTOs (`models/Collection.ts`), `CollectionMaterial` M:N junction with per-collection ordering (`models/CollectionMaterial.ts`), and async repository contracts (`CollectionRepository` with `getAll`/`getById`/`create`/`update`/`delete`/`reorder`; `CollectionMaterialRepository` with `getByCollectionId`/`getByMaterialId`/`add`/`remove`/`reorder`/`removeByCollectionId`/`removeByMaterialId`).
 - `auth/` — User identity and authentication contracts: Google session types (`GoogleUserProfile`, `GoogleAuthTokens`, `GoogleAuthSession`, `AuthStatus`) and capability port (`GoogleAuthPort`).
 - `vault/` — Local vault namespacing and master registry contracts: pointer types (`ANONYMOUS_OWNER_SUB`, `VaultPointer`, `PromotionResult`) and capability port (`VaultRegistryPort`).
+- `drive/` — Google Drive sync storage contracts and error models: metadata types (`DriveFileMetadata`, `DriveChangeItem`, `DriveChangesResponse`, `UploadFileParams`, `Recover410Params`, `CursorRecoveryResult`), capability port (`GoogleDrivePort`), and typed error classes (`DriveHttpError`, `DriveAuthError`, `DriveQuotaExceededError`, `DriveRateLimitError`).
 
 
 ## Local Contracts

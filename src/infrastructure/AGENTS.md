@@ -41,10 +41,12 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `transactionalOutbox.ts` → `runSyncableTransaction`
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
     - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`)
-- `api/` — Cloudflare Worker REST API boundary:
+- `api/` — External REST API and Cloudflare Worker boundary:
   - `transports/` — Cloudflare Worker HTTP network transports:
     - `WorkerSyncTransport.ts` → `SyncTransport` (`/api/sync/pull`, `/api/sync/push`)
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
+  - `google/` — Google Drive API v3 client:
+    - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`)
 - `browser/` — Browser environment and runtime capability adapters:
   - `lifecycle/` — Browser event integrations:
     - `BrowserSyncLifecycle.ts` → Window `online`, `visibilitychange`, and periodic interval triggers
