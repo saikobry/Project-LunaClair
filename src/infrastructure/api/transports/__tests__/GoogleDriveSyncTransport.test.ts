@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GoogleDriveSyncTransport } from '../GoogleDriveSyncTransport';
+import {
+  GoogleDriveSyncTransport,
+  MAX_PERSISTED_APPLIED_FILES,
+  type StorageLike,
+} from '../GoogleDriveSyncTransport';
 import type {
   GoogleDrivePort,
   DriveFileMetadata,
@@ -11,6 +15,7 @@ import { DriveHttpError } from '../../../../domain/drive/models/drive.types';
 import type { GoogleAuthPort, GoogleAuthSession } from '../../../../domain/auth/models/auth.types';
 import type { SessionCredentials, SyncPushRequest } from '../../../../domain/sync/models/sync.types';
 import { createHlc } from '../../../../domain/sync/utils/hlc';
+import { STORAGE_KEYS } from '../../../../shared/constants/storageKeys';
 
 describe('Infrastructure: GoogleDriveSyncTransport', () => {
   const credentials: SessionCredentials = {
@@ -24,6 +29,9 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
 
     mockAuthService = {
       login: vi.fn(),
@@ -226,7 +234,7 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
   });
 
   describe('pull()', () => {
-    it('initializes pageToken with getStartPageToken and downloads newly added journals', async () => {
+    it('clean/first-time pull without cached pageToken calls listFiles, discovers existing journals, and downloads them', async () => {
       const transport = new GoogleDriveSyncTransport({
         driveClient: mockDriveClient,
         authService: mockAuthService,
@@ -243,18 +251,7 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         },
       };
 
-      const changesFeed: DriveChangesResponse = {
-        changes: [
-          {
-            fileId: 'journal-file-peer-1',
-            removed: false,
-            file: remoteMetadata,
-          },
-        ],
-        newStartPageToken: 'token-after-pull',
-      };
-
-      vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce(changesFeed);
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteMetadata]);
 
       vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
         hlc: '2026-10-15T12:05:00.000Z_0000_peer-dev',
@@ -276,10 +273,8 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       const pullResponse = await transport.pull(credentials, 0);
 
       expect(mockDriveClient.getStartPageToken).toHaveBeenCalledTimes(1);
-      expect(mockDriveClient.listChanges).toHaveBeenCalledWith(
-        'start-token-100',
-        'valid-access-token-999'
-      );
+      expect(mockDriveClient.listFiles).toHaveBeenCalledWith('valid-access-token-999');
+      expect(mockDriveClient.listChanges).not.toHaveBeenCalled();
       expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
         'journal-file-peer-1',
         'valid-access-token-999'
@@ -304,7 +299,78 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       );
       // Cached pageToken must advance to newStartPageToken
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'token-after-pull'
+        'start-token-100'
+      );
+      // Applied files must register hydrated journal
+      expect(transport.getAppliedFileIds().has('journal-file-peer-1')).toBe(true);
+    });
+
+    it('subsequent pull with existing pageToken calls listChanges without calling listFiles', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+
+      transport.setPageToken(credentials.userId, credentials.deviceId, 'existing-cached-token');
+
+      const remoteMetadata: DriveFileMetadata = {
+        id: 'journal-file-subsequent',
+        name: 'journal_2026-10-15T12:10:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-15T12:10:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      const changesFeed: DriveChangesResponse = {
+        changes: [
+          {
+            fileId: 'journal-file-subsequent',
+            removed: false,
+            file: remoteMetadata,
+          },
+        ],
+        newStartPageToken: 'token-after-subsequent-pull',
+      };
+
+      vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce(changesFeed);
+
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-15T12:10:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-15T12:10:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'subsequent-mut-1',
+            entityType: 'highlight',
+            entityId: 'hl-subsequent',
+            operation: 'UPSERT',
+            baseVersion: 0,
+            clientTimestamp: '2026-10-15T12:10:00.000Z',
+            payload: { color: 'green' },
+          },
+        ],
+      });
+
+      const pullResponse = await transport.pull(credentials, 5);
+
+      expect(mockDriveClient.getStartPageToken).not.toHaveBeenCalled();
+      expect(mockDriveClient.listFiles).not.toHaveBeenCalled();
+      expect(mockDriveClient.listChanges).toHaveBeenCalledWith(
+        'existing-cached-token',
+        'valid-access-token-999'
+      );
+      expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
+        'journal-file-subsequent',
+        'valid-access-token-999'
+      );
+
+      expect(pullResponse.newCursor).toBe(6);
+      expect(pullResponse.changes).toHaveLength(1);
+      expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
+        'token-after-subsequent-pull'
       );
     });
 
@@ -353,6 +419,8 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         driveClient: mockDriveClient,
         authService: mockAuthService,
       });
+
+      transport.setPageToken(credentials.userId, credentials.deviceId, 'existing-fallback-token');
 
       const remoteMetadata: DriveFileMetadata = {
         id: 'journal-file-raw',
@@ -465,11 +533,197 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         authService: mockAuthService,
       });
 
+      transport.setPageToken(credentials.userId, credentials.deviceId, 'existing-active-token');
+
       const error500 = new DriveHttpError('Internal Server Error', 500, 'ServerError');
       vi.mocked(mockDriveClient.listChanges).mockRejectedValueOnce(error500);
 
       await expect(transport.pull(credentials, 0)).rejects.toThrow('Internal Server Error');
       expect(mockDriveClient.recoverFromInvalidPageToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('State persistence across browser sessions', () => {
+    it('persists pageTokens, appliedFileIds, and peerWatermarks to storage and restores them across instances', async () => {
+      const memoryStore = new Map<string, string>();
+      const customStorage: StorageLike = {
+        getItem: (k) => memoryStore.get(k) ?? null,
+        setItem: (k, v) => {
+          memoryStore.set(k, v);
+        },
+        removeItem: (k) => {
+          memoryStore.delete(k);
+        },
+      };
+
+      const transport1 = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        storage: customStorage,
+      });
+
+      // 1. Push a mutation to generate an applied file ID
+      await transport1.push(credentials, {
+        deviceId: credentials.deviceId,
+        mutations: [
+          {
+            clientMutationId: 'm-persisted-1',
+            entityType: 'document',
+            entityId: 'doc-persist',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-15T12:00:00.000Z',
+            payload: {},
+          },
+        ],
+      });
+
+      // 2. Perform initial hydration pull
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-journal-persist',
+        name: 'journal_2026-10-15T12:00:00.000Z_0000_peer-persist.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-persist',
+          hlc: '2026-10-15T12:00:00.000Z_0000_peer-persist',
+        },
+      };
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-15T12:00:00.000Z_0000_peer-persist',
+        deviceId: 'peer-persist',
+        createdAt: '2026-10-15T12:00:00.000Z',
+        mutations: [],
+      });
+
+      await transport1.pull(credentials, 0);
+
+      expect(memoryStore.has(STORAGE_KEYS.sync.gdriveTransportState)).toBe(true);
+
+      // 3. Create fresh transport2 with the same storage (simulating browser reload / new tab)
+      const transport2 = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        storage: customStorage,
+      });
+
+      // Assert state restored
+      expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
+        'start-token-100'
+      );
+      expect(transport2.getAppliedFileIds().has('uploaded-journal-id-1')).toBe(true);
+      expect(transport2.getAppliedFileIds().has('remote-journal-persist')).toBe(true);
+      expect(transport2.getPeerWatermarks()['peer-persist']).toBe(
+        '2026-10-15T12:00:00.000Z_0000_peer-persist'
+      );
+
+      // Subsequent pull on transport2 should call listChanges directly with restored token
+      vi.mocked(mockDriveClient.listFiles).mockClear();
+      vi.mocked(mockDriveClient.getStartPageToken).mockClear();
+      vi.mocked(mockDriveClient.listChanges).mockResolvedValueOnce({
+        changes: [],
+        newStartPageToken: 'token-after-reload-pull',
+      });
+
+      const pull2 = await transport2.pull(credentials, 1);
+
+      expect(mockDriveClient.listFiles).not.toHaveBeenCalled();
+      expect(mockDriveClient.getStartPageToken).not.toHaveBeenCalled();
+      expect(mockDriveClient.listChanges).toHaveBeenCalledWith(
+        'start-token-100',
+        'valid-access-token-999'
+      );
+      expect(pull2.changes).toHaveLength(0);
+      expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
+        'token-after-reload-pull'
+      );
+    });
+
+    it('caps persisted appliedFileIds to MAX_PERSISTED_APPLIED_FILES using LRU ordering', () => {
+      const memoryStore = new Map<string, string>();
+      const customStorage: StorageLike = {
+        getItem: (k) => memoryStore.get(k) ?? null,
+        setItem: (k, v) => {
+          memoryStore.set(k, v);
+        },
+      };
+
+      // Seed 1,050 file IDs into storage
+      const initialIds: string[] = [];
+      for (let i = 0; i < 1050; i++) {
+        initialIds.push(`file-seed-${i}`);
+      }
+      memoryStore.set(
+        STORAGE_KEYS.sync.gdriveTransportState,
+        JSON.stringify({
+          appliedFileIds: initialIds,
+        })
+      );
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        storage: customStorage,
+      });
+
+      // Loaded state must be capped to MAX_PERSISTED_APPLIED_FILES (1,000)
+      expect(transport.getAppliedFileIds().size).toBe(MAX_PERSISTED_APPLIED_FILES);
+      expect(transport.getAppliedFileIds().has('file-seed-0')).toBe(false);
+      expect(transport.getAppliedFileIds().has('file-seed-49')).toBe(false);
+      expect(transport.getAppliedFileIds().has('file-seed-50')).toBe(true);
+      expect(transport.getAppliedFileIds().has('file-seed-1049')).toBe(true);
+
+      // Trigger a state save and verify persisted state stays capped
+      transport.setPageToken(credentials.userId, credentials.deviceId, 'saved-token');
+      const savedRaw = memoryStore.get(STORAGE_KEYS.sync.gdriveTransportState);
+      const parsed = JSON.parse(savedRaw!) as { appliedFileIds: string[] };
+
+      expect(parsed.appliedFileIds).toHaveLength(MAX_PERSISTED_APPLIED_FILES);
+      expect(parsed.appliedFileIds[0]).toBe('file-seed-50');
+      expect(parsed.appliedFileIds[parsed.appliedFileIds.length - 1]).toBe('file-seed-1049');
+    });
+
+    it('handles corrupted storage data and storage write errors gracefully', async () => {
+      const throwingStorage: StorageLike = {
+        getItem: () => '{invalid-json-corrupt!',
+        setItem: () => {
+          throw new Error('QuotaExceededError: storage full');
+        },
+        removeItem: vi.fn(),
+      };
+
+      // Initialization does not throw on invalid JSON
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        storage: throwingStorage,
+      });
+
+      expect(transport.getAppliedFileIds().size).toBe(0);
+
+      // Push does not crash when storage setItem throws
+      await expect(
+        transport.push(credentials, {
+          deviceId: credentials.deviceId,
+          mutations: [
+            {
+              clientMutationId: 'm-err-1',
+              entityType: 'document',
+              entityId: 'doc-err',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-10-15T12:00:00.000Z',
+              payload: {},
+            },
+          ],
+        })
+      ).resolves.toBeDefined();
+
+      // clearState clears in-memory structures and calls removeItem safely
+      transport.setPageToken(credentials.userId, credentials.deviceId, 'some-token');
+      transport.clearState();
+      expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
+      expect(throwingStorage.removeItem).toHaveBeenCalledWith(
+        STORAGE_KEYS.sync.gdriveTransportState
+      );
     });
   });
 });

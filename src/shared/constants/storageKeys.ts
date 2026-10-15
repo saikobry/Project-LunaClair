@@ -29,6 +29,7 @@ export const STORAGE_KEYS = {
   sync: {
     deviceId: 'lunaclair.device_id',
     sessionCredentials: 'lunaclair.session_credentials',
+    gdriveTransportState: 'lunaclair.sync.gdrive_transport_state',
   },
   session: {
     visitMarked: 'lunaclair.session.visit_marked',
