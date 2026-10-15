@@ -45,6 +45,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `transports/` — Cloudflare Worker HTTP network transports:
     - `WorkerSyncTransport.ts` → `SyncTransport` (`/api/sync/pull`, `/api/sync/push`)
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
+    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz` and incremental changes feed consumption)
   - `google/` — Google Drive API v3 client:
     - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`)
 - `browser/` — Browser environment and runtime capability adapters:

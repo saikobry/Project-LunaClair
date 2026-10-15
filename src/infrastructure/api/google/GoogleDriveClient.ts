@@ -355,6 +355,41 @@ export class GoogleDriveClient implements GoogleDrivePort {
   }
 
   /**
+   * Uploads compressed JSON to Google Drive appDataFolder with appProperties.
+   */
+  async uploadCompressedJson(
+    name: string,
+    data: unknown,
+    appProperties: Record<string, string>,
+    accessToken: string,
+    parents?: string[]
+  ): Promise<DriveFileMetadata> {
+    return this.uploadFile({
+      name,
+      content: JSON.stringify(data),
+      compress: true,
+      appProperties,
+      parents: parents ?? ['appDataFolder'],
+      accessToken,
+    });
+  }
+
+  /**
+   * Downloads and decompresses JSON file from Google Drive via alt=media.
+   */
+  async downloadCompressedJson<T = unknown>(fileId: string, accessToken: string): Promise<T> {
+    const text = await this.downloadFile(fileId, accessToken, { decompress: true });
+    return JSON.parse(text) as T;
+  }
+
+  /**
+   * Alias for recover410Cursor.
+   */
+  async recoverFromInvalidPageToken(params: Recover410Params): Promise<CursorRecoveryResult> {
+    return this.recover410Cursor(params);
+  }
+
+  /**
    * Core request dispatcher with quota discrimination, 429/5xx exponential backoff,
    * and 401 auth failure handling.
    */

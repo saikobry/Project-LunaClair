@@ -129,6 +129,27 @@ export interface GoogleDrivePort {
    * 4. Returns { newPageToken, missingFiles }
    */
   recover410Cursor(params: Recover410Params): Promise<CursorRecoveryResult>;
+
+  /**
+   * Uploads compressed JSON to Google Drive appDataFolder with appProperties.
+   */
+  uploadCompressedJson?(
+    name: string,
+    data: unknown,
+    appProperties: Record<string, string>,
+    accessToken: string,
+    parents?: string[]
+  ): Promise<DriveFileMetadata>;
+
+  /**
+   * Downloads and decompresses JSON file from Google Drive via alt=media.
+   */
+  downloadCompressedJson?<T = unknown>(fileId: string, accessToken: string): Promise<T>;
+
+  /**
+   * Alias for recover410Cursor.
+   */
+  recoverFromInvalidPageToken?(params: Recover410Params): Promise<CursorRecoveryResult>;
 }
 
 /**
