@@ -23,6 +23,9 @@ export const STORAGE_KEYS = {
      */
     rateLimitUntil: 'lunaclair.ai.rate_limit_until',
   },
+  auth: {
+    googleSession: 'lunaclair.auth.google_session',
+  },
   sync: {
     deviceId: 'lunaclair.device_id',
     sessionCredentials: 'lunaclair.session_credentials',

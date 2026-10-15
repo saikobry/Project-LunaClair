@@ -69,6 +69,10 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `storage/` — Composite multi-tier storage repositories:
   - `repositories/`:
     - `HybridDocumentRepository.ts` → `DocumentRepository` (Dexie `documentContents` local-first read with empty fallback for unauthored materials)
+- `auth/` — Authentication and third-party identity boundary:
+  - `google/` — Google Identity Services (GIS) integration:
+    - `loadGis.ts` → Idempotent dynamic loader for `https://accounts.google.com/gsi/client`
+    - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, and automated silent token refresh via Cloudflare Worker auth endpoints
 
 ## Local Contracts
 
@@ -118,4 +122,4 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 
 ## Child DOX Index
 
-No child AGENTS.md files — `ai/`, `api/`, `browser/`, `database/`, `importer/`, and `storage/` are boundary subdirectories governed by this document.
+No child AGENTS.md files — `ai/`, `api/`, `auth/`, `browser/`, `database/`, `importer/`, and `storage/` are boundary subdirectories governed by this document.
