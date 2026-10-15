@@ -32,6 +32,7 @@ This directory contains durable Architecture Decision Records (ADRs) for Project
 | [ADR-015](ADR-015-uniform-infrastructure-module-organization.md) | Uniform Infrastructure Module Organization | Accepted | Phase 12 |
 | [ADR-016](ADR-016-uniform-cloudflare-worker-architecture.md) | Uniform Cloudflare Worker Architecture | Accepted | Phase 12 |
 | [ADR-017](ADR-017-cloudflare-cli-and-worker-workspace-modernization.md) | Cloudflare CLI and Worker Workspace Modernization | Accepted | Phase 13 |
+| [ADR-018](ADR-018-google-drive-appdata-sync-and-stateless-auth.md) | Google Drive appDataFolder Sync & Stateless Auth | Accepted | Phase 14 |
 
 ---
 

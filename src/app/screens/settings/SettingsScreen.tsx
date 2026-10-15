@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex';
 import { Page } from '../../../shared/ui/Page/Page';
+import { SyncSettingsSection } from '../../../features/sync/components/SyncSettingsSection';
 import { AiSettingsSection } from '../../../features/ai/components/AiSettingsSection';
 
 const styles = stylex.create({
@@ -14,11 +15,12 @@ const styles = stylex.create({
 /**
  * Settings route (`/settings`) — device-local preferences, grouped by section.
  *
- * A composer, not an owner: each section is owned by its feature (AI owns the
- * assistant section), and this screen only stacks them. New preference areas
- * arrive as new sections, never as logic in this file. The back destination
- * arrives as `onBack` (the shell's `goBack`: last in-app route, Home fallback);
- * the screen only forwards it to `Page`, which owns the button chrome.
+ * A composer, not an owner: each section is owned by its feature (Sync owns
+ * cloud sync settings, AI owns the assistant section), and this screen only
+ * stacks them. New preference areas arrive as new sections, never as logic in
+ * this file. The back destination arrives as `onBack` (the shell's `goBack`:
+ * last in-app route, Home fallback); the screen only forwards it to `Page`,
+ * which owns the button chrome.
  */
 export function SettingsScreen({ onBack }: { onBack?: () => void }) {
   return (
@@ -28,6 +30,7 @@ export function SettingsScreen({ onBack }: { onBack?: () => void }) {
       onBack={onBack}
     >
       <div {...stylex.props(styles.content)}>
+        <SyncSettingsSection />
         <AiSettingsSection />
       </div>
     </Page>

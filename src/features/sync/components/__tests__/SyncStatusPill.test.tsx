@@ -9,6 +9,7 @@ describe('SyncStatusPill', () => {
   let mockGetConflictDrafts: { execute: ReturnType<typeof vi.fn> };
   let mockTriggerSync: { execute: ReturnType<typeof vi.fn> };
   let mockResolveConflictDraft: { execute: ReturnType<typeof vi.fn> };
+  let mockAuth: any;
   let mockContext: any;
 
   beforeEach(() => {
@@ -30,6 +31,15 @@ describe('SyncStatusPill', () => {
       execute: vi.fn().mockResolvedValue(undefined),
     };
 
+    mockAuth = {
+      login: vi.fn().mockResolvedValue(undefined),
+      logout: vi.fn().mockResolvedValue(undefined),
+      getSession: vi.fn().mockReturnValue(null),
+      getStatus: vi.fn().mockReturnValue('unauthenticated'),
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      getValidAccessToken: vi.fn().mockResolvedValue('token'),
+    };
+
     mockContext = {
       useCases: {
         sync: {
@@ -37,6 +47,11 @@ describe('SyncStatusPill', () => {
           getConflictDrafts: mockGetConflictDrafts,
           triggerSync: mockTriggerSync,
           resolveConflictDraft: mockResolveConflictDraft,
+        },
+      },
+      infrastructure: {
+        providers: {
+          auth: mockAuth,
         },
       },
     };
@@ -153,5 +168,22 @@ describe('SyncStatusPill', () => {
     fireEvent.click(screen.getByRole('button'));
 
     expect(mockTriggerSync.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders "Paused" state when standby with reconnection tooltip', () => {
+    mockStore.setState({ state: 'standby' });
+    renderComponent();
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Cloud sync paused — tap to reconnect');
+  });
+
+  it('triggers re-auth login when clicked in standby state', async () => {
+    mockStore.setState({ state: 'standby' });
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(mockAuth.login).toHaveBeenCalledTimes(1);
+    expect(mockTriggerSync.execute).not.toHaveBeenCalled();
   });
 });

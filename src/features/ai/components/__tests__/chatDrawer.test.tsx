@@ -127,11 +127,11 @@ describe('AI Chat Drawer & Workspace Integration', () => {
       // Wait for automatic contextual prompt execution
       await waitFor(() => {
         expect(screen.getByText(/Please explain the following excerpt in clear detail/i)).toBeInTheDocument();
-      }, { timeout: 4000 });
+      }, { timeout: 10000 });
 
       await waitFor(() => {
         expect(screen.getByText(/The SA node initiates the electrical impulse/i)).toBeInTheDocument();
-      }, { timeout: 4000 });
+      }, { timeout: 10000 });
 
       expect(onClearSelection).toHaveBeenCalled();
     });

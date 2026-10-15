@@ -184,18 +184,19 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **Local persistence alignment:** unified Miniflare simulated D1 persistence between `@cloudflare/vite-plugin` and `cf d1 migrations apply` via `--persist-to .cloudflare/state`.
   - **Developer skills & DOX contracts:** aligned global agent skills with official `cf-cli`, documented Phase 13 in `docs/architecture/adr/ADR-017-cloudflare-cli-and-worker-workspace-modernization.md`, and updated root and Worker DOX contracts.
 
+- ✅ **Phase 14 — Bring-Your-Own-Storage (Google Drive Sync & Stateless Auth — Oct 2026):**
+  - **14A (Stateless Worker Auth & Pattern B+ Token Sealing — ADR-018):** Cloudflare Worker routes `POST /api/auth/google/token` and `POST /api/auth/google/refresh` using WebCrypto AES-256-GCM. Worker seals `refresh_token` with `env.AUTH_MASTER_KEY` and Google `sub` as AAD; client persists `sealedRefreshToken` in local Dexie vault, immune to iOS WebClip third-party cookie partitioning, storing zero user data on the server with zero database writes for auth.
+  - **14B (Zero-Copy Vault Registry & Namespacing):** Master Dexie database `lunaclair_registry` (`VaultRegistry.ts`) mapping `ownerSub` to physical `lc_vault_${uuid}` database instances. Instantaneous anonymous-to-authenticated vault promotion (0 ms, 0 bytes copied); collision-resistant multi-account handling with mutation replay for shared devices.
+  - **14C (Binary Gzip Google Drive Client & Changes API):** Native browser `CompressionStream('gzip')` / `DecompressionStream('gzip')` streaming with binary `multipart/related` uploads (`application/gzip`). Monotonic remote delta querying via `drive.changes.list(spaces='appDataFolder')`, resilient 4-step `410 Gone` cursor recovery (`getStartPageToken` → metadata `files.list` → in-memory watermark diff → fresh anchor), and quota discrimination pausing on `storageQuotaExceeded` with exponential backoff on 429/5xx.
+  - **14D (HLC, Sync Transport, & Self-Healing Compaction):** Hybrid Logical Clocks (`hlc.ts`) for deterministic causal ordering across offline devices without distributed locks. `GoogleDriveSyncTransport.ts` implementing domain `SyncTransport` port (`push`, `pull`). `DriveCompactor.ts` with threshold evaluation (> 40 journals or > 5 MB total), write-ahead immutable snapshots (`snapshot_{hlc}_{deviceId}.json.gz`), 10-minute tail grace window, and 1 MB `reserve_slot.bin` cushion breaking 100% Google Drive quota deadlocks.
+  - **14E (UI Presentation & Settings Integration):** Dedicated `<SyncSettingsSection />` in `SettingsScreen.tsx` with Google account status, storage quota gauges, connection toggles, and manual sync triggers. Composition root integration (`createSyncUseCases.ts`) providing pluggable `GoogleDriveSyncTransport` injection while keeping `/api/shares` strictly isolated on D1.
+  - **Comprehensive Verification:** 366 test files (2,611 unit & integration tests) in frontend suite, 22 test files (306 tests) in Worker suite, 100% pass rate, 0 lint errors, 0 type errors.
+
 ---
 
 ## Planned Phases
 
-- **Phase 14 — Bring-Your-Own-Storage: Google Drive appDataFolder Sync & Stateless Auth:**
-  - **BYOS architecture:** Private user study data (highlights, notes, flashcard reviews, quiz sessions) migrates from D1 to the user's personal Google Drive (`appDataFolder`, `drive.appdata` non-sensitive scope). Cloudflare D1 is retained exclusively for public study-package sharing (`/api/shares`), achieving zero server user data footprint and $0 private database storage cost.
-  - **Lock-free append-only sync:** Single-writer immutable journal chunks (`journal_{hlc}_{deviceId}.json.gz`) discovered via `drive.changes.list`. Ordering resolved deterministically across offline devices using Hybrid Logical Clocks (HLC).
-  - **Pattern B+ stateless auth:** Cloudflare Worker exchanges Google auth codes and seals `refresh_token` using WebCrypto AES-256-GCM (`env.AUTH_MASTER_KEY` + AAD `sub`). The client persists `sealedRefreshToken` in Dexie, avoiding iOS standalone PWA cookie partitioning while storing zero user data on the server.
-  - **Zero-copy vault promotion:** Decouples physical Dexie database names (`lc_vault_${uuid}`) from user identity via `lunaclair_registry` pointer DB, enabling 0 ms, 0 bytes copied promotion from anonymous to Google-authenticated vaults.
-  - **Compaction safety:** Pre-allocated 1 MB `reserve_slot.bin` cushion breaks 100% Google Drive storage compaction deadlocks; 10-minute tail grace window prevents concurrent compactor race conditions.
-  - Implementation plan in `docs/plans/google-drive-sync-plan.md` (ADR-018 to be finalized and committed at phase closeout).
-
 - **D1 Private Sync Tables Retirement:** After Phase 14 verification, drop `sync_changes`, `user_documents`, `user_entities`, and `sync_idempotency` from D1 schema.
+
 
 

@@ -2,7 +2,7 @@ import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQue
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
 
 export interface SyncStatus {
-  state: 'idle' | 'syncing' | 'offline' | 'error';
+  state: 'idle' | 'syncing' | 'offline' | 'error' | 'standby';
   pendingCount: number;
   lastSyncedAt?: string;
   lastError?: string;

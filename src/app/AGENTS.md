@@ -46,7 +46,7 @@ Application-level orchestration: the root shell layout, composition root & DI fa
     - `screens/quiz-session/` — `QuizSessionScreen.tsx` (live quiz runner route screen).
     - `screens/quiz-canvas/` — `QuizCanvasBuilderScreen.tsx` (thin composition wrapper hosting the quiz canvas subsystem).
     - `screens/analytics/` — `AnalyticsScreen.tsx` (learning insights and study metrics screen).
-    - `screens/settings/` — `SettingsScreen.tsx` (device-local preferences route (`/settings`), composer over feature-owned sections).
+    - `screens/settings/` — `SettingsScreen.tsx` (device-local preferences route (`/settings`), composer over feature-owned sections: `AiSettingsSection` and `SyncSettingsSection`).
     - `screens/importer/` — `ImporterScreen.tsx` (5-step document import wizard screen).
     - `screens/shared-package/` — `SharedPackageScreen.tsx` (cloud package inspection and import screen).
 

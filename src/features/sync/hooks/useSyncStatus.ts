@@ -1,14 +1,16 @@
 import { useState, useEffect, useContext, useCallback, useSyncExternalStore } from 'react';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { syncStatusStore } from '../../../application/sync/SyncStatusStore';
+import type { AuthStatus } from '../../../domain/auth/models/auth.types';
 
 export interface UseSyncStatusResult {
-  state: 'idle' | 'syncing' | 'offline' | 'error';
+  state: 'idle' | 'syncing' | 'offline' | 'error' | 'standby';
   pendingCount: number;
   lastSyncedAt?: string;
   lastError?: string;
   conflictCount: number;
   triggerSync: () => Promise<void>;
+  reconnectAuth?: () => Promise<void>;
 }
 
 /**
@@ -18,6 +20,13 @@ export interface UseSyncStatusResult {
 export function useSyncStatus(): UseSyncStatusResult {
   const context = useContext(ApplicationContext);
   const store = context?.useCases?.sync?.syncStatusStore ?? syncStatusStore;
+  const auth = context?.infrastructure?.providers?.auth;
+
+  const authStatus: AuthStatus = useSyncExternalStore(
+    (notify) => auth?.subscribe(notify) ?? (() => {}),
+    () => auth?.getStatus() ?? 'unauthenticated',
+    () => auth?.getStatus() ?? 'unauthenticated',
+  );
 
   const status = useSyncExternalStore(
     (notify) => store.subscribe(notify),
@@ -72,12 +81,21 @@ export function useSyncStatus(): UseSyncStatusResult {
     await loadConflicts();
   }, [context, loadConflicts]);
 
+  const reconnectAuth = useCallback(async () => {
+    if (auth) {
+      await auth.login();
+    }
+  }, [auth]);
+
+  const effectiveState = (authStatus === 'standby' || status.state === 'standby') ? 'standby' : status.state;
+
   return {
-    state: status.state,
+    state: effectiveState,
     pendingCount: status.pendingCount,
     lastSyncedAt: status.lastSyncedAt,
     lastError: status.lastError,
     conflictCount,
     triggerSync,
+    reconnectAuth,
   };
 }

@@ -6,6 +6,7 @@ import {
   WifiOff,
   AlertCircle,
   AlertTriangle,
+  PauseCircle,
 } from 'lucide-react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { formatSyncTime } from '../utils/formatSyncTime';
@@ -21,9 +22,6 @@ const spin = stylex.keyframes({
   '0%': { transform: 'rotate(0deg)' },
   '100%': { transform: 'rotate(360deg)' },
 });
-
-// Tablet range, shared by the pill padding and the label visibility below.
-const tablet = '@media (min-width: 769px) and (max-width: 1023px)';
 
 const styles = stylex.create({
   pill: {
@@ -49,7 +47,7 @@ const styles = stylex.create({
     ':focus-visible': {
       boxShadow: '0 0 0 2px var(--color-accent)',
     },
-    [tablet]: {
+    '@media (min-width: 769px) and (max-width: 1023px)': {
       paddingLeft: 6,
       paddingRight: 6,
       justifyContent: 'center',
@@ -75,6 +73,14 @@ const styles = stylex.create({
     borderColor: 'rgba(99, 102, 241, 0.25)',
     ':hover': {
       backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    },
+  },
+  standby: {
+    color: 'var(--color-warning)',
+    backgroundColor: 'var(--color-warning-muted)',
+    borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)',
+    ':hover': {
+      backgroundColor: 'color-mix(in srgb, var(--color-warning) 22%, transparent)',
     },
   },
   offline: {
@@ -111,7 +117,7 @@ const styles = stylex.create({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    [tablet]: {
+    '@media (min-width: 769px) and (max-width: 1023px)': {
       display: 'none',
     },
   },
@@ -133,7 +139,7 @@ const styles = stylex.create({
 });
 
 export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
-  const { state, conflictCount, lastSyncedAt, lastError, triggerSync } = useSyncStatus();
+  const { state, conflictCount, lastSyncedAt, lastError, triggerSync, reconnectAuth } = useSyncStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // If conflict drafts exist, highest priority is conflict indicator
@@ -147,6 +153,8 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
 
     if (hasConflicts) {
       setIsModalOpen(true);
+    } else if (state === 'standby') {
+      void reconnectAuth?.();
     } else if (state === 'idle' || state === 'error') {
       void triggerSync();
     }
@@ -155,6 +163,9 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
   const getTooltip = (): string => {
     if (hasConflicts) {
       return `${conflictCount} conflict${conflictCount > 1 ? 's' : ''} detected. Click to resolve.`;
+    }
+    if (state === 'standby') {
+      return 'Cloud sync paused — tap to reconnect';
     }
     if (state === 'syncing') {
       return 'Syncing changes with cloud...';
@@ -184,6 +195,16 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
     }
 
     switch (state) {
+      case 'standby':
+        return (
+          <>
+            <PauseCircle size={14} color="var(--color-warning)" />
+            <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
+              Paused
+            </span>
+          </>
+        );
+
       case 'syncing':
         return (
           <>
@@ -234,6 +255,8 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
     switch (state) {
       case 'syncing':
         return styles.syncing;
+      case 'standby':
+        return styles.standby;
       case 'offline':
         return styles.offline;
       case 'error':

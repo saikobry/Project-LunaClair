@@ -47,8 +47,12 @@ import { DexieCollectionRepository } from '../../infrastructure/database/reposit
 import { DexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
 import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { workerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
+import { googleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
+import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { workerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import { localStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
+import type { SyncTransport } from '../../domain/sync/services/SyncTransport';
+import type { GoogleAuthPort } from '../../domain/auth/models/auth.types';
 import {
     getActiveVaultDatabase,
     openVaultDatabase,
@@ -57,7 +61,6 @@ import {
 } from '../../infrastructure/database/schema/LunaClairDatabase';
 import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
 import type { VaultRegistryPort } from '../../domain/vault/models/vault.types';
-import type { WorkerSyncTransport } from '../../infrastructure/api/transports/WorkerSyncTransport';
 import type { WorkerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import type { LocalStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
 import type { AiService } from '../../domain/ai/services/AiService';
@@ -111,11 +114,12 @@ export interface Infrastructure {
         ai: AiService;
     };
     transports: {
-        sync: WorkerSyncTransport;
+        sync: SyncTransport;
         share: WorkerShareTransport;
     };
     providers: {
         credentials: LocalStorageCredentialsProvider;
+        auth: GoogleAuthPort;
     };
     importerRegistry: ImporterRegistry;
     syncReconciler: DexieSyncReconciler;
@@ -185,6 +189,21 @@ export function createInfrastructure(
         collectionMaterial: collectionMaterialRepository,
     };
 
+    const dynamicSyncTransport: SyncTransport = {
+        async push(credentials, request, signal) {
+            const transport = googleAuthService.getSession()
+                ? googleDriveSyncTransport
+                : workerSyncTransport;
+            return transport.push(credentials, request, signal);
+        },
+        async pull(credentials, cursor, limit, signal) {
+            const transport = googleAuthService.getSession()
+                ? googleDriveSyncTransport
+                : workerSyncTransport;
+            return transport.pull(credentials, cursor, limit, signal);
+        },
+    };
+
     return {
         db: database,
         repositories,
@@ -195,11 +214,12 @@ export function createInfrastructure(
             ai: aiService,
         },
         transports: {
-            sync: workerSyncTransport,
+            sync: dynamicSyncTransport,
             share: workerShareTransport,
         },
         providers: {
             credentials: localStorageCredentialsProvider,
+            auth: googleAuthService,
         },
         importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
         syncReconciler: new DexieSyncReconciler(database),

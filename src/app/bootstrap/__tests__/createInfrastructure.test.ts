@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import {
@@ -82,5 +82,45 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
     expect(fetched?.title).toBe('Async Vault Material');
 
     await Dexie.delete(promo.pointer.physicalDbName);
+  });
+
+  it('exposes googleAuthService on providers.auth and dynamically routes sync transport', async () => {
+    const { googleAuthService } = await import('../../../infrastructure/auth/google/GoogleAuthService');
+    const { workerSyncTransport } = await import('../../../infrastructure/api/transports/WorkerSyncTransport');
+    const { googleDriveSyncTransport } = await import('../../../infrastructure/api/transports/GoogleDriveSyncTransport');
+
+    const infra = createInfrastructure();
+    expect(infra.providers.auth).toBe(googleAuthService);
+
+    const workerPushSpy = vi.spyOn(workerSyncTransport, 'push').mockResolvedValueOnce({
+      accepted: [],
+      conflicts: [],
+      rejected: [],
+    });
+    const drivePushSpy = vi.spyOn(googleDriveSyncTransport, 'push').mockResolvedValueOnce({
+      accepted: [],
+      conflicts: [],
+      rejected: [],
+    });
+
+    const getSessionSpy = vi.spyOn(googleAuthService, 'getSession');
+
+    // Case 1: unauthenticated -> workerSyncTransport
+    getSessionSpy.mockReturnValueOnce(null);
+    await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
+    expect(workerPushSpy).toHaveBeenCalledTimes(1);
+    expect(drivePushSpy).not.toHaveBeenCalled();
+
+    // Case 2: authenticated -> googleDriveSyncTransport
+    getSessionSpy.mockReturnValueOnce({
+      user: { sub: 'sub-1', email: 'a@b.com', name: 'User' },
+      tokens: { accessToken: 'token', expiresAt: 9999999999, sealedRefreshToken: 'sealed' },
+    });
+    await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
+    expect(drivePushSpy).toHaveBeenCalledTimes(1);
+
+    getSessionSpy.mockRestore();
+    workerPushSpy.mockRestore();
+    drivePushSpy.mockRestore();
   });
 });
