@@ -671,5 +671,220 @@ describe('DriveCompactor', () => {
       expect(result.deletedJournalFileIds).toContain('j-normal');
     });
   });
+
+  describe('Multi-Snapshot Folding & Fail-Closed Domination', () => {
+    it('triggers compaction when frontierSnapshots.length > 1 even if journals <= 40 and size <= 5 MB', () => {
+      const compactor = createCompactor();
+      const files: DriveFileMetadata[] = [
+        {
+          id: 'snap-1',
+          name: 'snapshot_2026-10-15T10:00:00.000Z_0000_dev-1.json.gz',
+          appProperties: { type: 'snapshot', hlc: '2026-10-15T10:00:00.000Z_0000_dev-1' },
+        },
+        {
+          id: 'snap-2',
+          name: 'snapshot_2026-10-15T10:30:00.000Z_0000_dev-2.json.gz',
+          appProperties: { type: 'snapshot', hlc: '2026-10-15T10:30:00.000Z_0000_dev-2' },
+        },
+      ];
+
+      expect(compactor.isThresholdExceeded(files)).toBe(true);
+    });
+
+    it('dominatesCoverage fails closed when either snapshot lacks watermarks', () => {
+      const snapWithWm = {
+        coveredJournalFileIds: ['j1'],
+        watermarks: { 'dev-1': '2026-10-15T12:00:00.000Z_0000_dev-1' },
+      };
+      const snapWithoutWm = {
+        coveredJournalFileIds: ['j1'],
+      };
+      const snapWithEmptyWm = {
+        coveredJournalFileIds: ['j1'],
+        watermarks: {},
+      };
+
+      // Newer lacks watermarks
+      expect(dominatesCoverage(snapWithoutWm, snapWithWm)).toBe(false);
+      // Older lacks watermarks
+      expect(dominatesCoverage(snapWithWm, snapWithoutWm)).toBe(false);
+      // Older has empty watermarks object
+      expect(dominatesCoverage(snapWithWm, snapWithEmptyWm)).toBe(false);
+      // Newer has empty watermarks object
+      expect(dominatesCoverage(snapWithEmptyWm, snapWithWm)).toBe(false);
+    });
+
+    it('protects seed part chunks from premature deletion by single-device domination before full consolidation', () => {
+      const seedChunk1 = {
+        id: 'seed-chunk-1',
+        coveredJournalFileIds: [],
+        watermarks: { 'dev-1': '2026-10-15T10:00:00.000Z_0000_dev-1' },
+        isSeedPart: true,
+        partIndex: 0,
+        totalParts: 2,
+      };
+
+      // Single-device snapshot with higher watermark but NOT consolidated
+      const singleDeviceSnapshot = {
+        coveredJournalFileIds: [],
+        watermarks: { 'dev-1': '2026-10-15T12:00:00.000Z_0000_dev-1' },
+        consolidated: false,
+      };
+
+      // Must NOT dominate seed part chunk before consolidation
+      expect(dominatesCoverage(singleDeviceSnapshot, seedChunk1)).toBe(false);
+
+      // Consolidated snapshot that includes seed-chunk-1 in coveredSnapshotFileIds
+      const consolidatedSnapshot = {
+        coveredJournalFileIds: [],
+        watermarks: { 'dev-1': '2026-10-15T12:00:00.000Z_0000_dev-1' },
+        consolidated: true,
+        coveredSnapshotFileIds: ['seed-chunk-1', 'seed-chunk-2'],
+      };
+
+      // Must dominate after full consolidation
+      expect(dominatesCoverage(consolidatedSnapshot, seedChunk1)).toBe(true);
+    });
+
+    it('folds multiple frontier snapshots in ascending HLC order, merges component-wise watermarks, and resolves per-entity LWW', async () => {
+      const snap1Meta: DriveFileMetadata = {
+        id: 'snap-1-meta',
+        name: 'snapshot_2026-10-15T10:00:00.000Z_0000_dev-1.json.gz',
+        appProperties: {
+          type: 'snapshot',
+          hlc: '2026-10-15T10:00:00.000Z_0000_dev-1',
+          deviceId: 'dev-1',
+        },
+      };
+
+      const snap2Meta: DriveFileMetadata = {
+        id: 'snap-2-meta',
+        name: 'snapshot_2026-10-15T11:00:00.000Z_0000_dev-2.json.gz',
+        appProperties: {
+          type: 'snapshot',
+          hlc: '2026-10-15T11:00:00.000Z_0000_dev-2',
+          deviceId: 'dev-2',
+        },
+      };
+
+      const snap1Payload: SnapshotPayload = {
+        version: 1,
+        hlc: '2026-10-15T10:00:00.000Z_0000_dev-1',
+        deviceId: 'dev-1',
+        coveredJournalFileIds: ['j-old-1'],
+        watermarks: {
+          'dev-1': '2026-10-15T10:00:00.000Z_0000_dev-1',
+        },
+        state: {
+          userEntities: {
+            'doc-1': { id: 'doc-1', title: 'Doc 1 - Version 1', hlc: '2026-10-15T09:00:00.000Z_0000_dev-1' },
+            'doc-2': { id: 'doc-2', title: 'Doc 2 - Only in Snap 1', hlc: '2026-10-15T09:30:00.000Z_0000_dev-1' },
+          },
+        },
+        mutations: [
+          {
+            clientMutationId: 'm1',
+            entityType: 'document',
+            entityId: 'doc-1',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-15T09:00:00.000Z_0000_dev-1',
+            payload: { title: 'Doc 1 - Version 1' },
+          },
+          {
+            clientMutationId: 'm2',
+            entityType: 'document',
+            entityId: 'doc-2',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-15T09:30:00.000Z_0000_dev-1',
+            payload: { title: 'Doc 2 - Only in Snap 1' },
+          },
+        ],
+      };
+
+      const snap2Payload: SnapshotPayload = {
+        version: 1,
+        hlc: '2026-10-15T11:00:00.000Z_0000_dev-2',
+        deviceId: 'dev-2',
+        coveredJournalFileIds: ['j-old-2'],
+        watermarks: {
+          'dev-1': '2026-10-15T09:50:00.000Z_0000_dev-1', // Older than snap1's dev-1 watermark
+          'dev-2': '2026-10-15T11:00:00.000Z_0000_dev-2',
+        },
+        state: {
+          userEntities: {
+            // Overwrites doc-1 with newer HLC
+            'doc-1': { id: 'doc-1', title: 'Doc 1 - Version 2 (Overwritten)', hlc: '2026-10-15T10:45:00.000Z_0000_dev-2' },
+            'doc-3': { id: 'doc-3', title: 'Doc 3 - Only in Snap 2', hlc: '2026-10-15T10:50:00.000Z_0000_dev-2' },
+          },
+        },
+        mutations: [
+          {
+            clientMutationId: 'm3',
+            entityType: 'document',
+            entityId: 'doc-1',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-15T10:45:00.000Z_0000_dev-2',
+            payload: { title: 'Doc 1 - Version 2 (Overwritten)' },
+          },
+          {
+            clientMutationId: 'm4',
+            entityType: 'document',
+            entityId: 'doc-3',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-15T10:50:00.000Z_0000_dev-2',
+            payload: { title: 'Doc 3 - Only in Snap 2' },
+          },
+        ],
+      };
+
+      mockDriveClient.downloadCompressedJson?.mockImplementation(async (id: string) => {
+        if (id === 'snap-1-meta') return snap1Payload;
+        if (id === 'snap-2-meta') return snap2Payload;
+        throw new Error(`File ${id} not found`);
+      });
+
+      mockDriveClient.uploadCompressedJson?.mockResolvedValue({
+        id: 'consolidated-snap-id',
+        name: 'snapshot_consolidated.json.gz',
+      });
+
+      const compactor = createCompactor({ deviceId: 'dev-consolidator' });
+      const result = await compactor.compact({
+        files: [snap1Meta, snap2Meta],
+      });
+
+      expect(result.compacted).toBe(true);
+      expect(result.reason).toBe('success');
+      expect(result.deletedSnapshotFileIds).toContain('snap-1-meta');
+      expect(result.deletedSnapshotFileIds).toContain('snap-2-meta');
+
+      // Verify upload call payload
+      const [name, payload, appProps] = mockDriveClient.uploadCompressedJson?.mock.calls[0] ?? [];
+      expect(name).toMatch(/^snapshot_.*\.json\.gz$/);
+      expect(appProps?.consolidated).toBe('true');
+
+      // Watermarks: component-wise maximum
+      expect(payload.watermarks).toEqual({
+        'dev-1': '2026-10-15T10:00:00.000Z_0000_dev-1', // snap1 won over snap2
+        'dev-2': '2026-10-15T11:00:00.000Z_0000_dev-2',
+        'dev-consolidator': expect.any(String),
+      });
+
+      // Covered journals: union of both snapshots
+      expect(payload.coveredJournalFileIds).toContain('j-old-1');
+      expect(payload.coveredJournalFileIds).toContain('j-old-2');
+
+      // State: LWW resolved per-entity
+      expect(payload.state.userEntities['doc-1'].title).toBe('Doc 1 - Version 2 (Overwritten)');
+      expect(payload.state.userEntities['doc-2'].title).toBe('Doc 2 - Only in Snap 1');
+      expect(payload.state.userEntities['doc-3'].title).toBe('Doc 3 - Only in Snap 2');
+
+      // Mutations: LWW resolved per-entity
+      const doc1Mut = payload.mutations.find((m: any) => m.entityId === 'doc-1');
+      expect(doc1Mut?.payload.title).toBe('Doc 1 - Version 2 (Overwritten)');
+      expect(payload.mutations.find((m: any) => m.entityId === 'doc-2')).toBeDefined();
+      expect(payload.mutations.find((m: any) => m.entityId === 'doc-3')).toBeDefined();
+    });
+  });
 });
 

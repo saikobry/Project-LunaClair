@@ -1063,5 +1063,133 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       // Cold/warm seeding was not triggered
       expect(mockDriveClient.uploadCompressedJson).not.toHaveBeenCalled();
     });
+
+    it('wires onTokenExpired callback to driveClient and refreshes token via authService', async () => {
+      let registeredCallback: (() => Promise<string>) | undefined;
+      const customDriveClient: GoogleDrivePort = {
+        ...mockDriveClient,
+        setOnTokenExpired: vi.fn((cb?: () => Promise<string>) => {
+          registeredCallback = cb;
+        }),
+      };
+
+      new GoogleDriveSyncTransport({
+        driveClient: customDriveClient,
+        authService: mockAuthService,
+      });
+
+      expect(customDriveClient.setOnTokenExpired).toHaveBeenCalledTimes(1);
+      expect(registeredCallback).toBeDefined();
+
+      const refreshed = await registeredCallback!();
+      expect(refreshed).toBe('valid-access-token-999');
+      expect(mockAuthService.getValidAccessToken).toHaveBeenCalledWith(true);
+    });
+
+    it('resumes interrupted cold seed in warm mode by uploading only entities not yet present remotely', async () => {
+      const db = getActiveVaultDatabase();
+      // Vault has 2 documents and 1 highlight:
+      // doc-1 was uploaded before crash in chunk 1 (2026-10-10)
+      await db.documentContents.put({
+        documentId: 'doc-1',
+        title: 'Already Uploaded Document',
+        content: '# Content 1',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+        version: 1,
+      });
+
+      // doc-2 was NOT uploaded (2026-10-10)
+      await db.documentContents.put({
+        documentId: 'doc-2',
+        title: 'Pending Document',
+        content: '# Content 2',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+        version: 1,
+      });
+
+      // hl-1 was NOT uploaded (2026-10-10)
+      await db.highlights.put({
+        id: 'hl-1',
+        documentId: 'doc-1',
+        start: 0,
+        end: 10,
+        color: 'yellow',
+        text: 'Sample',
+        createdAt: '2026-10-10T10:00:00.000Z',
+      });
+
+      // Remote has chunk 1 from earlier interrupted seed containing doc-1
+      const chunk1File: DriveFileMetadata = {
+        id: 'remote-seed-chunk-1',
+        name: 'snapshot_2026-10-10T10:00:00.000Z_0000_dev-client-1_part1.json.gz',
+        appProperties: {
+          type: 'snapshot',
+          deviceId: 'dev-client-1',
+          hlc: '2026-10-10T10:00:00.000Z_0000_dev-client-1',
+          isSeedPart: 'true',
+          partIndex: '0',
+          totalParts: '2',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([chunk1File]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        version: 1,
+        hlc: '2026-10-10T10:00:00.000Z_0000_dev-client-1',
+        deviceId: 'dev-client-1',
+        watermarks: { 'dev-client-1': '2026-10-10T10:00:00.000Z_0000_dev-client-1' },
+        mutations: [
+          {
+            clientMutationId: 'baseline-doc-doc-1',
+            entityType: 'document',
+            entityId: 'doc-1',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-10T10:00:00.000Z_0000_dev-client-1',
+            payload: {
+              documentId: 'doc-1',
+              title: 'Already Uploaded Document',
+              content: '# Content 1',
+              updatedAt: '2026-10-10T10:00:00.000Z',
+              version: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      expect(transport.isDriveSeeded()).toBe(false);
+
+      await transport.pull(credentials, 0);
+
+      // Verify that delta upload was called with ONLY doc-2 and hl-1 (doc-1 omitted)
+      expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
+      const [fileName, payload, appProps] = vi.mocked(
+        mockDriveClient.uploadCompressedJson!
+      ).mock.calls[0]!;
+
+      expect(fileName).toMatch(/^journal_.+\.json\.gz$/);
+      expect(appProps?.type).toBe('journal');
+      const journalPayload = payload as { mutations: SyncPushRequest['mutations'] };
+      const uploadedEntityIds = journalPayload.mutations.map((m) => m.entityId);
+
+      // doc-1 was already remote with identical HLC -> skipped
+      expect(uploadedEntityIds).not.toContain('doc-1');
+      // doc-2 and hl-1 were not remote -> uploaded
+      expect(uploadedEntityIds).toContain('doc-2');
+      expect(uploadedEntityIds).toContain('hl-1');
+      expect(uploadedEntityIds).toHaveLength(2);
+
+      // Now driveSeeded is true
+      expect(transport.isDriveSeeded()).toBe(true);
+      const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+      const state = await db.syncState.get(stateKey);
+      expect(state?.driveSeeded).toBe(true);
+    });
   });
 });

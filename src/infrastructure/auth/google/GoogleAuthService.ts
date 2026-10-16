@@ -182,9 +182,10 @@ export class GoogleAuthService implements GoogleAuthPort {
   }
 
   /**
-   * Returns a valid access token. Automatically triggers silent refresh if expiring within 2 minutes.
+   * Returns a valid access token. Automatically triggers silent refresh if expiring within 2 minutes
+   * or if force is true.
    */
-  async getValidAccessToken(): Promise<string> {
+  async getValidAccessToken(force = false): Promise<string> {
     if (!this.session) {
       this.session = this.readSessionFromStorage();
     }
@@ -196,7 +197,7 @@ export class GoogleAuthService implements GoogleAuthPort {
     const now = Date.now();
     const timeRemaining = this.session.tokens.expiresAt - now;
 
-    if (timeRemaining > TOKEN_REFRESH_THRESHOLD_MS) {
+    if (!force && timeRemaining > TOKEN_REFRESH_THRESHOLD_MS) {
       return this.session.tokens.accessToken;
     }
 
@@ -210,6 +211,13 @@ export class GoogleAuthService implements GoogleAuthPort {
     } finally {
       this.refreshPromise = null;
     }
+  }
+
+  /**
+   * Explicitly forces a token refresh, bypassing expiration threshold checks.
+   */
+  async refreshAccessToken(): Promise<string> {
+    return this.getValidAccessToken(true);
   }
 
   /**

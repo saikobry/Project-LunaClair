@@ -205,4 +205,6 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 - **Phase 16 — Deterministic Explore Clone Identity & Multi-Device Linking:**
   - Remap cloned Explore study packages with deterministic `documentId` derived from `originShareId` (e.g. `doc_share_${originShareId}`).
+  - **Floor HLC Contract:** Freshly cloned Explore course templates must be stamped with a deterministic floor HLC derived from `sharePackage.publishedAt` (or fixed epoch `0000_share`), NOT `Date.now()`. This guarantees that user edits made on Device A (`10:15 AM`) are never overwritten by a fresh template clone of the same course on Device B (`11:00 AM`).
   - Ensure highlights, drawings, and flashcard review progress attach seamlessly across multiple devices of the same user without primary key collisions.
+

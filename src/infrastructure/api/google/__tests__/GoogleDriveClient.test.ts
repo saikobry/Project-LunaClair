@@ -449,7 +449,7 @@ describe('Infrastructure: GoogleDriveClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('throws DriveAuthError immediately on HTTP 401 without retrying', async () => {
+    it('throws DriveAuthError immediately on HTTP 401 without retrying when onTokenExpired is not configured', async () => {
       const mockFetch = vi.fn(async () => {
         return new Response(
           JSON.stringify({
@@ -462,6 +462,95 @@ describe('Infrastructure: GoogleDriveClient', () => {
       const client = new GoogleDriveClient({ baseDelayMs: 0, fetch: mockFetch as typeof fetch });
 
       await expect(client.getStartPageToken('expired-token')).rejects.toThrow(DriveAuthError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('invokes onTokenExpired on HTTP 401, updates Authorization header, and retries successfully', async () => {
+      let callCount = 0;
+      const capturedHeaders: string[] = [];
+
+      const mockFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        callCount++;
+        const headers = init?.headers as Record<string, string>;
+        capturedHeaders.push(headers?.Authorization ?? '');
+
+        if (callCount === 1) {
+          return new Response(
+            JSON.stringify({
+              error: { code: 401, message: 'Invalid Credentials' },
+            }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ startPageToken: 'token-after-refresh' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      });
+
+      const onTokenExpired = vi.fn(async () => 'fresh-access-token-456');
+
+      const client = new GoogleDriveClient({
+        baseDelayMs: 0,
+        fetch: mockFetch as typeof fetch,
+        onTokenExpired,
+      });
+
+      const token = await client.getStartPageToken('initial-expired-token');
+
+      expect(token).toBe('token-after-refresh');
+      expect(onTokenExpired).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(capturedHeaders[0]).toBe('Bearer initial-expired-token');
+      expect(capturedHeaders[1]).toBe('Bearer fresh-access-token-456');
+    });
+
+    it('throws DriveAuthError when HTTP 401 persists after token refresh', async () => {
+      const mockFetch = vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            error: { code: 401, message: 'Invalid Credentials - Token Revoked' },
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      });
+
+      const onTokenExpired = vi.fn(async () => 'fresh-access-token-456');
+
+      const client = new GoogleDriveClient({
+        baseDelayMs: 0,
+        fetch: mockFetch as typeof fetch,
+        onTokenExpired,
+      });
+
+      await expect(client.getStartPageToken('expired-token')).rejects.toThrow(DriveAuthError);
+      expect(onTokenExpired).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws DriveAuthError when onTokenExpired rejects', async () => {
+      const mockFetch = vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            error: { code: 401, message: 'Invalid Credentials' },
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      });
+
+      const onTokenExpired = vi.fn(async () => {
+        throw new Error('Refresh network failure');
+      });
+
+      const client = new GoogleDriveClient({
+        baseDelayMs: 0,
+        fetch: mockFetch as typeof fetch,
+        onTokenExpired,
+      });
+
+      await expect(client.getStartPageToken('expired-token')).rejects.toThrow(DriveAuthError);
+      expect(onTokenExpired).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 

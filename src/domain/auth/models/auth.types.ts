@@ -58,8 +58,14 @@ export interface GoogleAuthPort {
   /**
    * Resolves a valid access token.
    * If current token expires within 2 minutes (or is expired), performs a silent refresh.
+   * If `force` is true, forces a token refresh regardless of expiration.
    */
-  getValidAccessToken(): Promise<string>;
+  getValidAccessToken(force?: boolean): Promise<string>;
+
+  /**
+   * Forces a refresh of the access token using the stored sealed refresh token.
+   */
+  refreshAccessToken?(): Promise<string>;
 
   /**
    * Returns active session if authenticated, or null.

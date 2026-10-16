@@ -44,7 +44,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:
   - `transports/` — Network and cloud storage sync and share transports:
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
-    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (sole sync transport; Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence)
+    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (sole sync transport; Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, warm-mode delta diffing per `(record.id, record.hlc)` against remote entity map enabling interrupted seed resume, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence)
   - `google/` — Google Drive API v3 client:
     - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`)
     - `streamVaultChunksGzipped.ts` → Streaming vault baseline compression pipeline (`streamVaultChunksGzipped`, `collectVaultChunksGzipped`, `deriveEntityHlc`, `paginateTable`, `compressChunkGzip`)

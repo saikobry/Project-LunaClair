@@ -42,7 +42,6 @@ import {
   deriveEntityHlc,
   paginateTable,
 } from '../google/streamVaultChunksGzipped';
-import { compareLwwTimestamps } from '../../../domain/sync/utils/syncVersioning';
 
 export interface JournalPayload {
   hlc: string;
@@ -59,6 +58,7 @@ export interface GoogleDriveSyncTransportOptions {
   hlc?: HybridLogicalClock;
   stateRepo?: SyncStateRepository;
   db?: LunaClairDatabase;
+  onTokenExpired?: () => Promise<string>;
 }
 
 export class GoogleDriveSyncTransport implements SyncTransport {
@@ -89,6 +89,20 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     this.currentSequence = 0;
     this.pushSequence = 0;
     this.driveSeeded = false;
+
+    // Wire automatic token refresh callback on HTTP 401
+    const refreshCallback = options.onTokenExpired ?? (async (): Promise<string> => {
+      if (typeof this.authService.refreshAccessToken === 'function') {
+        return this.authService.refreshAccessToken();
+      }
+      return this.authService.getValidAccessToken(true);
+    });
+
+    if (typeof this.driveClient.setOnTokenExpired === 'function') {
+      this.driveClient.setOnTokenExpired(refreshCallback);
+    } else if ('onTokenExpired' in this.driveClient) {
+      this.driveClient.onTokenExpired = refreshCallback;
+    }
   }
 
   /**
@@ -637,7 +651,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     const chunks = await collectVaultChunksGzipped(this.db, credentials.deviceId);
     signal?.throwIfAborted();
 
-    for (const chunk of chunks) {
+    const isMultiPart = chunks.length > 1;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
       signal?.throwIfAborted();
       const fileName = `snapshot_${chunk.hlc}_${credentials.deviceId}.json.gz`;
       const appProperties: Record<string, string> = {
@@ -645,6 +661,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         deviceId: credentials.deviceId,
         hlc: chunk.hlc,
         count: String(chunk.mutations.length),
+        ...(isMultiPart
+          ? {
+              isSeedPart: 'true',
+              partIndex: String(i),
+              totalParts: String(chunks.length),
+            }
+          : {}),
       };
 
       const snapshotPayload = {
@@ -655,6 +678,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         coveredJournalFileIds: [],
         watermarks: { [credentials.deviceId]: chunk.hlc },
         mutations: chunk.mutations,
+        ...(isMultiPart
+          ? {
+              isSeedPart: true,
+              partIndex: i,
+              totalParts: chunks.length,
+            }
+          : {}),
       };
 
       let uploadedFile: DriveFileMetadata;
@@ -694,18 +724,18 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     signal?: AbortSignal
   ): Promise<void> {
     signal?.throwIfAborted();
-    const remoteTimestamps = new Map<string, string>();
+    const remoteEntityHlcById = new Map<string, string>();
     for (const ch of remoteChanges) {
       if (ch.entityId && ch.changedAt) {
-        const current = remoteTimestamps.get(ch.entityId);
-        if (!current || compareLwwTimestamps(ch.changedAt, current) === 'remote_wins') {
-          remoteTimestamps.set(ch.entityId, ch.changedAt);
+        const current = remoteEntityHlcById.get(ch.entityId);
+        if (!current || compareHlc(ch.changedAt, current) > 0) {
+          remoteEntityHlcById.set(ch.entityId, ch.changedAt);
         }
       }
     }
 
     const localDeltas: SyncMutation[] = [];
-    await this.collectLocalDeltas(remoteTimestamps, localDeltas, credentials.deviceId);
+    await this.collectLocalDeltas(remoteEntityHlcById, localDeltas, credentials.deviceId);
     signal?.throwIfAborted();
 
     if (localDeltas.length > 0) {
@@ -759,23 +789,22 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   }
 
   private async collectLocalDeltas(
-    remoteTimestamps: Map<string, string>,
+    remoteEntityHlcById: Map<string, string>,
     deltas: SyncMutation[],
     deviceId: string
   ): Promise<void> {
     // 1. Documents
     for await (const doc of paginateTable(this.db.documentContents, 100)) {
-      const localTime = doc.updatedAt ?? new Date(0).toISOString();
-      const remoteTime = remoteTimestamps.get(doc.documentId);
-      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
-        const hlc = deriveEntityHlc(doc.updatedAt, deviceId);
+      const localHlc = deriveEntityHlc(doc.updatedAt, deviceId);
+      const remoteHlc = remoteEntityHlcById.get(doc.documentId);
+      if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
         deltas.push({
           clientMutationId: `baseline-delta-doc-${doc.documentId}`,
           entityType: 'document',
           entityId: doc.documentId,
           operation: 'UPSERT',
           baseVersion: doc.version ?? 1,
-          clientTimestamp: hlc,
+          clientTimestamp: localHlc,
           payload: {
             documentId: doc.documentId,
             title: doc.title,
@@ -789,16 +818,15 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     // 2. Highlights
     for await (const hl of paginateTable(this.db.highlights, 100)) {
-      const localTime = hl.deletedAt ?? hl.createdAt ?? new Date(0).toISOString();
-      const remoteTime = remoteTimestamps.get(hl.id);
-      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
-        const hlc = deriveEntityHlc(hl.deletedAt ?? hl.createdAt, deviceId);
+      const localHlc = deriveEntityHlc(hl.deletedAt ?? hl.createdAt, deviceId);
+      const remoteHlc = remoteEntityHlcById.get(hl.id);
+      if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
         deltas.push({
           clientMutationId: `baseline-delta-hl-${hl.id}`,
           entityType: 'highlight',
           entityId: hl.id,
           operation: hl.deletedAt ? 'DELETE' : 'UPSERT',
-          clientTimestamp: hlc,
+          clientTimestamp: localHlc,
           payload: {
             id: hl.id,
             documentId: hl.documentId,
@@ -815,16 +843,15 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     // 3. Drawings
     for await (const dr of paginateTable(this.db.drawings, 100)) {
-      const localTime = dr.deletedAt ?? dr.createdAt ?? new Date(0).toISOString();
-      const remoteTime = remoteTimestamps.get(dr.id);
-      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
-        const hlc = deriveEntityHlc(dr.deletedAt ?? dr.createdAt, deviceId);
+      const localHlc = deriveEntityHlc(dr.deletedAt ?? dr.createdAt, deviceId);
+      const remoteHlc = remoteEntityHlcById.get(dr.id);
+      if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
         deltas.push({
           clientMutationId: `baseline-delta-dr-${dr.id}`,
           entityType: 'drawing',
           entityId: dr.id,
           operation: dr.deletedAt ? 'DELETE' : 'UPSERT',
-          clientTimestamp: hlc,
+          clientTimestamp: localHlc,
           payload: {
             id: dr.id,
             documentId: dr.documentId,
@@ -841,16 +868,15 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     // 4. Flashcard Reviews
     for await (const fc of paginateTable(this.db.flashcardReviews, 100)) {
-      const localTime = fc.lastReviewedAt ?? fc.dueAt ?? new Date(0).toISOString();
-      const remoteTime = remoteTimestamps.get(fc.key);
-      if (!remoteTime || compareLwwTimestamps(localTime, remoteTime) === 'local_wins') {
-        const hlc = deriveEntityHlc(fc.lastReviewedAt ?? fc.dueAt, deviceId);
+      const localHlc = deriveEntityHlc(fc.lastReviewedAt ?? fc.dueAt, deviceId);
+      const remoteHlc = remoteEntityHlcById.get(fc.key);
+      if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
         deltas.push({
           clientMutationId: `baseline-delta-fc-${fc.key}`,
           entityType: 'flashcardReview',
           entityId: fc.key,
           operation: 'UPSERT',
-          clientTimestamp: hlc,
+          clientTimestamp: localHlc,
           payload: {
             key: fc.key,
             materialId: fc.materialId,
@@ -868,15 +894,15 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     // 5. Quiz Sessions
     for await (const qs of paginateTable(this.db.quizSessions, 100)) {
-      const remoteTime = remoteTimestamps.get(qs.id);
-      if (!remoteTime) {
-        const hlc = deriveEntityHlc(qs.completedAt ?? qs.startedAt, deviceId);
+      const localHlc = deriveEntityHlc(qs.completedAt ?? qs.startedAt, deviceId);
+      const remoteHlc = remoteEntityHlcById.get(qs.id);
+      if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
         deltas.push({
           clientMutationId: `baseline-delta-qs-${qs.id}`,
           entityType: 'quizSession',
           entityId: qs.id,
           operation: 'APPEND',
-          clientTimestamp: hlc,
+          clientTimestamp: localHlc,
           payload: {
             id: qs.id,
             quizId: qs.quizId,

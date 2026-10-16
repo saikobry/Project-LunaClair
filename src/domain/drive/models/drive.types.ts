@@ -150,6 +150,16 @@ export interface GoogleDrivePort {
    * Alias for recover410Cursor.
    */
   recoverFromInvalidPageToken?(params: Recover410Params): Promise<CursorRecoveryResult>;
+
+  /**
+   * Optional callback invoked when HTTP 401 is received to refresh the access token.
+   */
+  onTokenExpired?: () => Promise<string>;
+
+  /**
+   * Registers a token refresh callback on the client.
+   */
+  setOnTokenExpired?(callback?: () => Promise<string>): void;
 }
 
 /**

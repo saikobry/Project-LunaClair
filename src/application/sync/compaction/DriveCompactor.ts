@@ -24,6 +24,7 @@ import {
   parseHlc,
   type HybridLogicalClock,
 } from '../../../domain/sync/utils/hlc';
+import type { SyncMutation } from '../../../domain/sync/models/sync.types';
 
 export const COMPACTION_JOURNAL_COUNT_THRESHOLD = 40;
 export const COMPACTION_TOTAL_SIZE_BYTES_THRESHOLD = 5 * 1024 * 1024; // 5 MB
@@ -39,6 +40,12 @@ export interface SnapshotPayload<T = unknown> {
   coveredJournalFileIds: string[];
   watermarks: Record<string, string>;
   state: T;
+  mutations?: SyncMutation[];
+  consolidated?: boolean;
+  coveredSnapshotFileIds?: string[];
+  isSeedPart?: boolean;
+  partIndex?: number;
+  totalParts?: number;
 }
 
 export interface DriveCompactorOptions {
@@ -62,6 +69,7 @@ export interface CompactionOptions {
   coveredJournalFileIds?: string[];
   force?: boolean;
   accessToken?: string;
+  consolidateSnapshots?: boolean;
 }
 
 export interface CompactionResult {
@@ -76,11 +84,55 @@ export interface CompactionResult {
 
 /**
  * Checks whether a newer snapshot's coverage strictly dominates an older snapshot's coverage.
+ * Fail closed: if either snapshot lacks watermarks, return false (never return true).
+ * A new snapshot dominates an older snapshot iff for all deviceIds in olderSnapshot.watermarks,
+ * newSnapshot.watermarks[deviceId] exists and compareHlc(newWm, olderWm) >= 0.
  */
 export function dominatesCoverage(
-  newSnapshot: { coveredJournalFileIds: string[]; watermarks?: Record<string, string>; hlc?: string },
-  olderSnapshot: { coveredJournalFileIds: string[]; watermarks?: Record<string, string>; hlc?: string }
+  newSnapshot: {
+    coveredJournalFileIds?: string[];
+    watermarks?: Record<string, string>;
+    hlc?: string;
+    consolidated?: boolean;
+    coveredSnapshotFileIds?: string[];
+    isSeedPart?: boolean;
+    partIndex?: number;
+    totalParts?: number;
+  },
+  olderSnapshot: {
+    id?: string;
+    coveredJournalFileIds?: string[];
+    watermarks?: Record<string, string>;
+    hlc?: string;
+    consolidated?: boolean;
+    isSeedPart?: boolean;
+    partIndex?: number;
+    totalParts?: number;
+    appProperties?: Record<string, string>;
+  }
 ): boolean {
+  // Fail closed: if either snapshot lacks watermarks, return false (never return true)
+  if (!newSnapshot.watermarks || !olderSnapshot.watermarks) {
+    return false;
+  }
+  const olderDevices = Object.keys(olderSnapshot.watermarks);
+  if (olderDevices.length === 0) {
+    return false;
+  }
+  if (Object.keys(newSnapshot.watermarks).length === 0) {
+    return false;
+  }
+
+  // A new snapshot dominates an older snapshot iff for all deviceIds in olderSnapshot.watermarks,
+  // newSnapshot.watermarks[deviceId] exists and compareHlc(newWm, olderWm) >= 0.
+  for (const deviceId of olderDevices) {
+    const olderWm = olderSnapshot.watermarks[deviceId];
+    const newWm = newSnapshot.watermarks[deviceId];
+    if (!newWm || compareHlc(newWm, olderWm) < 0) {
+      return false;
+    }
+  }
+
   if (!olderSnapshot.coveredJournalFileIds || !newSnapshot.coveredJournalFileIds) {
     return false;
   }
@@ -91,15 +143,60 @@ export function dominatesCoverage(
   if (!dominatesCovered) {
     return false;
   }
-  if (olderSnapshot.watermarks && newSnapshot.watermarks) {
-    for (const [deviceId, olderWm] of Object.entries(olderSnapshot.watermarks)) {
-      const newWm = newSnapshot.watermarks[deviceId];
-      if (!newWm || compareHlc(newWm, olderWm) < 0) {
-        return false;
-      }
+
+  // Ensure seed part chunks are not deleted prematurely by single-device domination before full consolidation.
+  const isOlderSeedPart =
+    Boolean(olderSnapshot.isSeedPart) ||
+    olderSnapshot.appProperties?.isSeedPart === 'true' ||
+    (olderSnapshot.totalParts !== undefined && olderSnapshot.totalParts > 1) ||
+    olderSnapshot.appProperties?.totalParts !== undefined;
+
+  if (isOlderSeedPart) {
+    if (!newSnapshot.consolidated) {
+      return false;
+    }
+    if (
+      olderSnapshot.id &&
+      newSnapshot.coveredSnapshotFileIds &&
+      !newSnapshot.coveredSnapshotFileIds.includes(olderSnapshot.id)
+    ) {
+      return false;
     }
   }
+
   return true;
+}
+
+/**
+ * Folds two entity states per-entity using LWW comparison if timestamps exist, or overlaying.
+ */
+export function foldEntityState(base: any, overlay: any): any {
+  if (!base) return overlay;
+  if (!overlay) return base;
+  if (typeof base !== 'object' || typeof overlay !== 'object') {
+    return overlay;
+  }
+  const result: Record<string, any> = { ...base };
+  for (const [key, val] of Object.entries(overlay)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      if (result[key] && typeof result[key] === 'object' && !Array.isArray(result[key])) {
+        const valHlc = (val as any).hlc ?? (val as any).updatedAt;
+        const baseHlc = (result[key] as any).hlc ?? (result[key] as any).updatedAt;
+        if (valHlc && baseHlc) {
+          if (compareHlc(String(valHlc), String(baseHlc)) >= 0) {
+            result[key] = val;
+          }
+        } else {
+          result[key] = foldEntityState(result[key], val);
+        }
+      } else {
+        result[key] = val;
+      }
+    } else {
+      result[key] = val;
+    }
+  }
+  return result;
 }
 
 export class DriveCompactor {
@@ -186,9 +283,16 @@ export class DriveCompactor {
   }
 
   /**
-   * Evaluates if active journals exceed the threshold (> 40 files or > 5 MB).
+   * Evaluates if active journals or snapshots exceed the threshold:
+   * 1. frontierSnapshots.length > 1 (concurrent snapshots present)
+   * 2. activeJournals.length > 40
+   * 3. totalJournalBytes > 5 MB
    */
   isThresholdExceeded(files: DriveFileMetadata[]): boolean {
+    const frontierSnapshots = files.filter((f) => !f.trashed && this.isSnapshotFile(f));
+    if (frontierSnapshots.length > 1) {
+      return true;
+    }
     const activeJournals = files.filter((f) => this.isJournalFile(f));
     if (activeJournals.length > this.journalCountThreshold) {
       return true;
@@ -301,6 +405,7 @@ export class DriveCompactor {
     const token = options.accessToken ?? (await this.authService.getValidAccessToken());
     const allFiles = options.files ?? (await this.driveClient.listFiles(token));
 
+    const frontierSnapshots = allFiles.filter((f) => !f.trashed && this.isSnapshotFile(f));
     const force = options.force ?? false;
     if (!force && !this.isThresholdExceeded(allFiles)) {
       return {
@@ -325,7 +430,7 @@ export class DriveCompactor {
       coveredJournalFileIds = eligible.map((j) => j.id);
     }
 
-    if (coveredJournalFileIds.length === 0) {
+    if (coveredJournalFileIds.length === 0 && frontierSnapshots.length <= 1) {
       return {
         compacted: false,
         reason: 'no_eligible_journals',
@@ -336,35 +441,164 @@ export class DriveCompactor {
     }
 
     const deviceId = options.deviceId ?? this.deviceId;
-    const hlc = options.hlc ?? this.getHlc(deviceId).now();
 
-    const watermarks: Record<string, string> = { ...(options.watermarks ?? {}) };
-    for (const journal of sortedJournals) {
-      if (coveredJournalFileIds.includes(journal.id)) {
-        const jDev = journal.appProperties?.deviceId;
-        const jHlc = journal.appProperties?.hlc;
-        if (jDev && jHlc) {
-          if (!watermarks[jDev] || compareHlc(jHlc, watermarks[jDev]) > 0) {
-            watermarks[jDev] = jHlc;
+    const isConsolidated =
+      options.consolidateSnapshots ?? (frontierSnapshots.length > 1 && !options.watermarks);
+
+    // Download and sort all frontier snapshots in ascending HLC order for folding when consolidating
+    const downloadedFrontierSnapshots: Array<{ file: DriveFileMetadata; payload: SnapshotPayload }> = [];
+    const cachedPayloads = new Map<string, SnapshotPayload>();
+
+    if (isConsolidated) {
+      for (const snapFile of frontierSnapshots) {
+        try {
+          let payload: SnapshotPayload;
+          if (typeof this.driveClient.downloadCompressedJson === 'function') {
+            payload = await this.driveClient.downloadCompressedJson<SnapshotPayload>(
+              snapFile.id,
+              token
+            );
+          } else {
+            const text = await this.driveClient.downloadFile(snapFile.id, token, {
+              decompress: true,
+            });
+            payload = JSON.parse(text) as SnapshotPayload;
+          }
+          downloadedFrontierSnapshots.push({ file: snapFile, payload });
+          cachedPayloads.set(snapFile.id, payload);
+        } catch {
+          // Safe skip if a snapshot cannot be downloaded/parsed
+        }
+      }
+
+      downloadedFrontierSnapshots.sort((a, b) => {
+        const hlca = a.payload.hlc ?? a.file.appProperties?.hlc ?? '';
+        const hlcb = b.payload.hlc ?? b.file.appProperties?.hlc ?? '';
+        return compareHlc(hlca, hlcb);
+      });
+    }
+
+    const localHlcGenerator = this.getHlc(deviceId);
+    if (isConsolidated) {
+      for (const { payload } of downloadedFrontierSnapshots) {
+        if (payload.hlc) {
+          try {
+            localHlcGenerator.receive(payload.hlc);
+          } catch {
+            // ignore malformed
+          }
+        }
+      }
+    }
+    const hlc = options.hlc ?? localHlcGenerator.now();
+
+    // 1. Union covered journals
+    const payloadCoveredJournalFileIds = new Set<string>(coveredJournalFileIds);
+    if (isConsolidated) {
+      for (const { payload } of downloadedFrontierSnapshots) {
+        if (Array.isArray(payload.coveredJournalFileIds)) {
+          for (const jId of payload.coveredJournalFileIds) {
+            payloadCoveredJournalFileIds.add(jId);
           }
         }
       }
     }
 
+    // 2. Component-wise maximum watermark per device:
+    // mergedWatermarks[devId] = compareHlc(wm, current) > 0 ? wm : current
+    const mergedWatermarks: Record<string, string> = { ...(options.watermarks ?? {}) };
+    if (isConsolidated) {
+      for (const { payload } of downloadedFrontierSnapshots) {
+        if (payload.watermarks) {
+          for (const [devId, wm] of Object.entries(payload.watermarks)) {
+            const current = mergedWatermarks[devId];
+            mergedWatermarks[devId] = !current || compareHlc(wm, current) > 0 ? wm : current;
+          }
+        }
+      }
+    }
+
+    for (const journal of sortedJournals) {
+      if (coveredJournalFileIds.includes(journal.id)) {
+        const jDev = journal.appProperties?.deviceId;
+        const jHlc = journal.appProperties?.hlc;
+        if (jDev && jHlc) {
+          const current = mergedWatermarks[jDev];
+          mergedWatermarks[jDev] = !current || compareHlc(jHlc, current) > 0 ? jHlc : current;
+        }
+      }
+    }
+
+    if (!mergedWatermarks[deviceId] || compareHlc(hlc, mergedWatermarks[deviceId]) > 0) {
+      mergedWatermarks[deviceId] = hlc;
+    }
+
+    // 3. Resolving per-entity LWW across mutations and state
+    const entityMutations = new Map<string, SyncMutation>();
+    let foldedState: any = null;
+
+    if (isConsolidated) {
+      for (const { payload } of downloadedFrontierSnapshots) {
+        if (Array.isArray(payload.mutations)) {
+          for (const mut of payload.mutations) {
+            const key = `${mut.entityType}:${mut.entityId}`;
+            const existing = entityMutations.get(key);
+            if (!existing) {
+              entityMutations.set(key, mut);
+            } else {
+              const mutHlc = mut.clientTimestamp ?? payload.hlc;
+              const existingHlc = existing.clientTimestamp ?? '';
+              if (!existingHlc || compareHlc(mutHlc, existingHlc) >= 0) {
+                entityMutations.set(key, mut);
+              }
+            }
+          }
+        }
+      }
+
+      for (const { payload } of downloadedFrontierSnapshots) {
+        if (payload.state && typeof payload.state === 'object') {
+          if (!foldedState) {
+            foldedState = Array.isArray(payload.state) ? [] : {};
+          }
+          foldedState = foldEntityState(foldedState, payload.state);
+        }
+      }
+    }
+
+    if (options.state && typeof options.state === 'object') {
+      if (!foldedState) {
+        foldedState = Array.isArray(options.state) ? [] : {};
+      }
+      foldedState = foldEntityState(foldedState, options.state);
+    } else if (options.state !== undefined) {
+      foldedState = options.state;
+    }
+
+    const coveredSnapshotFileIds = isConsolidated ? frontierSnapshots.map((s) => s.id) : undefined;
+
     const snapshotPayload: SnapshotPayload = {
       version: 1,
       hlc,
       deviceId,
-      coveredJournalFileIds,
-      watermarks,
-      state: options.state ?? null,
+      coveredJournalFileIds: Array.from(payloadCoveredJournalFileIds),
+      watermarks: mergedWatermarks,
+      state: foldedState ?? options.state ?? null,
+      ...(entityMutations.size > 0 ? { mutations: Array.from(entityMutations.values()) } : {}),
+      ...(isConsolidated
+        ? {
+            consolidated: true,
+            coveredSnapshotFileIds,
+          }
+        : {}),
     };
 
     const appProperties: Record<string, string> = {
       type: 'snapshot',
       hlc,
       deviceId,
-      coveredCount: String(coveredJournalFileIds.length),
+      coveredCount: String(snapshotPayload.coveredJournalFileIds.length),
+      ...(isConsolidated ? { consolidated: 'true' } : {}),
     };
 
     const snapshotName = `snapshot_${hlc}.json.gz`;
@@ -410,7 +644,8 @@ export class DriveCompactor {
       snapshotPayload,
       allFiles,
       snapshotFile.id,
-      token
+      token,
+      cachedPayloads
     );
 
     // 4. Ensure reserve_slot.bin is re-allocated/verified
@@ -530,7 +765,8 @@ export class DriveCompactor {
     newPayload: SnapshotPayload,
     allFiles: DriveFileMetadata[],
     newSnapshotFileId: string | undefined,
-    accessToken: string
+    accessToken: string,
+    cachedPayloads?: Map<string, SnapshotPayload>
   ): Promise<string[]> {
     const olderSnapshots = allFiles.filter(
       (f) => !f.trashed && this.isSnapshotFile(f) && f.id !== newSnapshotFileId
@@ -540,20 +776,28 @@ export class DriveCompactor {
 
     for (const snap of olderSnapshots) {
       try {
-        let olderPayload: SnapshotPayload;
-        if (typeof this.driveClient.downloadCompressedJson === 'function') {
-          olderPayload = await this.driveClient.downloadCompressedJson<SnapshotPayload>(
-            snap.id,
-            accessToken
-          );
-        } else {
-          const text = await this.driveClient.downloadFile(snap.id, accessToken, {
-            decompress: true,
-          });
-          olderPayload = JSON.parse(text) as SnapshotPayload;
+        let olderPayload: SnapshotPayload | undefined = cachedPayloads?.get(snap.id);
+        if (!olderPayload) {
+          if (typeof this.driveClient.downloadCompressedJson === 'function') {
+            olderPayload = await this.driveClient.downloadCompressedJson<SnapshotPayload>(
+              snap.id,
+              accessToken
+            );
+          } else {
+            const text = await this.driveClient.downloadFile(snap.id, accessToken, {
+              decompress: true,
+            });
+            olderPayload = JSON.parse(text) as SnapshotPayload;
+          }
         }
 
-        if (dominatesCoverage(newPayload, olderPayload)) {
+        const candidateToDominate = {
+          ...olderPayload,
+          id: snap.id,
+          appProperties: snap.appProperties,
+        };
+
+        if (dominatesCoverage(newPayload, candidateToDominate)) {
           try {
             await this.deleteFile(snap.id, accessToken);
             deletedSnapshotFileIds.push(snap.id);

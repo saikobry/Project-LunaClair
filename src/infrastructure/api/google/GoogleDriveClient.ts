@@ -20,6 +20,34 @@ export interface GoogleDriveClientOptions {
   baseDelayMs?: number;
   maxRetries?: number;
   fetch?: typeof fetch;
+  onTokenExpired?: () => Promise<string>;
+}
+
+/**
+ * Updates Authorization Bearer header on RequestInit headers without mutating.
+ */
+function updateAuthHeader(headers: HeadersInit | undefined, newToken: string): HeadersInit {
+  if (!headers) {
+    return { Authorization: `Bearer ${newToken}` };
+  }
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    const nextHeaders = new Headers(headers);
+    nextHeaders.set('Authorization', `Bearer ${newToken}`);
+    return nextHeaders;
+  }
+  if (Array.isArray(headers)) {
+    const nextHeaders = headers.filter(([k]) => k.toLowerCase() !== 'authorization');
+    nextHeaders.push(['Authorization', `Bearer ${newToken}`]);
+    return nextHeaders;
+  }
+  const nextHeaders: Record<string, string> = { ...(headers as Record<string, string>) };
+  for (const key of Object.keys(nextHeaders)) {
+    if (key.toLowerCase() === 'authorization') {
+      delete nextHeaders[key];
+    }
+  }
+  nextHeaders.Authorization = `Bearer ${newToken}`;
+  return nextHeaders;
 }
 
 /**
@@ -71,11 +99,20 @@ export class GoogleDriveClient implements GoogleDrivePort {
   private readonly baseDelayMs: number;
   private readonly maxRetries: number;
   private readonly fetchFn: typeof fetch;
+  public onTokenExpired?: () => Promise<string>;
 
   constructor(options: GoogleDriveClientOptions = {}) {
     this.baseDelayMs = options.baseDelayMs ?? 1000;
     this.maxRetries = options.maxRetries ?? 3;
     this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.onTokenExpired = options.onTokenExpired;
+  }
+
+  /**
+   * Registers a token refresh callback on the client.
+   */
+  setOnTokenExpired(callback?: () => Promise<string>): void {
+    this.onTokenExpired = callback;
   }
 
   /**
@@ -393,14 +430,19 @@ export class GoogleDriveClient implements GoogleDrivePort {
    * Core request dispatcher with quota discrimination, 429/5xx exponential backoff,
    * and 401 auth failure handling.
    */
-  private async fetchWithRetry(url: string, init: RequestInit, attempt = 0): Promise<Response> {
+  private async fetchWithRetry(
+    url: string,
+    init: RequestInit,
+    attempt = 0,
+    hasRefreshedToken = false
+  ): Promise<Response> {
     let response: Response;
     try {
       response = await this.fetchFn(url, init);
     } catch (error) {
       if (attempt < this.maxRetries) {
         await this.backoff(attempt);
-        return this.fetchWithRetry(url, init, attempt + 1);
+        return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
       throw new DriveHttpError(
         `Network request failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -417,8 +459,28 @@ export class GoogleDriveClient implements GoogleDrivePort {
     const status = response.status;
     const statusText = response.statusText;
 
-    // 401 Unauthorized -> DriveAuthError (no retry)
+    // 401 Unauthorized -> attempt onTokenExpired once if configured, else throw DriveAuthError
     if (status === 401) {
+      if (this.onTokenExpired && !hasRefreshedToken) {
+        let newToken: string;
+        try {
+          newToken = await this.onTokenExpired();
+        } catch (refreshError) {
+          const details = await this.parseJsonSafe(response);
+          throw new DriveAuthError(
+            `Google Drive authentication failed during token refresh: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}`,
+            details ?? refreshError
+          );
+        }
+
+        const newInit: RequestInit = {
+          ...init,
+          headers: updateAuthHeader(init.headers, newToken),
+        };
+
+        return this.fetchWithRetry(url, newInit, attempt, true);
+      }
+
       const details = await this.parseJsonSafe(response);
       const message =
         (details as { error?: { message?: string } })?.error?.message ??
@@ -446,7 +508,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
       if (isRateLimit) {
         if (attempt < this.maxRetries) {
           await this.backoff(attempt, response);
-          return this.fetchWithRetry(url, init, attempt + 1);
+          return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
         }
         const retryAfter = this.parseRetryAfter(response);
         const message =
@@ -465,7 +527,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
     if (status === 429) {
       if (attempt < this.maxRetries) {
         await this.backoff(attempt, response);
-        return this.fetchWithRetry(url, init, attempt + 1);
+        return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
       const details = await this.parseJsonSafe(response);
       const retryAfter = this.parseRetryAfter(response);
@@ -479,7 +541,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
     if (status >= 500 && status < 600) {
       if (attempt < this.maxRetries) {
         await this.backoff(attempt, response);
-        return this.fetchWithRetry(url, init, attempt + 1);
+        return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
     }
 
