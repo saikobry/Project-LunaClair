@@ -10,7 +10,6 @@ import {
   handleListPublicShares,
   handleTrackShareDownload,
 } from './routes/shares';
-import { handleSyncPull, handleSyncPush } from './routes/sync';
 
 interface Segment {
   isParam: boolean;
@@ -160,10 +159,6 @@ export function createRouter(): Router {
   // AI model catalog + streaming completions
   router.register(['GET', 'HEAD'], '/api/ai/models', handleAiModels);
   router.register('POST', '/api/ai/chat', handleAiChat);
-
-  // Sync protocol
-  router.register('POST', '/api/sync/push', handleSyncPush);
-  router.register(['GET', 'HEAD'], '/api/sync/pull', handleSyncPull);
 
   // Cloud sharing
   router.register(['GET', 'HEAD'], '/api/shares', handleListPublicShares);
