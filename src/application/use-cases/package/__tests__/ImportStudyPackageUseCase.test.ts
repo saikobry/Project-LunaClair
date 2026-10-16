@@ -56,7 +56,7 @@ describe('ImportStudyPackageUseCase', () => {
         expect(committed.materials[0].tags).toEqual(['biology', 'cells']);
     });
 
-    it('records originShareId on every imported material when provided', async () => {
+    it('records originShareId and stamps deterministic IDs and FLOOR_ISO timestamps when provided', async () => {
         const importStudyPackage = vi.fn().mockResolvedValue(undefined);
         const mockImportService = {
             importStudyPackage,
@@ -64,15 +64,34 @@ describe('ImportStudyPackageUseCase', () => {
 
         const useCase = new ImportStudyPackageUseCase(mockImportService);
 
-        await useCase.execute({
+        const result = await useCase.execute({
             package: validPackage,
             originShareId: 'share_abc123',
         });
 
         const committed = importStudyPackage.mock.calls[0][0];
-        for (const material of committed.materials) {
-            expect(material.originShareId).toBe('share_abc123');
-        }
+        expect(committed.materials).toHaveLength(1);
+        const mat = committed.materials[0];
+        expect(mat.id).toBe('mat_share_share_abc123');
+        expect(mat.documentId).toBe('doc_share_share_abc123');
+        expect(mat.originShareId).toBe('share_abc123');
+        expect(mat.createdAt).toBe('1970-01-01T00:00:00.000Z');
+        expect(mat.updatedAt).toBe('1970-01-01T00:00:00.000Z');
+
+        expect(committed.documentContents).toHaveLength(1);
+        const doc = committed.documentContents[0];
+        expect(doc.documentId).toBe('doc_share_share_abc123');
+        expect(doc.updatedAt).toBe('1970-01-01T00:00:00.000Z');
+
+        expect(committed.questions).toHaveLength(1);
+        const q = committed.questions[0];
+        expect(q.id).toBe('q_share_share_abc123_pkg_q_1');
+        expect(q.materialId).toBe('mat_share_share_abc123');
+        expect(q.createdAt).toBe('1970-01-01T00:00:00.000Z');
+        expect(q.updatedAt).toBe('1970-01-01T00:00:00.000Z');
+
+        expect(result.materialIds).toEqual(['mat_share_share_abc123']);
+        expect(result.questionIds).toEqual(['q_share_share_abc123_pkg_q_1']);
     });
 
     it('rejects a package whose cloze markers disagree with its answers, before storage is touched', async () => {

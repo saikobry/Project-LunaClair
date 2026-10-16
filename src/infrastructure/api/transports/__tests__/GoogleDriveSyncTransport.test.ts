@@ -16,7 +16,7 @@ import { DriveHttpError } from '../../../../domain/drive/models/drive.types';
 import type { GoogleAuthPort, GoogleAuthSession } from '../../../../domain/auth/models/auth.types';
 import type { SessionCredentials, SyncPushRequest, SyncState } from '../../../../domain/sync/models/sync.types';
 import type { SyncStateRepository } from '../../../../domain/sync/repositories/SyncStateRepository';
-import { createHlc } from '../../../../domain/sync/utils/hlc';
+import { createHlc, FLOOR_ISO } from '../../../../domain/sync/utils/hlc';
 
 describe('Infrastructure: GoogleDriveSyncTransport', () => {
   const credentials: SessionCredentials = {
@@ -1190,6 +1190,98 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       const stateKey = `${credentials.userId}:${credentials.deviceId}`;
       const state = await db.syncState.get(stateKey);
       expect(state?.driveSeeded).toBe(true);
+    });
+
+    it('filters out unmodified template documents (updatedAt === FLOOR_ISO && !deletedAt) during warm remote delta collection', async () => {
+      const db = getActiveVaultDatabase();
+
+      // 1. Unmodified template document at FLOOR_ISO (should NOT be uploaded)
+      await db.documentContents.put({
+        documentId: 'doc-template-floor',
+        title: 'Explore Template Document',
+        content: '# Clean unmodified content',
+        updatedAt: FLOOR_ISO,
+        version: 1,
+      });
+
+      // 2. User-edited document (should be uploaded)
+      await db.documentContents.put({
+        documentId: 'doc-user-edited',
+        title: 'Edited Document',
+        content: '# User edited content',
+        updatedAt: '2026-10-16T12:00:00.000Z',
+        version: 2,
+      });
+
+      // 3. Tombstoned document at FLOOR_ISO (should be uploaded)
+      await db.documentContents.put({
+        documentId: 'doc-tombstoned-floor',
+        title: 'Deleted Template Document',
+        content: '# Deleted content',
+        updatedAt: FLOOR_ISO,
+        deletedAt: '2026-10-16T12:05:00.000Z',
+        version: 1,
+      });
+
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-warm-journal-1',
+        name: 'journal_2026-10-10T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'remote-mut-peer',
+            entityType: 'document',
+            entityId: 'doc-other-peer',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+            payload: {
+              documentId: 'doc-other-peer',
+              title: 'Peer Doc',
+              content: 'Peer text',
+              updatedAt: '2026-10-10T10:00:00.000Z',
+              version: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      expect(transport.isDriveSeeded()).toBe(false);
+
+      await transport.pull(credentials, 0);
+
+      // Delta upload called
+      expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
+      const [, payload] = vi.mocked(mockDriveClient.uploadCompressedJson!).mock.calls[0]!;
+      const journalPayload = payload as { mutations: SyncPushRequest['mutations'] };
+      const uploadedEntityIds = journalPayload.mutations.map((m) => m.entityId);
+
+      // doc-template-floor must be filtered out
+      expect(uploadedEntityIds).not.toContain('doc-template-floor');
+      // doc-user-edited and doc-tombstoned-floor must be included
+      expect(uploadedEntityIds).toContain('doc-user-edited');
+      expect(uploadedEntityIds).toContain('doc-tombstoned-floor');
+      expect(uploadedEntityIds).toHaveLength(2);
+
+      expect(transport.isDriveSeeded()).toBe(true);
     });
   });
 });

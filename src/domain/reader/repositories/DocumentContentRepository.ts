@@ -11,6 +11,7 @@ export interface ImportedDocumentContent {
   content: string;
   updatedAt: string;
   version?: number;
+  deletedAt?: string | null;
 }
 
 export interface DocumentContentRepository {

@@ -1,6 +1,7 @@
 import type { LocalIdGenerator, RemappedStudyPackage, StudyPackage } from '../models/package.types';
 import type { Question } from '../../quiz/models/Question';
 import type { Quiz } from '../../quiz/models/Quiz';
+import { FLOOR_ISO } from '../../sync/utils/hlc';
 
 const defaultIdGenerator: LocalIdGenerator = {
     generate: () => crypto.randomUUID(),
@@ -10,42 +11,68 @@ const defaultIdGenerator: LocalIdGenerator = {
  * Pure remapper for importing a StudyPackage into local state.
  * 
  * Invariants:
- * - Generates fresh collision-free UUIDs for every material, document, question, quiz, and asset.
+ * - When `originShareId` is provided:
+ *   - Generates deterministic IDs:
+ *     - material.id = 'mat_share_' + originShareId
+ *     - material.documentId = 'doc_share_' + originShareId
+ *     - question.id = 'q_share_' + originShareId + '_' + q.id
+ *     - quiz.id = 'quiz_share_' + originShareId + '_' + quiz.id
+ *     - asset.id = 'asset_share_' + originShareId + '_' + asset.id
+ *   - Sets createdAt/updatedAt to canonical FLOOR_ISO.
+ * - When `originShareId` is omitted:
+ *   - Generates fresh collision-free UUIDs for every material, document, question, quiz, and asset.
+ *   - Sets createdAt/updatedAt to current ISO timestamp.
  * - Rewires all foreign keys across questions, quizzes, quiz items, and assets.
- * - Rewrites embedded markdown `lc-asset://pkg_asset_...` references to point to newly generated asset IDs.
+ * - Rewrites embedded markdown `lc-asset://...` references to point to newly generated asset IDs.
  * - Returns a full `idMap` tracking package ID -> local UUID mappings.
  */
 export function remapStudyPackage(
     pkg: StudyPackage,
-    idGenerator: LocalIdGenerator = defaultIdGenerator
+    idGenerator: LocalIdGenerator = defaultIdGenerator,
+    originShareId?: string,
 ): RemappedStudyPackage {
+    const generator = idGenerator ?? defaultIdGenerator;
     const idMap = new Map<string, string>();
-    const now = new Date().toISOString();
+    const now = originShareId ? FLOOR_ISO : new Date().toISOString();
 
-    // 1. Generate new UUIDs for all package entities
-    pkg.materials.forEach((mat) => {
-        idMap.set(mat.id, idGenerator.generate());
+    // 1. Generate new IDs for all package entities
+    pkg.materials.forEach((mat, index) => {
+        const matId = originShareId
+            ? (index === 0 ? `mat_share_${originShareId}` : `mat_share_${originShareId}_${mat.id}`)
+            : generator.generate();
+        idMap.set(mat.id, matId);
     });
 
     pkg.questions.forEach((q) => {
-        idMap.set(q.id, idGenerator.generate());
+        const qId = originShareId
+            ? `q_share_${originShareId}_${q.id}`
+            : generator.generate();
+        idMap.set(q.id, qId);
     });
 
     pkg.quizzes.forEach((quiz) => {
-        idMap.set(quiz.id, idGenerator.generate());
+        const quizId = originShareId
+            ? `quiz_share_${originShareId}_${quiz.id}`
+            : generator.generate();
+        idMap.set(quiz.id, quizId);
     });
 
     (pkg.assets ?? []).forEach((asset) => {
-        idMap.set(asset.id, idGenerator.generate());
+        const assetId = originShareId
+            ? `asset_share_${originShareId}_${asset.id}`
+            : generator.generate();
+        idMap.set(asset.id, assetId);
     });
 
     // 2. Remap materials and rewrite embedded asset links in documentContent
-    const materials = pkg.materials.map((mat) => {
+    const materials = pkg.materials.map((mat, index) => {
         const newMatId = idMap.get(mat.id)!;
-        const newDocId = idGenerator.generate();
+        const newDocId = originShareId
+            ? (index === 0 ? `doc_share_${originShareId}` : `doc_share_${originShareId}_${mat.id}`)
+            : generator.generate();
 
         const remappedContent = mat.documentContent.replace(
-            /lc-asset:\/\/(pkg_asset_[a-zA-Z0-9_-]+)/g,
+            /lc-asset:\/\/([a-zA-Z0-9_-]+)/g,
             (match, assetId) => {
                 const mappedId = idMap.get(assetId);
                 return mappedId ? `lc-asset://${mappedId}` : match;

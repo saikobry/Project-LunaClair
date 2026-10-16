@@ -16,6 +16,7 @@ import type { ImportedDocumentContent } from '../../../domain/reader/repositorie
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
 import type { SyncMutation } from '../../../domain/sync/models/sync.types';
+import { FLOOR_ISO, CANONICAL_FLOOR_HLC } from '../../../domain/sync/utils/hlc';
 
 export const DEFAULT_BATCH_SIZE = 100;
 export const DEFAULT_UNCOMPRESSED_CEILING_BYTES = 3.5 * 1024 * 1024; // 3.5 MB
@@ -40,8 +41,12 @@ export interface VaultChunkOptions {
 /**
  * Derives a deterministic HLC timestamp from an entity's existing update or creation timestamp.
  * Preserves historical causal ordering under LWW so older local records do not overwrite newer remote edits.
+ * If timestamp is the canonical epoch floor (FLOOR_ISO), returns CANONICAL_FLOOR_HLC.
  */
 export function deriveEntityHlc(timestamp: string | undefined, deviceId: string): string {
+  if (timestamp === FLOOR_ISO) {
+    return CANONICAL_FLOOR_HLC;
+  }
   if (!timestamp) {
     return `${new Date(0).toISOString()}_0000_${deviceId}`;
   }
@@ -160,6 +165,9 @@ export async function* streamVaultChunksGzipped(
 
   // 1. Documents (db.documentContents)
   for await (const doc of paginateTable<ImportedDocumentContent>(db.documentContents, batchSize)) {
+    if (doc.updatedAt === FLOOR_ISO && !doc.deletedAt) {
+      continue;
+    }
     const hlc = deriveEntityHlc(doc.updatedAt, deviceId);
     const mutation: SyncMutation = {
       clientMutationId: `baseline-doc-${doc.documentId}`,

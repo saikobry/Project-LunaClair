@@ -89,7 +89,7 @@ describe('DexieLibraryImportService', () => {
     };
   }
 
-  it('removes the material, its questions, quizzes, and document content', async () => {
+  it('removes the material, its questions, quizzes, and tombstones document content with sync outbox', async () => {
     await seedMaterial('mat-del');
 
     await service.removeMaterial('mat-del');
@@ -98,7 +98,116 @@ describe('DexieLibraryImportService', () => {
     expect(await db.materials.get('mat-del')).toBeUndefined();
     expect(await db.questions.get('q-mat-del')).toBeUndefined();
     expect(await db.quizzes.get('quiz-mat-del')).toBeUndefined();
-    expect(await db.documentContents.get('doc-mat-del')).toBeUndefined();
+
+    // Document content is tombstoned (soft-deleted with deletedAt) for multi-device sync
+    const doc = await db.documentContents.get('doc-mat-del');
+    expect(doc).toBeDefined();
+    expect(doc?.deletedAt).toBeDefined();
+    expect(doc?.updatedAt).toBe(doc?.deletedAt);
+
+    // Document DELETE mutation is enqueued in syncQueue
+    const docOutbox = (await db.syncQueue.toArray()).filter((q) => q.entityId === 'doc-mat-del');
+    expect(docOutbox).toHaveLength(1);
+    expect(docOutbox[0].entityType).toBe('document');
+    expect(docOutbox[0].operation).toBe('DELETE');
+    expect(docOutbox[0].clientTimestamp).toBe(doc?.deletedAt);
+  });
+
+  it('tombstones active highlights and drawings and enqueues DELETE mutations in syncQueue, preserving already-deleted annotations', async () => {
+    await seedMaterial('mat-annotations');
+    const docId = 'doc-mat-annotations';
+
+    // Seed highlights: one active, one already deleted, one on another document
+    await db.highlights.bulkPut([
+      {
+        id: 'hl-active-1',
+        documentId: docId,
+        start: 0,
+        end: 10,
+        color: 'yellow',
+        text: 'Active highlight',
+        createdAt: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: 'hl-already-deleted',
+        documentId: docId,
+        start: 15,
+        end: 25,
+        color: 'pink',
+        text: 'Old highlight',
+        createdAt: '2026-08-01T00:00:00.000Z',
+        deletedAt: '2026-08-02T00:00:00.000Z',
+        updatedAt: '2026-08-02T00:00:00.000Z',
+      },
+      {
+        id: 'hl-other-doc',
+        documentId: 'doc-other',
+        start: 0,
+        end: 5,
+        color: 'green',
+        text: 'Other doc highlight',
+        createdAt: '2026-08-01T00:00:00.000Z',
+      },
+    ]);
+
+    // Seed drawings: one active, one already deleted
+    await db.drawings.bulkPut([
+      {
+        id: 'dr-active-1',
+        documentId: docId,
+        color: '#000',
+        thickness: 2,
+        points: [{ x: 10, y: 10 }],
+        createdAt: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: 'dr-already-deleted',
+        documentId: docId,
+        color: '#111',
+        thickness: 3,
+        points: [{ x: 20, y: 20 }],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        deletedAt: '2026-08-02T00:00:00.000Z',
+        updatedAt: '2026-08-02T00:00:00.000Z',
+      },
+    ]);
+
+    await db.syncQueue.clear();
+
+    await service.removeMaterial('mat-annotations');
+
+    // Active highlight is tombstoned
+    const hlActive = await db.highlights.get('hl-active-1');
+    expect(hlActive?.deletedAt).toBeDefined();
+    expect(hlActive?.updatedAt).toBe(hlActive?.deletedAt);
+
+    // Already deleted highlight retains original deletedAt
+    const hlOld = await db.highlights.get('hl-already-deleted');
+    expect(hlOld?.deletedAt).toBe('2026-08-02T00:00:00.000Z');
+
+    // Other doc highlight untouched
+    const hlOther = await db.highlights.get('hl-other-doc');
+    expect(hlOther?.deletedAt).toBeUndefined();
+
+    // Active drawing is tombstoned
+    const drActive = await db.drawings.get('dr-active-1');
+    expect(drActive?.deletedAt).toBeDefined();
+    expect(drActive?.updatedAt).toBe(drActive?.deletedAt);
+
+    // Already deleted drawing retains original deletedAt
+    const drOld = await db.drawings.get('dr-already-deleted');
+    expect(drOld?.deletedAt).toBe('2026-08-02T00:00:00.000Z');
+
+    // Outbox check
+    const outboxItems = await db.syncQueue.toArray();
+    const entityIds = outboxItems.map((item) => `${item.entityType}:${item.entityId}`).toSorted();
+
+    expect(entityIds).toEqual([
+      `document:${docId}`,
+      'drawing:dr-active-1',
+      'highlight:hl-active-1',
+    ]);
+    expect(outboxItems.every((item) => item.operation === 'DELETE')).toBe(true);
   });
 
   it('rolls back asset removal when the removal transaction fails', async () => {
@@ -229,13 +338,17 @@ describe('DexieLibraryImportService', () => {
     expect((await db.flashcardReviews.toArray()).map((r) => r.key)).toEqual(['q:q-mat-untouched']);
 
     const tombstones = await db.syncQueue.toArray();
-    expect(tombstones.map((item) => item.entityId).toSorted()).toEqual([
+    const flashcardTombstones = tombstones.filter((item) => item.entityType === 'flashcardReview');
+    expect(flashcardTombstones.map((item) => item.entityId).toSorted()).toEqual([
       'q:q-mat-studied',
       'q:q-mat-studied#0',
       'q:q-mat-studied#1',
     ]);
-    expect(tombstones.every((item) => item.entityType === 'flashcardReview')).toBe(true);
-    expect(tombstones.every((item) => item.operation === 'DELETE')).toBe(true);
+    expect(flashcardTombstones.every((item) => item.operation === 'DELETE')).toBe(true);
+
+    const docTombstones = tombstones.filter((item) => item.entityType === 'document');
+    expect(docTombstones.map((item) => item.entityId)).toEqual(['doc-mat-studied']);
+    expect(docTombstones[0].operation).toBe('DELETE');
   });
 
   it('rolls the material removal back when the review tombstone write fails', async () => {
@@ -254,5 +367,65 @@ describe('DexieLibraryImportService', () => {
     expect(await db.questions.get('q-mat-tombstone-fail')).toBeDefined();
     expect((await db.flashcardReviews.toArray()).map((r) => r.key)).toEqual(['q:q-mat-tombstone-fail']);
     expect(await db.syncQueue.toArray()).toEqual([]);
+  });
+
+  it('handles removal of material without documentId gracefully', async () => {
+    const now = '2026-08-01T00:00:00.000Z';
+    await db.materials.put({
+      id: 'mat-no-doc',
+      title: 'No Doc Material',
+      documentId: '',
+      order: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.questions.put({
+      id: 'q-no-doc',
+      materialId: 'mat-no-doc',
+      type: 'true_false',
+      prompt: 'Prompt',
+      payload: { type: 'true_false', correctAnswer: true },
+      difficulty: 'easy',
+      points: 5,
+      status: 'published',
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.syncQueue.clear();
+
+    await service.removeMaterial('mat-no-doc');
+
+    expect(await db.materials.get('mat-no-doc')).toBeUndefined();
+    expect(await db.questions.get('q-no-doc')).toBeUndefined();
+    expect(await db.syncQueue.toArray()).toEqual([]);
+  });
+
+  it('creates tombstone in documentContents and sync outbox even if document row was absent locally', async () => {
+    const now = '2026-08-01T00:00:00.000Z';
+    await db.materials.put({
+      id: 'mat-unauthored',
+      documentId: 'doc-unauthored',
+      title: 'Unauthored Material',
+      order: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.syncQueue.clear();
+
+    await service.removeMaterial('mat-unauthored');
+
+    expect(await db.materials.get('mat-unauthored')).toBeUndefined();
+
+    const doc = await db.documentContents.get('doc-unauthored');
+    expect(doc).toBeDefined();
+    expect(doc?.deletedAt).toBeDefined();
+    expect(doc?.title).toBe('Unauthored Material');
+
+    const outbox = await db.syncQueue.toArray();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0].entityType).toBe('document');
+    expect(outbox[0].entityId).toBe('doc-unauthored');
+    expect(outbox[0].operation).toBe('DELETE');
   });
 });

@@ -32,6 +32,7 @@ import { googleAuthService } from '../../auth/google/GoogleAuthService';
 import {
   createHlc,
   compareHlc,
+  FLOOR_ISO,
   type HybridLogicalClock,
 } from '../../../domain/sync/utils/hlc';
 import type { SyncStateRepository } from '../../../domain/sync/repositories/SyncStateRepository';
@@ -795,6 +796,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   ): Promise<void> {
     // 1. Documents
     for await (const doc of paginateTable(this.db.documentContents, 100)) {
+      if (doc.updatedAt === FLOOR_ISO && !doc.deletedAt) {
+        continue;
+      }
       const localHlc = deriveEntityHlc(doc.updatedAt, deviceId);
       const remoteHlc = remoteEntityHlcById.get(doc.documentId);
       if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {

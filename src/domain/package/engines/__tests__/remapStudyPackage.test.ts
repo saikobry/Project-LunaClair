@@ -162,4 +162,58 @@ describe('remapStudyPackage', () => {
         expect(import1.assets[0].id).not.toBe(import2.assets[0].id);
     });
 
+    describe('deterministic remapping with originShareId', () => {
+        const shareId = 'share_physics_101';
+
+        it('generates deterministic IDs and maps foreign keys properly', () => {
+            const pkg = createSamplePackage();
+            const remapped = remapStudyPackage(pkg, undefined, shareId);
+
+            // Material & Document IDs
+            expect(remapped.materials[0].id).toBe(`mat_share_${shareId}`);
+            expect(remapped.materials[0].documentId).toBe(`doc_share_${shareId}`);
+
+            // Question IDs & FKs
+            expect(remapped.questions[0].id).toBe(`q_share_${shareId}_pkg_q_first_law`);
+            expect(remapped.questions[0].materialId).toBe(`mat_share_${shareId}`);
+            expect(remapped.questions[0].createdAt).toBe('1970-01-01T00:00:00.000Z');
+            expect(remapped.questions[0].updatedAt).toBe('1970-01-01T00:00:00.000Z');
+
+            // Quiz IDs & FKs
+            expect(remapped.quizzes[0].id).toBe(`quiz_share_${shareId}_pkg_quiz_mechanics_eval`);
+            expect(remapped.quizzes[0].materialId).toBe(`mat_share_${shareId}`);
+            expect(remapped.quizzes[0].questionIds).toEqual([`q_share_${shareId}_pkg_q_first_law`]);
+            expect(remapped.quizzes[0].items[0].quizId).toBe(`quiz_share_${shareId}_pkg_quiz_mechanics_eval`);
+            expect(remapped.quizzes[0].items[0].questionId).toBe(`q_share_${shareId}_pkg_q_first_law`);
+            expect(remapped.quizzes[0].createdAt).toBe('1970-01-01T00:00:00.000Z');
+            expect(remapped.quizzes[0].updatedAt).toBe('1970-01-01T00:00:00.000Z');
+
+            // Asset IDs & FKs
+            expect(remapped.assets[0].id).toBe(`asset_share_${shareId}_pkg_asset_force_diag`);
+            expect(remapped.assets[0].materialId).toBe(`mat_share_${shareId}`);
+
+            // Embedded markdown URL rewriting
+            expect(remapped.materials[0].documentContent).toContain(`lc-asset://asset_share_${shareId}_pkg_asset_force_diag`);
+            expect(remapped.materials[0].documentContent).not.toContain('lc-asset://pkg_asset_force_diag');
+
+            // ID Map
+            expect(remapped.idMap.get('pkg_mat_newton_laws')).toBe(`mat_share_${shareId}`);
+            expect(remapped.idMap.get('pkg_q_first_law')).toBe(`q_share_${shareId}_pkg_q_first_law`);
+            expect(remapped.idMap.get('pkg_quiz_mechanics_eval')).toBe(`quiz_share_${shareId}_pkg_quiz_mechanics_eval`);
+            expect(remapped.idMap.get('pkg_asset_force_diag')).toBe(`asset_share_${shareId}_pkg_asset_force_diag`);
+        });
+
+        it('is strictly deterministic across sequential runs with the same originShareId', () => {
+            const pkg = createSamplePackage();
+            const run1 = remapStudyPackage(pkg, undefined, shareId);
+            const run2 = remapStudyPackage(pkg, undefined, shareId);
+
+            expect(run1.materials[0].id).toBe(run2.materials[0].id);
+            expect(run1.materials[0].documentId).toBe(run2.materials[0].documentId);
+            expect(run1.questions[0].id).toBe(run2.questions[0].id);
+            expect(run1.quizzes[0].id).toBe(run2.quizzes[0].id);
+            expect(run1.assets[0].id).toBe(run2.assets[0].id);
+            expect(run1.materials[0].documentContent).toBe(run2.materials[0].documentContent);
+        });
+    });
 });

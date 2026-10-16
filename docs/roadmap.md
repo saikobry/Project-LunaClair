@@ -208,3 +208,14 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **Floor HLC Contract:** Freshly cloned Explore course templates must be stamped with a deterministic floor HLC derived from `sharePackage.publishedAt` (or fixed epoch `0000_share`), NOT `Date.now()`. This guarantees that user edits made on Device A (`10:15 AM`) are never overwritten by a fresh template clone of the same course on Device B (`11:00 AM`).
   - Ensure highlights, drawings, and flashcard review progress attach seamlessly across multiple devices of the same user without primary key collisions.
 
+- **Phase 17 — Granular Sync & Material Synchronization Overhaul:**
+  - **Custom Material Synchronization:**
+    - Add user-authored `materials`, `questions`, and `quizzes` (where `originShareId == null`) to Google Drive sync transport (`SyncEntityType`).
+    - Replicate local custom documents 1:1 to peer devices preserving original IDs.
+  - **Pointer-Based Explore Sync (Zero-Payload Distribution):**
+    - For materials cloned from Explore (`originShareId != null`), sync only a lightweight reference `{ originShareId }` over Google Drive.
+    - Peer devices hydrate the curriculum package directly from Cloudflare D1 / CDN, eliminating redundant Drive storage usage and bandwidth.
+  - **Granular Sync Controls (Selective Sync):**
+    - Settings UI toggles for sync categories: Study Annotations (highlights/drawings), Spaced Repetition (flashcard reviews), Quiz History, and Custom Materials.
+    - Optional per-material sync toggle on library items.
+

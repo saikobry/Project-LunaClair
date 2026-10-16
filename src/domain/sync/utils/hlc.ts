@@ -10,6 +10,18 @@
  *   `2026-10-15T12:00:00.000Z_0000_device-a1b2c3`
  */
 
+/**
+ * Canonical epoch floor physical ISO timestamp for clean Explore template records.
+ */
+export const FLOOR_ISO = '1970-01-01T00:00:00.000Z';
+
+/**
+ * Deterministic canonical HLC for clean Explore template records.
+ * Uses a zero logical counter and synthetic device ID '00000000' to eliminate
+ * clock drift and device-ID tiebreak churn across peer devices.
+ */
+export const CANONICAL_FLOOR_HLC = '1970-01-01T00:00:00.000Z_0000_00000000';
+
 export interface ParsedHlc {
   physical: string;
   counter: number;

@@ -185,11 +185,12 @@ export async function routeShare(page: Page, fixture: ShareFixture): Promise<voi
  * live workspace URL on the requested tab.
  *
  * The URL is **captured, never constructed**: cloning remaps every package id to
- * a fresh local one, so `/materials/<uuid>?tab=…` cannot be predicted from the
- * fixture. The Open action lands on Read by default; this helper changes only
- * the captured URL's tab query after preserving the remapped material path.
+ * a fresh local one (deterministic `mat_share_${originShareId}` or fresh UUID), so
+ * `/materials/<id>?tab=…` should not be hardcoded in advance. The Open action lands on Read
+ * by default; this helper changes only the captured URL's tab query after preserving
+ * the remapped material path.
  *
- * @returns the workspace URL, e.g. `http://localhost:5173/materials/<uuid>?tab=read`
+ * @returns the workspace URL, e.g. `http://localhost:5173/materials/<id>?tab=read`
  */
 export async function cloneShareToLibrary(
   page: Page,

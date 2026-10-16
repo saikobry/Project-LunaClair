@@ -13,6 +13,7 @@ import {
   collectVaultChunksGzipped,
   DEFAULT_MAX_COMPRESSED_BYTES,
 } from '../streamVaultChunksGzipped';
+import { FLOOR_ISO, CANONICAL_FLOOR_HLC } from '../../../../domain/sync/utils/hlc';
 import { gzipDecompress } from '../GoogleDriveClient';
 
 describe('Infrastructure: streamVaultChunksGzipped', () => {
@@ -51,6 +52,11 @@ describe('Infrastructure: streamVaultChunksGzipped', () => {
     it('formats valid ISO date into deterministic HLC string', () => {
       const hlc = deriveEntityHlc('2026-10-15T12:30:00.000Z', 'dev-1');
       expect(hlc).toBe('2026-10-15T12:30:00.000Z_0000_dev-1');
+    });
+
+    it('returns CANONICAL_FLOOR_HLC when timestamp equals FLOOR_ISO', () => {
+      const hlc = deriveEntityHlc(FLOOR_ISO, 'dev-1');
+      expect(hlc).toBe(CANONICAL_FLOOR_HLC);
     });
 
     it('falls back to Unix epoch if timestamp is undefined or invalid', () => {
@@ -233,6 +239,47 @@ describe('Infrastructure: streamVaultChunksGzipped', () => {
       for (const chunk of chunks) {
         expect(chunk.compressedGzip.byteLength).toBeLessThan(DEFAULT_MAX_COMPRESSED_BYTES);
       }
+    });
+
+    it('skips unmodified template documents where updatedAt === FLOOR_ISO and !deletedAt from baseline snapshot', async () => {
+      // 1. Unmodified template document (should be filtered out)
+      await db.documentContents.put({
+        documentId: 'doc-template-clean',
+        title: 'Explore Template Document',
+        content: '# Clean imported course',
+        updatedAt: FLOOR_ISO,
+        version: 1,
+      });
+
+      // 2. User-edited document (should be included)
+      await db.documentContents.put({
+        documentId: 'doc-user-edited',
+        title: 'Edited Document',
+        content: '# User edited content',
+        updatedAt: '2026-10-16T10:00:00.000Z',
+        version: 2,
+      });
+
+      // 3. Tombstoned document with floor updatedAt (should be included)
+      await db.documentContents.put({
+        documentId: 'doc-tombstoned',
+        title: 'Tombstoned Document',
+        content: '# Deleted content',
+        updatedAt: FLOOR_ISO,
+        deletedAt: '2026-10-16T11:00:00.000Z',
+        version: 1,
+      });
+
+      const chunks = await collectVaultChunksGzipped(db, testDeviceId);
+      expect(chunks).toHaveLength(1);
+
+      const mutations = chunks[0]!.mutations;
+      const docIds = mutations.map((m) => m.entityId);
+
+      expect(docIds).not.toContain('doc-template-clean');
+      expect(docIds).toContain('doc-user-edited');
+      expect(docIds).toContain('doc-tombstoned');
+      expect(mutations).toHaveLength(2);
     });
   });
 });

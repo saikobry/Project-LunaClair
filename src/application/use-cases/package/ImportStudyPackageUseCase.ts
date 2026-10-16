@@ -1,6 +1,7 @@
 import type { LocalIdGenerator, StudyPackage } from '../../../domain/package/models/package.types';
 import { validateStudyPackage } from '../../../domain/package/engines/validateStudyPackage';
 import { remapStudyPackage } from '../../../domain/package/engines/remapStudyPackage';
+import { FLOOR_ISO } from '../../../domain/sync/utils/hlc';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type {
@@ -53,9 +54,9 @@ export class ImportStudyPackageUseCase {
 
     const validPackage = input.package as StudyPackage;
 
-    // 2. Remap package-scoped IDs to fresh local UUIDs in memory
-    const remapped = remapStudyPackage(validPackage, input.idGenerator);
-    const now = new Date().toISOString();
+    // 2. Remap package-scoped IDs to fresh local UUIDs (or deterministic IDs if originShareId provided)
+    const remapped = remapStudyPackage(validPackage, input.idGenerator, input.originShareId);
+    const now = input.originShareId ? FLOOR_ISO : new Date().toISOString();
 
     // 3. Prepare records
     const materialRecords: StudyMaterial[] = remapped.materials.map((mat) => ({

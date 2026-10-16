@@ -19,12 +19,14 @@ import type { DatabaseReloadListener, DatabaseReloadReason } from './databaseLif
 export interface HighlightRecord extends HighlightItem {
     documentId: string;
     createdAt: string;
+    updatedAt?: string;
 }
 
 /** Row shape for the drawings store (adds documentId + createdAt for indexing). */
 export interface DrawingRecord extends DrawingPath {
     documentId: string;
     createdAt: string;
+    updatedAt?: string;
 }
 
 /** Row shape for the preferences store. */

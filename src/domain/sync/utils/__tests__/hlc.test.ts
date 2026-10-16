@@ -5,6 +5,8 @@ import {
   compareHlc,
   parseHlc,
   isValidHlc,
+  FLOOR_ISO,
+  CANONICAL_FLOOR_HLC,
 } from '../hlc';
 
 describe('Domain: Hybrid Logical Clock (HLC)', () => {
@@ -202,6 +204,32 @@ describe('Domain: Hybrid Logical Clock (HLC)', () => {
 
     it('throws descriptive error when parseHlc fails', () => {
       expect(() => parseHlc('malformed')).toThrow('Invalid HLC format: "malformed"');
+    });
+  });
+
+  describe('FLOOR_ISO and CANONICAL_FLOOR_HLC', () => {
+    it('defines expected epoch floor constants', () => {
+      expect(FLOOR_ISO).toBe('1970-01-01T00:00:00.000Z');
+      expect(CANONICAL_FLOOR_HLC).toBe('1970-01-01T00:00:00.000Z_0000_00000000');
+    });
+
+    it('validates and parses CANONICAL_FLOOR_HLC correctly', () => {
+      expect(isValidHlc(CANONICAL_FLOOR_HLC)).toBe(true);
+
+      const parsed = parseHlc(CANONICAL_FLOOR_HLC);
+      expect(parsed.physical).toBe(FLOOR_ISO);
+      expect(parsed.counter).toBe(0);
+      expect(parsed.deviceId).toBe('00000000');
+    });
+
+    it('ensures CANONICAL_FLOOR_HLC is strictly dominated by any modern event HLC', () => {
+      const modernHlc = '2026-10-15T12:00:00.000Z_0000_device-1';
+      expect(compareHlc(CANONICAL_FLOOR_HLC, modernHlc)).toBeLessThan(0);
+      expect(compareHlc(modernHlc, CANONICAL_FLOOR_HLC)).toBeGreaterThan(0);
+    });
+
+    it('considers two CANONICAL_FLOOR_HLC instances identical under compareHlc', () => {
+      expect(compareHlc(CANONICAL_FLOOR_HLC, CANONICAL_FLOOR_HLC)).toBe(0);
     });
   });
 });

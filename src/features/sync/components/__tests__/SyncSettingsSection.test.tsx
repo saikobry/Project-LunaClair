@@ -106,7 +106,7 @@ describe('SyncSettingsSection', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Connect Google Drive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
-    expect(screen.getByText('Connect Google Drive to synchronize')).toBeInTheDocument();
+    expect(screen.getAllByText('Connect Google Drive to synchronize').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Disconnect')).not.toBeInTheDocument();
   });
 

@@ -37,9 +37,10 @@ Pure domain contracts, types, validators, remappers, and inspection engines for 
   - Foreign key referential integrity (questions -> materials, quizzes -> materials, quiz items -> questions, assets -> materials).
   - Markdown asset references (`lc-asset://pkg_asset_*`) point to declared package assets.
 - Pure remapping (`remapStudyPackage`) guarantees:
-  - Generation of fresh local UUIDs (using `crypto.randomUUID()` or injected `LocalIdGenerator`).
+  - When `originShareId` is provided: deterministic ID generation (`mat_share_${originShareId}`, `doc_share_${originShareId}`, `q_share_${originShareId}_${q.id}`, `quiz_share_${originShareId}_${quiz.id}`, `asset_share_${originShareId}_${asset.id}`) and timestamp pinning to `FLOOR_ISO`.
+  - When `originShareId` is omitted: collision-free local UUIDs (via `crypto.randomUUID()` or injected `LocalIdGenerator`) and current ISO timestamps.
   - Rewiring of all foreign keys in questions, quizzes, quiz items, and assets.
-  - Transformation of embedded markdown `lc-asset://...` URIs to newly generated asset UUIDs.
+  - Transformation of embedded markdown `lc-asset://...` URIs to newly generated asset IDs.
   - Deterministic and collision-free isolation across sequential imports.
 - Pure inspection (`inspectStudyPackage`) calculates summary statistics without mutation. Summary metrics include material, question, quiz, and asset counts (no separate flashcard metric).
 
