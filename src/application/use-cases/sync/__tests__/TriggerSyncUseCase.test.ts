@@ -46,7 +46,7 @@ describe('TriggerSyncUseCase', () => {
         expect(mockSyncEngine.sync).toHaveBeenCalledWith(creds);
     });
 
-    it('throws error when no credentials are provided and provider returns null', async () => {
+    it('calls syncEngine.sync(null) when credentials are null or provider returns null', async () => {
         const mockProvider: SessionCredentialsProvider = {
             getCredentials: vi.fn().mockResolvedValue(null),
             setCredentials: vi.fn(),
@@ -54,6 +54,15 @@ describe('TriggerSyncUseCase', () => {
         };
 
         const useCase = new TriggerSyncUseCase(mockSyncEngine, mockProvider);
-        await expect(useCase.execute()).rejects.toThrow(/No session credentials available/i);
+        await useCase.execute();
+
+        expect(mockSyncEngine.sync).toHaveBeenCalledWith(null);
+    });
+
+    it('calls syncEngine.sync(null) when neither credentials nor provider is provided', async () => {
+        const useCase = new TriggerSyncUseCase(mockSyncEngine);
+        await useCase.execute();
+
+        expect(mockSyncEngine.sync).toHaveBeenCalledWith(null);
     });
 });

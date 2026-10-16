@@ -20,7 +20,7 @@ export type SyncCursor = number;
 export interface SessionCredentials {
   userId: string;
   deviceId: string;
-  token: string;
+  token?: string;
 }
 
 /**

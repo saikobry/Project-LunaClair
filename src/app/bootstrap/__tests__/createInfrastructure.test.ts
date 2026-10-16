@@ -90,6 +90,8 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
 
     const infra = createInfrastructure();
     expect(infra.providers.auth).toBe(googleAuthService);
+    expect(infra.providers.credentials).toBeDefined();
+    await expect(infra.providers.credentials.getCredentials()).resolves.toBeNull();
 
     const drivePushSpy = vi.spyOn(googleDriveSyncTransport, 'push').mockResolvedValueOnce({
       accepted: [],

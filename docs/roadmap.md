@@ -199,14 +199,18 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **15D (D1 Private Sync Table Drop — Local Migration):** Pruned `user_documents`, `user_entities`, `sync_changes`, and `sync_idempotency` from `worker/src/schema.ts`, retaining only `shares`; generated forward migration `20261016073043_slim_stick` via Drizzle Kit and applied locally with `npm run db:apply:local`, confirming 100% zero-server-user-data footprint.
   - **15E (Dead-Code Purge & DOX Closeout):** Deleted `WorkerSyncTransport.ts` and test suite from client; updated domain types and infrastructure DOX contracts; verified 1,571 client tests, 264 Worker tests, 0 lint errors, clean production build.
 
+- ✅ **Phase 16 — Deterministic Explore Clone Identity & Multi-Device Linking (Oct 2026):**
+  - **Deterministic Entity IDs**: Remapped cloned Explore study packages with deterministic `mat_share_${originShareId}`, `doc_share_${originShareId}`, `q_share_${originShareId}_${q.id}`, and `quiz_share_${originShareId}_${quiz.id}`, ensuring annotations, sketches, and spaced repetition schedules link identically across all user devices.
+  - **Canonical Epoch Floor Contract**: Defined `FLOOR_ISO = '1970-01-01T00:00:00.000Z'` and canonical sentinel `CANONICAL_FLOOR_HLC = '1970-01-01T00:00:00.000Z_0000_00000000'`. Any fresh template clone sits at the causal floor, guaranteeing user edits made on Device A are never overwritten under LWW by an unmodified clone on Device B.
+  - **Zero-Byte Baseline & Outbox Filter**: Filtered `updatedAt === FLOOR_ISO` out of baseline snapshot streaming and warm sync delta journals, consuming 0 Google Drive quota for unmodified curriculum.
+  - **Three-Mode Clone State Machine**: Mode 1 (Cold Clone at floor), Mode 2 (Preserved Hydration keeping user markdown edits when `updatedAt > FLOOR_ISO`), Mode 3 (Tombstone Resurrection stamping fresh HLC, clearing `deletedAt`, enqueuing outbox mutation, and sweeping orphan annotations).
+  - **Atomic Deletion Cascade**: Soft-deletes `documentContents`, `highlights`, `drawings`, and `flashcardReviews` with `DELETE` outbox mutations before removing local unsynced records.
+  - **Google Session Credentials Provider**: Bridged active Google OAuth sessions into domain `SessionCredentials` (`{ userId: session.user.sub, deviceId }`), purged legacy `LocalStorageCredentialsProvider`, made `token` optional in domain types, and routed unauthenticated sync triggers to typed `'standby'`.
+  - **Live Verification**: 2,615 Vitest tests passed across 368 test files, 100% Playwright E2E passing, and live multi-device drawing sync proven between Chrome and Brave.
+
 ---
 
 ## Planned Phases
-
-- **Phase 16 — Deterministic Explore Clone Identity & Multi-Device Linking:**
-  - Remap cloned Explore study packages with deterministic `documentId` derived from `originShareId` (e.g. `doc_share_${originShareId}`).
-  - **Floor HLC Contract:** Freshly cloned Explore course templates must be stamped with a deterministic floor HLC derived from `sharePackage.publishedAt` (or fixed epoch `0000_share`), NOT `Date.now()`. This guarantees that user edits made on Device A (`10:15 AM`) are never overwritten by a fresh template clone of the same course on Device B (`11:00 AM`).
-  - Ensure highlights, drawings, and flashcard review progress attach seamlessly across multiple devices of the same user without primary key collisions.
 
 - **Phase 17 — Granular Sync & Material Synchronization Overhaul:**
   - **Custom Material Synchronization:**

@@ -83,9 +83,7 @@ export class SyncEngine {
     const isUnauthenticated =
       !credentials ||
       !credentials.userId ||
-      !credentials.token ||
-      credentials.userId === 'user_default' ||
-      credentials.token === 'guest_token';
+      credentials.userId === 'user_default';
 
     if (isUnauthenticated) {
       this.statusStore.setState({ state: 'standby' });

@@ -52,7 +52,6 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `lifecycle/` — Browser event integrations:
     - `BrowserSyncLifecycle.ts` → Window `online`, `visibilitychange`, and periodic interval triggers
   - `storage/` — LocalStorage-backed providers:
-    - `LocalStorageCredentialsProvider.ts` → `SessionCredentialsProvider`
     - `deviceId.ts` → `getOrCreateDeviceId()`
 - `importer/` — Document extraction and parsing boundary:
   - `registry/` — Format registry and extractor factory:
@@ -78,6 +77,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `google/` — Google Identity Services (GIS) integration:
     - `loadGis.ts` → Idempotent dynamic loader for `https://accounts.google.com/gsi/client`
     - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort`, and automated silent token refresh via Cloudflare Worker auth endpoints
+    - `GoogleSessionCredentialsProvider.ts` → `SessionCredentialsProvider` implementation bridging Google OAuth identity into synchronization credentials
 
 ## Local Contracts
 

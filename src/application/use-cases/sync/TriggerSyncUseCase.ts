@@ -27,7 +27,8 @@ export class TriggerSyncUseCase {
     }
 
     if (!credentials) {
-      throw new Error('No session credentials available to trigger sync');
+      await this.syncEngine.sync(null);
+      return;
     }
 
     await this.syncEngine.sync(credentials);

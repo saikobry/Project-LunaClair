@@ -4,35 +4,60 @@ import { GetSyncStatusUseCase } from '../../../application/use-cases/sync/GetSyn
 import { GetConflictDraftsUseCase } from '../../../application/use-cases/sync/GetConflictDraftsUseCase';
 import { ResolveConflictDraftUseCase } from '../../../application/use-cases/sync/ResolveConflictDraftUseCase';
 import { TriggerSyncUseCase } from '../../../application/use-cases/sync/TriggerSyncUseCase';
-import type { Infrastructure } from '../createInfrastructure';
+import type { SessionCredentialsProvider } from '../../../domain/sync/services/SessionCredentialsProvider';
+import type { Infrastructure, Repositories } from '../createInfrastructure';
 
-export function createSyncUseCases(infrastructure: Infrastructure) {
-    const { transports, syncReconciler, repositories, providers } = infrastructure;
+export interface SyncUseCasesDependencies {
+    syncEngine: SyncEngine;
+    credentialsProvider?: SessionCredentialsProvider;
+    conflictDraftRepository?: Repositories['conflictDraft'];
+}
 
-    const syncEngine = new SyncEngine(
-        transports.sync,
-        syncReconciler,
-        repositories.syncQueue,
-        repositories.syncState,
-        syncStatusStore,
-    );
+export function createSyncUseCases(
+    infrastructureOrDeps: Infrastructure | SyncUseCasesDependencies,
+) {
+    if ('providers' in infrastructureOrDeps && 'transports' in infrastructureOrDeps) {
+        const { transports, syncReconciler, repositories, providers } = infrastructureOrDeps;
 
-    const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
-    const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraft);
-    const resolveConflictDraft = new ResolveConflictDraftUseCase(
-        repositories.conflictDraft,
-    );
-    const triggerSync = new TriggerSyncUseCase(
-        syncEngine,
-        providers.credentials,
-    );
+        const syncEngine = new SyncEngine(
+            transports.sync,
+            syncReconciler,
+            repositories.syncQueue,
+            repositories.syncState,
+            syncStatusStore,
+        );
 
+        const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
+        const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraft);
+        const resolveConflictDraft = new ResolveConflictDraftUseCase(
+            repositories.conflictDraft,
+        );
+        const triggerSync = new TriggerSyncUseCase(
+            syncEngine,
+            providers.credentials,
+        );
+
+        return {
+            syncEngine,
+            syncStatusStore,
+            getSyncStatus,
+            getConflictDrafts,
+            resolveConflictDraft,
+            triggerSync,
+        };
+    }
+
+    const { syncEngine, credentialsProvider, conflictDraftRepository } = infrastructureOrDeps;
     return {
         syncEngine,
         syncStatusStore,
-        getSyncStatus,
-        getConflictDrafts,
-        resolveConflictDraft,
-        triggerSync,
+        getSyncStatus: new GetSyncStatusUseCase(syncStatusStore),
+        getConflictDrafts: conflictDraftRepository
+            ? new GetConflictDraftsUseCase(conflictDraftRepository)
+            : undefined,
+        resolveConflictDraft: conflictDraftRepository
+            ? new ResolveConflictDraftUseCase(conflictDraftRepository)
+            : undefined,
+        triggerSync: new TriggerSyncUseCase(syncEngine, credentialsProvider),
     };
 }

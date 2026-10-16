@@ -48,9 +48,11 @@ import { DexieCollectionMaterialRepository } from '../../infrastructure/database
 import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { googleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
+import { GoogleSessionCredentialsProvider } from '../../infrastructure/auth/google/GoogleSessionCredentialsProvider';
+import { getOrCreateDeviceId } from '../../infrastructure/browser/storage/deviceId';
 import { workerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
-import { localStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
 import type { SyncTransport } from '../../domain/sync/services/SyncTransport';
+import type { SessionCredentialsProvider } from '../../domain/sync/services/SessionCredentialsProvider';
 import type { GoogleAuthPort } from '../../domain/auth/models/auth.types';
 import {
     getActiveVaultDatabase,
@@ -61,7 +63,6 @@ import {
 import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
 import type { VaultRegistryPort } from '../../domain/vault/models/vault.types';
 import type { WorkerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
-import type { LocalStorageCredentialsProvider } from '../../infrastructure/browser/storage/LocalStorageCredentialsProvider';
 import type { AiService } from '../../domain/ai/services/AiService';
 import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
 import {
@@ -117,7 +118,7 @@ export interface Infrastructure {
         share: WorkerShareTransport;
     };
     providers: {
-        credentials: LocalStorageCredentialsProvider;
+        credentials: SessionCredentialsProvider;
         auth: GoogleAuthPort;
     };
     importerRegistry: ImporterRegistry;
@@ -212,6 +213,11 @@ export function createInfrastructure(
         },
     };
 
+    const sessionCredentialsProvider = new GoogleSessionCredentialsProvider(
+        googleAuthService,
+        getOrCreateDeviceId(),
+    );
+
     return {
         db: database,
         repositories,
@@ -226,7 +232,7 @@ export function createInfrastructure(
             share: workerShareTransport,
         },
         providers: {
-            credentials: localStorageCredentialsProvider,
+            credentials: sessionCredentialsProvider,
             auth: googleAuthService,
         },
         importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
