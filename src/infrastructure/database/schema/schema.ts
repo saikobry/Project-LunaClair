@@ -1,7 +1,7 @@
 /**
  * Dexie schema definition for LunaClair database.
- * Version 1: Phase 5 stores (materials, questions, quizzes, quizSessions, etc.)
- * Version 2: Phase 5.3 — adds subjects, terms tables; widens materials.
+ * Version 1: Initial local stores (materials, questions, quizzes, quizSessions, etc.)
+ * Version 2: Adds subjects, terms tables; widens materials.
  * Version 3: Normalizes Subject↔Term relationship — adds subjectTerms junction,
  *            removes subjectId and order from terms (terms become global).
  * Version 4: Adds quizEditingDrafts — local crash-recovery store for the
@@ -106,7 +106,7 @@ export const SCHEMA_V10 = {
 } as const;
 
 /**
- * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10
+ * Version 11: Adds syncQueue, syncState, and conflictDrafts for
  * Cloud Synchronization (offline mutation queue, sync cursors, and conflict drafts).
  */
 export const SCHEMA_V11 = {

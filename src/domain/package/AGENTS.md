@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pure domain contracts, types, validators, remappers, and inspection engines for the Phase 11A StudyPackage specification (`.lcpack` bundle format) enabling portable, offline-first material sharing and exchange.
+Pure domain contracts, types, validators, remappers, and inspection engines for the StudyPackage specification (`.lcpack` bundle format) enabling portable, offline-first material sharing and exchange.
 
 ## Ownership
 

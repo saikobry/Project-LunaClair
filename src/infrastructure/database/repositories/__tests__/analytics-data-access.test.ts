@@ -8,7 +8,7 @@ import type { ReviewState } from '../../../../domain/flashcards/engines/schedule
 import type { Question } from '../../../../domain/quiz/models/Question';
 import type { Quiz } from '../../../../domain/quiz/models/Quiz';
 
-describe('Phase 7A / Commit 1 — Analytics Data Access Foundations', () => {
+describe('Analytics Data Access Foundations', () => {
     let quizSessionRepo: DexieQuizSessionRepository;
     let flashcardReviewRepo: DexieFlashcardReviewRepository;
 

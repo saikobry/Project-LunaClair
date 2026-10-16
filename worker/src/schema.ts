@@ -2,8 +2,8 @@
  * Drizzle schema for Cloudflare D1 — the cloud sync/content layer for LunaClair.
  *
  * Cloud Sync + StudyPackage sharing schema:
- * - `userDocuments`, `userEntities`, `syncChanges`, `syncIdempotency`: Cloud Sync (Phase 10)
- * - `shares`: Published StudyPackage snapshot shares (Phase 11C / Phase 12)
+ * - `userDocuments`, `userEntities`, `syncChanges`, `syncIdempotency`: Cloud Sync
+ * - `shares`: Published StudyPackage snapshot shares
  *
  * Timestamp convention: all persisted timestamps are ISO-8601 UTC text strings
  * (`YYYY-MM-DDTHH:mm:ss.sssZ`), matching the domain/Dexie representation.
@@ -17,7 +17,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 /**
- * Cloud Sync Tables — Phase 10
+ * Cloud Sync Tables
  *
  * 4 tables supporting bidirectional local-first synchronization between Dexie and D1:
  * - `userDocuments`: user documents with CAS optimistic versioning
@@ -94,7 +94,7 @@ export const syncIdempotency = sqliteTable(
 );
 
 /**
- * Published StudyPackage Shares (Phase 11C).
+ * Published StudyPackage Shares.
  *
  * Stores immutable published package snapshots for remote sharing and cloning.
  * Format is strictly 'lcpack' with schemaVersion 1.

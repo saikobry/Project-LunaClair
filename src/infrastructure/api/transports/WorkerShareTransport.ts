@@ -1,5 +1,5 @@
 /**
- * Cloudflare Worker HTTP Transport implementation for Cloud Sharing (Phase 11C).
+ * Cloudflare Worker HTTP Transport implementation for Cloud Sharing.
  */
 import type {
   PublishedShare,

@@ -6,7 +6,7 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
 
 ## Ownership
 
-**This feature owns NO content and NO authoring.** A flashcard is a *projection* of a typed `Question`; this feature turns questions into cards and schedules their reviews. It creates nothing, edits nothing, and deletes nothing. If you are looking for where a question or a flashcard is created, published, archived, or edited, that is `src/features/quiz-management/` (Question Bank / Quiz Catalog) and nothing here. The Phase 5 consolidation retired this feature's own "Generate with AI" dialog, `GenerateFlashcardsUseCase`, and `BatchCreateFlashcardsUseCase`: that dialog wrote into the same Question Bank from a second front door, and its persistence stamped every generated card `type: 'identification'`, hardcoded `difficulty: 'medium'` — losing type fidelity, real difficulty, and per-blank SM-2 scheduling all at once.
+**This feature owns NO content and NO authoring.** A flashcard is a *projection* of a typed `Question`; this feature turns questions into cards and schedules their reviews. It creates nothing, edits nothing, and deletes nothing. If you are looking for where a question or a flashcard is created, published, archived, or edited, that is `src/features/quiz-management/` (Question Bank / Quiz Catalog) and nothing here. The consolidation retired this feature's own "Generate with AI" dialog, `GenerateFlashcardsUseCase`, and `BatchCreateFlashcardsUseCase`: that dialog wrote into the same Question Bank from a second front door, and its persistence stamped every generated card `type: 'identification'`, hardcoded `difficulty: 'medium'` — losing type fidelity, real difficulty, and per-blank SM-2 scheduling all at once.
 
 | Path | Responsibility |
 |---|---|
@@ -58,7 +58,7 @@ Spaced-repetition study mode utilizing SuperMemo-2 (SM-2) retention scheduling. 
   - The rating bar is rendered **outside** the per-face scroll region, so long answers can never scroll the four ratings out of reach — a learner can always rate.
 - **Direct-Path Consumption (ADR-010)**:
   - Outside consumers import direct paths (e.g. `flashcards/FlashcardTab`, `flashcards/queries/flashcardQueryKeys`). No root barrel is exposed.
-  - `flashcards/FlashcardTab` consumes `features/materials/hooks/queries/useMaterial`, `features/quiz/hooks/queries/useQuestions`, and `features/quiz/hooks/queries/useQuizzes` — and **no longer** `features/ai/generator/components/AiFlashcardGeneratorDialog`, which was removed with the authoring path. The Phase 5 consolidation **removed** an entry from the `src/features/AGENTS.md` allow-list rather than adding one. Do not re-add a generator import here; a card is authored as a question.
+  - `flashcards/FlashcardTab` consumes `features/materials/hooks/queries/useMaterial`, `features/quiz/hooks/queries/useQuestions`, and `features/quiz/hooks/queries/useQuizzes` — and **no longer** `features/ai/generator/components/AiFlashcardGeneratorDialog`, which was removed with the authoring path. The consolidation **removed** an entry from the `src/features/AGENTS.md` allow-list rather than adding one. Do not re-add a generator import here; a card is authored as a question.
 
 ## Work Guidance
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Feature-level presentation, reactive subscription hooks, status pill UI, interactive document conflict resolution modal, and BYOS cloud storage preferences for Phase 10 Cloud Synchronization.
+Feature-level presentation, reactive subscription hooks, status pill UI, interactive document conflict resolution modal, and BYOS cloud storage preferences for BYOS Google Drive Cloud Synchronization.
 
 ## Ownership
 

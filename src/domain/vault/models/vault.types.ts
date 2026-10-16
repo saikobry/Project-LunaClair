@@ -1,7 +1,7 @@
 /**
  * Domain contracts and models for Vault namespacing and Registry in LunaClair.
  *
- * Implements Phase 2 BYOS Vault Architecture (ADR-018).
+ * Implements BYOS Vault Architecture (ADR-018).
  * Decouples logical user account identity (`ownerSub`) from physical IndexedDB
  * database names (`lc_vault_${uuid}`) for zero-copy promotion.
  * Zero UI or React dependencies.

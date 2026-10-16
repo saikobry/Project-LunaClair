@@ -1,5 +1,5 @@
 /**
- * Domain types and transport contracts for Cloud Sharing (Phase 11C).
+ * Domain types and transport contracts for Cloud Sharing.
  */
 import type { StudyPackage } from '../../package/models/package.types';
 

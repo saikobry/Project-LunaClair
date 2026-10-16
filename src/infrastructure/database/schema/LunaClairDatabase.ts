@@ -55,8 +55,8 @@ export interface MetadataRecord {
 
 /**
  * Dexie subclass defining the LunaClair IndexedDB database.
- * Version 1: Phase 5 stores.
- * Version 2: Phase 5.3 — adds subjects, terms tables; widens materials.
+ * Version 1: Initial local stores.
+ * Version 2: Adds subjects, terms tables; widens materials.
  * Version 3: Normalizes Subject↔Term relationship — adds subjectTerms junction,
  *            removes subjectId and order from terms (terms become global).
  * Version 4: Adds quizEditingDrafts — local crash-recovery store for the
@@ -68,7 +68,7 @@ export interface MetadataRecord {
  *            `version(8)` note: no data migration can run for a primary-key change.
  * Version 9: Adds aiThreads and aiMessages for local-first AI chat persistence.
  * Version 10: Adds importAssets table for raw uploaded files.
- * Version 11: Adds syncQueue, syncState, and conflictDrafts for Phase 10 Cloud Synchronization.
+ * Version 11: Adds syncQueue, syncState, and conflictDrafts for Cloud Synchronization.
  * Version 12: Adds the originShareId index on materials for exact clone identity.
  * Version 13: Adds collections + collectionMaterials (Playlist model) and the
  *            `*tags` multi-entry index on materials. Sunset: drops the

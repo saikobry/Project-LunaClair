@@ -10,7 +10,7 @@
  *
  * There is no import method on this port, and that is deliberate (Sep 2026).
  * The catalog-era single/batch material import use cases were removed in the
- * Phase 5 catalog retirement, leaving the adapter's `importMaterial` /
+ * catalog retirement, leaving the adapter's `importMaterial` /
  * `importMaterialBatch` with no caller. They were the one *existing* ungated
  * write surface into `db.questions`: a method nothing can call still reads as a
  * supported write path, and it bypassed `validateQuestionPayload` that every

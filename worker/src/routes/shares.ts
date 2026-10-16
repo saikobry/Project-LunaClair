@@ -1,5 +1,5 @@
 /**
- * Cloud Sharing Service for LunaClair Worker (Phase 11C).
+ * Cloud Sharing Service for LunaClair Worker.
  *
  * Implements published immutable snapshot sharing:
  * - POST   /api/shares              → Validates & persists StudyPackage snapshot
