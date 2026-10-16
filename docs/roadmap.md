@@ -192,15 +192,16 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **14E (UI Presentation & Settings Integration):** Dedicated `<SyncSettingsSection />` in `SettingsScreen.tsx` with Google account status, storage quota gauges, connection toggles, and manual sync triggers. Composition root integration (`createSyncUseCases.ts`) providing pluggable `GoogleDriveSyncTransport` injection while keeping `/api/shares` strictly isolated on D1.
   - **Comprehensive Verification:** 366 test files (2,611 unit & integration tests) in frontend suite, 22 test files (306 tests) in Worker suite, 100% pass rate, 0 lint errors, 0 type errors.
 
+- ✅ **Phase 15 — D1 Private Sync Decommissioning & Zero-Server-Footprint Purge (Oct 2026):**
+  - **15A (Client Standby Gating & Multi-Tab Web Locks Fencing):** Two-layer unauthenticated gating: outer lifecycle listener gate (`AppShell`, `BrowserSyncLifecycle`) preventing dormant background sync loops, and inner engine short-circuit (`SyncEngine.sync()`) to typed `'standby'` status preserving local `syncQueue` mutations; hardcoded guest fallback credentials (`user_default`) purged; single-leader Web Locks mutex (`VaultSyncLockCoordinator`) with 30s progress-reset watchdog, `freeze`/`pagehide` aborts, and 45s heartbeat steal.
+  - **15B (Vault Baseline Seeding & driveSeeded Barrier):** Initial sync barrier materializing live Dexie tables (`documentContents`, `highlights`, `drawings`, `flashcardReviews`, `quizSessions`) into gzipped snapshots/journals via cursor-paginated Web Streams chunk streaming (`streamVaultChunksGzipped.ts`, <800 KB compressed payload) respecting 1 MB `reserve_slot.bin` and 5 MB multipart limits, with per-entity HLC mapping and atomic `driveSeeded: true` commit.
+  - **15C (Immediate Worker Route Purge & 404 Guarding):** Direct route purge deleting `worker/src/routes/sync.ts` and `worker/src/core/retention.ts`; unbinding `/api/sync/push` and `/api/sync/pull` from declarative router (`router.ts`); verified non-matching sync paths return JSON 404 (`syncRoutePurged.test.ts`).
+  - **15D (D1 Private Sync Table Drop — Local Migration):** Pruned `user_documents`, `user_entities`, `sync_changes`, and `sync_idempotency` from `worker/src/schema.ts`, retaining only `shares`; generated forward migration `20261016073043_slim_stick` via Drizzle Kit and applied locally with `npm run db:apply:local`, confirming 100% zero-server-user-data footprint.
+  - **15E (Dead-Code Purge & DOX Closeout):** Deleted `WorkerSyncTransport.ts` and test suite from client; updated domain types and infrastructure DOX contracts; verified 1,571 client tests, 264 Worker tests, 0 lint errors, clean production build.
+
 ---
 
 ## Planned Phases
-
-- **Phase 15 — D1 Private Sync Decommissioning & Zero-Server-Footprint Purge:**
-  - Generate D1 schema migration dropping `sync_changes`, `user_documents`, `user_entities`, and `sync_idempotency` tables from D1.
-  - Delete retired `POST /api/sync/push` and `GET /api/sync/pull` route handlers from Cloudflare Worker.
-  - Deprecate `WorkerSyncTransport` on the frontend, standardizing exclusively on `GoogleDriveSyncTransport`.
-  - Retain D1 exclusively for public `.lcpack` study-package sharing (`/api/shares`), achieving $0 database storage cost for private user data.
 
 - **Phase 16 — Deterministic Explore Clone Identity & Multi-Device Linking:**
   - Remap cloned Explore study packages with deterministic `documentId` derived from `originShareId` (e.g. `doc_share_${originShareId}`).
