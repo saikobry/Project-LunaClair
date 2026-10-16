@@ -41,11 +41,10 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `transactionalOutbox.ts` → `runSyncableTransaction`
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
     - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`)
-- `api/` — External REST API and Cloudflare Worker boundary:
-  - `transports/` — Cloudflare Worker HTTP network transports:
-    - `WorkerSyncTransport.ts` → `SyncTransport` (`/api/sync/pull`, `/api/sync/push`)
+- `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:
+  - `transports/` — Network and cloud storage sync and share transports:
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
-    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence)
+    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (sole sync transport; Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence)
   - `google/` — Google Drive API v3 client:
     - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`)
     - `streamVaultChunksGzipped.ts` → Streaming vault baseline compression pipeline (`streamVaultChunksGzipped`, `collectVaultChunksGzipped`, `deriveEntityHlc`, `paginateTable`, `compressChunkGzip`)

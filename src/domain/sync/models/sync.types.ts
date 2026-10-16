@@ -98,7 +98,7 @@ export type ReconcileResult =
   | { kind: 'deleted'; entityId: string };
 
 /**
- * Accepted mutation item returned by push endpoint.
+ * Accepted mutation item returned by sync transport push.
  */
 export interface AcceptedMutation {
   clientMutationId: string;
@@ -108,7 +108,7 @@ export interface AcceptedMutation {
 }
 
 /**
- * Conflict mutation item returned by push endpoint on concurrency violation.
+ * Conflict mutation item returned by sync transport push on concurrency violation.
  */
 export interface ConflictMutation {
   clientMutationId: string;
@@ -119,7 +119,7 @@ export interface ConflictMutation {
 }
 
 /**
- * Rejected mutation item returned by push endpoint when invalid or malformed.
+ * Rejected mutation item returned by sync transport push when invalid or malformed.
  */
 export interface RejectedMutation {
   clientMutationId: string;
@@ -129,7 +129,7 @@ export interface RejectedMutation {
 }
 
 /**
- * Request payload for POST /api/sync/push.
+ * Request payload for sync transport push.
  */
 export interface SyncPushRequest {
   deviceId: string;
@@ -137,7 +137,7 @@ export interface SyncPushRequest {
 }
 
 /**
- * Response payload for POST /api/sync/push.
+ * Response payload for sync transport push.
  */
 export interface SyncPushResponse {
   accepted: AcceptedMutation[];
@@ -146,7 +146,7 @@ export interface SyncPushResponse {
 }
 
 /**
- * Journal change entry returned by GET /api/sync/pull.
+ * Journal change delta entry returned by sync transport pull.
  */
 export interface SyncChangeItem<T = unknown> {
   sequence: number;
@@ -159,7 +159,7 @@ export interface SyncChangeItem<T = unknown> {
 }
 
 /**
- * Response payload for GET /api/sync/pull.
+ * Response payload for sync transport pull.
  */
 export interface SyncPullResponse {
   newCursor: number;

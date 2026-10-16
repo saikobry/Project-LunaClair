@@ -86,13 +86,11 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
 
   it('exposes googleAuthService on providers.auth and dynamically routes sync transport', async () => {
     const { googleAuthService } = await import('../../../infrastructure/auth/google/GoogleAuthService');
-    const { workerSyncTransport } = await import('../../../infrastructure/api/transports/WorkerSyncTransport');
     const { googleDriveSyncTransport } = await import('../../../infrastructure/api/transports/GoogleDriveSyncTransport');
 
     const infra = createInfrastructure();
     expect(infra.providers.auth).toBe(googleAuthService);
 
-    const workerPushSpy = vi.spyOn(workerSyncTransport, 'push');
     const drivePushSpy = vi.spyOn(googleDriveSyncTransport, 'push').mockResolvedValueOnce({
       accepted: [],
       conflicts: [],
@@ -101,17 +99,15 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
 
     const getSessionSpy = vi.spyOn(googleAuthService, 'getSession');
 
-    // Case 1: unauthenticated -> standbySyncTransport (no calls to worker or drive)
+    // Case 1: unauthenticated -> standbySyncTransport (no calls to drive)
     getSessionSpy.mockReturnValueOnce(null);
     const pushResult = await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
     expect(pushResult).toEqual({ accepted: [], conflicts: [], rejected: [] });
-    expect(workerPushSpy).not.toHaveBeenCalled();
     expect(drivePushSpy).not.toHaveBeenCalled();
 
     getSessionSpy.mockReturnValueOnce(null);
     const pullResult = await infra.transports.sync.pull({ deviceId: 'dev-1' } as any, 10);
     expect(pullResult).toEqual({ newCursor: 10, hasMore: false, changes: [] });
-    expect(workerPushSpy).not.toHaveBeenCalled();
     expect(drivePushSpy).not.toHaveBeenCalled();
 
     // Case 2: authenticated -> googleDriveSyncTransport
@@ -121,10 +117,8 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
     });
     await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
     expect(drivePushSpy).toHaveBeenCalledTimes(1);
-    expect(workerPushSpy).not.toHaveBeenCalled();
 
     getSessionSpy.mockRestore();
-    workerPushSpy.mockRestore();
     drivePushSpy.mockRestore();
   });
 });
