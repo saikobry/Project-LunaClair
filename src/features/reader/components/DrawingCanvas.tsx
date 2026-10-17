@@ -124,7 +124,7 @@ export default function DrawingCanvas({
     if (!pt) return;
 
     // Prevent default touch behavior (like scrolling) when drawing
-    if ('touches' in e) {
+    if ('touches' in e && e.cancelable) {
       e.preventDefault();
     }
 
@@ -148,7 +148,7 @@ export default function DrawingCanvas({
     const pt = getCanvasCoords(e);
     if (!pt) return;
 
-    if ('touches' in e) {
+    if ('touches' in e && e.cancelable) {
       e.preventDefault();
     }
 
@@ -202,6 +202,7 @@ export default function DrawingCanvas({
           width: '100%',
           height: '100%',
           cursor: active ? 'crosshair' : 'default',
+          touchAction: 'none',
         }}
         onMouseDown={handleStart}
         onMouseMove={handleMove}

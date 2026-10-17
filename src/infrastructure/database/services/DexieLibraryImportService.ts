@@ -2,6 +2,7 @@ import type { LibraryImportService } from '../../../domain/library/services/Libr
 import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { DexieFlashcardReviewRepository } from '../repositories/DexieFlashcardReviewRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 /**
  * Concrete `LibraryImportService` backed by Dexie.
@@ -44,19 +45,19 @@ export class DexieLibraryImportService implements LibraryImportService {
     }
 
     async removeMaterial(materialId: string): Promise<void> {
-        await this.db.transaction(
-            'rw',
+        await withOrigin(
+            this.db,
+            'local',
             [
                 this.db.materials,
+                this.db.documentContents,
                 this.db.questions,
                 this.db.quizzes,
-                this.db.documentContents,
                 this.db.localAssets,
                 this.db.collectionMaterials,
                 this.db.flashcardReviews,
                 this.db.highlights,
                 this.db.drawings,
-                this.db.syncQueue,
             ],
             async () => {
                 const material = await this.db.materials.get(materialId);

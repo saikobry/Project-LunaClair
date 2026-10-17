@@ -1,6 +1,7 @@
 import type { FlashcardReviewRepository } from '../../../domain/flashcards/repositories/FlashcardReviewRepository';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 export class DexieFlashcardReviewRepository implements FlashcardReviewRepository {
     /**
@@ -33,10 +34,18 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
         return this.db.flashcardReviews.where('materialId').equals(materialId).toArray();
     }
 
+    async saveReview(review: ReviewState): Promise<void> {
+        await this.saveReviewsBatch([review]);
+    }
+
+    async saveReviewsBatch(reviews: ReviewState[]): Promise<void> {
+        await this.save(reviews);
+    }
+
     async save(reviews: ReviewState[]): Promise<void> {
         if (reviews.length === 0) return;
         const now = new Date().toISOString();
-        await this.db.transaction('rw', [this.db.flashcardReviews, this.db.syncQueue], async () => {
+        await withOrigin(this.db, 'local', [this.db.flashcardReviews], async () => {
             await this.db.flashcardReviews.bulkPut(reviews);
             const queueItems = reviews.map((r) => ({
                 id: crypto.randomUUID(),
@@ -77,7 +86,7 @@ export class DexieFlashcardReviewRepository implements FlashcardReviewRepository
     async deleteByKeys(keys: string[]): Promise<void> {
         if (keys.length === 0) return;
         const now = new Date().toISOString();
-        await this.db.transaction('rw', [this.db.flashcardReviews, this.db.syncQueue], async () => {
+        await withOrigin(this.db, 'local', [this.db.flashcardReviews], async () => {
             await this.db.flashcardReviews.bulkDelete(keys);
             const queueItems = keys.map((key) => ({
                 id: crypto.randomUUID(),

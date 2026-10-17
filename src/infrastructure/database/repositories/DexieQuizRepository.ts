@@ -5,6 +5,7 @@ import type {
     UpdateQuizInput,
 } from '../../../domain/quiz/repositories/QuizRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 function generateId(): string {
     return `quiz-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -55,25 +56,37 @@ export class DexieQuizRepository implements QuizRepository {
             createdAt: now,
             updatedAt: now,
         };
-        await this.db.quizzes.put(quiz);
+        await withOrigin(this.db, 'local', [this.db.quizzes], async () => {
+            await this.db.quizzes.put(quiz);
+        });
         return quiz;
     }
 
-    async updateQuiz(id: string, input: UpdateQuizInput): Promise<Quiz> {
-        const existing = await this.db.quizzes.get(id);
-        if (!existing) throw new Error(`Quiz not found: ${id}`);
+    async saveQuiz(quiz: Quiz): Promise<void> {
+        await withOrigin(this.db, 'local', [this.db.quizzes], async () => {
+            await this.db.quizzes.put(quiz);
+        });
+    }
 
-        const updated: Quiz = {
-            ...existing,
-            ...input,
-            updatedAt: new Date().toISOString(),
-        };
-        await this.db.quizzes.put(updated);
-        return updated;
+    async updateQuiz(id: string, input: UpdateQuizInput): Promise<Quiz> {
+        return await withOrigin(this.db, 'local', [this.db.quizzes], async () => {
+            const existing = await this.db.quizzes.get(id);
+            if (!existing) throw new Error(`Quiz not found: ${id}`);
+
+            const updated: Quiz = {
+                ...existing,
+                ...input,
+                updatedAt: new Date().toISOString(),
+            };
+            await this.db.quizzes.put(updated);
+            return updated;
+        });
     }
 
     async deleteQuiz(id: string): Promise<void> {
-        await this.db.quizzes.delete(id);
+        await withOrigin(this.db, 'local', [this.db.quizzes], async () => {
+            await this.db.quizzes.delete(id);
+        });
     }
 }
 

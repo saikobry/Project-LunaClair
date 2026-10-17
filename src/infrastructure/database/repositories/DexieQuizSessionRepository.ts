@@ -7,6 +7,7 @@ import type {
     CreateSessionInput,
 } from '../../../domain/quiz/repositories/QuizSessionRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 function generateId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -42,7 +43,7 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
      * Virtual quizzes ({ source: 'virtual' }) are created in-memory without persisting to db.quizzes.
      */
     async createSession(input: CreateSessionInput): Promise<QuizSession> {
-        return this.db.transaction('rw', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
+        return withOrigin(this.db, 'local', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
             let quiz: Quiz | undefined;
 
             if (input.source === 'virtual') {
@@ -82,7 +83,7 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
         answers: SubmittedAnswer[],
         score: QuizSession['score'],
     ): Promise<QuizSession> {
-        return this.db.transaction('rw', [this.db.quizSessions, this.db.syncQueue], async () => {
+        return withOrigin(this.db, 'local', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
             const existing = await this.db.quizSessions.get(id);
             if (!existing) throw new Error(`QuizSession not found: ${id}`);
 
@@ -112,8 +113,16 @@ export class DexieQuizSessionRepository implements QuizSessionRepository {
         });
     }
 
+    async updateSession(session: QuizSession): Promise<void> {
+        await withOrigin(this.db, 'local', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
+            await this.db.quizSessions.put(session);
+        });
+    }
+
     async deleteSession(id: string): Promise<void> {
-        await this.db.quizSessions.delete(id);
+        await withOrigin(this.db, 'local', [this.db.quizSessions, this.db.quizzes, this.db.questions], async () => {
+            await this.db.quizSessions.delete(id);
+        });
     }
 }
 

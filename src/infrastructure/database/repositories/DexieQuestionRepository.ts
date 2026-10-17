@@ -8,6 +8,7 @@ import { cardKeyForQuestion } from '../../../domain/flashcards/engines/cardKey';
 import { normalizeTags } from '../../../shared/utils/tags';
 import { DexieFlashcardReviewRepository } from './DexieFlashcardReviewRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 function generateId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -64,7 +65,9 @@ export class DexieQuestionRepository implements QuestionRepository {
             createdAt: now,
             updatedAt: now,
         };
-        await this.db.questions.put(question);
+        await withOrigin(this.db, 'local', [this.db.questions, this.db.flashcardReviews], async () => {
+            await this.db.questions.put(question);
+        });
         return question;
     }
 
@@ -87,7 +90,7 @@ export class DexieQuestionRepository implements QuestionRepository {
             updatedAt: now,
         }));
 
-        await this.db.transaction('rw', this.db.questions, async () => {
+        await withOrigin(this.db, 'local', [this.db.questions, this.db.flashcardReviews], async () => {
             await this.db.questions.bulkPut(questions);
         });
 
@@ -95,18 +98,20 @@ export class DexieQuestionRepository implements QuestionRepository {
     }
 
     async updateQuestion(id: string, input: UpdateQuestionInput): Promise<Question> {
-        const existing = await this.db.questions.get(id);
-        if (!existing) throw new Error(`Question not found: ${id}`);
+        return await withOrigin(this.db, 'local', [this.db.questions, this.db.flashcardReviews], async () => {
+            const existing = await this.db.questions.get(id);
+            if (!existing) throw new Error(`Question not found: ${id}`);
 
-        const updated: Question = {
-            ...existing,
-            ...input,
-            tags: normalizeTags(input.tags ?? existing.tags),
-            version: existing.version + 1,
-            updatedAt: new Date().toISOString(),
-        };
-        await this.db.questions.put(updated);
-        return updated;
+            const updated: Question = {
+                ...existing,
+                ...input,
+                tags: normalizeTags(input.tags ?? existing.tags),
+                version: existing.version + 1,
+                updatedAt: new Date().toISOString(),
+            };
+            await this.db.questions.put(updated);
+            return updated;
+        });
     }
 
     /**
@@ -135,7 +140,7 @@ export class DexieQuestionRepository implements QuestionRepository {
      * outbox writes either all land or none do.
      */
     async deleteQuestion(id: string): Promise<void> {
-        await this.db.transaction('rw', [this.db.questions, this.db.flashcardReviews, this.db.syncQueue], async () => {
+        await withOrigin(this.db, 'local', [this.db.questions, this.db.flashcardReviews], async () => {
             const blankKeys = await this.db.flashcardReviews
                 .where('key')
                 .startsWith(blankKeyPrefix(id))

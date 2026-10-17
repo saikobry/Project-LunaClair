@@ -7,6 +7,7 @@ import type {
 } from '../../../domain/quiz/services/QuizEditorService';
 import { normalizeTags } from '../../../shared/utils/tags';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 function generateQuestionId(): string {
     return `q-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -20,7 +21,7 @@ function generateQuizId(): string {
  * Concrete `QuizEditorService` implementation backed by Dexie.
  *
  * `saveQuiz` persists every question change and the quiz record inside a
- * single `db.transaction('rw')` spanning the `questions` and `quizzes`
+ * single `withOrigin` transaction spanning the `questions` and `quizzes`
  * stores, so a failure can never leave the Quiz Catalog and the Question
  * Bank out of sync.
  *
@@ -34,8 +35,12 @@ export class DexieQuizEditorService implements QuizEditorService {
         this.db = db;
     }
 
+    async saveDraft(input: SaveQuizToRepositoryInput): Promise<SaveQuizToRepositoryResult> {
+        return this.saveQuiz(input);
+    }
+
     async saveQuiz(input: SaveQuizToRepositoryInput): Promise<SaveQuizToRepositoryResult> {
-        return this.db.transaction('rw', [this.db.questions, this.db.quizzes], async () => {
+        return withOrigin(this.db, 'local', [this.db.questions, this.db.quizzes], async () => {
             const now = new Date().toISOString();
             const resolvedIds = new Map<string, string>();
             const updatedQuestionIds: string[] = [];

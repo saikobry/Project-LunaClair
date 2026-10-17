@@ -8,12 +8,13 @@ import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepos
 import { FLOOR_ISO } from '../../../domain/sync/utils/hlc';
 import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
+import { withOrigin } from '../sync/transactionContext';
 
 /**
  * Dexie implementation of `StudyPackageImportService`.
  *
  * Coordinates atomic multi-table commit across `materials`, `documentContents`,
- * `questions`, `quizzes`, `localAssets`, `syncQueue`, `highlights`, and `drawings`
+ * `questions`, `quizzes`, `localAssets`, `highlights`, and `drawings`
  * inside a single Dexie transaction.
  *
  * Implements the Three-Mode Clone State Machine for `documentContents`:
@@ -22,7 +23,7 @@ import type { ImportedDocumentContent } from '../../../domain/reader/repositorie
  *   - Branch A: user has local edits (updatedAt > FLOOR_ISO) -> preserves content & updatedAt.
  *   - Branch B: unmodified template (updatedAt === FLOOR_ISO) -> updates content/title at FLOOR_ISO.
  * - Mode 3 (Tombstone Resurrection): document was previously soft-deleted (deletedAt != null).
- *   - Revives document with current timestamp, clears deletedAt, enqueues UPSERT to syncQueue.
+ *   - Revives document with current timestamp, clears deletedAt, captured automatically by sync hooks.
  *   - Sweeps lingering un-tombstoned highlights & drawings for documentId.
  */
 export class DexieStudyPackageImportService implements StudyPackageImportService {
@@ -30,6 +31,10 @@ export class DexieStudyPackageImportService implements StudyPackageImportService
 
   constructor(db: LunaClairDatabase = getActiveVaultDatabase()) {
     this.db = db;
+  }
+
+  async importPackage(records: ImportStudyPackageRecords): Promise<void> {
+    return this.importStudyPackage(records);
   }
 
   async importStudyPackage(records: ImportStudyPackageRecords): Promise<void> {
@@ -44,15 +49,15 @@ export class DexieStudyPackageImportService implements StudyPackageImportService
       importedAt: asset.importedAt,
     }));
 
-    await this.db.transaction(
-      'rw',
+    await withOrigin(
+      this.db,
+      'local',
       [
         this.db.materials,
         this.db.documentContents,
         this.db.questions,
         this.db.quizzes,
         this.db.localAssets,
-        this.db.syncQueue,
         this.db.highlights,
         this.db.drawings,
       ],

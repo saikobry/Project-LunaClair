@@ -1,7 +1,7 @@
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
 import type { AnnotationRepository } from '../../../domain/reader/repositories/AnnotationRepository';
-import type { SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { getActiveVaultDatabase, type LunaClairDatabase, type HighlightRecord, type DrawingRecord } from '../schema/LunaClairDatabase';
+import { withOrigin } from '../sync/transactionContext';
 
 export class DexieAnnotationRepository implements AnnotationRepository {
     private readonly db: LunaClairDatabase;
@@ -24,40 +24,18 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     }
 
     async saveHighlights(documentId: string, highlights: HighlightItem[]): Promise<void> {
-        await this.db.transaction('rw', [this.db.highlights, this.db.syncQueue], async () => {
+        await withOrigin(this.db, 'local', [this.db.highlights], async () => {
             const existing = await this.db.highlights.where('documentId').equals(documentId).toArray();
             const incomingIds = new Set(highlights.map((h) => h.id));
             const now = new Date().toISOString();
 
             const highlightsToPut: HighlightRecord[] = [];
-            const queueItemsToPut: SyncQueueItem[] = [];
 
             for (const old of existing) {
                 if (!incomingIds.has(old.id) && !old.deletedAt) {
                     highlightsToPut.push({
                         ...old,
                         deletedAt: now,
-                    });
-                    queueItemsToPut.push({
-                        id: crypto.randomUUID(),
-                        clientMutationId: crypto.randomUUID(),
-                        entityType: 'highlight',
-                        entityId: old.id,
-                        operation: 'DELETE',
-                        clientTimestamp: now,
-                        payload: {
-                            id: old.id,
-                            documentId,
-                            start: old.start,
-                            end: old.end,
-                            color: old.color,
-                            text: old.text,
-                            createdAt: old.createdAt,
-                            deletedAt: now,
-                        },
-                        status: 'pending',
-                        createdAt: now,
-                        retryCount: 0,
                     });
                 }
             }
@@ -69,33 +47,10 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     createdAt: (h as unknown as HighlightRecord).createdAt ?? now,
                 };
                 highlightsToPut.push(record);
-                queueItemsToPut.push({
-                    id: crypto.randomUUID(),
-                    clientMutationId: crypto.randomUUID(),
-                    entityType: 'highlight',
-                    entityId: h.id,
-                    operation: 'UPSERT',
-                    clientTimestamp: now,
-                    payload: {
-                        id: h.id,
-                        documentId,
-                        start: h.start,
-                        end: h.end,
-                        color: h.color,
-                        text: h.text,
-                        createdAt: record.createdAt,
-                    },
-                    status: 'pending',
-                    createdAt: now,
-                    retryCount: 0,
-                });
             }
 
             if (highlightsToPut.length > 0) {
                 await this.db.highlights.bulkPut(highlightsToPut);
-            }
-            if (queueItemsToPut.length > 0) {
-                await this.db.syncQueue.bulkPut(queueItemsToPut);
             }
         });
     }
@@ -118,40 +73,18 @@ export class DexieAnnotationRepository implements AnnotationRepository {
     }
 
     async saveDrawings(documentId: string, paths: DrawingPath[]): Promise<void> {
-        await this.db.transaction('rw', [this.db.drawings, this.db.syncQueue], async () => {
+        await withOrigin(this.db, 'local', [this.db.drawings], async () => {
             const existing = await this.db.drawings.where('documentId').equals(documentId).toArray();
             const incomingIds = new Set(paths.map((p) => p.id));
             const now = new Date().toISOString();
 
             const drawingsToPut: DrawingRecord[] = [];
-            const queueItemsToPut: SyncQueueItem[] = [];
 
             for (const old of existing) {
                 if (!incomingIds.has(old.id) && !old.deletedAt) {
                     drawingsToPut.push({
                         ...old,
                         deletedAt: now,
-                    });
-                    queueItemsToPut.push({
-                        id: crypto.randomUUID(),
-                        clientMutationId: crypto.randomUUID(),
-                        entityType: 'drawing',
-                        entityId: old.id,
-                        operation: 'DELETE',
-                        clientTimestamp: now,
-                        payload: {
-                            id: old.id,
-                            documentId,
-                            color: old.color,
-                            thickness: old.thickness,
-                            points: old.points,
-                            isEraser: old.isEraser,
-                            createdAt: old.createdAt,
-                            deletedAt: now,
-                        },
-                        status: 'pending',
-                        createdAt: now,
-                        retryCount: 0,
                     });
                 }
             }
@@ -163,33 +96,10 @@ export class DexieAnnotationRepository implements AnnotationRepository {
                     createdAt: (p as unknown as DrawingRecord).createdAt ?? now,
                 };
                 drawingsToPut.push(record);
-                queueItemsToPut.push({
-                    id: crypto.randomUUID(),
-                    clientMutationId: crypto.randomUUID(),
-                    entityType: 'drawing',
-                    entityId: p.id,
-                    operation: 'UPSERT',
-                    clientTimestamp: now,
-                    payload: {
-                        id: p.id,
-                        documentId,
-                        color: p.color,
-                        thickness: p.thickness,
-                        points: p.points,
-                        isEraser: p.isEraser,
-                        createdAt: record.createdAt,
-                    },
-                    status: 'pending',
-                    createdAt: now,
-                    retryCount: 0,
-                });
             }
 
             if (drawingsToPut.length > 0) {
                 await this.db.drawings.bulkPut(drawingsToPut);
-            }
-            if (queueItemsToPut.length > 0) {
-                await this.db.syncQueue.bulkPut(queueItemsToPut);
             }
         });
     }
