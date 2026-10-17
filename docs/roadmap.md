@@ -208,21 +208,25 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **Google Session Credentials Provider**: Bridged active Google OAuth sessions into domain `SessionCredentials` (`{ userId: session.user.sub, deviceId }`), purged legacy `LocalStorageCredentialsProvider`, made `token` optional in domain types, and routed unauthenticated sync triggers to typed `'standby'`.
   - **Live Verification**: 2,615 Vitest tests passed across 368 test files, 100% Playwright E2E passing, and live multi-device drawing sync proven between Chrome and Brave.
 
+- ✅ **Phase 17 — Granular Sync & Material Synchronization Overhaul (Oct 2026):**
+  - **17A (Architectural Consolidation, Registry & Transaction Hooks):**
+    - Centralized 16-store sync policy in `SYNC_POLICY` (`satisfies { [K in TableName]: TablePolicy<K> }`) with compile-time exhaustiveness, Kahn topological `restoreOrder()`, and runtime schema drift detection.
+    - Decoupled pure merge plugins (`LwwPlugin`, `AppendOnlyPlugin`, `CasDraftPlugin`).
+    - Implemented `withOrigin` transaction wrapper with parent-chain walking (`originOf(tx)`), synchronous scope guards (`SyncScopeError`), and Dexie hooks (`installSyncHooks`) emitting outbox records at $O(\text{changes})$ with loop-breaking `'remote'` and `'bypass'` origin flags.
+    - Introduced append-only `reviewLogs` and deterministic `foldCard` FSRS replay engine.
+  - **17B (Custom Material Synchronization & Zero-Payload Pointer Sync):**
+    - Synchronized user-authored `materials`, `questions`, and `quizzes` (`originShareId == null`) 1:1 across user devices with ID preservation.
+    - Implemented zero-byte pointer sync (`SyncPointerPayload`) for Explore courses (`originShareId != null`) with background `HydrationManager` unblocking the sync cursor and supporting convert-on-delist fallback.
+  - **17C (Granular Sync Controls & Category Filtering):**
+    - Settings UI selective sync toggles: Annotations, Spaced Repetition, Quiz History, and Custom Materials.
+    - Outbox and inbound reconciliation filtering respecting active category preferences; disabling a category runs under `bypass` origin emitting zero tombstones to peer devices.
+  - **17D (Local Storage & Vault Inspector UI):**
+    - Settings-level Storage & Vault Inspector displaying active `lc_vault_<uuid>` metadata, `navigator.storage.estimate()` gauges, table record diagnostics, and registry entries.
+    - Safe data sovereignty controls: "Clear Media Cache" under bypass origin, and "Prune Unlinked Vaults" with 7-day quarantine grace period safeguarding active and user vaults.
+
 ---
 
 ## Planned Phases
 
-- **Phase 17 — Granular Sync & Material Synchronization Overhaul:**
-  - **17A (Architectural Consolidation & `SYNC_ENTITY_REGISTRY`):**
-    - Centralize entity definitions into a single declarative `SYNC_ENTITY_REGISTRY` mapping `SyncEntityType` to Dexie table, concurrency model, primary key, and sync category.
-    - Refactor baseline chunk streaming (`streamVaultChunksGzipped`), delta journal gathering (`collectLocalDeltas`), and batch reconciliation (`DexieSyncReconciler`) into generic table loops driven by the registry, eliminating scattered multi-file boilerplate.
-  - **17B (Custom Material Synchronization & Zero-Payload Pointer Sync):**
-    - Synchronize user-authored `materials`, `questions`, and `quizzes` (`originShareId == null`) with 1:1 ID preservation and cascading soft deletion.
-    - Zero-payload pointer sync (`{ originShareId }`) for Explore courses (`originShareId != null`), letting peer devices hydrate the package directly from Cloudflare D1/CDN at `FLOOR_ISO`.
-  - **17C (Granular Sync Controls & Category Filtering):**
-    - Settings UI category toggles for selective sync: Annotations (highlights/drawings), Spaced Repetition (flashcards), Quiz History, and Custom Materials.
-    - Outbox enqueue and reconciliation filtering respecting active device-level toggles.
-  - **17D (Local Storage & Vault Inspector UI):**
-    - Settings-level Storage & Vault Inspector displaying active `lc_vault_<uuid>` metadata, `navigator.storage.estimate()` gauges, table record counts, and registry entries.
-    - Safe data sovereignty controls: "Clear Local Asset Cache", "Prune Unlinked Vaults", and "Reset Local Database".
-
+- **Future Roadmap & Next Milestones:**
+  - Scoping for upcoming milestones, advanced offline capabilities, and next-generation learning features to be planned.
