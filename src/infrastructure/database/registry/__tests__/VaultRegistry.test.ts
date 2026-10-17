@@ -241,4 +241,47 @@ describe('VaultRegistry — Dexie adapter & lifecycle', () => {
       deleteSpy.mockRestore();
     });
   });
+
+  describe('quarantineVault and pruneStaleVaults', () => {
+    it('quarantines an unlinked vault with pendingDeleteAt timestamp', async () => {
+      await testDb.vaults.add({
+        ownerSub: 'orphan-user',
+        physicalDbName: 'lc_vault_orphan',
+        createdAt: 1000,
+        lastActiveAt: 1000,
+      });
+
+      const quarantineTarget = Date.now() + 50000;
+      await registry.quarantineVault('orphan-user', quarantineTarget);
+
+      const stored = await testDb.vaults.get('orphan-user');
+      expect(stored?.pendingDeleteAt).toBe(quarantineTarget);
+    });
+
+    it('safeguards active vault and active user from pruning', async () => {
+      await testDb.vaults.bulkAdd([
+        {
+          ownerSub: 'active-user',
+          physicalDbName: 'lc_vault_active',
+          createdAt: 1000,
+          lastActiveAt: 2000,
+        },
+        {
+          ownerSub: 'stale-user',
+          physicalDbName: 'lc_vault_stale',
+          createdAt: 1000,
+          lastActiveAt: 1000,
+          pendingDeleteAt: Date.now() - 1000, // expired
+        },
+      ]);
+
+      const result = await registry.pruneStaleVaults('lc_vault_active', 'active-user', 0);
+
+      expect(result.deleted).toEqual(['stale-user']);
+      const activeStored = await testDb.vaults.get('active-user');
+      expect(activeStored).toBeDefined();
+      const staleStored = await testDb.vaults.get('stale-user');
+      expect(staleStored).toBeUndefined();
+    });
+  });
 });

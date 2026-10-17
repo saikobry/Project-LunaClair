@@ -176,6 +176,60 @@ export class VaultRegistry implements VaultRegistryPort {
     await Dexie.delete(vault.physicalDbName);
     await this.db.vaults.delete(ownerSub);
   }
+
+  /**
+   * Quarantines an unlinked vault by recording a pendingDeleteAt timestamp.
+   */
+  async quarantineVault(ownerSub: string, quarantineUntil: number = Date.now() + 86400000): Promise<void> {
+    const vault = await this.db.vaults.get(ownerSub);
+    if (!vault) {
+      return;
+    }
+    await this.db.vaults.put({
+      ...vault,
+      pendingDeleteAt: quarantineUntil,
+    });
+  }
+
+  /**
+   * Prunes orphan or unlinked vaults from the registry.
+   * Safeguards: Never deletes the active database or current user vault.
+   * Stale or expired quarantine vaults are deleted permanently.
+   */
+  async pruneStaleVaults(
+    activeDbName: string,
+    activeSub?: string,
+    gracePeriodMs: number = 0,
+  ): Promise<{ quarantined: string[]; deleted: string[] }> {
+    const vaults = await this.db.vaults.toArray();
+    const now = Date.now();
+    const quarantined: string[] = [];
+    const deleted: string[] = [];
+
+    for (const vault of vaults) {
+      if (vault.physicalDbName === activeDbName) {
+        continue;
+      }
+      if (activeSub && vault.ownerSub === activeSub) {
+        continue;
+      }
+
+      if (vault.pendingDeleteAt && vault.pendingDeleteAt <= now) {
+        await this.deleteVault(vault.ownerSub);
+        deleted.push(vault.ownerSub);
+      } else if (!vault.pendingDeleteAt) {
+        if (gracePeriodMs === 0) {
+          await this.deleteVault(vault.ownerSub);
+          deleted.push(vault.ownerSub);
+        } else {
+          await this.quarantineVault(vault.ownerSub, now + gracePeriodMs);
+          quarantined.push(vault.ownerSub);
+        }
+      }
+    }
+
+    return { quarantined, deleted };
+  }
 }
 
 export const defaultRegistryDatabase = new RegistryDatabase();

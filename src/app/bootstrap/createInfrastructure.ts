@@ -106,6 +106,7 @@ export interface Repositories {
  */
 export interface Infrastructure {
     db: LunaClairDatabase;
+    vaultRegistry: VaultRegistryPort;
     repositories: Repositories;
     services: {
         quizEditor: DexieQuizEditorService;
@@ -143,6 +144,7 @@ export interface Infrastructure {
 export function createInfrastructure(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     database: LunaClairDatabase = getActiveVaultDatabase(),
+    registry: VaultRegistryPort = vaultRegistry,
 ): Infrastructure {
     const documentContentRepository = new DexieDocumentContentRepository(database);
     const documentRepository = new HybridDocumentRepository(documentContentRepository);
@@ -225,6 +227,7 @@ export function createInfrastructure(
 
     return {
         db: database,
+        vaultRegistry: registry,
         repositories,
         services: {
             quizEditor: new DexieQuizEditorService(database),
@@ -258,5 +261,5 @@ export async function createInfrastructureAsync(
     const activeVault = await registry.getActiveVault(preferredSub);
     const database = openVaultDatabase(activeVault.physicalDbName);
     setActiveVaultDatabase(database);
-    return createInfrastructure(invalidateAnalytics, database);
+    return createInfrastructure(invalidateAnalytics, database, registry);
 }

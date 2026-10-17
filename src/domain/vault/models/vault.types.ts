@@ -20,6 +20,7 @@ export interface VaultPointer {
   physicalDbName: string;
   createdAt: number;
   lastActiveAt: number;
+  pendingDeleteAt?: number;
 }
 
 /**
@@ -64,4 +65,18 @@ export interface VaultRegistryPort {
    * Deletes a vault and removes its physical IndexedDB database.
    */
   deleteVault(ownerSub: string): Promise<void>;
+
+  /**
+   * Quarantines an unlinked vault by recording a pendingDeleteAt timestamp.
+   */
+  quarantineVault?(ownerSub: string, quarantineUntil?: number): Promise<void>;
+
+  /**
+   * Prunes orphan or unlinked vaults not matching the active vault or user.
+   */
+  pruneStaleVaults?(
+    activeDbName: string,
+    activeSub?: string,
+    gracePeriodMs?: number,
+  ): Promise<{ quarantined: string[]; deleted: string[] }>;
 }

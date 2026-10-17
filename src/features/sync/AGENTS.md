@@ -12,13 +12,16 @@ Feature-level presentation, reactive subscription hooks, status pill UI, interac
 - `components/ConflictDraftsModal.tsx` — Shared `<Dialog>`-based modal for side-by-side diff comparison between canonical server version and divergent local draft, offering `[Keep Server Version]`, `[Keep My Version]`, and `[Edit & Merge]` resolution workflows. The `[Edit & Merge]` editor is the shared `<TextArea>` with `autoGrow={false}` **on purpose** — the adapter's auto-grow forces `resize: none` plus a computed height, while Astryx's own textarea style keeps native vertical resize, which a large merge blob needs; monospace is supplied via `style` and inherits into the inner textarea.
 - `components/SyncSettingsSection.tsx` — Settings section for Google Drive Bring-Your-Own-Storage (BYOS) cloud sync, displaying connection status, user profile, sync state badge (`synced`, `syncing`, `standby`, `error`), manual sync triggers for both authenticated and unauthenticated states (routing unauthenticated sync to Google Drive connect with helper text), and disconnect action.
 - `components/syncSettings.stylex.ts` — StyleX styles for `SyncSettingsSection`.
+- `components/VaultStorageSection.tsx` — Local Vault & Storage Inspector UI displaying active vault identity, account linkage, storage footprint gauge, table record counts, bypass-origin cache clearing, and orphan vault pruning safeguards.
+- `components/vaultStorage.stylex.ts` — StyleX styles for `VaultStorageSection`.
 - `utils/formatSyncTime.ts` — Relative time formatting utility for last synchronized timestamps.
 
 ## Local Contracts
 
 - UI components contain 0 direct imports of `src/infrastructure/**` or database connections. All mutations route through `context.useCases.sync.*`.
-- Feature follows direct-path imports (ADR-010): consumed by `AppSidebar` via `src/features/sync/components/SyncStatusPill` and by `SettingsScreen` via `src/features/sync/components/SyncSettingsSection`.
+- Feature follows direct-path imports (ADR-010): consumed by `AppSidebar` via `src/features/sync/components/SyncStatusPill` and by `SettingsScreen` via `src/features/sync/components/SyncSettingsSection` and `src/features/sync/components/VaultStorageSection`.
 - Auth integration routes through `context.infrastructure.providers.auth` domain port or injected `authService` prop, preserving the 0-infrastructure-import feature boundary.
+- Maintenance mutations route through `context.useCases.sync.clearMediaCache` and `context.useCases.sync.pruneUnlinkedVaults` or injected delegates, executing under bypass transaction origin to emit zero deletion tombstones.
 - Reactive state flows from `SyncStatusStore` singleton / application context down to `useSyncStatus`.
 - Conflict resolution actions atomically update local `documentContents`, delete the resolved `conflictDraft`, enqueue transactional outbox mutations when applicable, and trigger background synchronization.
 

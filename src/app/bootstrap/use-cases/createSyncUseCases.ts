@@ -59,6 +59,30 @@ export function createSyncUseCases(
             },
         };
 
+        const clearMediaCache = {
+            execute: async (): Promise<void> => {
+                if (!db || !db.localAssets) return;
+                await withOrigin(db, 'bypass', [db.localAssets], async () => {
+                    await db.localAssets.clear();
+                });
+            },
+        };
+
+        const pruneUnlinkedVaults = {
+            execute: async (currentSub?: string): Promise<{ prunedCount: number; unlinkedVaults: string[] }> => {
+                const reg = 'vaultRegistry' in infrastructureOrDeps ? infrastructureOrDeps.vaultRegistry : undefined;
+                const activeDbName = db?.name;
+                if (!reg || !activeDbName || typeof reg.pruneStaleVaults !== 'function') {
+                    return { prunedCount: 0, unlinkedVaults: [] };
+                }
+                const res = await reg.pruneStaleVaults(activeDbName, currentSub, 0);
+                return {
+                    prunedCount: res.deleted.length + res.quarantined.length,
+                    unlinkedVaults: [...res.deleted, ...res.quarantined],
+                };
+            },
+        };
+
         return {
             syncEngine,
             syncStatusStore,
@@ -67,6 +91,8 @@ export function createSyncUseCases(
             resolveConflictDraft,
             triggerSync,
             toggleCategory,
+            clearMediaCache,
+            pruneUnlinkedVaults,
         };
     }
 
@@ -86,6 +112,15 @@ export function createSyncUseCases(
             execute: async (category: SyncCategoryKey, enabled: boolean): Promise<void> => {
                 syncCategoryPreferences.setCategoryEnabled(category, enabled);
             },
+        },
+        clearMediaCache: {
+            execute: async (): Promise<void> => {},
+        },
+        pruneUnlinkedVaults: {
+            execute: async (): Promise<{ prunedCount: number; unlinkedVaults: string[] }> => ({
+                prunedCount: 0,
+                unlinkedVaults: [],
+            }),
         },
     };
 }

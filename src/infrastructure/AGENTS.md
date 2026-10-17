@@ -42,7 +42,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `transactionContext.ts` → `originOf`, `withOrigin`, `SyncScopeError`, `OriginConflictError` (transaction origin tagging and inheritance)
     - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping, echo loop suppression)
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
-    - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`)
+    - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`, `quarantineVault`, `pruneStaleVaults`)
 - `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:
   - `transports/` — Network and cloud storage sync and share transports:
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
