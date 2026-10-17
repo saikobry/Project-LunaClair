@@ -15,7 +15,9 @@ import type {
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
 import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import type { SyncMutation } from '../../../domain/sync/models/sync.types';
+import type { SyncPointerPayload } from '../../../domain/sync/models/SyncPointer';
 import { FLOOR_ISO, CANONICAL_FLOOR_HLC } from '../../../domain/sync/utils/hlc';
 
 export const DEFAULT_BATCH_SIZE = 100;
@@ -162,6 +164,34 @@ export async function* streamVaultChunksGzipped(
       compressedGzip,
     };
   };
+
+  // 0. Cloned Explore materials -> emit pointer operations instead of raw entity deltas
+  for await (const mat of paginateTable<StudyMaterial>(db.materials, batchSize)) {
+    if (mat.originShareId) {
+      const hlc = deriveEntityHlc(mat.updatedAt ?? mat.createdAt, deviceId);
+      const mutation: SyncMutation = {
+        clientMutationId: `baseline-pointer-${mat.originShareId}`,
+        entityType: 'pointer',
+        entityId: mat.originShareId,
+        operation: 'UPSERT',
+        clientTimestamp: hlc,
+        payload: {
+          originShareId: mat.originShareId,
+          title: mat.title,
+          publishedAt: mat.createdAt,
+          schemaVersion: 1,
+        } satisfies SyncPointerPayload,
+      };
+      const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
+      if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
+        yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
+        currentMutations = [];
+        currentUncompressedBytes = 0;
+      }
+      currentMutations.push(mutation);
+      currentUncompressedBytes += size;
+    }
+  }
 
   // 1. Documents (db.documentContents)
   for await (const doc of paginateTable<ImportedDocumentContent>(db.documentContents, batchSize)) {

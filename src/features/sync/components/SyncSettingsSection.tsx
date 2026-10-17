@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../../../shared/ui/Card/Card';
 import { Button } from '../../../shared/ui/Button/Button';
+import { Switch } from '../../../shared/ui/Switch/Switch';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type {
   GoogleAuthPort,
@@ -16,10 +17,18 @@ import type {
   AuthStatus,
 } from '../../../domain/auth/models/auth.types';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import {
+  useSyncCategoryPreferences,
+  syncCategoryPreferences,
+  type SyncCategoryKey,
+  type SyncCategoryPreferences,
+} from '../services/SyncCategoryPreferences';
 import { syncSettingsStyles } from './syncSettings.stylex';
 
 export interface SyncSettingsSectionProps {
   authService?: GoogleAuthPort;
+  categoryPreferences?: SyncCategoryPreferences;
+  onToggleCategory?: (category: SyncCategoryKey, enabled: boolean) => Promise<void> | void;
 }
 
 export type SyncBadgeStatus = 'synced' | 'syncing' | 'standby' | 'error';
@@ -28,7 +37,11 @@ export type SyncBadgeStatus = 'synced' | 'syncing' | 'standby' | 'error';
  * Settings section for Google Drive Bring-Your-Own-Storage (BYOS) cloud sync.
  * Governed by ADR-018.
  */
-export function SyncSettingsSection({ authService: propAuthService }: SyncSettingsSectionProps) {
+export function SyncSettingsSection({
+  authService: propAuthService,
+  categoryPreferences: propCategoryPreferences,
+  onToggleCategory,
+}: SyncSettingsSectionProps) {
   const context = useContext(ApplicationContext);
   const auth = propAuthService ?? context?.infrastructure?.providers?.auth;
 
@@ -47,6 +60,28 @@ export function SyncSettingsSection({ authService: propAuthService }: SyncSettin
   const [authError, setAuthError] = useState<string | null>(null);
 
   const { state: syncState, triggerSync } = useSyncStatus();
+
+  const { preferences, setCategoryEnabled } = useSyncCategoryPreferences(
+    propCategoryPreferences ?? syncCategoryPreferences
+  );
+
+  const handleToggleCategory = useCallback(
+    async (category: SyncCategoryKey, nextValue: boolean) => {
+      if (onToggleCategory) {
+        await onToggleCategory(category, nextValue);
+        return;
+      }
+      const syncUseCases = context?.useCases?.sync as
+        | { toggleCategory?: { execute: (c: SyncCategoryKey, e: boolean) => Promise<void> } }
+        | undefined;
+      if (syncUseCases?.toggleCategory) {
+        await syncUseCases.toggleCategory.execute(category, nextValue);
+      } else {
+        setCategoryEnabled(category, nextValue);
+      }
+    },
+    [onToggleCategory, context, setCategoryEnabled]
+  );
 
   const handleConnect = useCallback(async () => {
     if (!auth) return;
@@ -233,6 +268,69 @@ export function SyncSettingsSection({ authService: propAuthService }: SyncSettin
               </div>
             </>
           )}
+        </div>
+      </Card>
+
+      <h3 {...stylex.props(syncSettingsStyles.subheading)} id="settings-selective-sync-heading">
+        Selective Sync
+      </h3>
+      <p {...stylex.props(syncSettingsStyles.subdescription)}>
+        Choose which data categories synchronize with your cloud storage. Disabling a category keeps that data strictly local to this device and emits zero deletion tombstones to peer devices.
+      </p>
+
+      <Card>
+        <div {...stylex.props(syncSettingsStyles.selectiveSyncCard)}>
+          <div {...stylex.props(syncSettingsStyles.switchRow)}>
+            <Switch
+              label="Annotations"
+              description="Highlights & Drawings"
+              value={preferences.annotations}
+              onChange={(checked) => handleToggleCategory('annotations', checked)}
+              labelPosition="start"
+              labelSpacing="spread"
+              width="100%"
+              aria-label="Annotations"
+            />
+          </div>
+          <div {...stylex.props(syncSettingsStyles.divider)} />
+          <div {...stylex.props(syncSettingsStyles.switchRow)}>
+            <Switch
+              label="Spaced Repetition"
+              description="Flashcard Review History"
+              value={preferences.flashcards}
+              onChange={(checked) => handleToggleCategory('flashcards', checked)}
+              labelPosition="start"
+              labelSpacing="spread"
+              width="100%"
+              aria-label="Spaced Repetition"
+            />
+          </div>
+          <div {...stylex.props(syncSettingsStyles.divider)} />
+          <div {...stylex.props(syncSettingsStyles.switchRow)}>
+            <Switch
+              label="Quiz History & Scores"
+              description="Quiz sessions, attempts, and historical scores"
+              value={preferences.quizHistory}
+              onChange={(checked) => handleToggleCategory('quizHistory', checked)}
+              labelPosition="start"
+              labelSpacing="spread"
+              width="100%"
+              aria-label="Quiz History & Scores"
+            />
+          </div>
+          <div {...stylex.props(syncSettingsStyles.divider)} />
+          <div {...stylex.props(syncSettingsStyles.switchRow)}>
+            <Switch
+              label="Custom Materials"
+              description="Custom materials, questions, quizzes, and authored notes"
+              value={preferences.customMaterials}
+              onChange={(checked) => handleToggleCategory('customMaterials', checked)}
+              labelPosition="start"
+              labelSpacing="spread"
+              width="100%"
+              aria-label="Custom Materials"
+            />
+          </div>
         </div>
       </Card>
     </section>

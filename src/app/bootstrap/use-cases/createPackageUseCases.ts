@@ -36,6 +36,8 @@ export function createPackageUseCases(infrastructure: Infrastructure) {
         trackShareDownload,
     );
 
+    services.hydration?.setCloneUseCase(clonePublishedShare);
+
     return {
         package: {
             materializeStudyPackage,

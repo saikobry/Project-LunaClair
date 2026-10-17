@@ -133,4 +133,33 @@ export const syncSettingsStyles = stylex.create({
     padding: '8px 12px',
     borderRadius: 6,
   },
+  subheading: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
+    margin: '24px 0 0 0',
+  },
+  subdescription: {
+    fontSize: 13,
+    lineHeight: 1.5,
+    color: 'var(--color-text-secondary)',
+    margin: '4px 0 12px 0',
+  },
+  selectiveSyncCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '8px 20px',
+  },
+  switchRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 0',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'var(--color-border)',
+    width: '100%',
+  },
 });
+

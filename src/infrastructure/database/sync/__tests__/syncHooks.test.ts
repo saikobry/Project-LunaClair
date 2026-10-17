@@ -321,4 +321,101 @@ describe('syncHooks: Dexie Engine Mutation Capture and Scope Hooks', () => {
       ).rejects.toThrow(AppendOnlyViolation);
     });
   });
+
+  describe('Selective Sync Category Filtering', () => {
+    it('skips outbox emission on create when table category is disabled', async () => {
+      const dbFiltered = new LunaClairDatabase('test_filter_db');
+      const filteredClock = createClock('device_filter_1');
+      installSyncHooks(dbFiltered, filteredClock, (category) => category !== 'annotations');
+      await dbFiltered.open();
+
+      try {
+        await withOrigin(dbFiltered, 'local', [dbFiltered.highlights], async () => {
+          await dbFiltered.highlights.add({
+            id: 'hl-filtered-create',
+            documentId: 'doc-1',
+            text: 'Filtered out',
+            color: 'yellow',
+            start: 0,
+            end: 5,
+            createdAt: '2026-10-17T00:00:00.000Z',
+          });
+        });
+
+        const row = (await dbFiltered.highlights.get('hl-filtered-create')) as unknown as { _hlc?: string };
+        expect(row?._hlc).toBeDefined();
+
+        const queueCount = await dbFiltered.syncQueue.count();
+        expect(queueCount).toBe(0);
+      } finally {
+        dbFiltered.close();
+        await Dexie.delete('test_filter_db');
+      }
+    });
+
+    it('skips outbox emission on update when table category is disabled', async () => {
+      const dbFiltered = new LunaClairDatabase('test_filter_upd_db');
+      const filteredClock = createClock('device_filter_2');
+      installSyncHooks(dbFiltered, filteredClock, (category) => category !== 'annotations');
+      await dbFiltered.open();
+
+      try {
+        await withOrigin(dbFiltered, 'bypass', [dbFiltered.highlights], async () => {
+          await dbFiltered.highlights.add({
+            id: 'hl-filtered-upd',
+            documentId: 'doc-1',
+            text: 'Initial',
+            color: 'yellow',
+            start: 0,
+            end: 5,
+            createdAt: '2026-10-17T00:00:00.000Z',
+          });
+        });
+
+        await withOrigin(dbFiltered, 'local', [dbFiltered.highlights], async () => {
+          await dbFiltered.highlights.update('hl-filtered-upd', { color: 'green' });
+        });
+
+        const queueCount = await dbFiltered.syncQueue.count();
+        expect(queueCount).toBe(0);
+      } finally {
+        dbFiltered.close();
+        await Dexie.delete('test_filter_upd_db');
+      }
+    });
+
+    it('skips outbox and tombstone emission on delete when table category is disabled', async () => {
+      const dbFiltered = new LunaClairDatabase('test_filter_del_db');
+      const filteredClock = createClock('device_filter_3');
+      installSyncHooks(dbFiltered, filteredClock, (category) => category !== 'annotations');
+      await dbFiltered.open();
+
+      try {
+        await withOrigin(dbFiltered, 'bypass', [dbFiltered.highlights], async () => {
+          await dbFiltered.highlights.add({
+            id: 'hl-filtered-del',
+            documentId: 'doc-1',
+            text: 'To be deleted',
+            color: 'yellow',
+            start: 0,
+            end: 5,
+            createdAt: '2026-10-17T00:00:00.000Z',
+          });
+        });
+
+        await withOrigin(dbFiltered, 'local', [dbFiltered.highlights], async () => {
+          await dbFiltered.highlights.delete('hl-filtered-del');
+        });
+
+        const queueCount = await dbFiltered.syncQueue.count();
+        const tombstoneCount = await dbFiltered.tombstones.count();
+        expect(queueCount).toBe(0);
+        expect(tombstoneCount).toBe(0);
+      } finally {
+        dbFiltered.close();
+        await Dexie.delete('test_filter_del_db');
+      }
+    });
+  });
 });
+

@@ -6,6 +6,7 @@ import {
   isPrunable,
   syncedTables,
   tableForEntity,
+  getTablesForCategory,
   type TablePolicy,
 } from '../SyncPolicy';
 
@@ -114,4 +115,18 @@ describe('SyncPolicy Registry & Declarative Contracts', () => {
     expect(tableForEntity('reviewLog')).toBe('reviewLogs');
     expect(tableForEntity('unknownEntity')).toBeUndefined();
   });
+
+  it('getTablesForCategory maps categories to their authoritative tables', () => {
+    expect(getTablesForCategory('annotations')).toEqual(['highlights', 'drawings']);
+    expect(getTablesForCategory('flashcards')).toEqual(['reviewLogs', 'flashcardReviews']);
+    expect(getTablesForCategory('studyHistory')).toEqual(['quizSessions']);
+    expect(getTablesForCategory('quizHistory')).toEqual(['quizSessions']);
+    expect(getTablesForCategory('customMaterials')).toEqual([
+      'materials',
+      'questions',
+      'quizzes',
+      'documentContents',
+    ]);
+  });
 });
+

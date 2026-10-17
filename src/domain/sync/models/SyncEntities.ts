@@ -3,6 +3,7 @@ import type { Question } from '../../quiz/models/Question';
 import type { SubmittedAnswer } from '../../quiz/models/Answer';
 import type { QuizScore } from '../../quiz/models/QuizSession';
 import type { EntityVersion, SyncEntityType, SyncMutation } from './sync.types';
+import type { SyncPointerPayload } from './SyncPointer';
 
 /**
  * Model C Payload: locally imported markdown document with version tracking.
@@ -82,6 +83,7 @@ export interface SyncPayloadMap {
   drawing: DrawingSyncPayload;
   flashcardReview: FlashcardReviewSyncPayload;
   quizSession: QuizSessionSyncPayload;
+  pointer: SyncPointerPayload;
 }
 
 /**

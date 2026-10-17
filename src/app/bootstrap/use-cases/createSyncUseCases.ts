@@ -6,6 +6,12 @@ import { ResolveConflictDraftUseCase } from '../../../application/use-cases/sync
 import { TriggerSyncUseCase } from '../../../application/use-cases/sync/TriggerSyncUseCase';
 import type { SessionCredentialsProvider } from '../../../domain/sync/services/SessionCredentialsProvider';
 import type { Infrastructure, Repositories } from '../createInfrastructure';
+import { withOrigin } from '../../../infrastructure/database/sync/transactionContext';
+import { getTablesForCategory } from '../../../domain/sync/policy/SyncPolicy';
+import {
+    syncCategoryPreferences,
+    type SyncCategoryKey,
+} from '../../../domain/sync/preferences/SyncCategoryPreferences';
 
 export interface SyncUseCasesDependencies {
     syncEngine: SyncEngine;
@@ -17,7 +23,7 @@ export function createSyncUseCases(
     infrastructureOrDeps: Infrastructure | SyncUseCasesDependencies,
 ) {
     if ('providers' in infrastructureOrDeps && 'transports' in infrastructureOrDeps) {
-        const { transports, syncReconciler, repositories, providers } = infrastructureOrDeps;
+        const { transports, syncReconciler, repositories, providers, db } = infrastructureOrDeps;
 
         const syncEngine = new SyncEngine(
             transports.sync,
@@ -36,6 +42,22 @@ export function createSyncUseCases(
             syncEngine,
             providers.credentials,
         );
+        const toggleCategory = {
+            execute: async (category: SyncCategoryKey, enabled: boolean): Promise<void> => {
+                if (!enabled && db) {
+                    const tableNames = getTablesForCategory(category);
+                    const tables = tableNames
+                        .map((name) => (db.tables.some((t) => t.name === name) ? db.table(name) : undefined))
+                        .filter((t): t is NonNullable<typeof t> => Boolean(t));
+                    if (tables.length > 0) {
+                        await withOrigin(db, 'bypass', tables, async () => {
+                            // Maintenance scope under bypass: emits zero outbox rows and zero tombstones
+                        });
+                    }
+                }
+                syncCategoryPreferences.setCategoryEnabled(category, enabled);
+            },
+        };
 
         return {
             syncEngine,
@@ -44,6 +66,7 @@ export function createSyncUseCases(
             getConflictDrafts,
             resolveConflictDraft,
             triggerSync,
+            toggleCategory,
         };
     }
 
@@ -59,5 +82,11 @@ export function createSyncUseCases(
             ? new ResolveConflictDraftUseCase(conflictDraftRepository)
             : undefined,
         triggerSync: new TriggerSyncUseCase(syncEngine, credentialsProvider),
+        toggleCategory: {
+            execute: async (category: SyncCategoryKey, enabled: boolean): Promise<void> => {
+                syncCategoryPreferences.setCategoryEnabled(category, enabled);
+            },
+        },
     };
 }
+

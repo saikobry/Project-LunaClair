@@ -47,6 +47,7 @@ import { DexieCollectionRepository } from '../../infrastructure/database/reposit
 import { DexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
 import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
 import { googleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
+import { HydrationManager } from '../../infrastructure/sync/HydrationManager';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { GoogleSessionCredentialsProvider } from '../../infrastructure/auth/google/GoogleSessionCredentialsProvider';
 import { getOrCreateDeviceId } from '../../infrastructure/browser/storage/deviceId';
@@ -110,6 +111,7 @@ export interface Infrastructure {
         quizEditor: DexieQuizEditorService;
         libraryImport: DexieLibraryImportService;
         studyPackageImport: DexieStudyPackageImportService;
+        hydration: HydrationManager;
         /** Typed as the domain port: features/use cases must not depend on the concrete gateway. */
         ai: AiService;
     };
@@ -218,6 +220,9 @@ export function createInfrastructure(
         getOrCreateDeviceId(),
     );
 
+    const hydration = new HydrationManager({ db: database });
+    googleDriveSyncTransport.setHydrationManager(hydration);
+
     return {
         db: database,
         repositories,
@@ -225,6 +230,7 @@ export function createInfrastructure(
             quizEditor: new DexieQuizEditorService(database),
             libraryImport: new DexieLibraryImportService(database),
             studyPackageImport: new DexieStudyPackageImportService(database),
+            hydration,
             ai: aiService,
         },
         transports: {

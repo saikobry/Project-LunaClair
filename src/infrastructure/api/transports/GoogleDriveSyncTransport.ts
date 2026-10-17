@@ -43,6 +43,8 @@ import {
   deriveEntityHlc,
   paginateTable,
 } from '../google/streamVaultChunksGzipped';
+import type { SyncPointerPayload } from '../../../domain/sync/models/SyncPointer';
+import type { HydrationManager } from '../../sync/HydrationManager';
 
 export interface JournalPayload {
   hlc: string;
@@ -60,6 +62,7 @@ export interface GoogleDriveSyncTransportOptions {
   stateRepo?: SyncStateRepository;
   db?: LunaClairDatabase;
   onTokenExpired?: () => Promise<string>;
+  hydrationManager?: HydrationManager;
 }
 
 export class GoogleDriveSyncTransport implements SyncTransport {
@@ -67,6 +70,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   private readonly authService: GoogleAuthPort;
   private readonly stateRepo: SyncStateRepository;
   private readonly db: LunaClairDatabase;
+  private hydrationManager?: HydrationManager;
   private readonly hlcs: Map<string, HybridLogicalClock>;
   private readonly pageTokens: Map<string, string>;
   private readonly appliedFileIds: Set<string>;
@@ -80,6 +84,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     this.authService = options.authService ?? googleAuthService;
     this.stateRepo = options.stateRepo ?? dexieSyncStateRepository;
     this.db = options.db ?? getActiveVaultDatabase();
+    this.hydrationManager = options.hydrationManager;
     this.hlcs = new Map();
     if (options.hlc) {
       this.hlcs.set('default', options.hlc);
@@ -104,6 +109,10 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     } else if ('onTokenExpired' in this.driveClient) {
       this.driveClient.onTokenExpired = refreshCallback;
     }
+  }
+
+  setHydrationManager(manager: HydrationManager): void {
+    this.hydrationManager = manager;
   }
 
   /**
@@ -135,12 +144,35 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     const currentHlc = hlc.now();
     this.pushSequence += 1;
 
+    const mutationsToUpload = request.mutations.map((mutation) => {
+      const payload = mutation.payload as Record<string, unknown> | undefined;
+      if (
+        payload &&
+        typeof payload.originShareId === 'string' &&
+        (mutation.entityType === ('material' as any) || mutation.entityType === 'pointer')
+      ) {
+        return {
+          ...mutation,
+          entityType: 'pointer' as const,
+          entityId: payload.originShareId,
+          operation: 'UPSERT' as const,
+          payload: {
+            originShareId: payload.originShareId,
+            title: typeof payload.title === 'string' ? payload.title : '',
+            publishedAt: typeof payload.createdAt === 'string' ? payload.createdAt : mutation.clientTimestamp,
+            schemaVersion: typeof payload.schemaVersion === 'number' ? payload.schemaVersion : 1,
+          } satisfies SyncPointerPayload,
+        };
+      }
+      return mutation;
+    });
+
     const fileName = `journal_${currentHlc}.json.gz`;
     const journalPayload: JournalPayload = {
       hlc: currentHlc,
       deviceId: credentials.deviceId,
       createdAt: new Date().toISOString(),
-      mutations: request.mutations,
+      mutations: mutationsToUpload,
     };
 
     const appProperties: Record<string, string> = {
@@ -148,7 +180,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       deviceId: credentials.deviceId,
       hlc: currentHlc,
       seq: String(this.pushSequence),
-      count: String(request.mutations.length),
+      count: String(mutationsToUpload.length),
     };
 
     let uploadedFile: DriveFileMetadata;
@@ -369,6 +401,12 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
       if (Array.isArray(journal.mutations)) {
         for (const mutation of journal.mutations) {
+          if (mutation.entityType === 'pointer' && mutation.payload) {
+            const pointerPayload = mutation.payload as SyncPointerPayload;
+            if (pointerPayload.originShareId) {
+              await this.enqueuePointerOperation(pointerPayload);
+            }
+          }
           this.currentSequence = Math.max(this.currentSequence, cursor) + 1;
           changes.push({
             sequence: this.currentSequence,
@@ -794,6 +832,29 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     deltas: SyncMutation[],
     deviceId: string
   ): Promise<void> {
+    // 0. Cloned Explore materials -> emit pointer operation instead of raw entity deltas
+    for await (const mat of paginateTable(this.db.materials, 100)) {
+      if (mat.originShareId) {
+        const localHlc = deriveEntityHlc(mat.updatedAt ?? mat.createdAt, deviceId);
+        const remoteHlc = remoteEntityHlcById.get(mat.originShareId);
+        if (!remoteHlc || compareHlc(localHlc, remoteHlc) > 0) {
+          deltas.push({
+            clientMutationId: `baseline-delta-pointer-${mat.originShareId}`,
+            entityType: 'pointer',
+            entityId: mat.originShareId,
+            operation: 'UPSERT',
+            clientTimestamp: localHlc,
+            payload: {
+              originShareId: mat.originShareId,
+              title: mat.title,
+              publishedAt: mat.createdAt,
+              schemaVersion: 1,
+            } satisfies SyncPointerPayload,
+          });
+        }
+      }
+    }
+
     // 1. Documents
     for await (const doc of paginateTable(this.db.documentContents, 100)) {
       if (doc.updatedAt === FLOOR_ISO && !doc.deletedAt) {
@@ -918,6 +979,25 @@ export class GoogleDriveSyncTransport implements SyncTransport {
             startedAt: qs.startedAt,
             completedAt: qs.completedAt,
           },
+        });
+      }
+    }
+  }
+
+  private async enqueuePointerOperation(payload: SyncPointerPayload): Promise<void> {
+    if (this.hydrationManager) {
+      await this.hydrationManager.enqueuePointer(payload);
+      this.hydrationManager.notify();
+    } else {
+      const existing = await this.db.pendingHydrations.get(payload.originShareId);
+      if (!existing) {
+        await this.db.pendingHydrations.put({
+          originShareId: payload.originShareId,
+          attempts: 0,
+          nextAttemptAt: 0,
+          title: payload.title,
+          publishedAt: payload.publishedAt,
+          schemaVersion: payload.schemaVersion,
         });
       }
     }

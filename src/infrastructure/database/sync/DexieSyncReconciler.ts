@@ -8,8 +8,26 @@ import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, Fla
 import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/services/SyncTransport';
 import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/services/SyncReconciler';
+import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
+import type { SyncCategory } from '../../../domain/sync/policy/SyncPolicy';
 
 export type { ReconcilePullResult, ApplyPushResult };
+
+function getCategoryForEntityType(entityType: string): SyncCategory | undefined {
+  switch (entityType) {
+    case 'document':
+      return 'customMaterials';
+    case 'highlight':
+    case 'drawing':
+      return 'annotations';
+    case 'flashcardReview':
+      return 'flashcards';
+    case 'quizSession':
+      return 'studyHistory';
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Transactional sync reconciler for Dexie / IndexedDB.
@@ -19,9 +37,14 @@ export type { ReconcilePullResult, ApplyPushResult };
  */
 export class DexieSyncReconciler implements SyncReconciler {
   private readonly db: LunaClairDatabase;
+  private readonly isCategoryEnabled: (category: SyncCategory) => boolean;
 
-  constructor(database: LunaClairDatabase = getActiveVaultDatabase()) {
+  constructor(
+    database: LunaClairDatabase = getActiveVaultDatabase(),
+    isCategoryEnabled: (category: SyncCategory) => boolean = isSyncCategoryEnabled
+  ) {
     this.db = database;
+    this.isCategoryEnabled = isCategoryEnabled;
   }
 
   /**
@@ -91,6 +114,11 @@ export class DexieSyncReconciler implements SyncReconciler {
 
         for (const change of pullResponse.changes) {
           const { entityType, entityId, operation, changedAt } = change;
+
+          const category = getCategoryForEntityType(entityType);
+          if (category && !this.isCategoryEnabled(category)) {
+            continue;
+          }
 
           // 1. Versioned Documents (Model C)
           if (entityType === 'document') {

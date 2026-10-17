@@ -15,6 +15,7 @@ export function getSyncModelForEntity(entityType: SyncEntityType): SyncModel {
     case 'highlight':
     case 'drawing':
     case 'flashcardReview':
+    case 'pointer':
       return 'lww';
     case 'quizSession':
       return 'append';

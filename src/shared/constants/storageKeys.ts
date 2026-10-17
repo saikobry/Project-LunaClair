@@ -29,6 +29,7 @@ export const STORAGE_KEYS = {
   sync: {
     deviceId: 'lunaclair.device_id',
     sessionCredentials: 'lunaclair.session_credentials',
+    categoryPreferences: 'lunaclair.sync.category_preferences',
   },
   session: {
     visitMarked: 'lunaclair.session.visit_marked',

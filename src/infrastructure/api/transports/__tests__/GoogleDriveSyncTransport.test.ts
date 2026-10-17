@@ -1283,5 +1283,148 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
       expect(transport.isDriveSeeded()).toBe(true);
     });
+
+    it('emits pointer operation instead of raw entity deltas for cloned Explore materials during delta collection', async () => {
+      const db = getActiveVaultDatabase();
+
+      // Cloned Explore material (originShareId != null)
+      await db.materials.put({
+        id: 'mat-explore-101',
+        title: 'Quantum Mechanics',
+        documentId: 'doc-explore-101',
+        originShareId: 'share-qm-101',
+        createdAt: '2026-10-15T00:00:00.000Z',
+        updatedAt: '2026-10-15T00:00:00.000Z',
+      });
+
+      // Unmodified template document at FLOOR_ISO (should NOT be uploaded as raw entity delta)
+      await db.documentContents.put({
+        documentId: 'doc-explore-101',
+        title: 'Quantum Mechanics',
+        content: '# Template Content',
+        updatedAt: FLOOR_ISO,
+        version: 1,
+      });
+
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-warm-journal-ptr',
+        name: 'journal_2026-10-10T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-10T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'remote-mut-peer',
+            entityType: 'document',
+            entityId: 'doc-other-peer',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-10T10:00:00.000Z_0000_peer-dev',
+            payload: {
+              documentId: 'doc-other-peer',
+              title: 'Peer Doc',
+              content: 'Peer text',
+              updatedAt: '2026-10-10T10:00:00.000Z',
+              version: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+      });
+
+      await transport.pull(credentials, 0);
+
+      expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
+      const [, payload] = vi.mocked(mockDriveClient.uploadCompressedJson!).mock.calls[0]!;
+      const journalPayload = payload as { mutations: SyncPushRequest['mutations'] };
+
+      const pointerMutation = journalPayload.mutations.find((m) => m.entityType === 'pointer');
+      expect(pointerMutation).toBeDefined();
+      expect(pointerMutation?.entityId).toBe('share-qm-101');
+      expect(pointerMutation?.payload).toEqual({
+        originShareId: 'share-qm-101',
+        title: 'Quantum Mechanics',
+        publishedAt: '2026-10-15T00:00:00.000Z',
+        schemaVersion: 1,
+      });
+
+      // Raw document template must NOT be emitted
+      const rawDocMutation = journalPayload.mutations.find((m) => m.entityId === 'doc-explore-101');
+      expect(rawDocMutation).toBeUndefined();
+    });
+
+    it('enqueues pointer operation to pendingHydrations and notifies HydrationManager on pull', async () => {
+      const db = getActiveVaultDatabase();
+      const mockHydrationManager = {
+        enqueuePointer: vi.fn(async () => {}),
+        notify: vi.fn(),
+      };
+
+      const remoteFile: DriveFileMetadata = {
+        id: 'remote-pointer-journal',
+        name: 'journal_2026-10-16T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-16T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValueOnce([remoteFile]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValueOnce({
+        hlc: '2026-10-16T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-16T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'remote-ptr-mut-1',
+            entityType: 'pointer',
+            entityId: 'share-astro-101',
+            operation: 'UPSERT',
+            clientTimestamp: '2026-10-16T10:00:00.000Z_0000_peer-dev',
+            payload: {
+              originShareId: 'share-astro-101',
+              title: 'Astrophysics Intro',
+              publishedAt: '2026-10-16T09:00:00.000Z',
+              schemaVersion: 1,
+            },
+          },
+        ],
+      });
+
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        db,
+        hydrationManager: mockHydrationManager as any,
+      });
+
+      await transport.pull(credentials, 0);
+
+      expect(mockHydrationManager.enqueuePointer).toHaveBeenCalledTimes(1);
+      expect(mockHydrationManager.enqueuePointer).toHaveBeenCalledWith({
+        originShareId: 'share-astro-101',
+        title: 'Astrophysics Intro',
+        publishedAt: '2026-10-16T09:00:00.000Z',
+        schemaVersion: 1,
+      });
+      expect(mockHydrationManager.notify).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -266,3 +266,21 @@ export const isPrunable = (table: string): boolean => {
   if (!p) return false;
   return p.kind === 'derived' || (p.kind === 'localOnly' && p.prunable);
 };
+
+/**
+ * Returns all table names belonging to a specific sync category.
+ */
+export function getTablesForCategory(category: SyncCategory | 'quizHistory'): TableName[] {
+  const targetCategory = category === 'quizHistory' ? 'studyHistory' : category;
+  const tables: TableName[] = [];
+  for (const [table, policy] of Object.entries(SYNC_POLICY)) {
+    if (policy.kind === 'authoritative' && policy.category === targetCategory) {
+      tables.push(table as TableName);
+    }
+  }
+  if (targetCategory === 'flashcards') {
+    tables.push('flashcardReviews');
+  }
+  return tables;
+}
+

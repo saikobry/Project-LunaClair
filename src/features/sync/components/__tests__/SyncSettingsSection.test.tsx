@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SyncSettingsSection } from '../SyncSettingsSection';
 import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { SyncStatusStore } from '../../../../application/sync/SyncStatusStore';
+import { SyncCategoryPreferences } from '../../services/SyncCategoryPreferences';
 import type {
   GoogleAuthPort,
   GoogleAuthSession,
@@ -12,6 +13,7 @@ import type {
 describe('SyncSettingsSection', () => {
   let mockStore: SyncStatusStore;
   let mockTriggerSync: { execute: ReturnType<typeof vi.fn> };
+  let mockToggleCategory: { execute: ReturnType<typeof vi.fn> };
   let mockAuthService: GoogleAuthPort;
   let authListeners: Set<(session: GoogleAuthSession | null) => void>;
   let currentSession: GoogleAuthSession | null;
@@ -70,6 +72,10 @@ describe('SyncSettingsSection', () => {
       getValidAccessToken: vi.fn().mockResolvedValue('valid-token'),
     };
 
+    mockToggleCategory = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+
     mockContext = {
       useCases: {
         sync: {
@@ -77,6 +83,7 @@ describe('SyncSettingsSection', () => {
           getConflictDrafts: { execute: vi.fn().mockResolvedValue([]) },
           triggerSync: mockTriggerSync,
           resolveConflictDraft: { execute: vi.fn().mockResolvedValue(undefined) },
+          toggleCategory: mockToggleCategory,
         },
       },
       infrastructure: {
@@ -87,10 +94,10 @@ describe('SyncSettingsSection', () => {
     };
   });
 
-  function renderSection(authOverride?: GoogleAuthPort) {
+  function renderSection(authOverride?: GoogleAuthPort, extraProps?: any) {
     return render(
       <ApplicationContext.Provider value={mockContext}>
-        <SyncSettingsSection authService={authOverride} />
+        <SyncSettingsSection authService={authOverride} {...extraProps} />
       </ApplicationContext.Provider>
     );
   }
@@ -238,4 +245,85 @@ describe('SyncSettingsSection', () => {
     expect(badge).toHaveAttribute('data-status', 'error');
     expect(screen.getByText('Error')).toBeInTheDocument();
   });
+
+  describe('Selective Sync Category Controls', () => {
+    it('renders the Selective Sync section with heading and description', () => {
+      renderSection();
+
+      expect(screen.getByRole('heading', { name: 'Selective Sync' })).toBeInTheDocument();
+      expect(
+        screen.getByText(/Choose which data categories synchronize with your cloud storage/i)
+      ).toBeInTheDocument();
+    });
+
+    it('renders all 4 accessible category toggle switches with default enabled state', () => {
+      renderSection();
+
+      const annotationsSwitch = screen.getByRole('switch', { name: 'Annotations' });
+      const flashcardsSwitch = screen.getByRole('switch', { name: 'Spaced Repetition' });
+      const quizHistorySwitch = screen.getByRole('switch', { name: 'Quiz History & Scores' });
+      const customMaterialsSwitch = screen.getByRole('switch', { name: 'Custom Materials' });
+
+      expect(annotationsSwitch).toBeInTheDocument();
+      expect(annotationsSwitch).toBeChecked();
+
+      expect(flashcardsSwitch).toBeInTheDocument();
+      expect(flashcardsSwitch).toBeChecked();
+
+      expect(quizHistorySwitch).toBeInTheDocument();
+      expect(quizHistorySwitch).toBeChecked();
+
+      expect(customMaterialsSwitch).toBeInTheDocument();
+      expect(customMaterialsSwitch).toBeChecked();
+
+      expect(screen.getByText('Highlights & Drawings')).toBeInTheDocument();
+      expect(screen.getByText('Flashcard Review History')).toBeInTheDocument();
+      expect(screen.getByText('Quiz sessions, attempts, and historical scores')).toBeInTheDocument();
+      expect(screen.getByText('Custom materials, questions, quizzes, and authored notes')).toBeInTheDocument();
+    });
+
+    it('invokes toggleCategory use case when a switch is clicked', async () => {
+      renderSection();
+
+      const annotationsSwitch = screen.getByRole('switch', { name: 'Annotations' });
+      fireEvent.click(annotationsSwitch);
+
+      expect(mockToggleCategory.execute).toHaveBeenCalledWith('annotations', false);
+    });
+
+    it('invokes onToggleCategory prop when supplied', async () => {
+      const handleToggle = vi.fn();
+      renderSection(undefined, { onToggleCategory: handleToggle });
+
+      const flashcardsSwitch = screen.getByRole('switch', { name: 'Spaced Repetition' });
+      fireEvent.click(flashcardsSwitch);
+
+      expect(handleToggle).toHaveBeenCalledWith('flashcards', false);
+    });
+
+    it('reflects custom preferences passed through categoryPreferences prop', () => {
+      const customPrefs = new SyncCategoryPreferences({
+        getItem: () =>
+          JSON.stringify({
+            annotations: false,
+            flashcards: true,
+            quizHistory: false,
+            customMaterials: true,
+          }),
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        length: 0,
+      });
+
+      renderSection(undefined, { categoryPreferences: customPrefs });
+
+      expect(screen.getByRole('switch', { name: 'Annotations' })).not.toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Spaced Repetition' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Quiz History & Scores' })).not.toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Custom Materials' })).toBeChecked();
+    });
+  });
 });
+

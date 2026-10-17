@@ -258,6 +258,67 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(result.appliedCount).toBe(1);
       expect(await testDb.highlights.get('hl-to-delete')).toBeUndefined();
     });
+
+    it('skips inbound changes for disabled categories during pull reconciliation', async () => {
+      const selectiveReconciler = new DexieSyncReconciler(
+        testDb,
+        (category) => category !== 'annotations'
+      );
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 35,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 31,
+            entityType: 'highlight',
+            entityId: 'hl-skipped-1',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T11:00:00.000Z',
+            data: {
+              id: 'hl-skipped-1',
+              documentId: 'doc-1',
+              start: 0,
+              end: 5,
+              color: 'yellow',
+              text: 'Ignored',
+              createdAt: '2026-08-27T11:00:00.000Z',
+            },
+          },
+          {
+            sequence: 32,
+            entityType: 'quizSession',
+            entityId: 'sess-kept-1',
+            operation: 'APPEND',
+            changedAt: '2026-08-27T11:05:00.000Z',
+            data: {
+              id: 'sess-kept-1',
+              quizId: 'quiz-1',
+              startedAt: '2026-08-27T11:05:00.000Z',
+              completedAt: '2026-08-27T11:10:00.000Z',
+              score: 90,
+              totalQuestions: 10,
+              correctAnswers: 9,
+              status: 'completed',
+              responses: [],
+            },
+          },
+        ],
+      };
+
+      const result = await selectiveReconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        30,
+        pullResponse
+      );
+
+      // Only quizSession is applied; highlight is skipped
+      expect(result.appliedCount).toBe(1);
+      expect(await testDb.highlights.get('hl-skipped-1')).toBeUndefined();
+      expect(await testDb.quizSessions.get('sess-kept-1')).toBeDefined();
+    });
   });
 
   describe('applyPushResult', () => {

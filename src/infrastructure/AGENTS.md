@@ -80,6 +80,8 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `loadGis.ts` → Idempotent dynamic loader for `https://accounts.google.com/gsi/client`
     - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort`, and automated silent token refresh via Cloudflare Worker auth endpoints
     - `GoogleSessionCredentialsProvider.ts` → `SessionCredentialsProvider` implementation bridging Google OAuth identity into synchronization credentials
+- `sync/` — Cloud synchronization runtime adapters:
+  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, handles 404/410 delisting and network backoff)
 
 ## Local Contracts
 
@@ -131,4 +133,4 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 
 ## Child DOX Index
 
-No child AGENTS.md files — `ai/`, `api/`, `auth/`, `browser/`, `database/`, `importer/`, and `storage/` are boundary subdirectories governed by this document.
+No child AGENTS.md files — `ai/`, `api/`, `auth/`, `browser/`, `database/`, `importer/`, `storage/`, and `sync/` are boundary subdirectories governed by this document.

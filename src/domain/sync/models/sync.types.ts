@@ -1,6 +1,6 @@
 import type { JournalOp } from '../reconcilers/plugins/MergePlugin';
 
-export type SyncEntityType = 'document' | 'highlight' | 'drawing' | 'flashcardReview' | 'quizSession';
+export type SyncEntityType = 'document' | 'highlight' | 'drawing' | 'flashcardReview' | 'quizSession' | 'pointer';
 
 export type SyncOperation = 'UPSERT' | 'DELETE' | 'APPEND';
 
@@ -179,6 +179,10 @@ export interface PendingHydration {
   originShareId: string;
   attempts: number;
   nextAttemptAt: number;
+  title?: string;
+  publishedAt?: string;
+  schemaVersion?: number;
+  lastError?: string;
 }
 
 export interface TombstoneRecord {

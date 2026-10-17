@@ -1,6 +1,7 @@
 import Dexie, { type Transaction } from 'dexie';
 import type { LunaClairDatabase } from '../schema/LunaClairDatabase';
-import { syncedTables } from '../../../domain/sync/policy/SyncPolicy';
+import { syncedTables, type SyncCategory } from '../../../domain/sync/policy/SyncPolicy';
+import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
 import {
   type HlcClock,
   type CaptureCtx,
@@ -22,6 +23,8 @@ function applyMods<T extends object>(prev: T, mods: Record<string, unknown>): T 
   return next;
 }
 
+export type CategoryFilter = (category: SyncCategory) => boolean;
+
 /**
  * Installs synchronous mutation capture hooks across all authoritative synchronized tables.
  *
@@ -29,8 +32,13 @@ function applyMods<T extends object>(prev: T, mods: Record<string, unknown>): T 
  * - Scopes are verified synchronously; missing sync queue or tombstones throws SyncScopeError.
  * - 'local' transactions stamp version fields (_hlc, _rev, _anc) and emit mutations to syncQueue and tombstones.
  * - Non-local ('remote' or 'bypass') transactions completely skip outbox and tombstone emission to prevent echoes or phantom tombstones.
+ * - If a table's sync category is disabled via preferences, outbox and tombstone emission is skipped.
  */
-export function installSyncHooks(db: LunaClairDatabase, clock: HlcClock): void {
+export function installSyncHooks(
+  db: LunaClairDatabase,
+  clock: HlcClock,
+  isCategoryEnabled: CategoryFilter = isSyncCategoryEnabled
+): void {
   for (const [name, cfg] of syncedTables()) {
     if (!db.tables.some((t) => t.name === name)) {
       continue;
@@ -60,6 +68,9 @@ export function installSyncHooks(db: LunaClairDatabase, clock: HlcClock): void {
     };
 
     const emit = (tx: Transaction, cap: CaptureResult<object>, key: string) => {
+      if (!isCategoryEnabled(cfg.category)) {
+        return;
+      }
       const queueTableName = tx.storeNames.includes('syncQueue') ? 'syncQueue' : 'outbox';
       const queueRecord = {
         id: (cap.op as { id?: string }).id ?? `${cfg.entity}:${key}:${cap.op.hlc}`,
