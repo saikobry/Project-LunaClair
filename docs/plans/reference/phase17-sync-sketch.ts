@@ -116,7 +116,7 @@ export const DEXIE_SCHEMA = {
 /* ════════════════════════════ 2. Registry ════════════════════════════ */
 
 export type TableName = keyof LunaClairTables & string;
-type RowOf<K extends TableName> = LunaClairTables[K] extends Table<infer R, never> ? R : never;
+export type RowOf<K extends TableName> = LunaClairTables[K] extends Table<infer R, never> ? R : never;
 type RowOfLoose<K extends TableName> = LunaClairTables[K] extends Table<infer R, infer _P> ? R : never;
 
 export type SyncCategory = 'annotations' | 'flashcards' | 'customMaterials' | 'studyHistory';
