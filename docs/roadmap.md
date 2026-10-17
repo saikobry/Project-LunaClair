@@ -213,13 +213,16 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 ## Planned Phases
 
 - **Phase 17 — Granular Sync & Material Synchronization Overhaul:**
-  - **Custom Material Synchronization:**
-    - Add user-authored `materials`, `questions`, and `quizzes` (where `originShareId == null`) to Google Drive sync transport (`SyncEntityType`).
-    - Replicate local custom documents 1:1 to peer devices preserving original IDs.
-  - **Pointer-Based Explore Sync (Zero-Payload Distribution):**
-    - For materials cloned from Explore (`originShareId != null`), sync only a lightweight reference `{ originShareId }` over Google Drive.
-    - Peer devices hydrate the curriculum package directly from Cloudflare D1 / CDN, eliminating redundant Drive storage usage and bandwidth.
-  - **Granular Sync Controls (Selective Sync):**
-    - Settings UI toggles for sync categories: Study Annotations (highlights/drawings), Spaced Repetition (flashcard reviews), Quiz History, and Custom Materials.
-    - Optional per-material sync toggle on library items.
+  - **17A (Architectural Consolidation & `SYNC_ENTITY_REGISTRY`):**
+    - Centralize entity definitions into a single declarative `SYNC_ENTITY_REGISTRY` mapping `SyncEntityType` to Dexie table, concurrency model, primary key, and sync category.
+    - Refactor baseline chunk streaming (`streamVaultChunksGzipped`), delta journal gathering (`collectLocalDeltas`), and batch reconciliation (`DexieSyncReconciler`) into generic table loops driven by the registry, eliminating scattered multi-file boilerplate.
+  - **17B (Custom Material Synchronization & Zero-Payload Pointer Sync):**
+    - Synchronize user-authored `materials`, `questions`, and `quizzes` (`originShareId == null`) with 1:1 ID preservation and cascading soft deletion.
+    - Zero-payload pointer sync (`{ originShareId }`) for Explore courses (`originShareId != null`), letting peer devices hydrate the package directly from Cloudflare D1/CDN at `FLOOR_ISO`.
+  - **17C (Granular Sync Controls & Category Filtering):**
+    - Settings UI category toggles for selective sync: Annotations (highlights/drawings), Spaced Repetition (flashcards), Quiz History, and Custom Materials.
+    - Outbox enqueue and reconciliation filtering respecting active device-level toggles.
+  - **17D (Local Storage & Vault Inspector UI):**
+    - Settings-level Storage & Vault Inspector displaying active `lc_vault_<uuid>` metadata, `navigator.storage.estimate()` gauges, table record counts, and registry entries.
+    - Safe data sovereignty controls: "Clear Local Asset Cache", "Prune Unlinked Vaults", and "Reset Local Database".
 
