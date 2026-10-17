@@ -204,3 +204,19 @@ export const SCHEMA_V15 = {
     collections: 'id, order',
     collectionMaterials: '++id, [collectionId+materialId], collectionId, materialId',
 } as const;
+
+/**
+ * Version 16: Adds stores for synchronization mutation capture and replay:
+ * - reviewLogs: authoritative append-only log of card reviews
+ * - heldOps: incoming operations waiting for schema support
+ * - tombstones: deletion markers preventing resurrection
+ * - pendingHydrations: pointers to remote packages queued for hydration
+ */
+export const SCHEMA_V16 = {
+    ...SCHEMA_V15,
+    reviewLogs: 'id, cardKey, at',
+    heldOps: 'id',
+    tombstones: 'id',
+    pendingHydrations: 'originShareId',
+} as const;
+

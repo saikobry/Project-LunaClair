@@ -1,3 +1,5 @@
+import type { JournalOp } from '../reconcilers/plugins/MergePlugin';
+
 export type SyncEntityType = 'document' | 'highlight' | 'drawing' | 'flashcardReview' | 'quizSession';
 
 export type SyncOperation = 'UPSERT' | 'DELETE' | 'APPEND';
@@ -166,3 +168,25 @@ export interface SyncPullResponse {
   hasMore: boolean;
   changes: SyncChangeItem[];
 }
+
+export interface HeldOp {
+  id: string;
+  op: JournalOp;
+  reason: 'unknown-entity' | 'newer-schema';
+}
+
+export interface PendingHydration {
+  originShareId: string;
+  attempts: number;
+  nextAttemptAt: number;
+}
+
+export interface TombstoneRecord {
+  id: string;
+  entity: string;
+  key: string;
+  hlc: string;
+}
+
+export type TombstoneRow = TombstoneRecord;
+

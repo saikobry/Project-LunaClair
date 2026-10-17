@@ -9,7 +9,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `database/` — Dexie / IndexedDB persistence engine:
   - `schema/` — Database engine definition, schema history, lifecycle, and migrations:
     - `LunaClairDatabase.ts` → `LunaClairDatabase` (Dexie subclass with typed `Table` properties, singleton `db`, multi-vault factory `openVaultDatabase`, active database resolution `getActiveVaultDatabase`/`setActiveVaultDatabase`/`resetActiveVaultDatabase`, and instance caching via `clearVaultDatabaseCache`)
-    - `schema.ts` → Version 1 through 15 schema definitions
+    - `schema.ts` → Version 1 through 16 schema definitions
     - `DatabaseInitializer.ts` → Startup orchestrator (refuses a database a newer build owns → `db.open()` → `migrateIfNeeded()`, deliberately no seeding)
     - `databaseLifecycle.ts` → Reload-required vocabulary and detection (`DatabaseReloadReason`, `DatabaseReloadRequiredError`, `readStoredDatabaseVersion`, `isStoredDatabaseNewer`)
     - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
@@ -39,6 +39,8 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `sync/` — Dexie-level sync reconciliation and transactional outbox:
     - `DexieSyncReconciler.ts` → `SyncReconciler` (`applyPushResult` writes a `ConflictDraft` **only** for conflicts whose outbox row this call actually drained — see Local Contracts)
     - `transactionalOutbox.ts` → `runSyncableTransaction`
+    - `transactionContext.ts` → `originOf`, `withOrigin`, `SyncScopeError`, `OriginConflictError` (transaction origin tagging and inheritance)
+    - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping, echo loop suppression)
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
     - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`)
 - `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:

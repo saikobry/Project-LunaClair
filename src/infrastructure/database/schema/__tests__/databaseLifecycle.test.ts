@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { DB_NAME, SCHEMA_V14, SCHEMA_V15 } from '../schema';
+import { DB_NAME, SCHEMA_V14, SCHEMA_V16 } from '../schema';
 import { LunaClairDatabase } from '../LunaClairDatabase';
 import { DatabaseInitializer } from '../DatabaseInitializer';
 import {
@@ -82,15 +82,15 @@ describe('database lifecycle reporting', () => {
         const withoutProbe = await readNativeSchema('lunaclair-version-probe');
 
         // A probed fresh install reaches the same database as an unprobed one, and the encoding the
-        // rule depends on holds: Dexie stores this build's v15 database as native 150. If that ever
+        // rule depends on holds: Dexie stores this build's v16 database as native 160. If that ever
         // stops being true, this fails loudly instead of the guard quietly matching nothing.
         expect(afterProbe).toEqual(withoutProbe);
-        expect(unprobed.verno).toBe(15);
-        expect(withoutProbe.version).toBe(150);
+        expect(unprobed.verno).toBe(16);
+        expect(withoutProbe.version).toBe(160);
 
         // Reading an existing database reports its exact version, repeatedly, and changes nothing.
-        expect(await readStoredDatabaseVersion('lunaclair-version-probe')).toBe(150);
-        expect((await readNativeSchema('lunaclair-version-probe')).version).toBe(150);
+        expect(await readStoredDatabaseVersion('lunaclair-version-probe')).toBe(160);
+        expect((await readNativeSchema('lunaclair-version-probe')).version).toBe(160);
 
         await Dexie.delete('lunaclair-version-probe');
     });
@@ -102,29 +102,29 @@ describe('database lifecycle reporting', () => {
 
         // Another build in another tab upgrades (or a delete request arrives, newVersion 0 — what the
         // e2e setup and DevTools send) …
-        probe.on('versionchange').fire({ newVersion: 16, oldVersion: 15 });
+        probe.on('versionchange').fire({ newVersion: 17, oldVersion: 16 });
         // … and this build being held back by an older connection, whose `open()` stays pending.
-        probe.on('blocked').fire({ newVersion: 16, oldVersion: 15 });
-        probe.on('versionchange').fire({ newVersion: 0, oldVersion: 15 });
+        probe.on('blocked').fire({ newVersion: 17, oldVersion: 16 });
+        probe.on('versionchange').fire({ newVersion: 0, oldVersion: 16 });
 
         expect(reasons).toEqual(['app-updated', 'upgrade-blocked', 'database-reset']);
 
         // Unsubscribing stops delivery — the app must not be told after it unmounts.
         unsubscribe();
-        probe.on('blocked').fire({ newVersion: 16, oldVersion: 15 });
+        probe.on('blocked').fire({ newVersion: 17, oldVersion: 16 });
         expect(reasons).toHaveLength(3);
 
         probe.close();
     });
 
     it('refuses a database a newer build owns, and leaves its schema untouched', async () => {
-        // A v16 build that dropped a store v15 declares. Its declaration differs from v15's, which is
+        // A v17 build that dropped a store v16 declares. Its declaration differs from v16's, which is
         // what makes the difference between refusing and patching observable on disk.
-        const { localAssets: _droppedInV16, ...SCHEMA_V16 } = SCHEMA_V15;
+        const { localAssets: _droppedInV17, ...SCHEMA_V17 } = SCHEMA_V16;
         class FutureBuildDatabase extends Dexie {
             constructor() {
                 super(DB_NAME);
-                this.version(16).stores(SCHEMA_V16);
+                this.version(17).stores(SCHEMA_V17);
             }
         }
 
@@ -133,7 +133,7 @@ describe('database lifecycle reporting', () => {
         await future.table('materials').put({ id: 'mat-1', title: 'Written by the newer build' });
         future.close();
 
-        expect(await readStoredDatabaseVersion(DB_NAME)).toBe(160);
+        expect(await readStoredDatabaseVersion(DB_NAME)).toBe(170);
 
         // One call, captured: a second would be short-circuited only if the first had succeeded.
         const failure = await DatabaseInitializer.initialize().catch((error: unknown) => error);
@@ -143,7 +143,7 @@ describe('database lifecycle reporting', () => {
         // The point of checking before opening: had `db.open()` run, Dexie would have patched the
         // newer database up to this declaration — re-creating `localAssets` and bumping native to 161.
         const native = await readNativeSchema(DB_NAME);
-        expect(native.version).toBe(160);
+        expect(native.version).toBe(170);
         expect(native.indexes.localAssets).toBeUndefined();
 
         const rows = await new Promise<unknown[]>((resolve, reject) => {
@@ -184,12 +184,12 @@ describe('database lifecycle reporting', () => {
         legacy.close();
 
         const native = await readNativeSchema(DB_NAME);
-        expect(native.version).toBe(151);
+        expect(native.version).toBe(161);
         // A v15-retired index, resurrected by a patch that runs before any application logic. Reading
-        // the version back rounds 151 onto 15, which is why this patch cannot be mistaken for a newer
+        // the version back rounds 161 onto 16, which is why this patch cannot be mistaken for a newer
         // build and cannot trap the tab in a reload loop.
         expect(native.indexes.materials).toContain('originShareId');
-        expect(await readStoredDatabaseVersion(DB_NAME)).toBe(151);
-        expect(isStoredDatabaseNewer(151, 15)).toBe(false);
+        expect(await readStoredDatabaseVersion(DB_NAME)).toBe(161);
+        expect(isStoredDatabaseNewer(161, 16)).toBe(false);
     });
 });

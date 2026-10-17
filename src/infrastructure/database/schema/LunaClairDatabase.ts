@@ -6,13 +6,15 @@ import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
 import type { HighlightItem, DrawingPath } from '../../../domain/reader/models/annotation.types';
 import type { QuizDraft } from '../../../application/quiz-management/drafts/QuizDraft';
 import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
+import type { ReviewLog } from '../../../domain/flashcards/models/ReviewLog';
+import type { SyncStamp } from '../../../domain/sync/reconcilers/plugins/MergePlugin';
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { AiThread, AiGroundingMode, AiMessageRecord } from '../../../domain/ai/models/ai.types';
-import type { SyncQueueItem, SyncState, ConflictDraft } from '../../../domain/sync/models/sync.types';
+import type { SyncQueueItem, SyncState, ConflictDraft, HeldOp, PendingHydration, TombstoneRecord } from '../../../domain/sync/models/sync.types';
 import type { Collection } from '../../../domain/collections/models/Collection';
 import type { CollectionMaterial } from '../../../domain/collections/models/CollectionMaterial';
 import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
-import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14, SCHEMA_V15 } from './schema';
+import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14, SCHEMA_V15, SCHEMA_V16 } from './schema';
 import type { DatabaseReloadListener, DatabaseReloadReason } from './databaseLifecycle';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
@@ -86,6 +88,7 @@ export interface MetadataRecord {
  *            hot paths bounded: `[status+createdAt]` on syncQueue, `[threadId+createdAt]` on
  *            aiMessages, `[materialId+updatedAt]` on aiThreads, and `status` on quizSessions.
  *            No upgrade callback: index changes rewrite no records.
+ * Version 16: Adds reviewLogs, heldOps, tombstones, and pendingHydrations tables.
  */
 export class LunaClairDatabase extends Dexie {
     materials!: Table<StudyMaterial, string>;
@@ -107,6 +110,10 @@ export class LunaClairDatabase extends Dexie {
     conflictDrafts!: Table<ConflictDraft, string>;
     collections!: Table<Collection, string>;
     collectionMaterials!: Table<CollectionMaterial, number>;
+    reviewLogs!: Table<ReviewLog & SyncStamp, string>;
+    heldOps!: Table<HeldOp, string>;
+    tombstones!: Table<TombstoneRecord, string>;
+    pendingHydrations!: Table<PendingHydration, string>;
 
     private readonly reloadListeners = new Set<DatabaseReloadListener>();
 
@@ -194,6 +201,7 @@ export class LunaClairDatabase extends Dexie {
         // and drops the retired ones inside its own upgrade transaction without a callback, because
         // no record changes shape — this is why no `upgrade` is chained here.
         this.version(15).stores(SCHEMA_V15);
+        this.version(16).stores(SCHEMA_V16);
 
         // ── Lifecycle: another context wants a different version of this database ──
         //
