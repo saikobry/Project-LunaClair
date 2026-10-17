@@ -6,6 +6,7 @@ import type {
 } from '../../../domain/library/repositories/LibraryRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { normalizeTags } from '../../../shared/utils/tags';
+import { withOrigin } from '../sync/transactionContext';
 
 function generateId(): string {
     return Math.random().toString(36).substring(2, 15);
@@ -40,7 +41,14 @@ export class DexieLibraryRepository implements LibraryRepository {
             createdAt: now,
             updatedAt: now,
         };
-        await this.db.materials.put(material);
+        await withOrigin(
+            this.db,
+            'local',
+            [this.db.materials, this.db.syncQueue, this.db.tombstones],
+            async () => {
+                await this.db.materials.put(material);
+            }
+        );
         return material;
     }
 
@@ -56,7 +64,14 @@ export class DexieLibraryRepository implements LibraryRepository {
             ...(tags !== undefined ? { tags: normalizeTags(tags) } : {}),
             updatedAt: new Date().toISOString(),
         };
-        await this.db.materials.put(updated);
+        await withOrigin(
+            this.db,
+            'local',
+            [this.db.materials, this.db.syncQueue, this.db.tombstones],
+            async () => {
+                await this.db.materials.put(updated);
+            }
+        );
         return updated;
     }
 }

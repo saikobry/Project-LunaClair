@@ -2,24 +2,27 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { DB_NAME } from '../../../../infrastructure/database/schema/schema';
-import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
+import { openVaultDatabase, clearVaultDatabaseCache, type LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import { DexieConflictDraftRepository } from '../../../../infrastructure/database/repositories/DexieConflictDraftRepository';
 import { ResolveConflictDraftUseCase } from '../ResolveConflictDraftUseCase';
 import type { ConflictDraft } from '../../../../domain/sync/models/sync.types';
+import type { JournalOp } from '../../../../domain/sync/reconcilers/plugins/MergePlugin';
 
 describe('ResolveConflictDraftUseCase', () => {
     let testDb: LunaClairDatabase;
     let conflictRepo: DexieConflictDraftRepository;
 
     beforeEach(async () => {
+        clearVaultDatabaseCache();
         await Dexie.delete(DB_NAME);
-        testDb = new LunaClairDatabase();
+        testDb = openVaultDatabase(DB_NAME);
         await testDb.open();
         conflictRepo = new DexieConflictDraftRepository(testDb);
     });
 
     afterEach(async () => {
         testDb.close();
+        clearVaultDatabaseCache();
         await Dexie.delete(DB_NAME);
         vi.restoreAllMocks();
     });
@@ -77,20 +80,13 @@ describe('ResolveConflictDraftUseCase', () => {
         expect(doc?.content).toBe('# Preserved Local Changes');
         expect(doc?.version).toBe(4);
 
-        // Outbox mutation enqueued with baseVersion: 3 and version: 4
-        const queueItems = await testDb.syncQueue.toArray();
+        // Outbox mutation enqueued with version: 4
+        const queueItems = (await testDb.syncQueue.toArray()) as unknown as JournalOp[];
         expect(queueItems).toHaveLength(1);
-        expect(queueItems[0]).toMatchObject({
-            entityType: 'document',
-            entityId: 'doc-bio-2',
-            operation: 'UPSERT',
-            baseVersion: 3,
-            payload: {
-                documentId: 'doc-bio-2',
-                content: '# Preserved Local Changes',
-                version: 4,
-            },
-        });
+        expect(queueItems[0].entity).toBe('documentContent');
+        expect(queueItems[0].key).toBe('doc-bio-2');
+        expect(queueItems[0].op).toBe('put');
+        expect((queueItems[0].value as { version: number }).version).toBe(4);
     });
 
     it('merge: applies merged content, updates version to serverVersion + 1, and enqueues outbox mutation', async () => {
@@ -122,10 +118,12 @@ describe('ResolveConflictDraftUseCase', () => {
         expect(doc?.version).toBe(5);
 
         // Outbox mutation enqueued
-        const queueItems = await testDb.syncQueue.toArray();
+        const queueItems = (await testDb.syncQueue.toArray()) as unknown as JournalOp[];
         expect(queueItems).toHaveLength(1);
-        expect(queueItems[0].baseVersion).toBe(4);
-        expect((queueItems[0].payload as { version: number }).version).toBe(5);
+        expect(queueItems[0].entity).toBe('documentContent');
+        expect(queueItems[0].key).toBe('doc-bio-3');
+        expect(queueItems[0].op).toBe('put');
+        expect((queueItems[0].value as { version: number }).version).toBe(5);
     });
 
     it('throws error when draftId is not found', async () => {

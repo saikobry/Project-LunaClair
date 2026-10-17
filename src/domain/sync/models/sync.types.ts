@@ -172,7 +172,9 @@ export interface SyncPullResponse {
 export interface HeldOp {
   id: string;
   op: JournalOp;
-  reason: 'unknown-entity' | 'newer-schema';
+  reason?: 'unknown-entity' | 'newer-schema' | string;
+  error?: string;
+  heldAt?: string;
 }
 
 export interface PendingHydration {
@@ -193,4 +195,3 @@ export interface TombstoneRecord {
 }
 
 export type TombstoneRow = TombstoneRecord;
-

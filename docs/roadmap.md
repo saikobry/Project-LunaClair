@@ -223,6 +223,11 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
   - **17D (Local Storage & Vault Inspector UI):**
     - Settings-level Storage & Vault Inspector displaying active `lc_vault_<uuid>` metadata, `navigator.storage.estimate()` gauges, table record diagnostics, and registry entries.
     - Safe data sovereignty controls: "Clear Media Cache" under bypass origin, and "Prune Unlinked Vaults" with 7-day quarantine grace period safeguarding active and user vaults.
+  - **17E (Consolidation & Dead Code Pruning):**
+    - Unified wire encoding through declarative `encode` functions in `SYNC_POLICY`, eliminating 6 copy-pasted table loops in `streamVaultChunksGzipped.ts` with parent-first topological `restoreOrder()`.
+    - Refactored `DexieSyncReconciler.reconcilePullBatch` to generic pure plugin dispatch with touched-tables scoping, 250-op transaction chunking, `bulkGet` prefetching, and poison op isolation into `heldOps`.
+    - Added multi-tab HLC connection nonce (`<deviceId>.<tabNonce>`), cut repositories to scope-only `withOrigin`, and deleted `transactionalOutbox.ts` with single-outbox-row verification.
+    - Purged 2,335 lines of legacy reconcilers, barrel `index.ts`, dead models (`SyncModels.ts`), obsolete comparators (`compareFlashcardReviews`), and temporary prototype sketches.
 
 ---
 

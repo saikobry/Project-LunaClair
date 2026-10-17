@@ -16,15 +16,21 @@ export interface HlcClock {
   receive(remote: Hlc): Hlc;
 }
 
+export function createTabNonce(): string {
+  return Math.random().toString(36).slice(2, 6);
+}
+
 /**
  * Creates an in-memory Hybrid Logical Clock generator.
  * Timestamp format: `${wallMs(13)}_${counter(4)}_${deviceId}` (strictly lexicographically ordered).
+ * If deviceId does not contain a dot, appends a connection nonce to isolate concurrent tabs.
  */
 export function createClock(deviceId: string, now: () => number = Date.now): HlcClock {
+  const resolvedDeviceId = deviceId.includes('.') ? deviceId : `${deviceId}.${createTabNonce()}`;
   let wall = 0;
   let counter = 0;
 
-  const fmt = () => `${String(wall).padStart(13, '0')}_${String(counter).padStart(4, '0')}_${deviceId}`;
+  const fmt = () => `${String(wall).padStart(13, '0')}_${String(counter).padStart(4, '0')}_${resolvedDeviceId}`;
 
   const advance = (remoteWall: number, remoteCounter: number): Hlc => {
     const pt = now();
@@ -42,7 +48,7 @@ export function createClock(deviceId: string, now: () => number = Date.now): Hlc
   };
 
   return {
-    deviceId,
+    deviceId: resolvedDeviceId,
     tick: () => advance(0, 0),
     receive: (remote: Hlc) => {
       const [w, c] = remote.split('_');
@@ -50,6 +56,8 @@ export function createClock(deviceId: string, now: () => number = Date.now): Hlc
     },
   };
 }
+
+export const createTabClock = createClock;
 
 /** Fields the sync layer stamps onto rows of synced tables. */
 export interface SyncStamp {
@@ -115,15 +123,7 @@ export interface MergePlugin {
   apply<T extends object>(state: LocalState<T>, op: JournalOp<T>): MergeDecision<T>;
 }
 
-export const META_KEYS = ['_hlc', '_rev', '_anc'] as const;
-
-export const toWire = (row: object, exclude: readonly string[] = []): object => {
-  const copy: Record<string, unknown> = { ...(row as Record<string, unknown>) };
-  for (const k of [...META_KEYS, ...exclude]) {
-    delete copy[k];
-  }
-  return copy;
-};
+export { META_KEYS, toWire } from '../../policy/SyncPolicy';
 
 export const stamped = <T extends object>(value: T | undefined, stamp: SyncStamp): T & SyncStamp =>
   ({ ...(value as object), ...stamp } as T & SyncStamp);

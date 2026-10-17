@@ -39,6 +39,12 @@ export function installSyncHooks(
   clock: HlcClock,
   isCategoryEnabled: CategoryFilter = isSyncCategoryEnabled
 ): void {
+  if (db.isSyncHooksInstalled?.() || (db as unknown as { syncHooksInstalled?: boolean }).syncHooksInstalled) {
+    return;
+  }
+  db.markSyncHooksInstalled?.();
+  (db as unknown as { syncHooksInstalled?: boolean }).syncHooksInstalled = true;
+
   for (const [name, cfg] of syncedTables()) {
     if (!db.tables.some((t) => t.name === name)) {
       continue;
@@ -102,7 +108,15 @@ export function installSyncHooks(
     table.hook('creating', function (pk, obj, tx) {
       if (originOf(tx) !== 'local') return;
       guard(tx);
-      const key = String(pk !== undefined ? pk : (obj as { id?: unknown }).id ?? '');
+      const keyPath = table.schema.primKey.keyPath;
+      const key = String(
+        pk !== undefined
+          ? pk
+          : (typeof keyPath === 'string' ? (obj as Record<string, unknown>)[keyPath] : undefined) ??
+            (obj as { id?: unknown; documentId?: unknown }).id ??
+            (obj as { id?: unknown; documentId?: unknown }).documentId ??
+            ''
+      );
       const cap = plugin.capture({ kind: 'create', key, next: obj as object }, ctx);
       if (!cap) return;
       Object.assign(obj, cap.stamp);
@@ -112,7 +126,15 @@ export function installSyncHooks(
     table.hook('updating', function (mods, pk, prev, tx) {
       if (originOf(tx) !== 'local' || Object.keys(mods).length === 0) return;
       guard(tx);
-      const key = String(pk !== undefined ? pk : (prev as { id?: unknown })?.id ?? '');
+      const keyPath = table.schema.primKey.keyPath;
+      const key = String(
+        pk !== undefined
+          ? pk
+          : (typeof keyPath === 'string' ? (prev as Record<string, unknown>)?.[keyPath] : undefined) ??
+            (prev as { id?: unknown; documentId?: unknown })?.id ??
+            (prev as { id?: unknown; documentId?: unknown })?.documentId ??
+            ''
+      );
       const next = applyMods(prev as object, mods as Record<string, unknown>);
       const cap = plugin.capture({ kind: 'update', key, prev: prev as object, next }, ctx);
       if (!cap) return;
@@ -123,7 +145,15 @@ export function installSyncHooks(
     table.hook('deleting', function (pk, prev, tx) {
       if (originOf(tx) !== 'local') return;
       guard(tx);
-      const key = String(pk !== undefined ? pk : (prev as { id?: unknown })?.id ?? '');
+      const keyPath = table.schema.primKey.keyPath;
+      const key = String(
+        pk !== undefined
+          ? pk
+          : (typeof keyPath === 'string' ? (prev as Record<string, unknown>)?.[keyPath] : undefined) ??
+            (prev as { id?: unknown; documentId?: unknown })?.id ??
+            (prev as { id?: unknown; documentId?: unknown })?.documentId ??
+            ''
+      );
       const cap = plugin.capture({ kind: 'delete', key, prev: (prev ?? {}) as object }, ctx);
       if (cap) {
         emit(tx, cap, key);

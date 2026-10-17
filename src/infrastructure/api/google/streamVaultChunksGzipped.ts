@@ -7,18 +7,18 @@
  * to guarantee compressed output < 800 KB (well within the 1 MB reserve slot cushion and 5 MB simple upload limit).
  */
 import type { Table } from 'dexie';
-import type {
-  LunaClairDatabase,
-  HighlightRecord,
-  DrawingRecord,
-} from '../../database/schema/LunaClairDatabase';
-import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
-import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
-import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
+import type { LunaClairDatabase } from '../../database/schema/LunaClairDatabase';
 import type { SyncMutation } from '../../../domain/sync/models/sync.types';
-import type { SyncPointerPayload } from '../../../domain/sync/models/SyncPointer';
-import { FLOOR_ISO, CANONICAL_FLOOR_HLC } from '../../../domain/sync/utils/hlc';
+import { FLOOR_ISO, CANONICAL_FLOOR_HLC, compareHlc } from '../../../domain/sync/utils/hlc';
+import {
+  SYNC_POLICY,
+  restoreOrder,
+  defaultEncoding,
+  type SyncCategory,
+  type SyncEntityConfig,
+  type SyncWireEncoding,
+} from '../../../domain/sync/policy/SyncPolicy';
+import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
 
 export const DEFAULT_BATCH_SIZE = 100;
 export const DEFAULT_UNCOMPRESSED_CEILING_BYTES = 3.5 * 1024 * 1024; // 3.5 MB
@@ -38,6 +38,7 @@ export interface VaultChunkOptions {
   uncompressedCeilingBytes?: number;
   maxCompressedBytes?: number;
   clock?: () => Date;
+  isCategoryEnabled?: (category: SyncCategory) => boolean;
 }
 
 /**
@@ -55,6 +56,25 @@ export function deriveEntityHlc(timestamp: string | undefined, deviceId: string)
   const d = new Date(timestamp);
   const iso = isNaN(d.getTime()) ? new Date(0).toISOString() : d.toISOString();
   return `${iso}_0000_${deviceId}`;
+}
+
+function getRowTimestamp(row: Record<string, any>, encoded: SyncWireEncoding): string | undefined {
+  if (encoded.entity === 'pointer') {
+    return row.updatedAt ?? row.createdAt;
+  }
+  if (encoded.entity === 'document') {
+    return row.updatedAt;
+  }
+  if (row.deletedAt) return row.deletedAt;
+  if (row.updatedAt) return row.updatedAt;
+  if (row.completedAt) return row.completedAt;
+  if (row.startedAt) return row.startedAt;
+  if (row.lastReviewedAt) return row.lastReviewedAt;
+  if (row.dueAt) return row.dueAt;
+  if (row.createdAt) return row.createdAt;
+  if (typeof row.at === 'number') return new Date(row.at).toISOString();
+  if (typeof row.at === 'string') return row.at;
+  return undefined;
 }
 
 /**
@@ -116,6 +136,10 @@ export async function* streamVaultChunksGzipped(
   const uncompressedCeiling = options.uncompressedCeilingBytes ?? DEFAULT_UNCOMPRESSED_CEILING_BYTES;
   const maxCompressed = options.maxCompressedBytes ?? DEFAULT_MAX_COMPRESSED_BYTES;
   const clock = options.clock ?? (() => new Date());
+  const isCategoryEnabled = options.isCategoryEnabled ?? isSyncCategoryEnabled;
+
+  const initialHlc = deriveEntityHlc(clock().toISOString(), deviceId);
+  let highWaterHlc = initialHlc;
 
   let currentMutations: SyncMutation[] = [];
   let currentUncompressedBytes = 0;
@@ -129,21 +153,20 @@ export async function* streamVaultChunksGzipped(
     const now = clock();
     const nowIso = now.toISOString();
 
-    // Derive chunk HLC from latest mutation timestamp or fallback to now
-    let maxHlc = `${nowIso}_0000_${deviceId}`;
+    let chunkHlc = highWaterHlc;
     for (const mut of mutations) {
-      if (mut.clientTimestamp && mut.clientTimestamp > maxHlc) {
-        maxHlc = mut.clientTimestamp;
+      if (mut.clientTimestamp && compareHlc(mut.clientTimestamp, chunkHlc) > 0) {
+        chunkHlc = mut.clientTimestamp;
       }
     }
 
     const payload = {
       version: 1,
-      hlc: maxHlc,
+      hlc: chunkHlc,
       deviceId,
       createdAt: nowIso,
       coveredJournalFileIds: [],
-      watermarks: { [deviceId]: maxHlc },
+      watermarks: { [deviceId]: chunkHlc },
       mutations,
     };
 
@@ -156,7 +179,7 @@ export async function* streamVaultChunksGzipped(
     }
 
     return {
-      hlc: maxHlc,
+      hlc: chunkHlc,
       deviceId,
       createdAt: nowIso,
       mutations,
@@ -165,23 +188,56 @@ export async function* streamVaultChunksGzipped(
     };
   };
 
-  // 0. Cloned Explore materials -> emit pointer operations instead of raw entity deltas
-  for await (const mat of paginateTable<StudyMaterial>(db.materials, batchSize)) {
-    if (mat.originShareId) {
-      const hlc = deriveEntityHlc(mat.updatedAt ?? mat.createdAt, deviceId);
+  const orderedTables = restoreOrder();
+
+  for (const tableName of orderedTables) {
+    const cfg = SYNC_POLICY[tableName] as SyncEntityConfig;
+    if (cfg.kind !== 'authoritative') {
+      continue;
+    }
+
+    if (!isCategoryEnabled(cfg.category)) {
+      continue;
+    }
+
+    const table = db[tableName as keyof LunaClairDatabase] as Table<any, any> | undefined;
+    if (!table) {
+      continue;
+    }
+
+    for await (const row of paginateTable(table, batchSize)) {
+      const encoded = cfg.encode ? cfg.encode(row) : defaultEncoding(row, cfg);
+      if (!encoded) {
+        continue;
+      }
+
+      const rawTimestamp = getRowTimestamp(row, encoded);
+      const hlc = deriveEntityHlc(rawTimestamp, deviceId);
+      if (compareHlc(hlc, highWaterHlc) > 0) {
+        highWaterHlc = hlc;
+      }
+
+      const entityId =
+        (encoded.value as Record<string, any>)?.originShareId ??
+        (encoded.value as Record<string, any>)?.documentId ??
+        (encoded.value as Record<string, any>)?.id ??
+        (encoded.value as Record<string, any>)?.key ??
+        (row as Record<string, any>)?.originShareId ??
+        (row as Record<string, any>)?.documentId ??
+        (row as Record<string, any>)?.id ??
+        (row as Record<string, any>)?.key ??
+        'unknown';
+
       const mutation: SyncMutation = {
-        clientMutationId: `baseline-pointer-${mat.originShareId}`,
-        entityType: 'pointer',
-        entityId: mat.originShareId,
-        operation: 'UPSERT',
+        clientMutationId: `baseline-${encoded.entity}-${entityId}`,
+        entityType: encoded.entity as any,
+        entityId: String(entityId),
+        operation: (encoded.operation ?? 'UPSERT') as any,
         clientTimestamp: hlc,
-        payload: {
-          originShareId: mat.originShareId,
-          title: mat.title,
-          publishedAt: mat.createdAt,
-          schemaVersion: 1,
-        } satisfies SyncPointerPayload,
+        payload: encoded.value,
+        ...(encoded.baseVersion !== undefined ? { baseVersion: encoded.baseVersion } : {}),
       };
+
       const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
       if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
         yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
@@ -191,159 +247,6 @@ export async function* streamVaultChunksGzipped(
       currentMutations.push(mutation);
       currentUncompressedBytes += size;
     }
-  }
-
-  // 1. Documents (db.documentContents)
-  for await (const doc of paginateTable<ImportedDocumentContent>(db.documentContents, batchSize)) {
-    if (doc.updatedAt === FLOOR_ISO && !doc.deletedAt) {
-      continue;
-    }
-    const hlc = deriveEntityHlc(doc.updatedAt, deviceId);
-    const mutation: SyncMutation = {
-      clientMutationId: `baseline-doc-${doc.documentId}`,
-      entityType: 'document',
-      entityId: doc.documentId,
-      operation: 'UPSERT',
-      baseVersion: doc.version ?? 1,
-      clientTimestamp: hlc,
-      payload: {
-        documentId: doc.documentId,
-        title: doc.title,
-        content: doc.content,
-        updatedAt: doc.updatedAt ?? new Date(0).toISOString(),
-        version: doc.version ?? 1,
-      },
-    };
-    const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
-    if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
-      yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
-      currentMutations = [];
-      currentUncompressedBytes = 0;
-    }
-    currentMutations.push(mutation);
-    currentUncompressedBytes += size;
-  }
-
-  // 2. Highlights (db.highlights)
-  for await (const hl of paginateTable<HighlightRecord>(db.highlights, batchSize)) {
-    const hlc = deriveEntityHlc(hl.deletedAt ?? hl.createdAt, deviceId);
-    const mutation: SyncMutation = {
-      clientMutationId: `baseline-hl-${hl.id}`,
-      entityType: 'highlight',
-      entityId: hl.id,
-      operation: hl.deletedAt ? 'DELETE' : 'UPSERT',
-      clientTimestamp: hlc,
-      payload: {
-        id: hl.id,
-        documentId: hl.documentId,
-        start: hl.start,
-        end: hl.end,
-        color: hl.color,
-        text: hl.text,
-        createdAt: hl.createdAt,
-        deletedAt: hl.deletedAt,
-      },
-    };
-    const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
-    if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
-      yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
-      currentMutations = [];
-      currentUncompressedBytes = 0;
-    }
-    currentMutations.push(mutation);
-    currentUncompressedBytes += size;
-  }
-
-  // 3. Drawings (db.drawings)
-  for await (const dr of paginateTable<DrawingRecord>(db.drawings, batchSize)) {
-    const hlc = deriveEntityHlc(dr.deletedAt ?? dr.createdAt, deviceId);
-    const mutation: SyncMutation = {
-      clientMutationId: `baseline-dr-${dr.id}`,
-      entityType: 'drawing',
-      entityId: dr.id,
-      operation: dr.deletedAt ? 'DELETE' : 'UPSERT',
-      clientTimestamp: hlc,
-      payload: {
-        id: dr.id,
-        documentId: dr.documentId,
-        color: dr.color,
-        thickness: dr.thickness,
-        points: dr.points,
-        isEraser: dr.isEraser,
-        createdAt: dr.createdAt,
-        deletedAt: dr.deletedAt,
-      },
-    };
-    const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
-    if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
-      yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
-      currentMutations = [];
-      currentUncompressedBytes = 0;
-    }
-    currentMutations.push(mutation);
-    currentUncompressedBytes += size;
-  }
-
-  // 4. Flashcard Reviews (db.flashcardReviews)
-  for await (const fc of paginateTable<ReviewState>(db.flashcardReviews, batchSize)) {
-    const hlc = deriveEntityHlc(fc.lastReviewedAt ?? fc.dueAt, deviceId);
-    const mutation: SyncMutation = {
-      clientMutationId: `baseline-fc-${fc.key}`,
-      entityType: 'flashcardReview',
-      entityId: fc.key,
-      operation: 'UPSERT',
-      clientTimestamp: hlc,
-      payload: {
-        key: fc.key,
-        materialId: fc.materialId,
-        repetitions: fc.repetitions,
-        easeFactor: fc.easeFactor,
-        intervalDays: fc.intervalDays,
-        dueAt: fc.dueAt,
-        lapses: fc.lapses,
-        lastReviewedAt: fc.lastReviewedAt,
-        reviewCount: fc.reviewCount,
-      },
-    };
-    const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
-    if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
-      yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
-      currentMutations = [];
-      currentUncompressedBytes = 0;
-    }
-    currentMutations.push(mutation);
-    currentUncompressedBytes += size;
-  }
-
-  // 5. Quiz Sessions (db.quizSessions)
-  for await (const qs of paginateTable<QuizSession>(db.quizSessions, batchSize)) {
-    const hlc = deriveEntityHlc(qs.completedAt ?? qs.startedAt, deviceId);
-    const mutation: SyncMutation = {
-      clientMutationId: `baseline-qs-${qs.id}`,
-      entityType: 'quizSession',
-      entityId: qs.id,
-      operation: 'APPEND',
-      clientTimestamp: hlc,
-      payload: {
-        id: qs.id,
-        quizId: qs.quizId,
-        mode: qs.mode,
-        status: qs.status,
-        questionSnapshots: qs.questionSnapshots,
-        answers: qs.answers,
-        score: qs.score,
-        startedAt: qs.startedAt,
-        completedAt: qs.completedAt,
-      },
-    };
-    const size = new TextEncoder().encode(JSON.stringify(mutation)).byteLength;
-    if (currentUncompressedBytes + size > uncompressedCeiling && currentMutations.length > 0) {
-      yield await createAndCompressChunk(currentMutations, currentUncompressedBytes);
-      currentMutations = [];
-      currentUncompressedBytes = 0;
-    }
-    currentMutations.push(mutation);
-    currentUncompressedBytes += size;
   }
 
   // Final chunk (or empty chunk if no records exist)

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { getSyncModelForEntity } from '../../models/SyncModels';
 import { createSyncStateKey, isValidSyncIdentity } from '../syncIdentity';
 import {
   SyncNetworkError,
@@ -25,22 +24,6 @@ import type {
 } from '../../models/sync.types';
 
 describe('Sync Domain Primitives & Models', () => {
-  describe('getSyncModelForEntity', () => {
-    it('maps document to versioned (Model C)', () => {
-      expect(getSyncModelForEntity('document')).toBe('versioned');
-    });
-
-    it('maps highlight, drawing, and flashcardReview to lww (Model A)', () => {
-      expect(getSyncModelForEntity('highlight')).toBe('lww');
-      expect(getSyncModelForEntity('drawing')).toBe('lww');
-      expect(getSyncModelForEntity('flashcardReview')).toBe('lww');
-    });
-
-    it('maps quizSession to append (Model B)', () => {
-      expect(getSyncModelForEntity('quizSession')).toBe('append');
-    });
-  });
-
   describe('createSyncStateKey', () => {
     it('generates composite key formatted as userId:deviceId', () => {
       expect(createSyncStateKey('user-123', 'device-abc')).toBe('user-123:device-abc');

@@ -3,9 +3,7 @@ import {
   evaluateDocumentConcurrency,
   nextEntityVersion,
   compareLwwTimestamps,
-  compareFlashcardReviews,
 } from '../syncVersioning';
-import type { FlashcardReviewSyncPayload } from '../../models/SyncEntities';
 
 describe('Sync Versioning & Concurrency Resolution', () => {
   describe('evaluateDocumentConcurrency', () => {
@@ -57,103 +55,6 @@ describe('Sync Versioning & Concurrency Resolution', () => {
       expect(compareLwwTimestamps('2026-08-27B', '2026-08-27A')).toBe('local_wins');
       expect(compareLwwTimestamps('2026-08-27A', '2026-08-27B')).toBe('remote_wins');
       expect(compareLwwTimestamps('abc', 'abc')).toBe('equal');
-    });
-  });
-
-  describe('compareFlashcardReviews', () => {
-    const baseReview: FlashcardReviewSyncPayload = {
-      key: 'card-1',
-      repetitions: 2,
-      easeFactor: 2.5,
-      intervalDays: 6,
-      dueAt: '2026-09-01T00:00:00.000Z',
-      lapses: 0,
-      reviewCount: 2,
-    };
-
-    it('resolves by lastReviewedAt recency when both have review timestamps', () => {
-      const local: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T12:00:00.000Z',
-        repetitions: 1, // lower reps but newer review
-      };
-      const remote: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 5,
-      };
-
-      expect(compareFlashcardReviews(local, remote)).toBe('local_wins');
-      expect(compareFlashcardReviews(remote, local)).toBe('remote_wins');
-    });
-
-    it('prefers reviewed state over unreviewed state', () => {
-      const reviewed: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 1,
-      };
-      const unreviewed: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: undefined,
-        repetitions: 0,
-      };
-
-      expect(compareFlashcardReviews(reviewed, unreviewed)).toBe('local_wins');
-      expect(compareFlashcardReviews(unreviewed, reviewed)).toBe('remote_wins');
-    });
-
-    it('tie-breaks on higher repetitions when lastReviewedAt is identical or absent', () => {
-      const higherReps: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 3,
-        reviewCount: 3,
-      };
-      const lowerReps: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 1,
-        reviewCount: 1,
-      };
-
-      expect(compareFlashcardReviews(higherReps, lowerReps)).toBe('local_wins');
-      expect(compareFlashcardReviews(lowerReps, higherReps)).toBe('remote_wins');
-    });
-
-    it('tie-breaks on higher reviewCount when repetitions are equal', () => {
-      const higherReviews: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: undefined,
-        repetitions: 0,
-        reviewCount: 5,
-      };
-      const lowerReviews: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: undefined,
-        repetitions: 0,
-        reviewCount: 2,
-      };
-
-      expect(compareFlashcardReviews(higherReviews, lowerReviews)).toBe('local_wins');
-      expect(compareFlashcardReviews(lowerReviews, higherReviews)).toBe('remote_wins');
-    });
-
-    it('returns equal when all review comparison criteria match', () => {
-      const local: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 2,
-        reviewCount: 2,
-      };
-      const remote: FlashcardReviewSyncPayload = {
-        ...baseReview,
-        lastReviewedAt: '2026-08-27T10:00:00.000Z',
-        repetitions: 2,
-        reviewCount: 2,
-      };
-
-      expect(compareFlashcardReviews(local, remote)).toBe('equal');
     });
   });
 });

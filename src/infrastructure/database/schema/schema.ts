@@ -219,4 +219,3 @@ export const SCHEMA_V16 = {
     tombstones: 'id',
     pendingHydrations: 'originShareId',
 } as const;
-

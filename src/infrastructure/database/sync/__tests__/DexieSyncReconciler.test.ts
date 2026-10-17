@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { DB_NAME } from '../../schema/schema';
 import { LunaClairDatabase } from '../../schema/LunaClairDatabase';
 import { DexieSyncReconciler } from '../DexieSyncReconciler';
 import type { SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncQueueItem } from '../../../../domain/sync/models/sync.types';
+import { PLUGINS } from '../../../../domain/sync/reconcilers/plugins/MergePlugin';
 
 describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
   let testDb: LunaClairDatabase;
@@ -76,19 +77,23 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
           },
           {
             sequence: 14,
-            entityType: 'flashcardReview',
-            entityId: 'fc-anat-1',
+            entityType: 'reviewLog',
+            entityId: 'rl-anat-1',
             operation: 'UPSERT',
             changedAt: '2026-08-27T10:10:00.000Z',
             data: {
-              key: 'fc-anat-1',
-              repetitions: 1,
-              easeFactor: 2.5,
-              intervalDays: 1,
-              dueAt: '2026-08-28T10:10:00.000Z',
-              lapses: 0,
-              lastReviewedAt: '2026-08-27T10:10:00.000Z',
-              reviewCount: 1,
+              id: 'rl-anat-1',
+              cardKey: 'fc-anat-1',
+              rating: 3,
+              state: 1,
+              due: '2026-08-28T10:10:00.000Z',
+              stability: 2.5,
+              difficulty: 5.0,
+              elapsedDays: 0,
+              lastElapsedDays: 0,
+              scheduledDays: 1,
+              review: '2026-08-27T10:10:00.000Z',
+              at: 1724753400000,
             },
           },
           {
@@ -134,8 +139,8 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       const dr = await testDb.drawings.get('dr-anat-1');
       expect(dr?.color).toBe('#00ff00');
 
-      const fc = await testDb.flashcardReviews.get('fc-anat-1');
-      expect(fc?.repetitions).toBe(1);
+      const rl = await testDb.reviewLogs.get('rl-anat-1');
+      expect(rl?.cardKey).toBe('fc-anat-1');
 
       const sess = await testDb.quizSessions.get('sess-anat-1');
       expect(sess?.quizId).toBe('quiz-anat-101');
@@ -318,6 +323,112 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(result.appliedCount).toBe(1);
       expect(await testDb.highlights.get('hl-skipped-1')).toBeUndefined();
       expect(await testDb.quizSessions.get('sess-kept-1')).toBeDefined();
+    });
+
+    it('enqueues Explore pointer into pendingHydrations', async () => {
+      const pullResponse: SyncPullResponse = {
+        newCursor: 40,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 40,
+            entityType: 'pointer',
+            entityId: 'share-explore-123',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T12:00:00.000Z',
+            data: {
+              originShareId: 'share-explore-123',
+              title: 'Explore Package',
+              publishedAt: '2026-08-27T12:00:00.000Z',
+              schemaVersion: 1,
+            },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        39,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(1);
+      const pending = await testDb.pendingHydrations.get('share-explore-123');
+      expect(pending).toBeDefined();
+      expect(pending?.originShareId).toBe('share-explore-123');
+      expect(pending?.title).toBe('Explore Package');
+      expect(pending?.attempts).toBe(0);
+    });
+
+    it('parks poison ops in heldOps when pure plugin throws an exception', async () => {
+      const spy = vi.spyOn(PLUGINS.lww, 'apply').mockImplementationOnce(() => {
+        throw new Error('Malformed or corrupted payload');
+      });
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 45,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 45,
+            entityType: 'highlight',
+            entityId: 'hl-poison-1',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T12:00:00.000Z',
+            data: { text: 'poison' },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        44,
+        pullResponse
+      );
+
+      spy.mockRestore();
+
+      // Poison op is caught and does not increment appliedCount
+      expect(result.appliedCount).toBe(0);
+      const held = await testDb.heldOps.get('hl-poison-1');
+      expect(held).toBeDefined();
+      expect(held?.id).toBe('hl-poison-1');
+      expect(held?.error).toContain('Malformed or corrupted payload');
+    });
+
+    it('parks unknown entities in heldOps', async () => {
+      const pullResponse: SyncPullResponse = {
+        newCursor: 50,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 50,
+            entityType: 'futureEntity',
+            entityId: 'future-item-1',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T12:00:00.000Z',
+            data: { foo: 'bar' },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        49,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(0);
+      const held = await testDb.heldOps.toArray();
+      const unknownHeld = held.find((h) => h.op.entity === 'futureEntity');
+      expect(unknownHeld).toBeDefined();
+      expect(unknownHeld?.reason).toBe('unknown-entity');
     });
   });
 

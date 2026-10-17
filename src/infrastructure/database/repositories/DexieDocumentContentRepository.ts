@@ -1,7 +1,7 @@
 import type { ImportedDocumentContent } from '../../../domain/reader/repositories/DocumentContentRepository';
 import type { DocumentContentRepository } from '../../../domain/reader/repositories/DocumentContentRepository';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
-import { runSyncableTransaction } from '../sync/transactionalOutbox';
+import { withOrigin } from '../sync/transactionContext';
 
 /**
  * Dexie-backed `DocumentContentRepository` — locally imported document markdown,
@@ -29,22 +29,10 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
             version: nextVersion,
         };
 
-        await runSyncableTransaction(
+        await withOrigin(
             this.db,
-            [this.db.documentContents],
-            {
-                entityType: 'document',
-                entityId: record.documentId,
-                operation: 'UPSERT',
-                baseVersion,
-                payload: {
-                    documentId: record.documentId,
-                    title: record.title,
-                    content: record.content,
-                    updatedAt: record.updatedAt,
-                    version: nextVersion,
-                },
-            },
+            'local',
+            [this.db.documentContents, this.db.syncQueue, this.db.tombstones],
             async () => {
                 await this.db.documentContents.put(updatedRecord);
             }
@@ -52,25 +40,10 @@ export class DexieDocumentContentRepository implements DocumentContentRepository
     }
 
     async deleteByDocumentId(documentId: string): Promise<void> {
-        const existing = await this.db.documentContents.get(documentId);
-        const baseVersion = existing?.version ?? 1;
-
-        await runSyncableTransaction(
+        await withOrigin(
             this.db,
-            [this.db.documentContents],
-            {
-                entityType: 'document',
-                entityId: documentId,
-                operation: 'DELETE',
-                baseVersion,
-                payload: {
-                    documentId,
-                    title: existing?.title ?? '',
-                    content: '',
-                    updatedAt: new Date().toISOString(),
-                    version: baseVersion + 1,
-                },
-            },
+            'local',
+            [this.db.documentContents, this.db.syncQueue, this.db.tombstones],
             async () => {
                 await this.db.documentContents.delete(documentId);
             }

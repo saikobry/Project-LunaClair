@@ -1,39 +1,30 @@
-import { getActiveVaultDatabase, type LunaClairDatabase, type HighlightRecord } from '../schema/LunaClairDatabase';
-import type { ReviewState } from '../../../domain/flashcards/engines/scheduler';
-import type { QuizSession } from '../../../domain/quiz/models/QuizSession';
+import type { Table } from 'dexie';
+import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { createSyncStateKey } from '../../../domain/sync/utils/syncIdentity';
-import { compareLwwTimestamps } from '../../../domain/sync/utils/syncVersioning';
-import { reconcileDocument, reconcileTimestampLww, reconcileFlashcardReview, reconcileQuizSession } from '../../../domain/sync/reconcilers';
-import type { DocumentSyncPayload, HighlightSyncPayload, DrawingSyncPayload, FlashcardReviewSyncPayload, QuizSessionSyncPayload } from '../../../domain/sync/models/SyncEntities';
-import type { ConflictDraft, SyncQueueItem } from '../../../domain/sync/models/sync.types';
-import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../domain/sync/services/SyncTransport';
+import type { ConflictDraft, SyncPushRequest, SyncPushResponse, SyncPullResponse, SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/services/SyncReconciler';
 import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
-import type { SyncCategory } from '../../../domain/sync/policy/SyncPolicy';
+import {
+  SYNC_POLICY,
+  tableForEntity,
+  type SyncCategory,
+  type TableName,
+} from '../../../domain/sync/policy/SyncPolicy';
+import {
+  PLUGINS,
+  type JournalOp,
+} from '../../../domain/sync/reconcilers/plugins/MergePlugin';
+import { withOrigin } from './transactionContext';
+import { deriveEntityHlc } from '../../api/google/streamVaultChunksGzipped';
 
 export type { ReconcilePullResult, ApplyPushResult };
-
-function getCategoryForEntityType(entityType: string): SyncCategory | undefined {
-  switch (entityType) {
-    case 'document':
-      return 'customMaterials';
-    case 'highlight':
-    case 'drawing':
-      return 'annotations';
-    case 'flashcardReview':
-      return 'flashcards';
-    case 'quizSession':
-      return 'studyHistory';
-    default:
-      return undefined;
-  }
-}
 
 /**
  * Transactional sync reconciler for Dexie / IndexedDB.
  *
- * Coordinates atomic batch pull reconciliation and push outcome application
- * across local database tables, outbox mutations, and conflict draft records.
+ * Coordinates atomic batch pull reconciliation using pure merge plugins
+ * and push outcome application across local database tables, outbox mutations,
+ * and conflict draft records.
  */
 export class DexieSyncReconciler implements SyncReconciler {
   private readonly db: LunaClairDatabase;
@@ -48,17 +39,8 @@ export class DexieSyncReconciler implements SyncReconciler {
   }
 
   /**
-   * Reconciles a server pull response batch into Dexie within a single read-write transaction.
-   *
-   * Transaction scope:
-   * - `documentContents`
-   * - `highlights`
-   * - `drawings`
-   * - `flashcardReviews`
-   * - `quizSessions`
-   * - `syncState`
-   * - `conflictDrafts`
-   * - `syncQueue`
+   * Reconciles a server pull response batch into Dexie using generic table lookup,
+   * pure merge plugins, and batched remote transactions.
    */
   async reconcilePullBatch(
     userId: string,
@@ -96,227 +78,286 @@ export class DexieSyncReconciler implements SyncReconciler {
       deviceId = deviceIdOrCurrentCursor as string;
       pullResponse = maybePullResponse!;
     }
-    return await db.transaction(
-      'rw',
-      [
-        db.documentContents,
-        db.highlights,
-        db.drawings,
-        db.flashcardReviews,
-        db.quizSessions,
-        db.syncState,
-        db.conflictDrafts,
-        db.syncQueue,
-      ],
-      async () => {
-        let appliedCount = 0;
-        let conflictCount = 0;
 
-        for (const change of pullResponse.changes) {
-          const { entityType, entityId, operation, changedAt } = change;
+    const changes = pullResponse.changes ?? [];
+    const CHUNK_SIZE = 250;
+    const chunks = changes.length > 0
+      ? Array.from({ length: Math.ceil(changes.length / CHUNK_SIZE) }, (_, i) =>
+          changes.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        )
+      : [[]];
 
-          const category = getCategoryForEntityType(entityType);
-          if (category && !this.isCategoryEnabled(category)) {
-            continue;
+    let appliedCount = 0;
+    let conflictCount = 0;
+
+    for (const chunk of chunks) {
+      const touchedTablesSet = new Set<Table>();
+      if (db.syncState) touchedTablesSet.add(db.syncState);
+      if (db.syncQueue) touchedTablesSet.add(db.syncQueue);
+      if (db.conflictDrafts) touchedTablesSet.add(db.conflictDrafts);
+      if (db.tombstones) touchedTablesSet.add(db.tombstones);
+      if (db.heldOps) touchedTablesSet.add(db.heldOps);
+      if (db.pendingHydrations) touchedTablesSet.add(db.pendingHydrations);
+
+      for (const change of chunk) {
+        if (change.entityType === 'pointer') {
+          if (db.pendingHydrations) touchedTablesSet.add(db.pendingHydrations);
+          continue;
+        }
+        const tableName = tableForEntity(change.entityType);
+        if (tableName && db.tables.some((t) => t.name === tableName)) {
+          touchedTablesSet.add(db.table(tableName));
+        }
+      }
+      const touchedTables = Array.from(touchedTablesSet);
+
+      await withOrigin(db, 'remote', touchedTables, async () => {
+        const keysByTable = new Map<TableName, Set<string>>();
+        const entitiesByTable = new Map<TableName, string>();
+
+        for (const change of chunk) {
+          if (change.entityType === 'pointer') continue;
+          const tableName = tableForEntity(change.entityType);
+          if (!tableName) continue;
+          const policy = SYNC_POLICY[tableName];
+          if (policy?.kind !== 'authoritative') continue;
+          if (policy.category && !this.isCategoryEnabled(policy.category)) continue;
+
+          if (!keysByTable.has(tableName)) {
+            keysByTable.set(tableName, new Set());
+            entitiesByTable.set(tableName, policy.entity);
           }
+          keysByTable.get(tableName)!.add(change.entityId);
+        }
 
-          // 1. Versioned Documents (Model C)
-          if (entityType === 'document') {
-            const localDoc = await db.documentContents.get(entityId);
-            const unpushedQueueItem = await db.syncQueue
-              .where('entityType')
-              .equals('document')
-              .filter((q) => q.entityId === entityId && q.status === 'pending')
-              .first();
+        const overlay = new Map<string, { row?: any; tombstoneHlc?: string }>();
 
-            const remoteData = (change.data ?? {}) as Partial<DocumentSyncPayload>;
-            const remoteDoc: DocumentSyncPayload = {
-              documentId: entityId,
-              title: remoteData.title ?? '',
-              content: remoteData.content ?? '',
-              updatedAt: changedAt || remoteData.updatedAt || new Date().toISOString(),
-              version: change.version ?? remoteData.version ?? 1,
-            };
+        for (const [tableName, keysSet] of keysByTable.entries()) {
+          const keys = Array.from(keysSet);
+          const entity = entitiesByTable.get(tableName)!;
+          const rows = await db.table(tableName).bulkGet(keys);
+          const tombstoneKeys = keys.map((k) => `${entity}:${k}`);
+          const tombstones = await db.tombstones.bulkGet(tombstoneKeys);
 
-            if (operation === 'DELETE' || (change.data as { deletedAt?: string } | null)?.deletedAt) {
-              if (!unpushedQueueItem) {
-                await db.documentContents.delete(entityId);
-                appliedCount++;
-              } else {
-                const unpushedBase = unpushedQueueItem.baseVersion ?? 0;
-                if (unpushedBase !== remoteDoc.version) {
-                  const draft: ConflictDraft = {
-                    id: crypto.randomUUID(),
-                    documentId: entityId,
-                    baseVersion: unpushedBase,
-                    serverVersion: remoteDoc.version,
-                    localContent: localDoc?.content ?? (unpushedQueueItem.payload as { content?: string })?.content ?? '',
-                    serverContent: '',
-                    createdAt: new Date().toISOString(),
-                  };
-                  await db.conflictDrafts.put(draft);
-                  await db.documentContents.delete(entityId);
-                  await db.syncQueue.delete(unpushedQueueItem.id);
-                  conflictCount++;
-                }
-              }
-            } else {
-              const result = reconcileDocument(
-                localDoc,
-                remoteDoc,
-                unpushedQueueItem as SyncQueueItem<Partial<DocumentSyncPayload>> | undefined
-              );
-              if (result.kind === 'apply') {
-                await db.documentContents.put({
-                  documentId: entityId,
-                  title: result.document.title,
-                  content: result.document.content,
-                  updatedAt: result.document.updatedAt,
-                });
-                appliedCount++;
-              } else if (result.kind === 'conflict') {
-                await db.conflictDrafts.put(result.draft);
-                await db.documentContents.put({
-                  documentId: entityId,
-                  title: result.canonicalServerDoc.title,
-                  content: result.canonicalServerDoc.content,
-                  updatedAt: result.canonicalServerDoc.updatedAt,
-                });
-                if (unpushedQueueItem) {
-                  await db.syncQueue.delete(unpushedQueueItem.id);
-                }
-                conflictCount++;
-              }
-              // If 'compatible', local unpushed mutation remains in syncQueue and local draft untouched
-            }
-          }
-
-          // 2. Highlights (Model A - LWW)
-          else if (entityType === 'highlight') {
-            const localHighlight = await db.highlights.get(entityId);
-            if (operation === 'DELETE' || !change.data) {
-              if (localHighlight) {
-                const localTime = localHighlight.deletedAt ?? (localHighlight as { updatedAt?: string }).updatedAt ?? localHighlight.createdAt;
-                if (compareLwwTimestamps(localTime, changedAt) === 'remote_wins') {
-                  await db.highlights.delete(entityId);
-                  appliedCount++;
-                }
-              } else {
-                await db.highlights.delete(entityId);
-                appliedCount++;
-              }
-            } else {
-              const remotePayload = change.data as HighlightSyncPayload;
-              const result = reconcileTimestampLww(localHighlight, remotePayload);
-              if (result.kind === 'apply') {
-                const payload = result.payload;
-                if (payload.deletedAt) {
-                  await db.highlights.delete(entityId);
-                } else {
-                  await db.highlights.put({
-                    id: payload.id || entityId,
-                    documentId: payload.documentId,
-                    start: payload.start,
-                    end: payload.end,
-                    color: payload.color as HighlightRecord['color'],
-                    text: payload.text,
-                    createdAt: payload.createdAt,
-                    ...(payload.deletedAt ? { deletedAt: payload.deletedAt } : {}),
-                  });
-                }
-                appliedCount++;
-              }
-            }
-          }
-
-          // 3. Drawings (Model A - LWW)
-          else if (entityType === 'drawing') {
-            const localDrawing = await db.drawings.get(entityId);
-            if (operation === 'DELETE' || !change.data) {
-              if (localDrawing) {
-                const localTime = localDrawing.deletedAt ?? (localDrawing as { updatedAt?: string }).updatedAt ?? localDrawing.createdAt;
-                if (compareLwwTimestamps(localTime, changedAt) === 'remote_wins') {
-                  await db.drawings.delete(entityId);
-                  appliedCount++;
-                }
-              } else {
-                await db.drawings.delete(entityId);
-                appliedCount++;
-              }
-            } else {
-              const remotePayload = change.data as DrawingSyncPayload;
-              const result = reconcileTimestampLww(localDrawing, remotePayload);
-              if (result.kind === 'apply') {
-                const payload = result.payload;
-                if (payload.deletedAt) {
-                  await db.drawings.delete(entityId);
-                } else {
-                  await db.drawings.put({
-                    id: payload.id || entityId,
-                    documentId: payload.documentId,
-                    color: payload.color,
-                    thickness: payload.thickness,
-                    points: payload.points,
-                    isEraser: payload.isEraser,
-                    createdAt: payload.createdAt,
-                    ...(payload.deletedAt ? { deletedAt: payload.deletedAt } : {}),
-                  });
-                }
-                appliedCount++;
-              }
-            }
-          }
-
-          // 4. Flashcard Reviews (Model A - Spaced Repetition LWW)
-          else if (entityType === 'flashcardReview') {
-            const localReview = await db.flashcardReviews.get(entityId);
-            if (operation === 'DELETE' || !change.data) {
-              if (localReview) {
-                await db.flashcardReviews.delete(entityId);
-                appliedCount++;
-              }
-            } else {
-              const remotePayload = change.data as FlashcardReviewSyncPayload;
-              const result = reconcileFlashcardReview(localReview, remotePayload);
-              if (result.kind === 'apply') {
-                await db.flashcardReviews.put(result.payload as ReviewState);
-                appliedCount++;
-              }
-            }
-          }
-
-          // 5. Quiz Sessions (Model B - Append-Only)
-          else if (entityType === 'quizSession') {
-            const localSession = await db.quizSessions.get(entityId);
-            if (change.data) {
-              const remotePayload = change.data as QuizSessionSyncPayload;
-              const result = reconcileQuizSession(localSession, remotePayload);
-              if (result.kind === 'apply') {
-                await db.quizSessions.put(result.payload as QuizSession);
-                appliedCount++;
-              }
-            }
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            overlay.set(`${tableName}:${key}`, {
+              row: rows[i],
+              tombstoneHlc: tombstones[i]?.hlc,
+            });
           }
         }
 
-        // Commit updated checkpoint cursor and sync timestamp
+        const pendingQueueMap = new Map<string, SyncQueueItem>();
+        if (db.syncQueue) {
+          const pendingItems = await db.syncQueue
+            .where('status')
+            .equals('pending')
+            .toArray();
+          for (const item of pendingItems) {
+            pendingQueueMap.set(`${item.entityType}:${item.entityId}`, item);
+          }
+        }
+
+        for (const change of chunk) {
+          if (change.entityType === 'pointer') {
+            const pointerData = (change.data ?? {}) as any;
+            const originShareId = pointerData.originShareId ?? change.entityId;
+            await db.pendingHydrations.put({
+              originShareId,
+              attempts: 0,
+              nextAttemptAt: 0,
+              title: pointerData.title,
+              publishedAt: pointerData.publishedAt ?? change.changedAt,
+              schemaVersion: pointerData.schemaVersion ?? 1,
+            });
+            appliedCount++;
+            continue;
+          }
+
+          const tableName = tableForEntity(change.entityType);
+          if (!tableName) {
+            const op: JournalOp = {
+              entity: change.entityType,
+              key: change.entityId,
+              hlc: (change as any).hlc ?? deriveEntityHlc(change.changedAt, deviceId),
+              deviceId: (change as any).deviceId ?? deviceId,
+              schemaVersion: change.version ?? 1,
+              op: change.operation === 'DELETE' ? 'del' : 'put',
+              value: change.data,
+            };
+            await db.heldOps.put({
+              id: `${op.entity}:${op.key}:${op.hlc}`,
+              op,
+              reason: 'unknown-entity',
+              error: `Unknown entity: ${change.entityType}`,
+              heldAt: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          const policy = SYNC_POLICY[tableName];
+          if (policy?.kind !== 'authoritative') {
+            continue;
+          }
+
+          if (policy.category && !this.isCategoryEnabled(policy.category)) {
+            continue;
+          }
+
+          const plugin = PLUGINS[policy.mergeStrategy];
+          if (!plugin) {
+            continue;
+          }
+
+          const overlayKey = `${tableName}:${change.entityId}`;
+          const currentLocal = overlay.get(overlayKey) ?? {};
+          const localRow = currentLocal.row;
+          const tombstoneHlc = currentLocal.tombstoneHlc;
+
+          const isDelete =
+            change.operation === 'DELETE' ||
+            !change.data ||
+            (change.data as { deletedAt?: string } | null)?.deletedAt !== undefined;
+
+          const hlc = (change as any).hlc ?? deriveEntityHlc(change.changedAt, deviceId);
+          const queueItem = pendingQueueMap.get(`${change.entityType}:${change.entityId}`);
+
+          let baseRevision: string | undefined = (change as any).baseRevision;
+          if (!baseRevision && change.version !== undefined) {
+            baseRevision = `v${change.version}`;
+          }
+
+          let stateRow = localRow;
+          if (localRow && policy.mergeStrategy === 'casDraft' && !localRow._rev) {
+            if (!queueItem) {
+              stateRow = {
+                ...localRow,
+                _rev: baseRevision,
+              };
+            } else {
+              stateRow = {
+                ...localRow,
+                _rev: deriveEntityHlc(
+                  queueItem.clientTimestamp ?? localRow.updatedAt,
+                  deviceId
+                ),
+              };
+            }
+          } else if (localRow && policy.mergeStrategy === 'lww' && !localRow._hlc) {
+            stateRow = {
+              ...localRow,
+              _hlc: deriveEntityHlc(
+                localRow.deletedAt ?? localRow.updatedAt ?? localRow.createdAt,
+                deviceId
+              ),
+            };
+          }
+
+          const op: JournalOp = {
+            entity: change.entityType,
+            key: change.entityId,
+            hlc,
+            deviceId: (change as any).deviceId ?? deviceId,
+            schemaVersion: 1,
+            op: isDelete ? 'del' : 'put',
+            value: change.data,
+            baseRevision,
+          };
+
+          try {
+            const decision = plugin.apply(
+              { row: stateRow, tombstoneHlc },
+              op as JournalOp<object>
+            );
+
+            if (decision.kind === 'noop') {
+              continue;
+            }
+
+            const tableRef = db.table(tableName);
+
+            if (decision.kind === 'put') {
+              const rowToWrite = { ...decision.row };
+              if (tableName === 'documentContents') {
+                (rowToWrite as any).documentId = (rowToWrite as any).documentId ?? change.entityId;
+              } else {
+                (rowToWrite as any).id = (rowToWrite as any).id ?? change.entityId;
+              }
+
+              await tableRef.put(rowToWrite);
+              await db.tombstones.delete(`${policy.entity}:${change.entityId}`);
+
+              if (decision.drafts && decision.drafts.length > 0) {
+                for (const draft of decision.drafts) {
+                  const draftRecord: ConflictDraft = {
+                    ...draft,
+                    documentId: (draft as any).key ?? change.entityId,
+                    baseVersion: queueItem?.baseVersion ?? (localRow as any)?.version ?? 0,
+                    serverVersion: change.version ?? (op.value as any)?.version ?? 1,
+                    localContent:
+                      (localRow as any)?.content ??
+                      (queueItem?.payload as any)?.content ??
+                      (draft.value as any)?.content ??
+                      '',
+                    serverContent: (op.value as any)?.content ?? '',
+                    createdAt: new Date().toISOString(),
+                  };
+                  await db.conflictDrafts.put(draftRecord);
+                }
+
+                if (queueItem) {
+                  await db.syncQueue.delete(queueItem.id);
+                  pendingQueueMap.delete(`${change.entityType}:${change.entityId}`);
+                }
+                conflictCount += decision.drafts.length;
+              } else {
+                appliedCount++;
+              }
+
+              overlay.set(overlayKey, { row: rowToWrite, tombstoneHlc: undefined });
+            } else if (decision.kind === 'del') {
+              await tableRef.delete(change.entityId);
+              const tombstoneRec = {
+                id: `${policy.entity}:${change.entityId}`,
+                entity: policy.entity,
+                key: change.entityId,
+                hlc: decision.tombstoneHlc,
+              };
+              await db.tombstones.put(tombstoneRec);
+              appliedCount++;
+              overlay.set(overlayKey, { row: undefined, tombstoneHlc: decision.tombstoneHlc });
+            }
+          } catch (err: unknown) {
+            await db.heldOps.put({
+              id: op.key,
+              op: op as any,
+              reason: 'newer-schema',
+              error: String(err),
+              heldAt: new Date().toISOString(),
+            });
+          }
+        }
+
         const now = new Date().toISOString();
         const stateKey = createSyncStateKey(userId, deviceId);
+        const existingState = await db.syncState.get(stateKey);
         await db.syncState.put({
+          ...(existingState ?? {}),
           key: stateKey,
           userId,
           deviceId,
           lastServerCursor: pullResponse.newCursor,
           lastSyncedAt: now,
         });
+      });
+    }
 
-        return {
-          appliedCount,
-          conflictCount,
-          newCursor: pullResponse.newCursor,
-        };
-      }
-    );
+    return {
+      appliedCount,
+      conflictCount,
+      newCursor: pullResponse.newCursor,
+    };
   }
 
   /**
@@ -371,12 +412,10 @@ export class DexieSyncReconciler implements SyncReconciler {
       'rw',
       [db.documentContents, db.conflictDrafts, db.syncQueue, db.syncState],
       async () => {
-        // Pre-build index Map for O(1) matching mutation lookup
         const mutationsByClientMutationId = new Map(
           pushRequest.mutations.map((m) => [m.clientMutationId, m])
         );
 
-        // 1. Process Accepted Mutations
         if (pushResponse.accepted.length > 0) {
           const acceptedMutationIds = pushResponse.accepted.map((a) => a.clientMutationId);
           const queueItems = await db.syncQueue
@@ -401,7 +440,6 @@ export class DexieSyncReconciler implements SyncReconciler {
           }
         }
 
-        // 2. Process Divergence Conflicts
         if (pushResponse.conflicts.length > 0) {
           const conflictMutationIds = pushResponse.conflicts.map((c) => c.clientMutationId);
           const conflictQueueItems = await db.syncQueue
@@ -430,7 +468,11 @@ export class DexieSyncReconciler implements SyncReconciler {
 
             const matchingMutation = mutationsByClientMutationId.get(conflict.clientMutationId);
             const localDoc = await db.documentContents.get(conflict.entityId);
-            const serverPayload = (conflict.serverPayload ?? {}) as Partial<DocumentSyncPayload>;
+            const serverPayload = (conflict.serverPayload ?? {}) as {
+              title?: string;
+              content?: string;
+              updatedAt?: string;
+            };
 
             const localContent =
               localDoc?.content ??
@@ -461,7 +503,6 @@ export class DexieSyncReconciler implements SyncReconciler {
           }
         }
 
-        // 3. Process Rejected Mutations (Mark status as failed)
         if (pushResponse.rejected && pushResponse.rejected.length > 0) {
           const rejectedMap = new Map(pushResponse.rejected.map((r) => [r.clientMutationId, r]));
           const rejectedMutationIds = pushResponse.rejected.map((r) => r.clientMutationId);
@@ -486,7 +527,6 @@ export class DexieSyncReconciler implements SyncReconciler {
           }
         }
 
-        // 4. Update Sync State Checkpoint
         const stateKey = createSyncStateKey(userId, deviceId);
         const existingState = await db.syncState.get(stateKey);
         const now = new Date().toISOString();

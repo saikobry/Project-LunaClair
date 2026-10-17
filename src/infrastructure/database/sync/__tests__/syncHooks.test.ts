@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
-import { LunaClairDatabase } from '../../schema/LunaClairDatabase';
+import { LunaClairDatabase, openVaultDatabase, clearVaultDatabaseCache } from '../../schema/LunaClairDatabase';
 import { installSyncHooks } from '../syncHooks';
 import { withOrigin, SyncScopeError } from '../transactionContext';
 import { createClock, type HlcClock } from '../../../../domain/sync/reconcilers/plugins/MergePlugin';
@@ -416,6 +416,42 @@ describe('syncHooks: Dexie Engine Mutation Capture and Scope Hooks', () => {
         await Dexie.delete('test_filter_del_db');
       }
     });
+
+    it('installs hooks automatically in openVaultDatabase and ignores double-attachment', async () => {
+      clearVaultDatabaseCache();
+      const vaultName = 'test_vault_auto_hooks';
+      await Dexie.delete(vaultName);
+      const vaultDb = openVaultDatabase(vaultName);
+      await vaultDb.open();
+
+      try {
+        expect(vaultDb.isSyncHooksInstalled()).toBe(true);
+
+        // Attempting to install sync hooks again does not double-attach or throw
+        expect(() => {
+          installSyncHooks(vaultDb, createClock('device_duplicate'));
+        }).not.toThrow();
+
+        // Mutating within scope produces exactly one outbox entry
+        await withOrigin(vaultDb, 'local', [vaultDb.highlights], async () => {
+          await vaultDb.highlights.add({
+            id: 'hl-auto-1',
+            documentId: 'doc-auto',
+            text: 'Auto hooked annotation',
+            color: 'yellow',
+            start: 0,
+            end: 10,
+            createdAt: '2026-10-17T00:00:00.000Z',
+          });
+        });
+
+        const queueCount = await vaultDb.syncQueue.count();
+        expect(queueCount).toBe(1);
+      } finally {
+        vaultDb.close();
+        clearVaultDatabaseCache();
+        await Dexie.delete(vaultName);
+      }
+    });
   });
 });
-

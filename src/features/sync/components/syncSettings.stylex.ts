@@ -162,4 +162,3 @@ export const syncSettingsStyles = stylex.create({
     width: '100%',
   },
 });
-

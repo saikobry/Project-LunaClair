@@ -28,13 +28,13 @@ describe('Merge Plugins (LWW, AppendOnly, CasDraft)', () => {
 
     it('createClock generates monotonic timestamps and advances on remote stamps', () => {
       let t = 1_000;
-      const clock = createClock('dev1', () => t);
+      const clock = createClock('dev1.fixed', () => t);
 
       const hlc1 = clock.tick();
-      expect(hlc1).toBe('0000000001000_0000_dev1');
+      expect(hlc1).toBe('0000000001000_0000_dev1.fixed');
 
       const hlc2 = clock.tick();
-      expect(hlc2).toBe('0000000001000_0001_dev1');
+      expect(hlc2).toBe('0000000001000_0001_dev1.fixed');
       expect(compareHlc(hlc1, hlc2)).toBe(-1);
 
       // Advance clock with a remote stamp that is ahead
@@ -44,6 +44,27 @@ describe('Merge Plugins (LWW, AppendOnly, CasDraft)', () => {
 
       const hlc3 = clock.tick();
       expect(compareHlc(hlc3, remoteHlc)).toBe(1);
+    });
+
+    it('ensures distinct connection nonce and deterministic HLC ordering across tabs for the same device', () => {
+      const clockTabA = createClock('devA', () => 10_000);
+      const clockTabB = createClock('devA', () => 10_000);
+
+      expect(clockTabA.deviceId).toMatch(/^devA\.[a-z0-9]+$/);
+      expect(clockTabB.deviceId).toMatch(/^devA\.[a-z0-9]+$/);
+      expect(clockTabA.deviceId).not.toBe(clockTabB.deviceId);
+
+      const stampA = clockTabA.tick();
+      const stampB = clockTabB.tick();
+
+      expect(stampA).not.toBe(stampB);
+      expect(compareHlc(stampA, stampB)).not.toBe(0);
+
+      const advanceResult = clockTabA.receive(stampB);
+      expect(compareHlc(advanceResult, stampB)).toBeGreaterThanOrEqual(0);
+
+      const nextStampA = clockTabA.tick();
+      expect(compareHlc(nextStampA, stampB)).toBe(1);
     });
 
     it('toWire strips internal sync metadata and excluded fields', () => {

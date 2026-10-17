@@ -1,7 +1,7 @@
 import type { ConflictDraftRepository, ResolveConflictInput } from '../../../domain/sync/repositories/ConflictDraftRepository';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
-import { runSyncableTransaction } from '../sync/transactionalOutbox';
+import { withOrigin } from '../sync/transactionContext';
 
 /**
  * Dexie-backed implementation of `ConflictDraftRepository` for diverged document drafts.
@@ -55,22 +55,10 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
         const now = new Date().toISOString();
         const nextVersion = draft.serverVersion + 1;
 
-        await runSyncableTransaction(
+        await withOrigin(
             this.db,
-            [this.db.documentContents],
-            {
-                entityType: 'document',
-                entityId: draft.documentId,
-                operation: 'UPSERT',
-                baseVersion: draft.serverVersion,
-                payload: {
-                    documentId: draft.documentId,
-                    title: draft.documentId,
-                    content,
-                    updatedAt: now,
-                    version: nextVersion,
-                },
-            },
+            'local',
+            [this.db.documentContents, this.db.syncQueue, this.db.tombstones, this.db.conflictDrafts],
             async () => {
                 const existing = await this.db.documentContents.get(draft.documentId);
                 const title = existing?.title ?? draft.documentId;
@@ -81,10 +69,9 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
                     updatedAt: now,
                     version: nextVersion,
                 });
+                await this.db.conflictDrafts.delete(draftId);
             }
         );
-
-        await this.removeConflictDraft(draftId);
     }
 }
 

@@ -6,6 +6,8 @@
  * restore ordering, prunability introspection, and runtime schema drift detection.
  */
 
+import { FLOOR_ISO } from '../utils/hlc';
+
 export type TableName =
   | 'materials'
   | 'questions'
@@ -30,6 +32,37 @@ export type MergeStrategyId = 'lww' | 'appendOnly' | 'casDraft';
 /** upcasters[n] converts a wire row from schema version n to n+1. */
 export type Upcaster = (wireRow: unknown) => unknown;
 
+export interface SyncWireEncoding {
+  entity: string;
+  value: unknown;
+  operation?: 'UPSERT' | 'DELETE';
+  baseVersion?: number;
+}
+export type WireEncoder<T = any> = (row: T) => SyncWireEncoding | null;
+
+export const META_KEYS = ['_hlc', '_rev', '_anc'] as const;
+
+export const toWire = (row: object, exclude: readonly string[] = []): object => {
+  const copy: Record<string, unknown> = { ...(row as Record<string, unknown>) };
+  for (const k of [...META_KEYS, ...exclude]) {
+    delete copy[k];
+  }
+  return copy;
+};
+
+export function defaultEncoding(row: any, cfg: SyncEntityConfig): SyncWireEncoding {
+  const isAppendOnly =
+    cfg.mergeStrategy === 'appendOnly' ||
+    cfg.entity === 'reviewLog' ||
+    cfg.entity === 'quizSession' ||
+    cfg.entity === 'quizAttempt';
+  return {
+    entity: cfg.entity,
+    value: toWire(row, cfg.excludeFields),
+    operation: isAppendOnly ? 'UPSERT' : (row.deletedAt ? 'DELETE' : 'UPSERT'),
+  };
+}
+
 export interface SyncEntityConfig<_K extends TableName = TableName> {
   kind: 'authoritative';
   /** Wire name in journals. Decoupled from the Dexie table name so renaming a table never breaks old journals. */
@@ -44,6 +77,7 @@ export interface SyncEntityConfig<_K extends TableName = TableName> {
   upcasters: Readonly<Record<number, Upcaster>>;
   /** Fields never put on the wire (blobs, caches). Default-include is a trap; keep this explicit. */
   excludeFields?: readonly string[];
+  encode?: WireEncoder;
 }
 
 export interface DerivedConfig {
@@ -78,6 +112,34 @@ export const SYNC_POLICY = {
     dependencies: [],
     schemaVersion: 1,
     upcasters: {},
+    encode: (row: any): SyncWireEncoding | null => {
+      const isUnmodified = !row.deletedAt && (!row.updatedAt || row.updatedAt === row.createdAt);
+      if (row.originShareId && isUnmodified) {
+        return {
+          entity: 'pointer',
+          value: {
+            originShareId: row.originShareId,
+            title: row.title,
+            publishedAt: row.createdAt,
+            schemaVersion: 1,
+          },
+          operation: 'UPSERT',
+        };
+      }
+      return {
+        entity: 'material',
+        value: {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          tags: row.tags,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt ?? row.createdAt,
+          deletedAt: row.deletedAt,
+        },
+        operation: row.deletedAt ? 'DELETE' : 'UPSERT',
+      };
+    },
   },
   questions: {
     kind: 'authoritative',
@@ -108,6 +170,23 @@ export const SYNC_POLICY = {
     parent: { table: 'materials', key: (r) => r.materialId },
     schemaVersion: 1,
     upcasters: {},
+    encode: (row: any): SyncWireEncoding | null => {
+      if (row.updatedAt === FLOOR_ISO && !row.deletedAt) {
+        return null;
+      }
+      return {
+        entity: 'document',
+        value: {
+          documentId: row.documentId,
+          title: row.title,
+          content: row.content,
+          updatedAt: row.updatedAt ?? new Date(0).toISOString(),
+          version: row.version ?? 1,
+        },
+        operation: row.deletedAt ? 'DELETE' : 'UPSERT',
+        baseVersion: row.version ?? 1,
+      };
+    },
   },
   highlights: {
     kind: 'authoritative',
@@ -203,6 +282,7 @@ export function syncedTables(): Array<[TableName, SyncEntityConfig]> {
  */
 export const tableForEntity = (entity: string): TableName | undefined => {
   if (entity === 'quizAttempt') return 'quizSessions';
+  if (entity === 'document') return 'documentContents';
   return syncedTables().find(([, c]) => c.entity === entity)?.[0];
 };
 
@@ -283,4 +363,3 @@ export function getTablesForCategory(category: SyncCategory | 'quizHistory'): Ta
   }
   return tables;
 }
-

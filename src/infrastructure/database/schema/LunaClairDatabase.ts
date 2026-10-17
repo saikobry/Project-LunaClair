@@ -16,6 +16,8 @@ import type { CollectionMaterial } from '../../../domain/collections/models/Coll
 import type { StoredAsset } from '../../../domain/assets/repositories/AssetRepository';
 import { DB_NAME, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11, SCHEMA_V12, SCHEMA_V13, SCHEMA_V14, SCHEMA_V15, SCHEMA_V16 } from './schema';
 import type { DatabaseReloadListener, DatabaseReloadReason } from './databaseLifecycle';
+import { installSyncHooks } from '../sync/syncHooks';
+import { createClock } from '../../../domain/sync/reconcilers/plugins/MergePlugin';
 
 /** Row shape for the highlights store (adds documentId + createdAt for indexing). */
 export interface HighlightRecord extends HighlightItem {
@@ -115,7 +117,16 @@ export class LunaClairDatabase extends Dexie {
     tombstones!: Table<TombstoneRecord, string>;
     pendingHydrations!: Table<PendingHydration, string>;
 
+    private syncHooksInstalled = false;
     private readonly reloadListeners = new Set<DatabaseReloadListener>();
+
+    public isSyncHooksInstalled(): boolean {
+        return this.syncHooksInstalled;
+    }
+
+    public markSyncHooksInstalled(): void {
+        this.syncHooksInstalled = true;
+    }
 
     constructor(databaseName = DB_NAME) {
         super(databaseName);
@@ -262,6 +273,7 @@ export function openVaultDatabase(physicalDbName: string = DB_NAME): LunaClairDa
     let instance = vaultDatabases.get(physicalDbName);
     if (!instance) {
         instance = new LunaClairDatabase(physicalDbName);
+        installSyncHooks(instance, createClock('device-local'));
         vaultDatabases.set(physicalDbName, instance);
     }
     return instance;
@@ -275,7 +287,7 @@ export function clearVaultDatabaseCache(): void {
 }
 
 /** Singleton database instance shared across the application. */
-export const db = openVaultDatabase(DB_NAME);
+export const db = new LunaClairDatabase(DB_NAME);
 
 let activeVaultDatabase: LunaClairDatabase = db;
 
