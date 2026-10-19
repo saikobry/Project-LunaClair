@@ -106,12 +106,26 @@ export async function resetDatabase(page: Page) {
     await page.goto('/');
     await page.evaluate(async () => {
       if (window.indexedDB) {
-        await new Promise<void>((resolve) => {
-          const req = window.indexedDB.deleteDatabase('lunaclair-db');
-          req.onsuccess = () => resolve();
-          req.onerror = () => resolve();
-          req.onblocked = () => resolve();
-        });
+        if (window.indexedDB.databases) {
+          const dbs = await window.indexedDB.databases();
+          for (const db of dbs) {
+            if (db.name) {
+              await new Promise<void>((resolve) => {
+                const req = window.indexedDB.deleteDatabase(db.name!);
+                req.onsuccess = () => resolve();
+                req.onerror = () => resolve();
+                req.onblocked = () => resolve();
+              });
+            }
+          }
+        } else {
+          await new Promise<void>((resolve) => {
+            const req = window.indexedDB.deleteDatabase('lunaclair-db');
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve();
+            req.onblocked = () => resolve();
+          });
+        }
       }
       try {
         localStorage.clear();

@@ -53,9 +53,7 @@ export const toWire = (row: object, exclude: readonly string[] = []): object => 
 export function defaultEncoding(row: any, cfg: SyncEntityConfig): SyncWireEncoding {
   const isAppendOnly =
     cfg.mergeStrategy === 'appendOnly' ||
-    cfg.entity === 'reviewLog' ||
-    cfg.entity === 'quizSession' ||
-    cfg.entity === 'quizAttempt';
+    cfg.entity === 'reviewLog';
   return {
     entity: cfg.entity,
     value: toWire(row, cfg.excludeFields),
@@ -211,7 +209,7 @@ export const SYNC_POLICY = {
   quizSessions: {
     kind: 'authoritative',
     entity: 'quizSession',
-    mergeStrategy: 'appendOnly',
+    mergeStrategy: 'lww',
     category: 'studyHistory',
     dependencies: ['quizzes'],
     parent: { table: 'quizzes', key: (r) => r.quizId },

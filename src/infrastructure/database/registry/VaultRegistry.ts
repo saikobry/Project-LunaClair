@@ -59,37 +59,45 @@ export class VaultRegistry implements VaultRegistryPort {
    * Otherwise returns the active 'ANONYMOUS' vault, creating it if no vault exists yet.
    */
   async getActiveVault(preferredSub?: string): Promise<VaultPointer> {
-    if (preferredSub) {
-      const preferred = await this.db.vaults.get(preferredSub);
-      if (preferred) {
+    return await this.db.transaction('rw', this.db.vaults, async () => {
+      if (preferredSub) {
+        const preferred = await this.db.vaults.get(preferredSub);
+        if (preferred) {
+          const updated: VaultPointer = {
+            ...preferred,
+            lastActiveAt: Date.now(),
+          };
+          await this.db.vaults.put(updated);
+          return updated;
+        }
+      }
+
+      const anon = await this.db.vaults.get(ANONYMOUS_OWNER_SUB);
+      if (anon) {
         const updated: VaultPointer = {
-          ...preferred,
+          ...anon,
           lastActiveAt: Date.now(),
         };
         await this.db.vaults.put(updated);
         return updated;
       }
-    }
 
-    const anon = await this.db.vaults.get(ANONYMOUS_OWNER_SUB);
-    if (anon) {
-      const updated: VaultPointer = {
-        ...anon,
-        lastActiveAt: Date.now(),
+      const now = Date.now();
+      const newAnon: VaultPointer = {
+        ownerSub: ANONYMOUS_OWNER_SUB,
+        physicalDbName: generatePhysicalDbName(),
+        createdAt: now,
+        lastActiveAt: now,
       };
-      await this.db.vaults.put(updated);
-      return updated;
-    }
-
-    const now = Date.now();
-    const newAnon: VaultPointer = {
-      ownerSub: ANONYMOUS_OWNER_SUB,
-      physicalDbName: generatePhysicalDbName(),
-      createdAt: now,
-      lastActiveAt: now,
-    };
-    await this.db.vaults.add(newAnon);
-    return newAnon;
+      try {
+        await this.db.vaults.add(newAnon);
+        return newAnon;
+      } catch {
+        const existing = await this.db.vaults.get(ANONYMOUS_OWNER_SUB);
+        if (existing) return existing;
+        throw new Error('Failed to acquire or initialize active vault');
+      }
+    });
   }
 
   /**

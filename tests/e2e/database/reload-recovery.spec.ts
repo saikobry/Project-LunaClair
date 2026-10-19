@@ -70,58 +70,92 @@ async function gotoQuiescedPage(page: Page): Promise<void> {
   await page.goto('/__e2e_quiesced__');
 }
 
-/**
- * Deletes the database on a quiesced page. No connection can hold it there, so there is no
- * `onblocked` resolution: blocked would mean the stage is wrong, and hanging into the test
- * timeout fails louder than proceeding mis-staged.
- */
-async function deleteDatabaseForSure(page: Page): Promise<void> {
-  await page.evaluate(
-    (dbName) =>
-      new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(dbName);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      }),
-    DB_NAME,
-  );
+async function getActiveVaultDbName(page: Page): Promise<string> {
+  return await page.evaluate(async () => {
+    if (window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      const vault = dbs.find((d) => d.name?.startsWith('lc_vault_'));
+      if (vault?.name) return vault.name;
+    }
+    return DB_NAME;
+  });
+}
+
+async function deleteAllDatabases(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    if (window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name) {
+          await new Promise<void>((resolve) => {
+            const req = indexedDB.deleteDatabase(db.name!);
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve();
+            req.onblocked = () => resolve();
+          });
+        }
+      }
+    }
+  });
 }
 
 /**
  * Stages the stale-bundle world from scratch: the database a *divergent* newer build would have
- * left — native version 160, and a store set the v15 declaration cannot match (`materials` is
- * missing, so a patch would have real work to do and a refusal leaves it missing).
+ * left — native version 170, and a store set the current declaration cannot match.
  */
-async function stageDivergentNewerDatabase(page: Page): Promise<void> {
+async function stageDivergentNewerDatabase(page: Page): Promise<string> {
   await gotoQuiescedPage(page);
-  await deleteDatabaseForSure(page);
+  await deleteAllDatabases(page);
 
-  await page.evaluate(
-    (dbName) =>
-      new Promise<void>((resolve, reject) => {
-        const request = indexedDB.open(dbName, 160);
-        request.onupgradeneeded = () => {
-          request.result.createObjectStore('future_only_store', { keyPath: 'id' });
-        };
-        request.onsuccess = () => {
-          request.result.close();
+  const targetDbName = 'lc_vault_future';
+  await page.evaluate(async (targetName) => {
+    const regReq = indexedDB.open('lunaclair_registry', 1);
+    await new Promise<void>((resolve, reject) => {
+      regReq.onupgradeneeded = () => {
+        regReq.result.createObjectStore('vaults', { keyPath: 'ownerSub' });
+      };
+      regReq.onsuccess = () => {
+        const db = regReq.result;
+        const tx = db.transaction('vaults', 'readwrite');
+        tx.objectStore('vaults').put({
+          ownerSub: 'ANONYMOUS',
+          physicalDbName: targetName,
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+        });
+        tx.oncomplete = () => {
+          db.close();
           resolve();
         };
-        request.onerror = () => reject(request.error);
-      }),
-    DB_NAME,
-  );
+        tx.onerror = () => reject(tx.error);
+      };
+      regReq.onerror = () => reject(regReq.error);
+    });
+
+    const targetReq = indexedDB.open(targetName, 170);
+    await new Promise<void>((resolve, reject) => {
+      targetReq.onupgradeneeded = () => {
+        targetReq.result.createObjectStore('future_only_store', { keyPath: 'id' });
+      };
+      targetReq.onsuccess = () => {
+        targetReq.result.close();
+        resolve();
+      };
+      targetReq.onerror = () => reject(targetReq.error);
+    });
+  }, targetDbName);
 
   // Fail here, loudly, if the stage is not the divergent world the assertions below assume.
-  const staged = await probeDatabase(page, DB_NAME);
-  expect(staged).toEqual({ version: 160, stores: ['future_only_store'] });
+  const staged = await probeDatabase(page, targetDbName);
+  expect(staged).toEqual({ version: 170, stores: ['future_only_store'] });
+  return targetDbName;
 }
 
 test.describe('Reload recovery on database version mismatch', () => {
   test.afterEach(async ({ page }) => {
     // The spec deliberately leaves the stored database poisoned; clean it for the next spec.
     await gotoQuiescedPage(page);
-    await deleteDatabaseForSure(page);
+    await deleteAllDatabases(page);
   });
 
   test('a newer build upgrading live closes this tab into the reload screen', async ({ page }) => {
@@ -131,12 +165,14 @@ test.describe('Reload recovery on database version mismatch', () => {
       timeout: 15000,
     });
 
+    const dbName = await getActiveVaultDbName(page);
+
     // Another build wants to upgrade the stored database: Dexie's own versionchange close fires,
     // and the app must translate the dead connection into its screen — no reload needed to see it.
     await page.evaluate(
-      (dbName) =>
+      (name) =>
         new Promise<void>((resolve, reject) => {
-          const request = indexedDB.open(dbName, 160);
+          const request = indexedDB.open(name, 170);
           request.onupgradeneeded = () => {
             request.result.createObjectStore('future_only_store', { keyPath: 'id' });
           };
@@ -146,7 +182,7 @@ test.describe('Reload recovery on database version mismatch', () => {
           };
           request.onerror = () => reject(request.error);
         }),
-      DB_NAME,
+      dbName,
     );
 
     await expect(page.getByText('LunaClair was updated')).toBeVisible({ timeout: 10000 });
@@ -164,13 +200,22 @@ test.describe('Reload recovery on database version mismatch', () => {
 
     // Recovery: the "newer build is uninstalled" (its database deleted), and now the same
     // bundle boots normally onto its own schema.
-    await deleteDatabaseForSure(page);
+    await page.evaluate(
+      (name) =>
+        new Promise<void>((resolve, reject) => {
+          const request = indexedDB.deleteDatabase(name);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        }),
+      dbName,
+    );
     await reload.click();
 
     await expect(page.getByRole('heading', { name: 'Library', exact: true })).toBeVisible({
       timeout: 15000,
     });
-    expect((await probeDatabase(page, DB_NAME)).version).toBe(150);
+    const restoredDbName = await getActiveVaultDbName(page);
+    expect((await probeDatabase(page, restoredDbName)).version).toBe(160);
   });
 
   test('a database deleted underneath the running tab names the reset and still offers only reload', async ({
@@ -182,10 +227,12 @@ test.describe('Reload recovery on database version mismatch', () => {
       timeout: 15000,
     });
 
+    const dbName = await getActiveVaultDbName(page);
+
     // What DevTools' "Delete database" and the e2e reset send: a version-less delete request.
-    await page.evaluate((dbName) => {
-      indexedDB.deleteDatabase(dbName);
-    }, DB_NAME);
+    await page.evaluate((name) => {
+      indexedDB.deleteDatabase(name);
+    }, dbName);
 
     await expect(page.getByText('This tab lost its local database')).toBeVisible({
       timeout: 10000,
@@ -202,7 +249,7 @@ test.describe('Reload recovery on database version mismatch', () => {
     page,
   }) => {
     // The mismatch predates the app: the first render must already be the refusal.
-    await stageDivergentNewerDatabase(page);
+    const stagedDbName = await stageDivergentNewerDatabase(page);
 
     await page.goto('/library');
 
@@ -215,8 +262,8 @@ test.describe('Reload recovery on database version mismatch', () => {
     // And the guard is doing its job beyond the UI: the future database is still exactly what the
     // newer build left — same version, and the divergent store set unpatched. Had `db.open()` run,
     // Dexie would have re-created the missing `materials` store and bumped the version to 161.
-    expect(await probeDatabase(page, DB_NAME)).toEqual({
-      version: 160,
+    expect(await probeDatabase(page, stagedDbName)).toEqual({
+      version: 170,
       stores: ['future_only_store'],
     });
   });

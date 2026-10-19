@@ -71,7 +71,7 @@ test.describe('Settings E2E', () => {
   async function openSettings(page: Page) {
     await page
       .getByRole('banner')
-      .getByRole('button', { name: 'Settings' })
+      .getByRole('button', { name: 'Settings', exact: true })
       .click();
     await expect(page).toHaveURL('/settings');
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({
@@ -105,8 +105,14 @@ test.describe('Settings E2E', () => {
 
   async function threadCount(page: Page): Promise<number> {
     return page.evaluate(async () => {
+      let vaultName = 'lunaclair-db';
+      if (indexedDB.databases) {
+        const dbs = await indexedDB.databases();
+        const found = dbs.find((d) => d.name?.startsWith('lc_vault_'));
+        if (found?.name) vaultName = found.name;
+      }
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const req = indexedDB.open('lunaclair-db');
+        const req = indexedDB.open(vaultName);
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
