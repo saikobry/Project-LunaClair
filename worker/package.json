@@ -21,7 +21,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-beta.sha-67fa336fd",
     "@cloudflare/workers-types": "^5.20260831.1",
-    "cf": "^1.0.0-beta.17",
+    "cf": "^1.0.0-beta.18",
     "drizzle-kit": "^1.0.0-rc.4"
   }
 }
