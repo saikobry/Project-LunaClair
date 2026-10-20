@@ -333,27 +333,62 @@ export class DexieSyncReconciler implements SyncReconciler {
 
               if (decision.drafts && decision.drafts.length > 0) {
                 for (const draft of decision.drafts) {
-                  const draftRecord: ConflictDraft = {
-                    ...draft,
-                    documentId: (draft as any).key ?? change.entityId,
-                    baseVersion: queueItem?.baseVersion ?? (localRow as any)?.version ?? 0,
-                    serverVersion: change.version ?? (op.value as any)?.version ?? 1,
-                    localContent:
-                      (localRow as any)?.content ??
-                      (queueItem?.payload as any)?.content ??
-                      (draft.value as any)?.content ??
-                      '',
-                    serverContent: (op.value as any)?.content ?? '',
-                    createdAt: new Date().toISOString(),
-                  };
-                  await db.conflictDrafts.put(draftRecord);
+                  const documentId = (draft as any).key ?? change.entityId;
+                  const baseVersion = queueItem?.baseVersion ?? (localRow as any)?.version ?? 0;
+                  const serverVersion = change.version ?? (op.value as any)?.version ?? 1;
+                  const localContent =
+                    (localRow as any)?.content ??
+                    (queueItem?.payload as any)?.content ??
+                    (draft.value as any)?.content ??
+                    '';
+                  const serverContent = (op.value as any)?.content ?? '';
+
+                  if (localContent.trim() === serverContent.trim()) {
+                    const existingDoc = await db.documentContents.get(documentId);
+                    if (existingDoc) {
+                      const updated = {
+                        ...existingDoc,
+                        version: serverVersion,
+                      };
+                      await db.documentContents.put(updated);
+                      overlay.set(overlayKey, { row: updated, tombstoneHlc: undefined });
+                    }
+                    await db.conflictDrafts.where('documentId').equals(documentId).delete();
+                    appliedCount++;
+                    touchedEntities.add(change.entityType);
+                  } else {
+                    const existingDraft = await db.conflictDrafts
+                      .where('documentId')
+                      .equals(documentId)
+                      .first();
+
+                    if (existingDraft) {
+                      await db.conflictDrafts.put({
+                        ...existingDraft,
+                        serverVersion,
+                        serverContent,
+                      });
+                    } else {
+                      const draftRecord: ConflictDraft = {
+                        ...draft,
+                        id: draft.id ?? crypto.randomUUID(),
+                        documentId,
+                        baseVersion,
+                        serverVersion,
+                        localContent,
+                        serverContent,
+                        createdAt: new Date().toISOString(),
+                      };
+                      await db.conflictDrafts.put(draftRecord);
+                    }
+                    conflictCount++;
+                  }
                 }
 
                 if (queueItem) {
                   await db.syncQueue.delete(queueItem.id);
                   pendingQueueMap.delete(`${change.entityType}:${change.entityId}`);
                 }
-                conflictCount += decision.drafts.length;
               } else {
                 appliedCount++;
                 touchedEntities.add(change.entityType);
@@ -524,18 +559,50 @@ export class DexieSyncReconciler implements SyncReconciler {
               localDoc?.content ??
               (matchingMutation?.payload as { content?: string } | undefined)?.content ??
               '';
+            const serverContent = serverPayload.content ?? '';
 
-            const draft: ConflictDraft = {
-              id: crypto.randomUUID(),
-              documentId: conflict.entityId,
-              baseVersion: matchingMutation?.baseVersion ?? 0,
-              serverVersion: conflict.serverVersion,
-              localContent,
-              serverContent: serverPayload.content ?? '',
-              createdAt: new Date().toISOString(),
-            };
+            if (localContent.trim() === serverContent.trim()) {
+              if (localDoc) {
+                await db.documentContents.put({
+                  ...localDoc,
+                  version: conflict.serverVersion,
+                });
+              } else if (serverPayload.content !== undefined) {
+                await db.documentContents.put({
+                  documentId: conflict.entityId,
+                  title: serverPayload.title ?? '',
+                  content: serverPayload.content ?? '',
+                  updatedAt: serverPayload.updatedAt ?? new Date().toISOString(),
+                  version: conflict.serverVersion,
+                });
+              }
+              await db.conflictDrafts.where('documentId').equals(conflict.entityId).delete();
+              continue;
+            }
 
-            await db.conflictDrafts.put(draft);
+            const existingDraft = await db.conflictDrafts
+              .where('documentId')
+              .equals(conflict.entityId)
+              .first();
+
+            if (existingDraft) {
+              await db.conflictDrafts.put({
+                ...existingDraft,
+                serverVersion: conflict.serverVersion,
+                serverContent,
+              });
+            } else {
+              const draft: ConflictDraft = {
+                id: crypto.randomUUID(),
+                documentId: conflict.entityId,
+                baseVersion: matchingMutation?.baseVersion ?? 0,
+                serverVersion: conflict.serverVersion,
+                localContent,
+                serverContent,
+                createdAt: new Date().toISOString(),
+              };
+              await db.conflictDrafts.put(draft);
+            }
 
             if (serverPayload.content !== undefined) {
               await db.documentContents.put({

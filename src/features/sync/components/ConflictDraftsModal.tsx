@@ -457,19 +457,19 @@ export function ConflictDraftsModal({
             <RotateCcw size={24} className="lucide-spin" />
             <span>Loading conflicting drafts...</span>
           </div>
-        ) : !activeDraft ? (
+        ) : drafts.length === 0 ? (
           <div {...stylex.props(styles.emptyState)}>
             <Check size={28} color="var(--color-success)" />
             <span>All conflicts have been resolved.</span>
           </div>
-        ) : (
+        ) : activeDraft ? (
           <DiffContent
             activeDraft={activeDraft}
             isMerging={isMerging}
             mergedText={mergedText}
             onMergedTextChange={setMergedText}
           />
-        )}
+        ) : null}
       </div>
     </Dialog>
   );

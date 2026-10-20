@@ -580,6 +580,157 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(result.appliedCount).toBe(2);
       expect(result.touchedEntities).toEqual(expect.arrayContaining(['pointer', 'highlight']));
     });
+
+    it('suppresses conflict draft when local and server contents are identical on pull, advances version, and purges stale drafts', async () => {
+      await testDb.documentContents.put({
+        documentId: 'doc-ident-pull',
+        title: 'Identical Doc',
+        content: '# Identical Body',
+        updatedAt: '2026-08-27T09:00:00.000Z',
+      });
+
+      await testDb.syncQueue.put({
+        id: 'q-ident-pull',
+        clientMutationId: 'mut-ident-pull',
+        entityType: 'document',
+        entityId: 'doc-ident-pull',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-08-27T09:05:00.000Z',
+        payload: { content: '# Identical Body' },
+        status: 'pending',
+        createdAt: '2026-08-27T09:05:00.000Z',
+        retryCount: 0,
+      });
+
+      // Pre-seed an old stale draft
+      await testDb.conflictDrafts.put({
+        id: 'draft-stale-ident',
+        documentId: 'doc-ident-pull',
+        baseVersion: 1,
+        serverVersion: 2,
+        localContent: '# Identical Body',
+        serverContent: '# Earlier Divergence',
+        createdAt: '2026-08-27T08:00:00.000Z',
+      });
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 25,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 25,
+            entityType: 'document',
+            entityId: 'doc-ident-pull',
+            operation: 'UPSERT',
+            version: 3,
+            changedAt: '2026-08-27T10:00:00.000Z',
+            data: {
+              title: 'Identical Doc',
+              content: '  # Identical Body\n  ',
+              updatedAt: '2026-08-27T10:00:00.000Z',
+            },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        24,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(1);
+      expect(result.conflictCount).toBe(0);
+
+      // Stale draft was purged, no new draft created
+      const drafts = await testDb.conflictDrafts.where('documentId').equals('doc-ident-pull').toArray();
+      expect(drafts).toHaveLength(0);
+
+      // Document version advanced
+      const doc = await testDb.documentContents.get('doc-ident-pull') as { version?: number; content: string };
+      expect(doc?.version).toBe(3);
+
+      // Outbox item deleted
+      expect(await testDb.syncQueue.get('q-ident-pull')).toBeUndefined();
+    });
+
+    it('enforces single draft invariant per document by updating existing draft on pull when content diverges again', async () => {
+      await testDb.documentContents.put({
+        documentId: 'doc-single-pull',
+        title: 'Single Draft Doc',
+        content: '# Local Offline Edits',
+        updatedAt: '2026-08-27T09:00:00.000Z',
+      });
+
+      await testDb.syncQueue.put({
+        id: 'q-single-pull',
+        clientMutationId: 'mut-single-pull',
+        entityType: 'document',
+        entityId: 'doc-single-pull',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-08-27T09:05:00.000Z',
+        payload: { content: '# Local Offline Edits' },
+        status: 'pending',
+        createdAt: '2026-08-27T09:05:00.000Z',
+        retryCount: 0,
+      });
+
+      // Existing draft already present
+      await testDb.conflictDrafts.put({
+        id: 'draft-orig-single',
+        documentId: 'doc-single-pull',
+        baseVersion: 1,
+        serverVersion: 2,
+        localContent: '# Local Offline Edits',
+        serverContent: '# Remote Version 2',
+        createdAt: '2026-08-27T08:00:00.000Z',
+      });
+
+      // Remote advances to v4 with new content
+      const pullResponse: SyncPullResponse = {
+        newCursor: 28,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 28,
+            entityType: 'document',
+            entityId: 'doc-single-pull',
+            operation: 'UPSERT',
+            version: 4,
+            changedAt: '2026-08-27T10:00:00.000Z',
+            data: {
+              title: 'Single Draft Doc',
+              content: '# Remote Version 4 Fresh',
+              updatedAt: '2026-08-27T10:00:00.000Z',
+            },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        27,
+        pullResponse
+      );
+
+      expect(result.conflictCount).toBe(1);
+
+      // Exactly ONE draft remains for this documentId
+      const drafts = await testDb.conflictDrafts.where('documentId').equals('doc-single-pull').toArray();
+      expect(drafts).toHaveLength(1);
+      expect(drafts[0].id).toBe('draft-orig-single');
+      expect(drafts[0].baseVersion).toBe(1);
+      expect(drafts[0].serverVersion).toBe(4);
+      expect(drafts[0].localContent).toBe('# Local Offline Edits');
+      expect(drafts[0].serverContent).toBe('# Remote Version 4 Fresh');
+    });
+
   });
 
   describe('applyPushResult', () => {
@@ -1024,6 +1175,174 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(state?.lastSyncedAt).not.toBe(priorSyncedAt);
     });
   });
+
+    it('suppresses conflict draft when local and server contents are identical on push, advances version, and purges stale drafts', async () => {
+      await testDb.documentContents.put({
+        documentId: 'doc-push-ident',
+        title: 'Identical Doc',
+        content: '# Identical Push Content',
+        updatedAt: '2026-08-27T09:00:00.000Z',
+      });
+
+      await testDb.syncQueue.put({
+        id: 'q-push-ident',
+        clientMutationId: 'mut-push-ident',
+        entityType: 'document',
+        entityId: 'doc-push-ident',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-08-27T09:05:00.000Z',
+        payload: { content: '# Identical Push Content' },
+        status: 'pending',
+        createdAt: '2026-08-27T09:05:00.000Z',
+        retryCount: 0,
+      });
+
+      // Stale draft exists
+      await testDb.conflictDrafts.put({
+        id: 'draft-stale-push',
+        documentId: 'doc-push-ident',
+        baseVersion: 1,
+        serverVersion: 2,
+        localContent: '# Identical Push Content',
+        serverContent: '# Old Remote Content',
+        createdAt: '2026-08-27T08:00:00.000Z',
+      });
+
+      const pushRequest: SyncPushRequest = {
+        deviceId,
+        mutations: [
+          {
+            clientMutationId: 'mut-push-ident',
+            entityType: 'document',
+            entityId: 'doc-push-ident',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-08-27T09:05:00.000Z',
+            payload: { content: '# Identical Push Content' },
+          },
+        ],
+      };
+
+      const pushResponse: SyncPushResponse = {
+        accepted: [],
+        conflicts: [
+          {
+            clientMutationId: 'mut-push-ident',
+            entityType: 'document',
+            entityId: 'doc-push-ident',
+            serverVersion: 3,
+            serverPayload: {
+              content: '  # Identical Push Content\n',
+              updatedAt: '2026-08-27T10:00:00.000Z',
+            },
+          },
+        ],
+        rejected: [],
+      };
+
+      await reconciler.applyPushResult(
+        testDb,
+        userId,
+        deviceId,
+        pushRequest,
+        pushResponse
+      );
+
+      // Stale draft deleted, no new draft created
+      const drafts = await testDb.conflictDrafts.where('documentId').equals('doc-push-ident').toArray();
+      expect(drafts).toHaveLength(0);
+
+      // Version advanced
+      const doc = await testDb.documentContents.get('doc-push-ident') as { version?: number; content: string };
+      expect(doc?.version).toBe(3);
+
+      // Outbox row removed
+      expect(await testDb.syncQueue.get('q-push-ident')).toBeUndefined();
+    });
+
+    it('enforces single draft invariant per document on push by updating existing draft', async () => {
+      await testDb.documentContents.put({
+        documentId: 'doc-push-single',
+        title: 'Single Push Doc',
+        content: '# Local Push Content',
+        updatedAt: '2026-08-27T09:00:00.000Z',
+      });
+
+      await testDb.syncQueue.put({
+        id: 'q-push-single',
+        clientMutationId: 'mut-push-single',
+        entityType: 'document',
+        entityId: 'doc-push-single',
+        operation: 'UPSERT',
+        baseVersion: 1,
+        clientTimestamp: '2026-08-27T09:05:00.000Z',
+        payload: { content: '# Local Push Content' },
+        status: 'pending',
+        createdAt: '2026-08-27T09:05:00.000Z',
+        retryCount: 0,
+      });
+
+      // Existing draft already exists
+      await testDb.conflictDrafts.put({
+        id: 'draft-orig-push',
+        documentId: 'doc-push-single',
+        baseVersion: 1,
+        serverVersion: 2,
+        localContent: '# Local Push Content',
+        serverContent: '# Remote Version 2',
+        createdAt: '2026-08-27T08:00:00.000Z',
+      });
+
+      const pushRequest: SyncPushRequest = {
+        deviceId,
+        mutations: [
+          {
+            clientMutationId: 'mut-push-single',
+            entityType: 'document',
+            entityId: 'doc-push-single',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-08-27T09:05:00.000Z',
+            payload: { content: '# Local Push Content' },
+          },
+        ],
+      };
+
+      const pushResponse: SyncPushResponse = {
+        accepted: [],
+        conflicts: [
+          {
+            clientMutationId: 'mut-push-single',
+            entityType: 'document',
+            entityId: 'doc-push-single',
+            serverVersion: 5,
+            serverPayload: {
+              content: '# Remote Version 5 Fresh',
+              updatedAt: '2026-08-27T10:00:00.000Z',
+            },
+          },
+        ],
+        rejected: [],
+      };
+
+      await reconciler.applyPushResult(
+        testDb,
+        userId,
+        deviceId,
+        pushRequest,
+        pushResponse
+      );
+
+      // Exactly ONE draft remains for this documentId
+      const drafts = await testDb.conflictDrafts.where('documentId').equals('doc-push-single').toArray();
+      expect(drafts).toHaveLength(1);
+      expect(drafts[0].id).toBe('draft-orig-push');
+      expect(drafts[0].baseVersion).toBe(1);
+      expect(drafts[0].serverVersion).toBe(5);
+      expect(drafts[0].localContent).toBe('# Local Push Content');
+      expect(drafts[0].serverContent).toBe('# Remote Version 5 Fresh');
+    });
 
   describe('Transactional Rollback Resilience', () => {
     it('rolls back all mutations if an error occurs during reconcilePullBatch', async () => {

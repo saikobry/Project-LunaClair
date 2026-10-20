@@ -69,6 +69,7 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
                     version,
                 });
                 await this.db.conflictDrafts.delete(draftId);
+                await this.db.conflictDrafts.where('documentId').equals(draft.documentId).delete();
             }
         );
     }

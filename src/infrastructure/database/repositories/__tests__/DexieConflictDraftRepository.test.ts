@@ -182,4 +182,40 @@ describe('DexieConflictDraftRepository', () => {
         expect(queueItems[0].key).toBe('doc-server-1');
         expect(queueItems[0].op).toBe('put');
     });
+
+    it('resolveConflict removes the resolved draft AND cleans up any duplicate drafts for the same documentId', async () => {
+        const draft1: ConflictDraft = {
+            id: 'draft-stale-1',
+            documentId: 'doc-dup-1',
+            baseVersion: 1,
+            serverVersion: 2,
+            localContent: '# Local Branch',
+            serverContent: '# Remote Branch 2',
+            createdAt: '2026-10-17T00:00:00.000Z',
+        };
+        const draft2: ConflictDraft = {
+            id: 'draft-stale-2',
+            documentId: 'doc-dup-1',
+            baseVersion: 1,
+            serverVersion: 3,
+            localContent: '# Local Branch',
+            serverContent: '# Remote Branch 3',
+            createdAt: '2026-10-17T00:05:00.000Z',
+        };
+
+        await conflictRepo.saveConflictDraft(draft1);
+        await conflictRepo.saveConflictDraft(draft2);
+
+        expect(await conflictRepo.getByDocumentId('doc-dup-1')).toHaveLength(2);
+
+        await conflictRepo.resolveConflict({
+            draftId: 'draft-stale-1',
+            resolution: 'keep_server',
+        });
+
+        // Both drafts must now be deleted
+        expect(await conflictRepo.getById('draft-stale-1')).toBeNull();
+        expect(await conflictRepo.getById('draft-stale-2')).toBeNull();
+        expect(await conflictRepo.getByDocumentId('doc-dup-1')).toHaveLength(0);
+    });
 });

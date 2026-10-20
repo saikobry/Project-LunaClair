@@ -310,10 +310,12 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
         {renderContent()}
       </button>
 
-      <ConflictDraftsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {isModalOpen && (
+        <ConflictDraftsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </>
   );
 }
