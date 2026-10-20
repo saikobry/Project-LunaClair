@@ -3,6 +3,8 @@ import type { SyncPointerPayload } from '../../domain/sync/models/SyncPointer';
 import type { PendingHydration } from '../../domain/sync/models/sync.types';
 import { ShareHttpError } from '../api/transports/WorkerShareTransport';
 
+export const DEFAULT_MAX_HYDRATION_ATTEMPTS = 5;
+
 export interface ShareCloner {
   execute(params: { shareId: string }, signal?: AbortSignal): Promise<unknown>;
 }
@@ -19,6 +21,7 @@ export interface HydrationManagerOptions {
   cloneUseCase?: ShareCloner;
   initialBackoffMs?: number;
   maxBackoffMs?: number;
+  maxAttempts?: number;
 }
 
 /**
@@ -29,6 +32,7 @@ export class HydrationManager {
   private cloneUseCase?: ShareCloner;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
+  private readonly maxAttempts: number;
   private readonly delistedShareIds: Set<string>;
   private isProcessing: boolean;
 
@@ -37,6 +41,7 @@ export class HydrationManager {
     this.cloneUseCase = options.cloneUseCase;
     this.initialBackoffMs = options.initialBackoffMs ?? 1000;
     this.maxBackoffMs = options.maxBackoffMs ?? 60000;
+    this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_HYDRATION_ATTEMPTS;
     this.delistedShareIds = new Set<string>();
     this.isProcessing = false;
   }
@@ -49,8 +54,30 @@ export class HydrationManager {
     return this.delistedShareIds.has(originShareId);
   }
 
+  private async hasExistingMaterial(originShareId: string): Promise<boolean> {
+    if (!originShareId) return false;
+    const byDeterministicId = await this.db.materials.get(`mat_share_${originShareId}`);
+    if (byDeterministicId) {
+      return true;
+    }
+    try {
+      if (this.db.materials.schema?.indexes?.some((idx) => idx.name === 'originShareId')) {
+        const found = await this.db.materials.where('originShareId').equals(originShareId).first();
+        if (found) return true;
+      }
+    } catch {
+      // Ignore if index error and fall back to filter
+    }
+    const match = await this.db.materials.filter((m) => m.originShareId === originShareId).first();
+    return match !== undefined;
+  }
+
   async enqueuePointer(pointer: SyncPointerPayload): Promise<void> {
     if (this.delistedShareIds.has(pointer.originShareId)) {
+      return;
+    }
+
+    if (await this.hasExistingMaterial(pointer.originShareId)) {
       return;
     }
 
@@ -104,6 +131,18 @@ export class HydrationManager {
 
         result.processed += 1;
 
+        if (await this.hasExistingMaterial(item.originShareId)) {
+          await this.db.pendingHydrations.delete(item.originShareId);
+          result.succeeded += 1;
+          continue;
+        }
+
+        if ((item.attempts ?? 0) >= this.maxAttempts) {
+          await this.db.pendingHydrations.delete(item.originShareId);
+          result.failed += 1;
+          continue;
+        }
+
         try {
           await this.cloneUseCase.execute({ shareId: item.originShareId }, signal);
           await this.db.pendingHydrations.delete(item.originShareId);
@@ -119,17 +158,22 @@ export class HydrationManager {
             result.delisted += 1;
           } else {
             const attempts = (item.attempts ?? 0) + 1;
-            const delayMs = Math.min(
-              this.initialBackoffMs * Math.pow(2, attempts - 1),
-              this.maxBackoffMs
-            );
-            await this.db.pendingHydrations.put({
-              ...item,
-              attempts,
-              nextAttemptAt: Date.now() + delayMs,
-              lastError: err instanceof Error ? err.message : String(err),
-            });
-            result.failed += 1;
+            if (attempts >= this.maxAttempts) {
+              await this.db.pendingHydrations.delete(item.originShareId);
+              result.failed += 1;
+            } else {
+              const delayMs = Math.min(
+                this.initialBackoffMs * Math.pow(2, attempts - 1),
+                this.maxBackoffMs
+              );
+              await this.db.pendingHydrations.put({
+                ...item,
+                attempts,
+                nextAttemptAt: Date.now() + delayMs,
+                lastError: err instanceof Error ? err.message : String(err),
+              });
+              result.failed += 1;
+            }
           }
         }
       }

@@ -4,6 +4,7 @@ import { createSyncStateKey } from '../../../domain/sync/utils/syncIdentity';
 import type { ConflictDraft, SyncPushRequest, SyncPushResponse, SyncPullResponse, SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/services/SyncReconciler';
 import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
+import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
 import {
   SYNC_POLICY,
   tableForEntity,
@@ -18,6 +19,26 @@ import { withOrigin } from './transactionContext';
 import { deriveEntityHlc } from '../../api/google/streamVaultChunksGzipped';
 
 export type { ReconcilePullResult, ApplyPushResult };
+
+async function findMaterialByOriginShareId(
+  db: LunaClairDatabase,
+  originShareId: string
+): Promise<StudyMaterial | undefined> {
+  if (!originShareId) return undefined;
+  const direct = await db.materials.get(`mat_share_${originShareId}`);
+  if (direct) {
+    return direct;
+  }
+  try {
+    if (db.materials.schema?.indexes?.some((idx) => idx.name === 'originShareId')) {
+      const found = await db.materials.where('originShareId').equals(originShareId).first();
+      if (found) return found;
+    }
+  } catch {
+    // Ignore schema error and fall back to filter scan
+  }
+  return await db.materials.filter((m) => m.originShareId === originShareId).first();
+}
 
 /**
  * Transactional sync reconciler for Dexie / IndexedDB.
@@ -102,6 +123,7 @@ export class DexieSyncReconciler implements SyncReconciler {
       for (const change of chunk) {
         if (change.entityType === 'pointer') {
           if (db.pendingHydrations) touchedTablesSet.add(db.pendingHydrations);
+          if (db.materials) touchedTablesSet.add(db.materials);
           continue;
         }
         const tableName = tableForEntity(change.entityType);
@@ -163,14 +185,32 @@ export class DexieSyncReconciler implements SyncReconciler {
           if (change.entityType === 'pointer') {
             const pointerData = (change.data ?? {}) as any;
             const originShareId = pointerData.originShareId ?? change.entityId;
-            await db.pendingHydrations.put({
-              originShareId,
-              attempts: 0,
-              nextAttemptAt: 0,
-              title: pointerData.title,
-              publishedAt: pointerData.publishedAt ?? change.changedAt,
-              schemaVersion: pointerData.schemaVersion ?? 1,
-            });
+
+            const existingMaterial = await findMaterialByOriginShareId(db, originShareId);
+            if (existingMaterial) {
+              await db.pendingHydrations.delete(originShareId);
+              appliedCount++;
+              continue;
+            }
+
+            const existingPending = await db.pendingHydrations.get(originShareId);
+            if (existingPending) {
+              await db.pendingHydrations.put({
+                ...existingPending,
+                title: pointerData.title ?? existingPending.title,
+                publishedAt: pointerData.publishedAt ?? change.changedAt ?? existingPending.publishedAt,
+                schemaVersion: pointerData.schemaVersion ?? existingPending.schemaVersion,
+              });
+            } else {
+              await db.pendingHydrations.put({
+                originShareId,
+                attempts: 0,
+                nextAttemptAt: 0,
+                title: pointerData.title,
+                publishedAt: pointerData.publishedAt ?? change.changedAt,
+                schemaVersion: pointerData.schemaVersion ?? 1,
+              });
+            }
             appliedCount++;
             continue;
           }

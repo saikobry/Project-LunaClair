@@ -37,7 +37,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `DexieQuizEditorService.ts` → `QuizEditorService`
     - `DexieStudyPackageImportService.ts` → `StudyPackageImportService` (atomic multi-table persistence across materials, documentContents, questions, quizzes, and localAssets inside a single Dexie transaction; implements the Three-Mode Clone State Machine: Mode 1 Cold Clone with `updatedAt: FLOOR_ISO` and `deletedAt: null` bypassing `syncQueue`; Mode 2 Preserved Hydration preserving user markdown edits when `updatedAt > FLOOR_ISO` and refreshing template at `FLOOR_ISO` when unmodified; Mode 3 Tombstone Resurrection reviving soft-deleted documents with current timestamp, enqueuing an `UPSERT` outbox mutation to `syncQueue`, and sweeping lingering un-tombstoned `highlights` and `drawings` for the document)
   - `sync/` — Dexie-level sync reconciliation and mutation capture:
-    - `DexieSyncReconciler.ts` → `SyncReconciler` (`applyPushResult` writes a `ConflictDraft` **only** for conflicts whose outbox row this call actually drained — see Local Contracts)
+    - `DexieSyncReconciler.ts` → `SyncReconciler` (deduplicates inbound Explore pointers against existing materials in `db.materials`, preserves pending hydration retry state and backoff rather than zeroing attempts, and `applyPushResult` writes a `ConflictDraft` **only** for conflicts whose outbox row this call actually drained — see Local Contracts)
     - `transactionContext.ts` → `originOf`, `withOrigin`, `SyncScopeError`, `OriginConflictError` (transaction origin tagging and inheritance)
     - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping into `SyncQueueItem` outbox records, echo loop suppression)
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
@@ -80,7 +80,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort`, and automated silent token refresh via Cloudflare Worker auth endpoints
     - `GoogleSessionCredentialsProvider.ts` → `SessionCredentialsProvider` implementation bridging Google OAuth identity into synchronization credentials
 - `sync/` — Cloud synchronization runtime adapters:
-  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, handles 404/410 delisting and network backoff)
+  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, bypasses enqueueing and skips download if material already exists in `db.materials`, caps maximum attempts to drop broken shares, and handles 404/410 delisting with exponential backoff)
 
 ## Local Contracts
 

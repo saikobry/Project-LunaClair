@@ -182,4 +182,96 @@ describe('HydrationManager', () => {
     const rowAfter = await db.pendingHydrations.get(samplePointer.originShareId);
     expect(rowAfter).toBeUndefined();
   });
+
+  it('does not enqueue pointer if material with originShareId already exists in db.materials', async () => {
+    await db.materials.put({
+      id: `mat_share_${samplePointer.originShareId}`,
+      documentId: `doc_share_${samplePointer.originShareId}`,
+      title: samplePointer.title,
+      order: 0,
+      createdAt: '2026-10-15T12:00:00.000Z',
+      updatedAt: '2026-10-15T12:00:00.000Z',
+      originShareId: samplePointer.originShareId,
+    });
+
+    await manager.enqueuePointer(samplePointer);
+
+    const row = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(row).toBeUndefined();
+  });
+
+  it('skips download and deletes pending entry in processQueue if material already exists in db.materials', async () => {
+    // Put pending item in queue first
+    await db.pendingHydrations.put({
+      originShareId: samplePointer.originShareId,
+      attempts: 0,
+      nextAttemptAt: 0,
+      title: samplePointer.title,
+    });
+
+    // Material exists in library (e.g. cloned concurrently or via non-deterministic ID)
+    await db.materials.put({
+      id: 'custom-mat-456',
+      documentId: 'custom-doc-456',
+      title: samplePointer.title,
+      order: 0,
+      createdAt: '2026-10-15T12:00:00.000Z',
+      updatedAt: '2026-10-15T12:00:00.000Z',
+      originShareId: samplePointer.originShareId,
+    });
+
+    const result = await manager.processQueue();
+
+    expect(result.processed).toBe(1);
+    expect(result.succeeded).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(mockCloneUseCase.execute).not.toHaveBeenCalled();
+
+    const rowAfter = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(rowAfter).toBeUndefined();
+  });
+
+  it('drops from pendingHydrations queue when retry attempts reach maxAttempts', async () => {
+    const retryManager = new HydrationManager({
+      db,
+      cloneUseCase: mockCloneUseCase,
+      initialBackoffMs: 10,
+      maxBackoffMs: 100,
+      maxAttempts: 3,
+    });
+
+    vi.mocked(mockCloneUseCase.execute).mockRejectedValue(
+      new ShareNetworkError('Continuous gateway timeout')
+    );
+
+    await retryManager.enqueuePointer(samplePointer);
+
+    // Attempt 1 (0 -> 1)
+    const result1 = await retryManager.processQueue();
+    expect(result1.processed).toBe(1);
+    expect(result1.failed).toBe(1);
+    let row = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(row?.attempts).toBe(1);
+
+    // Reset nextAttemptAt to simulate elapsed backoff
+    await db.pendingHydrations.update(samplePointer.originShareId, { nextAttemptAt: 0 });
+
+    // Attempt 2 (1 -> 2)
+    const result2 = await retryManager.processQueue();
+    expect(result2.processed).toBe(1);
+    expect(result2.failed).toBe(1);
+    row = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(row?.attempts).toBe(2);
+
+    // Reset nextAttemptAt to simulate elapsed backoff
+    await db.pendingHydrations.update(samplePointer.originShareId, { nextAttemptAt: 0 });
+
+    // Attempt 3 (2 -> 3 >= maxAttempts 3: drops from queue)
+    const result3 = await retryManager.processQueue();
+    expect(result3.processed).toBe(1);
+    expect(result3.failed).toBe(1);
+
+    const rowFinal = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(rowFinal).toBeUndefined();
+  });
 });

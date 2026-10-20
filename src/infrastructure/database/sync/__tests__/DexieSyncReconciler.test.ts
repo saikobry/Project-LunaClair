@@ -362,6 +362,98 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(pending?.attempts).toBe(0);
     });
 
+    it('does not enqueue Explore pointer into pendingHydrations if material already exists in local library', async () => {
+      await testDb.materials.put({
+        id: 'mat_share_share-explore-123',
+        documentId: 'doc_share_share-explore-123',
+        title: 'Explore Package',
+        order: 0,
+        createdAt: '2026-08-27T12:00:00.000Z',
+        updatedAt: '2026-08-27T12:00:00.000Z',
+        originShareId: 'share-explore-123',
+      });
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 41,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 41,
+            entityType: 'pointer',
+            entityId: 'share-explore-123',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T12:00:00.000Z',
+            data: {
+              originShareId: 'share-explore-123',
+              title: 'Explore Package',
+              publishedAt: '2026-08-27T12:00:00.000Z',
+              schemaVersion: 1,
+            },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        40,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(1);
+      const pending = await testDb.pendingHydrations.get('share-explore-123');
+      expect(pending).toBeUndefined();
+    });
+
+    it('preserves existing retry state and backoff when reconciling a pointer that is already pending', async () => {
+      const futureAttemptTime = Date.now() + 60000;
+      await testDb.pendingHydrations.put({
+        originShareId: 'share-explore-123',
+        attempts: 3,
+        nextAttemptAt: futureAttemptTime,
+        title: 'Old Title',
+        lastError: 'Network failure',
+      });
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 42,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 42,
+            entityType: 'pointer',
+            entityId: 'share-explore-123',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T12:00:00.000Z',
+            data: {
+              originShareId: 'share-explore-123',
+              title: 'Updated Remote Title',
+              publishedAt: '2026-08-27T12:00:00.000Z',
+              schemaVersion: 1,
+            },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        41,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(1);
+      const pending = await testDb.pendingHydrations.get('share-explore-123');
+      expect(pending).toBeDefined();
+      expect(pending?.originShareId).toBe('share-explore-123');
+      expect(pending?.title).toBe('Updated Remote Title');
+      expect(pending?.attempts).toBe(3);
+      expect(pending?.nextAttemptAt).toBe(futureAttemptTime);
+      expect(pending?.lastError).toBe('Network failure');
+    });
+
     it('parks poison ops in heldOps when pure plugin throws an exception', async () => {
       const spy = vi.spyOn(PLUGINS.lww, 'apply').mockImplementationOnce(() => {
         throw new Error('Malformed or corrupted payload');
