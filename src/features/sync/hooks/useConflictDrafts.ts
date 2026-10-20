@@ -1,7 +1,10 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import type { ConflictDraft } from '../../../domain/sync/models/sync.types';
 import type { ResolveConflictDraftInput } from '../../../application/use-cases/sync/ResolveConflictDraftUseCase';
+import { readerQueryKeys } from '../../reader/queries/readerQueryKeys';
+import { materialQueryKeys } from '../../materials/queries/materialQueryKeys';
 
 export interface UseConflictDraftsResult {
   drafts: ConflictDraft[];
@@ -16,6 +19,7 @@ export interface UseConflictDraftsResult {
  */
 export function useConflictDrafts(documentId?: string): UseConflictDraftsResult {
   const context = useContext(ApplicationContext);
+  const queryClient = useContext(QueryClientContext);
   const [drafts, setDrafts] = useState<ConflictDraft[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +68,15 @@ export function useConflictDrafts(documentId?: string): UseConflictDraftsResult 
       if (resolveConflictDraftUseCase) {
         await resolveConflictDraftUseCase.execute(input);
       }
+      if (queryClient) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: readerQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+        ]);
+      }
       await refetch();
     },
-    [resolveConflictDraftUseCase, refetch]
+    [resolveConflictDraftUseCase, queryClient, refetch]
   );
 
   return {

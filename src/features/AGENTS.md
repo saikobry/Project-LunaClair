@@ -71,6 +71,7 @@ Feature-based modules, each containing bounded domain capabilities: components, 
     - `layouts/navigation/*` → `features/collections/hooks/queries/useCollections`, `features/collections/hooks/queries/useCollectionMaterialCounts`, `features/collections/hooks/mutations/useCreateCollection`, `features/collections/modals/CreateCollectionModal`, `features/collections/components/CollectionNavItem` (rail + drawer rows delegate to the feature-owned nav row; layout styles never flow into features)
     - `importer/components/ImportReviewView` → `features/ai/hooks/useAiModelSelection`, `features/ai/components/AiModelPicker`, `features/writer/components/WriterEditor`, `features/reader/components/MarkdownViewer`
     - `screens/settings/*` → `features/ai/components/AiSettingsSection`, `features/sync/components/SyncSettingsSection`, `features/sync/components/VaultStorageSection`
+    - `sync/hooks/useConflictDrafts` → `features/reader/queries/readerQueryKeys`, `features/materials/queries/materialQueryKeys`
 
 ## Work Guidance
 

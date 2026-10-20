@@ -88,6 +88,7 @@ export function installSyncHooks(
         hlc?: string;
         deviceId?: string;
         schemaVersion?: number;
+        value?: unknown;
       } = {
         id: (cap.op as { id?: string }).id ?? `${cfg.entity}:${key}:${cap.op.hlc}`,
         clientMutationId,
@@ -106,6 +107,7 @@ export function installSyncHooks(
         hlc: cap.op.hlc,
         deviceId: cap.op.deviceId,
         schemaVersion: cap.op.schemaVersion,
+        value: cap.op.value,
       };
 
       tx.table(queueTableName)

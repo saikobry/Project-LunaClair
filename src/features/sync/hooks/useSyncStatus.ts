@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useCallback, useSyncExternalStore } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import { syncStatusStore } from '../../../application/sync/SyncStatusStore';
 import type { AuthStatus } from '../../../domain/auth/models/auth.types';
@@ -24,6 +25,21 @@ export function useSyncStatus(): UseSyncStatusResult {
   const context = useContext(ApplicationContext);
   const store = context?.useCases?.sync?.syncStatusStore ?? syncStatusStore;
   const auth = context?.infrastructure?.providers?.auth;
+  const db = context?.infrastructure?.db;
+
+  const liveConflictCount = useLiveQuery(
+    async () => {
+      if (!db || typeof db.isOpen !== 'function' || !db.isOpen() || !db.conflictDrafts) {
+        return undefined;
+      }
+      try {
+        return await db.conflictDrafts.count();
+      } catch {
+        return undefined;
+      }
+    },
+    [db]
+  );
 
   const authStatus: AuthStatus = useSyncExternalStore(
     (notify) => auth?.subscribe(notify) ?? (() => {}),
@@ -36,7 +52,7 @@ export function useSyncStatus(): UseSyncStatusResult {
     () => store.getState(),
     () => store.getState(),
   );
-  const [conflictCount, setConflictCount] = useState<number>(0);
+  const [fallbackConflictCount, setFallbackConflictCount] = useState<number>(0);
 
   const getConflictDraftsUseCase = context?.useCases?.sync?.getConflictDrafts;
 
@@ -44,7 +60,7 @@ export function useSyncStatus(): UseSyncStatusResult {
     if (getConflictDraftsUseCase) {
       try {
         const drafts = await getConflictDraftsUseCase.execute();
-        setConflictCount(drafts.length);
+        setFallbackConflictCount(drafts.length);
       } catch {
         // Tolerant to fetch failures during initialization
       }
@@ -58,7 +74,7 @@ export function useSyncStatus(): UseSyncStatusResult {
       if (getConflictDraftsUseCase) {
         try {
           const drafts = await getConflictDraftsUseCase.execute();
-          if (!cancelled) setConflictCount(drafts.length);
+          if (!cancelled) setFallbackConflictCount(drafts.length);
         } catch {
           // Tolerant
         }
@@ -99,6 +115,7 @@ export function useSyncStatus(): UseSyncStatusResult {
   const effectiveState = isStandby ? 'standby' : status.state;
   const effectivePendingCount = isStandby ? 0 : status.pendingCount;
   const effectiveLastError = isUnauthenticated ? undefined : status.lastError;
+  const conflictCount = liveConflictCount !== undefined ? liveConflictCount : fallbackConflictCount;
 
   return {
     state: effectiveState,

@@ -27,7 +27,7 @@ describe('ResolveConflictDraftUseCase', () => {
         vi.restoreAllMocks();
     });
 
-    it('keep_server: removes draft without mutating documentContents or outbox queue', async () => {
+    it('keep_server: applies server content, updates version to serverVersion + 1, and enqueues outbox mutation', async () => {
         const draft: ConflictDraft = {
             id: 'draft-server-1',
             documentId: 'doc-bio-1',
@@ -48,9 +48,19 @@ describe('ResolveConflictDraftUseCase', () => {
         // Draft deleted
         expect(await conflictRepo.getById('draft-server-1')).toBeNull();
 
-        // No outbox mutation enqueued
-        const queueCount = await testDb.syncQueue.count();
-        expect(queueCount).toBe(0);
+        // Document updated with server content and version 3 (serverVersion 2 + 1)
+        const doc = await testDb.documentContents.get('doc-bio-1');
+        expect(doc).toBeDefined();
+        expect(doc?.content).toBe('# Server Authoritative Content');
+        expect(doc?.version).toBe(3);
+
+        // Outbox mutation enqueued with version: 3
+        const queueItems = (await testDb.syncQueue.toArray()) as unknown as JournalOp[];
+        expect(queueItems).toHaveLength(1);
+        expect(queueItems[0].entity).toBe('documentContent');
+        expect(queueItems[0].key).toBe('doc-bio-1');
+        expect(queueItems[0].op).toBe('put');
+        expect((queueItems[0].value as { version: number }).version).toBe(3);
     });
 
     it('keep_local: applies local content, updates version to serverVersion + 1, and enqueues outbox mutation', async () => {
@@ -141,7 +151,7 @@ describe('ResolveConflictDraftUseCase', () => {
         await expect(
             useCase.execute({
                 draftId: '',
-                resolution: 'keep_server',
+                resolution: 'keep_local',
             }),
         ).rejects.toThrow(/draftId is required/i);
     });

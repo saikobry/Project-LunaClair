@@ -39,21 +39,19 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
     }
 
     async resolveConflict(input: ResolveConflictInput): Promise<void> {
-        const { draftId, resolution } = input;
-
-        if (resolution === 'keep_server') {
-            await this.removeConflictDraft(draftId);
-            return;
-        }
+        const { draftId } = input;
 
         const draft = await this.getById(draftId);
         if (!draft) {
             throw new Error(`Conflict draft with ID ${draftId} not found`);
         }
 
-        const content = resolution === 'merge' ? input.mergedContent : draft.localContent;
-        const now = new Date().toISOString();
-        const nextVersion = draft.serverVersion + 1;
+        const content =
+            input.resolution === 'keep_server'
+                ? draft.serverContent
+                : input.resolution === 'keep_local'
+                ? draft.localContent
+                : input.mergedContent ?? draft.localContent;
 
         await withOrigin(
             this.db,
@@ -62,12 +60,13 @@ export class DexieConflictDraftRepository implements ConflictDraftRepository {
             async () => {
                 const existing = await this.db.documentContents.get(draft.documentId);
                 const title = existing?.title ?? draft.documentId;
+                const version = Math.max(existing?.version ?? 0, draft.serverVersion) + 1;
                 await this.db.documentContents.put({
                     documentId: draft.documentId,
                     title,
                     content,
-                    updatedAt: now,
-                    version: nextVersion,
+                    updatedAt: new Date().toISOString(),
+                    version,
                 });
                 await this.db.conflictDrafts.delete(draftId);
             }

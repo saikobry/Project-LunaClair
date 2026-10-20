@@ -152,7 +152,7 @@ describe('DexieConflictDraftRepository', () => {
         expect(queueItems[0].op).toBe('put');
     });
 
-    it('resolveConflict with keep_server removes draft and emits 0 outbox rows', async () => {
+    it('resolveConflict with keep_server updates documentContents with server content, removes draft, and emits exactly 1 outbox row', async () => {
         const draft: ConflictDraft = {
             id: 'draft-server-1',
             documentId: 'doc-server-1',
@@ -172,7 +172,14 @@ describe('DexieConflictDraftRepository', () => {
 
         expect(await conflictRepo.getById('draft-server-1')).toBeNull();
 
-        const queueItems = await testDb.syncQueue.toArray();
-        expect(queueItems).toHaveLength(0);
+        const doc = await testDb.documentContents.get('doc-server-1');
+        expect(doc).toBeDefined();
+        expect(doc?.content).toBe('# Remote Accepted');
+
+        const queueItems = (await testDb.syncQueue.toArray()) as unknown as JournalOp[];
+        expect(queueItems).toHaveLength(1);
+        expect(queueItems[0].entity).toBe('documentContent');
+        expect(queueItems[0].key).toBe('doc-server-1');
+        expect(queueItems[0].op).toBe('put');
     });
 });
