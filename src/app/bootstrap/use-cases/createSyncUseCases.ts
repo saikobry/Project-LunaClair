@@ -1,5 +1,6 @@
 import { SyncEngine } from '../../../application/sync/SyncEngine';
 import { syncStatusStore } from '../../../application/sync/SyncStatusStore';
+import type { SyncEventSink } from '../../../application/sync/SyncEventSink';
 import { GetSyncStatusUseCase } from '../../../application/use-cases/sync/GetSyncStatusUseCase';
 import { GetConflictDraftsUseCase } from '../../../application/use-cases/sync/GetConflictDraftsUseCase';
 import { ResolveConflictDraftUseCase } from '../../../application/use-cases/sync/ResolveConflictDraftUseCase';
@@ -21,17 +22,19 @@ export interface SyncUseCasesDependencies {
 
 export function createSyncUseCases(
     infrastructureOrDeps: Infrastructure | SyncUseCasesDependencies,
+    syncEventSink?: SyncEventSink,
 ) {
     if ('providers' in infrastructureOrDeps && 'transports' in infrastructureOrDeps) {
         const { transports, syncReconciler, repositories, providers, db } = infrastructureOrDeps;
 
-        const syncEngine = new SyncEngine(
-            transports.sync,
-            syncReconciler,
-            repositories.syncQueue,
-            repositories.syncState,
-            syncStatusStore,
-        );
+        const syncEngine = new SyncEngine({
+            transport: transports.sync,
+            reconciler: syncReconciler,
+            queueRepo: repositories.syncQueue,
+            stateRepo: repositories.syncState,
+            statusStore: syncStatusStore,
+            syncEventSink,
+        });
 
         const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
         const getConflictDrafts = new GetConflictDraftsUseCase(repositories.conflictDraft);
@@ -97,6 +100,9 @@ export function createSyncUseCases(
     }
 
     const { syncEngine, credentialsProvider, conflictDraftRepository } = infrastructureOrDeps;
+    if (syncEventSink) {
+        syncEngine.setSyncEventSink(syncEventSink);
+    }
     return {
         syncEngine,
         syncStatusStore,

@@ -7,6 +7,7 @@ import {
     type AnalyticsCacheInvalidator,
 } from './analyticsInvalidation';
 import type { LunaClairDatabase } from '../../infrastructure/database/schema/LunaClairDatabase';
+import type { SyncEventSink } from '../../application/sync/SyncEventSink';
 
 /**
  * Top-level application container exposed to the React UI via ApplicationContext.
@@ -30,16 +31,20 @@ export interface Application {
  * question write or delete recomputes the `['analytics']` pool, without either
  * authoring feature importing the analytics feature. `ApplicationProvider`
  * binds it to the app's `QueryClient`.
+ *
+ * `syncEventSink` connects remote sync change events with UI query cache
+ * invalidation outside Dexie transactions.
  */
 export function createApplication(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     database?: LunaClairDatabase,
+    syncEventSink?: SyncEventSink,
 ): Application {
     const infrastructure = createInfrastructure(invalidateAnalytics, database);
 
     return {
         repositories: infrastructure.repositories,
-        useCases: createUseCases(infrastructure, invalidateAnalytics),
+        useCases: createUseCases(infrastructure, invalidateAnalytics, syncEventSink),
         infrastructure,
     };
 }
@@ -52,12 +57,13 @@ export function createApplication(
 export async function createApplicationAsync(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     preferredSub?: string,
+    syncEventSink?: SyncEventSink,
 ): Promise<Application> {
     const infrastructure = await createInfrastructureAsync(invalidateAnalytics, preferredSub);
 
     return {
         repositories: infrastructure.repositories,
-        useCases: createUseCases(infrastructure, invalidateAnalytics),
+        useCases: createUseCases(infrastructure, invalidateAnalytics, syncEventSink),
         infrastructure,
     };
 }

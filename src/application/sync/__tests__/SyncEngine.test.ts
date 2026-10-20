@@ -10,6 +10,7 @@ import { DexieConflictDraftRepository } from '../../../infrastructure/database/r
 import { SyncEngine } from '../SyncEngine';
 import { SyncStatusStore } from '../SyncStatusStore';
 import { VaultSyncLockCoordinator } from '../locks/VaultSyncLockCoordinator';
+import type { SyncEventSink } from '../SyncEventSink';
 import { SyncNetworkError } from '../../../domain/sync/errors/SyncErrors';
 import { type SessionCredentials, type SyncPullResponse, type SyncPushResponse, type SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { type SyncTransport } from '../../../domain/sync/services/SyncTransport';
@@ -520,5 +521,122 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     expect(mockTransport.push).not.toHaveBeenCalled();
     // StatusStore remains untouched in its prior state (idle)
     expect(statusStore.getState().state).toBe('idle');
+  });
+
+  it('notifies SyncEventSink with appliedCount and touchedEntities when remote changes are applied', async () => {
+    const pull1: SyncPullResponse = {
+      newCursor: 10,
+      hasMore: false,
+      changes: [
+        {
+          sequence: 10,
+          entityType: 'document',
+          entityId: 'doc-remote-1',
+          operation: 'UPSERT',
+          version: 1,
+          changedAt: '2026-08-27T09:50:00.000Z',
+          data: {
+            title: 'Remote Doc',
+            content: '# Content',
+          },
+        },
+        {
+          sequence: 11,
+          entityType: 'highlight',
+          entityId: 'hl-remote-1',
+          operation: 'UPSERT',
+          changedAt: '2026-08-27T09:51:00.000Z',
+          data: {
+            id: 'hl-remote-1',
+            documentId: 'doc-remote-1',
+            start: 0,
+            end: 5,
+            color: 'yellow',
+            text: 'Remote',
+            createdAt: '2026-08-27T09:51:00.000Z',
+          },
+        },
+      ],
+    };
+
+    vi.mocked(mockTransport.pull).mockResolvedValueOnce(pull1);
+
+    const onApplied = vi.fn();
+    const sink: SyncEventSink = { onApplied };
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+      syncEventSink: sink,
+    });
+
+    await engine.sync(credentials);
+
+    expect(onApplied).toHaveBeenCalledTimes(1);
+    expect(onApplied).toHaveBeenCalledWith({
+      appliedCount: 2,
+      touchedEntities: expect.arrayContaining(['document', 'highlight']),
+    });
+  });
+
+  it('does not notify SyncEventSink when no remote changes are applied', async () => {
+    const onApplied = vi.fn();
+    const sink: SyncEventSink = { onApplied };
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+      syncEventSink: sink,
+    });
+
+    await engine.sync(credentials);
+
+    expect(onApplied).not.toHaveBeenCalled();
+  });
+
+  it('supports setting SyncEventSink dynamically via setSyncEventSink', async () => {
+    const pull1: SyncPullResponse = {
+      newCursor: 10,
+      hasMore: false,
+      changes: [
+        {
+          sequence: 10,
+          entityType: 'document',
+          entityId: 'doc-remote-dyn',
+          operation: 'UPSERT',
+          version: 1,
+          changedAt: '2026-08-27T09:50:00.000Z',
+          data: { title: 'Dynamic Doc', content: '# Content' },
+        },
+      ],
+    };
+
+    vi.mocked(mockTransport.pull).mockResolvedValueOnce(pull1);
+
+    const onApplied = vi.fn();
+    const sink: SyncEventSink = { onApplied };
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+    });
+
+    engine.setSyncEventSink(sink);
+
+    await engine.sync(credentials);
+
+    expect(onApplied).toHaveBeenCalledWith({
+      appliedCount: 1,
+      touchedEntities: ['document'],
+    });
   });
 });

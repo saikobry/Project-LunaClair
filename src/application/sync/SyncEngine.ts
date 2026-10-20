@@ -9,6 +9,7 @@ import type { SyncReconciler } from '../../domain/sync/services/SyncReconciler';
 import { defaultSyncRetryPolicy } from './policies/syncRetryPolicy';
 import type { SyncStatusStore } from './SyncStatusStore';
 import { VaultSyncLockCoordinator } from './locks/VaultSyncLockCoordinator';
+import type { SyncEventSink } from './SyncEventSink';
 
 export interface SyncEngineDependencies {
   transport: SyncTransport;
@@ -18,6 +19,7 @@ export interface SyncEngineDependencies {
   statusStore: SyncStatusStore;
   retryPolicy?: SyncRetryPolicy;
   lockCoordinator?: VaultSyncLockCoordinator;
+  syncEventSink?: SyncEventSink;
 }
 
 /**
@@ -32,6 +34,7 @@ export class SyncEngine {
   private readonly statusStore: SyncStatusStore;
   private readonly retryPolicy: SyncRetryPolicy;
   private readonly lockCoordinator: VaultSyncLockCoordinator;
+  private syncEventSink?: SyncEventSink;
 
   private runningPromise: Promise<{ status: 'standby' | 'skipped_concurrent_tab' } | void> | null = null;
   private followUpRequested = false;
@@ -44,7 +47,8 @@ export class SyncEngine {
     stateRepo: SyncStateRepository,
     statusStore: SyncStatusStore,
     retryPolicy?: SyncRetryPolicy,
-    lockCoordinator?: VaultSyncLockCoordinator
+    lockCoordinator?: VaultSyncLockCoordinator,
+    syncEventSink?: SyncEventSink
   );
   constructor(
     depsOrTransport: SyncEngineDependencies | SyncTransport,
@@ -53,7 +57,8 @@ export class SyncEngine {
     stateRepo?: SyncStateRepository,
     statusStore?: SyncStatusStore,
     retryPolicy?: SyncRetryPolicy,
-    lockCoordinator?: VaultSyncLockCoordinator
+    lockCoordinator?: VaultSyncLockCoordinator,
+    syncEventSink?: SyncEventSink
   ) {
     if ('transport' in depsOrTransport) {
       this.transport = depsOrTransport.transport;
@@ -63,6 +68,7 @@ export class SyncEngine {
       this.statusStore = depsOrTransport.statusStore;
       this.retryPolicy = depsOrTransport.retryPolicy ?? defaultSyncRetryPolicy;
       this.lockCoordinator = depsOrTransport.lockCoordinator ?? new VaultSyncLockCoordinator();
+      this.syncEventSink = depsOrTransport.syncEventSink;
     } else {
       this.transport = depsOrTransport;
       this.reconciler = reconciler!;
@@ -71,7 +77,12 @@ export class SyncEngine {
       this.statusStore = statusStore!;
       this.retryPolicy = retryPolicy ?? defaultSyncRetryPolicy;
       this.lockCoordinator = lockCoordinator ?? new VaultSyncLockCoordinator();
+      this.syncEventSink = syncEventSink;
     }
+  }
+
+  public setSyncEventSink(sink?: SyncEventSink): void {
+    this.syncEventSink = sink;
   }
 
   /**
@@ -156,6 +167,8 @@ export class SyncEngine {
       // Step 1: Pull until caught up (Initial pull)
       const pullResult = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
       let cursor = pullResult.cursor;
+      let totalApplied = pullResult.appliedCount;
+      const allTouchedEntities = new Set<string>(pullResult.touchedEntities);
 
       // Step 2: Push pending batches
       const pushResult = await this.pushPendingBatches(credentials, signal, reportProgress);
@@ -164,6 +177,10 @@ export class SyncEngine {
       if (pushResult.pushedCount > 0 || pullResult.appliedChangesCount > 0) {
         const secondPull = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
         cursor = secondPull.cursor;
+        totalApplied += secondPull.appliedCount;
+        for (const entity of secondPull.touchedEntities) {
+          allTouchedEntities.add(entity);
+        }
       }
 
       // Step 4: Finalize and mark idle
@@ -188,6 +205,13 @@ export class SyncEngine {
         lastServerCursor: cursor,
         lastError: undefined,
       });
+
+      if (totalApplied > 0) {
+        this.syncEventSink?.onApplied({
+          appliedCount: totalApplied,
+          touchedEntities: Array.from(allTouchedEntities),
+        });
+      }
     } catch (error) {
       const isNetworkFail =
         (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) ||
@@ -214,11 +238,18 @@ export class SyncEngine {
     stateKey: string,
     signal?: AbortSignal,
     reportProgress?: () => void
-  ): Promise<{ cursor: number; appliedChangesCount: number }> {
+  ): Promise<{
+    cursor: number;
+    appliedChangesCount: number;
+    appliedCount: number;
+    touchedEntities: readonly string[];
+  }> {
     const syncState = await this.stateRepo.getSyncState(stateKey);
     let cursor = syncState?.lastServerCursor ?? 0;
     let hasMore = true;
     let appliedChangesCount = 0;
+    let appliedCount = 0;
+    const touchedEntitiesSet = new Set<string>();
 
     while (hasMore) {
       if (signal?.aborted) {
@@ -237,7 +268,14 @@ export class SyncEngine {
         pullResponse
       );
       reportProgress?.();
-      appliedChangesCount += (reconcileResult?.appliedCount ?? 0) + (reconcileResult?.conflictCount ?? 0);
+      const currentApplied = reconcileResult?.appliedCount ?? 0;
+      appliedCount += currentApplied;
+      appliedChangesCount += currentApplied + (reconcileResult?.conflictCount ?? 0);
+      if (reconcileResult?.touchedEntities) {
+        for (const entity of reconcileResult.touchedEntities) {
+          touchedEntitiesSet.add(entity);
+        }
+      }
 
       cursor = pullResponse.newCursor;
       this.statusStore.setState({ lastServerCursor: cursor });
@@ -254,7 +292,12 @@ export class SyncEngine {
       hasMore = pullResponse.hasMore;
     }
 
-    return { cursor, appliedChangesCount };
+    return {
+      cursor,
+      appliedChangesCount,
+      appliedCount,
+      touchedEntities: Array.from(touchedEntitiesSet),
+    };
   }
 
   /**

@@ -127,6 +127,9 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(result.appliedCount).toBe(5);
       expect(result.conflictCount).toBe(0);
       expect(result.newCursor).toBe(15);
+      expect(result.touchedEntities).toEqual(
+        expect.arrayContaining(['document', 'highlight', 'drawing', 'reviewLog', 'quizSession'])
+      );
 
       // Verify all tables were updated atomically
       const doc = await testDb.documentContents.get('doc-anat-1');
@@ -521,6 +524,61 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       const unknownHeld = held.find((h) => h.op.entity === 'futureEntity');
       expect(unknownHeld).toBeDefined();
       expect(unknownHeld?.reason).toBe('unknown-entity');
+    });
+
+    it('collects unique touchedEntities for pointer and delete operations', async () => {
+      await testDb.materials.put({
+        id: 'mat_share_pkg-ptr-1',
+        documentId: 'doc-ptr-1',
+        title: 'Share Material',
+        originShareId: 'pkg-ptr-1',
+        tags: [],
+        createdAt: '2026-08-27T10:00:00.000Z',
+        updatedAt: '2026-08-27T10:00:00.000Z',
+      });
+      await testDb.highlights.put({
+        id: 'hl-to-del-1',
+        documentId: 'doc-1',
+        start: 0,
+        end: 5,
+        color: 'yellow',
+        text: 'Hello',
+        createdAt: '2026-08-27T10:00:00.000Z',
+      });
+
+      const pullResponse: SyncPullResponse = {
+        newCursor: 60,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 55,
+            entityType: 'pointer',
+            entityId: 'pkg-ptr-1',
+            operation: 'UPSERT',
+            changedAt: '2026-08-27T11:00:00.000Z',
+            data: { originShareId: 'pkg-ptr-1', title: 'Share Material' },
+          },
+          {
+            sequence: 56,
+            entityType: 'highlight',
+            entityId: 'hl-to-del-1',
+            operation: 'DELETE',
+            changedAt: '2026-08-27T11:05:00.000Z',
+            data: { id: 'hl-to-del-1', deletedAt: '2026-08-27T11:05:00.000Z' },
+          },
+        ],
+      };
+
+      const result = await reconciler.reconcilePullBatch(
+        testDb,
+        userId,
+        deviceId,
+        50,
+        pullResponse
+      );
+
+      expect(result.appliedCount).toBe(2);
+      expect(result.touchedEntities).toEqual(expect.arrayContaining(['pointer', 'highlight']));
     });
   });
 

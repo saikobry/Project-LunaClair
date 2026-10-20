@@ -110,6 +110,7 @@ export class DexieSyncReconciler implements SyncReconciler {
 
     let appliedCount = 0;
     let conflictCount = 0;
+    const touchedEntities = new Set<string>();
 
     for (const chunk of chunks) {
       const touchedTablesSet = new Set<Table>();
@@ -190,6 +191,7 @@ export class DexieSyncReconciler implements SyncReconciler {
             if (existingMaterial) {
               await db.pendingHydrations.delete(originShareId);
               appliedCount++;
+              touchedEntities.add(change.entityType);
               continue;
             }
 
@@ -212,6 +214,7 @@ export class DexieSyncReconciler implements SyncReconciler {
               });
             }
             appliedCount++;
+            touchedEntities.add(change.entityType);
             continue;
           }
 
@@ -353,6 +356,7 @@ export class DexieSyncReconciler implements SyncReconciler {
                 conflictCount += decision.drafts.length;
               } else {
                 appliedCount++;
+                touchedEntities.add(change.entityType);
               }
 
               overlay.set(overlayKey, { row: rowToWrite, tombstoneHlc: undefined });
@@ -366,6 +370,7 @@ export class DexieSyncReconciler implements SyncReconciler {
               };
               await db.tombstones.put(tombstoneRec);
               appliedCount++;
+              touchedEntities.add(change.entityType);
               overlay.set(overlayKey, { row: undefined, tombstoneHlc: decision.tombstoneHlc });
             }
           } catch (err: unknown) {
@@ -397,6 +402,7 @@ export class DexieSyncReconciler implements SyncReconciler {
       appliedCount,
       conflictCount,
       newCursor: pullResponse.newCursor,
+      touchedEntities: Array.from(touchedEntities),
     };
   }
 

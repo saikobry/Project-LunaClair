@@ -12,6 +12,7 @@ import {
     noopAnalyticsCacheInvalidator,
     type AnalyticsCacheInvalidator,
 } from './analyticsInvalidation';
+import type { SyncEventSink } from '../../application/sync/SyncEventSink';
 
 /**
  * Root composition factory for application use cases.
@@ -21,10 +22,14 @@ import {
  * question repository is decorated in `createInfrastructure`, and the quiz
  * canvas save is decorated here. See `analyticsInvalidation.ts` for why the
  * coordination lives at this boundary rather than in a feature hook.
+ *
+ * `syncEventSink` connects remote sync change events with UI query cache
+ * invalidation outside Dexie transactions.
  */
 export function createUseCases(
     infrastructure: Infrastructure,
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
+    syncEventSink?: SyncEventSink,
 ) {
     const quizSlices = createQuizUseCases(infrastructure, invalidateAnalytics);
     const librarySlices = createLibraryUseCases(infrastructure);
@@ -45,7 +50,7 @@ export function createUseCases(
         importer: createImporterUseCases(infrastructure),
         package: packageSlices.package,
         sharing: packageSlices.sharing,
-        sync: createSyncUseCases(infrastructure),
+        sync: createSyncUseCases(infrastructure, syncEventSink),
         collections: createCollectionUseCases(infrastructure).collections,
     };
 }
