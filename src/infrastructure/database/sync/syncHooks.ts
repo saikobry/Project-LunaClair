@@ -1,5 +1,6 @@
 import Dexie, { type Transaction } from 'dexie';
 import type { LunaClairDatabase } from '../schema/LunaClairDatabase';
+import type { SyncQueueItem, SyncEntityType } from '../../../domain/sync/models/sync.types';
 import { syncedTables, type SyncCategory } from '../../../domain/sync/policy/SyncPolicy';
 import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
 import {
@@ -78,13 +79,37 @@ export function installSyncHooks(
         return;
       }
       const queueTableName = tx.storeNames.includes('syncQueue') ? 'syncQueue' : 'outbox';
-      const queueRecord = {
+      const now = new Date().toISOString();
+      const clientMutationId = (cap.op as { id?: string }).id ?? crypto.randomUUID();
+      const queueRecord: SyncQueueItem & {
+        entity?: string;
+        key?: string;
+        op?: string;
+        hlc?: string;
+        deviceId?: string;
+        schemaVersion?: number;
+      } = {
         id: (cap.op as { id?: string }).id ?? `${cfg.entity}:${key}:${cap.op.hlc}`,
-        ...cap.op,
+        clientMutationId,
+        entityType: cfg.entity as SyncEntityType,
+        entityId: key,
+        operation: cap.op.op === 'del' ? 'DELETE' : 'UPSERT',
+        payload: cap.op.value,
+        clientTimestamp: now,
+        status: 'pending',
+        createdAt: now,
+        retryCount: 0,
+        // Preserve JournalOp metadata so existing tests and reconcilers can access them:
+        entity: cfg.entity,
+        key,
+        op: cap.op.op,
+        hlc: cap.op.hlc,
+        deviceId: cap.op.deviceId,
+        schemaVersion: cap.op.schemaVersion,
       };
 
       tx.table(queueTableName)
-        .add(queueRecord)
+        .put(queueRecord)
         .catch((err: unknown) => {
           console.error('sync capture failed; aborting write', err);
           tx.abort();

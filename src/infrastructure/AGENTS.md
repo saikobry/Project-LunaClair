@@ -39,7 +39,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `sync/` — Dexie-level sync reconciliation and mutation capture:
     - `DexieSyncReconciler.ts` → `SyncReconciler` (`applyPushResult` writes a `ConflictDraft` **only** for conflicts whose outbox row this call actually drained — see Local Contracts)
     - `transactionContext.ts` → `originOf`, `withOrigin`, `SyncScopeError`, `OriginConflictError` (transaction origin tagging and inheritance)
-    - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping, echo loop suppression)
+    - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping into `SyncQueueItem` outbox records, echo loop suppression)
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
     - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`, `quarantineVault`, `pruneStaleVaults`)
 - `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:

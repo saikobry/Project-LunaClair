@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { LunaClairDatabase, openVaultDatabase, clearVaultDatabaseCache } from '../../schema/LunaClairDatabase';
+import { DexieSyncQueueRepository } from '../../repositories/DexieSyncQueueRepository';
 import { installSyncHooks } from '../syncHooks';
 import { withOrigin, SyncScopeError } from '../transactionContext';
 import { createClock, type HlcClock } from '../../../../domain/sync/reconcilers/plugins/MergePlugin';
@@ -201,6 +202,108 @@ describe('syncHooks: Dexie Engine Mutation Capture and Scope Hooks', () => {
       expect(tombstones[0].entity).toBe('highlight');
       expect(tombstones[0].key).toBe('hl-del-target');
       expect(tombstones[0].hlc).toBe(op.hlc);
+    });
+
+    it('emits valid SyncQueueItem queryable by DexieSyncQueueRepository.peekPending', async () => {
+      const queueRepo = new DexieSyncQueueRepository(db);
+
+      await withOrigin(db, 'local', [db.highlights], async () => {
+        await db.highlights.add({
+          id: 'hl-peek-1',
+          documentId: 'doc-1',
+          text: 'Peek note',
+          color: 'yellow',
+          start: 0,
+          end: 10,
+          createdAt: '2026-10-17T00:00:00.000Z',
+        });
+      });
+
+      const pending = await queueRepo.peekPending(10);
+      expect(pending).toHaveLength(1);
+      expect(pending[0].entityType).toBe('highlight');
+      expect(pending[0].entityId).toBe('hl-peek-1');
+      expect(pending[0].operation).toBe('UPSERT');
+      expect(pending[0].status).toBe('pending');
+      expect(typeof pending[0].clientMutationId).toBe('string');
+      expect(typeof pending[0].createdAt).toBe('string');
+      expect(pending[0].retryCount).toBe(0);
+
+      // Verify compound index [status+createdAt] specifically
+      const indexResults = await db.syncQueue
+        .where('[status+createdAt]')
+        .between(['pending', Dexie.minKey], ['pending', Dexie.maxKey])
+        .toArray();
+      expect(indexResults).toHaveLength(1);
+      expect(indexResults[0].id).toBe(pending[0].id);
+    });
+
+    it('emits DELETE SyncQueueItem queryable by peekPending on delete', async () => {
+      const queueRepo = new DexieSyncQueueRepository(db);
+
+      await withOrigin(db, 'local', [db.highlights], async () => {
+        await db.highlights.add({
+          id: 'hl-del-peek',
+          documentId: 'doc-1',
+          text: 'Target to remove',
+          color: 'pink',
+          start: 0,
+          end: 6,
+          createdAt: '2026-10-17T00:00:00.000Z',
+        });
+      });
+      await db.syncQueue.clear();
+
+      await withOrigin(db, 'local', [db.highlights], async () => {
+        await db.highlights.delete('hl-del-peek');
+      });
+
+      const pending = await queueRepo.peekPending(10);
+      expect(pending).toHaveLength(1);
+      expect(pending[0].entityType).toBe('highlight');
+      expect(pending[0].entityId).toBe('hl-del-peek');
+      expect(pending[0].operation).toBe('DELETE');
+      expect(pending[0].status).toBe('pending');
+      expect(pending[0].createdAt).toBeDefined();
+    });
+
+    it('uses put on syncQueue to prevent ConstraintError on duplicate keys', async () => {
+      const staticClock: HlcClock = {
+        deviceId: 'device_static',
+        tick: () => '0000000000000_0000_device_static',
+        receive: () => '0000000000000_0000_device_static',
+      };
+      const staticDb = new LunaClairDatabase('test_static_clock_db');
+      installSyncHooks(staticDb, staticClock);
+      await staticDb.open();
+
+      try {
+        await expect(
+          withOrigin(staticDb, 'local', [staticDb.highlights], async () => {
+            // First write generates id `highlight:hl-dup:0000000000000_0000_device_static`
+            await staticDb.highlights.add({
+              id: 'hl-dup',
+              documentId: 'doc-1',
+              text: 'First write',
+              color: 'yellow',
+              start: 0,
+              end: 5,
+              createdAt: '2026-10-17T00:00:00.000Z',
+            });
+            // Second write with identical clock ticks yields the exact same queue id
+            await staticDb.highlights.update('hl-dup', {
+              text: 'Second write updated',
+            });
+          })
+        ).resolves.not.toThrow();
+
+        const queueItems = await staticDb.syncQueue.toArray();
+        expect(queueItems.length).toBe(1);
+        expect(queueItems[0].entityId).toBe('hl-dup');
+      } finally {
+        staticDb.close();
+        await Dexie.delete('test_static_clock_db');
+      }
     });
   });
 
