@@ -19,7 +19,7 @@ export default defineConfig((ctx) => {
 						CORS_ORIGINS: bindings.text(""),
 						AI_DISABLED_MODELS: bindings.text(""),
 						AI_CHAT_DISABLED: bindings.text("false"),
-						GOOGLE_CLIENT_ID: bindings.text(""),
+						GOOGLE_CLIENT_ID: bindings.text("715847356838-9hlrbqhotgjrj2ftthu8rvo9o5lk8gal.apps.googleusercontent.com"),
 						GOOGLE_CLIENT_SECRET: bindings.secret(),
 						AUTH_MASTER_KEY: bindings.secret(),
 						DB: bindings.d1({
@@ -51,7 +51,7 @@ export default defineConfig((ctx) => {
 						CORS_ORIGINS: bindings.text(""),
 						AI_DISABLED_MODELS: bindings.text(""),
 						AI_CHAT_DISABLED: bindings.text("false"),
-						GOOGLE_CLIENT_ID: bindings.text(""),
+						GOOGLE_CLIENT_ID: bindings.text("715847356838-9hlrbqhotgjrj2ftthu8rvo9o5lk8gal.apps.googleusercontent.com"),
 						GOOGLE_CLIENT_SECRET: bindings.secret(),
 						AUTH_MASTER_KEY: bindings.secret(),
 						DB: bindings.d1({
