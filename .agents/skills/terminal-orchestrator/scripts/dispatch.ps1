@@ -8,8 +8,41 @@ param(
     [string]$InstructionPrompt = "",
     [string]$AnchorPane,
     [ValidateSet("right", "down")]
-    [string]$SplitDirection = "right"
+    [string]$SplitDirection = "right",
+    [string]$TaskId,
+    [string]$ReturnPane,
+    [string]$Report,
+    [string]$WorkspaceRoot,
+    [switch]$Callback
 )
+
+function Resolve-OrchestratorWorkspaceRoot([string]$ExplicitRoot, [string]$ScriptDirectory) {
+    if ($ExplicitRoot) {
+        return [System.IO.Path]::GetFullPath($ExplicitRoot).Replace('\', '/')
+    }
+    $current = (Get-Item -LiteralPath ".").FullName
+    $candidate = $current
+    while ($candidate) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate ".orchestrator")) -or (Test-Path -LiteralPath (Join-Path $candidate ".git"))) {
+            return $candidate.Replace('\', '/')
+        }
+        $parent = [System.IO.Path]::GetDirectoryName($candidate)
+        if ($parent -eq $candidate -or -not $parent) { break }
+        $candidate = $parent
+    }
+    if ($ScriptDirectory) {
+        $candidate = [System.IO.Path]::GetFullPath($ScriptDirectory)
+        while ($candidate) {
+            if ((Test-Path -LiteralPath (Join-Path $candidate ".orchestrator")) -or (Test-Path -LiteralPath (Join-Path $candidate ".git"))) {
+                return $candidate.Replace('\', '/')
+            }
+            $parent = [System.IO.Path]::GetDirectoryName($candidate)
+            if ($parent -eq $candidate -or -not $parent) { break }
+            $candidate = $parent
+        }
+    }
+    return $current.Replace('\', '/')
+}
 
 # --- Delivery reliability helpers -------------------------------------------------
 # Inline delivery budget. Established empirically against Herdr on Windows:
@@ -210,6 +243,33 @@ or Herdr pane IDs (e.g. 'w3:p5', 'w4:p7').
     exit 1
 }
 
+# 1b. Validate callback parameters up front
+$isCallback = $Callback -or $TaskId -or $ReturnPane -or $Report
+if ($isCallback) {
+    if ($Wait) {
+        Write-Error "The -Callback workflow is incompatible with -Wait. Parent must yield turn rather than blocking at socket level."
+        exit 1
+    }
+    if (-not $ReturnPane) {
+        Write-Error "Callback dispatch requires -ReturnPane <pane_id>."
+        exit 1
+    }
+    if (-not $Report) {
+        Write-Error "Callback dispatch requires -Report <report_path>."
+        exit 1
+    }
+    if ($TaskId) {
+        if ($TaskId -notmatch '^[a-zA-Z0-9_\-]+$') {
+            Write-Error "Invalid TaskId '$TaskId'. Must contain only alphanumeric characters, underscores, and hyphens."
+            exit 1
+        }
+    }
+    if ($dispatchPlan.Count -gt 1) {
+        Write-Error "Ambiguous callback broadcast: multi-worker dispatch cannot share a single callback task or report path. Dispatch workers individually."
+        exit 1
+    }
+}
+
 # 2. Verify Herdr environment
 if (-not (Get-Command herdr -ErrorAction SilentlyContinue) -and ($env:HERDR_ENV -ne "1")) {
     Write-Error "Herdr is not running or not found in PATH. Please start Herdr first."
@@ -230,6 +290,11 @@ if (Test-Path .git) {
     if (-not $hasExclude) {
         Add-Content -Path $excludePath -Value "`n.orchestrator/"
     }
+}
+$workspaceRoot = Resolve-OrchestratorWorkspaceRoot -ExplicitRoot $WorkspaceRoot -ScriptDirectory $PSScriptRoot
+$tasksDir = Join-Path $workspaceRoot ".orchestrator/tasks"
+if (-not (Test-Path -LiteralPath $tasksDir)) {
+    New-Item -ItemType Directory -Path $tasksDir -Force | Out-Null
 }
 
 # 4. Verify all spec files exist. In inline mode there is no spec to verify.
@@ -319,13 +384,6 @@ foreach ($workerItem in $dispatchPlan.Keys) {
         }
     }
 
-    # Pure task instruction prompt (no sentinel noise)
-    $prompt = if ($InstructionPrompt) {
-        $InstructionPrompt
-    } else {
-        "Please read $specPath and implement the task."
-    }
-
     # Resolve identity for delivery: prefer the agent name (Herdr owns paste + submit and
     # reports lifecycle), fall back to the pane for agents hosting no named worker.
     $agentName = $null
@@ -337,6 +395,73 @@ foreach ($workerItem in $dispatchPlan.Keys) {
               elseif ($matchedPane) { $matchedPane.pane_id }
               elseif ($matchedAgent) { $matchedAgent.pane_id }
               else { $null }
+
+    # Resolve task record and prompt if callback or task ID requested
+    $effectiveTaskId = $null
+    $cleanWorker = ($workerItem -replace '[:\\]', '_')
+
+    if ($TaskId) {
+        $effectiveTaskId = $TaskId
+    } elseif ($isCallback) {
+        # Genuinely unique generated ID with randomness to prevent collision
+        $uid = [Guid]::NewGuid().ToString('N').Substring(0, 8)
+        $effectiveTaskId = "task-$cleanWorker-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$uid"
+    }
+
+    $taskRecord = $null
+    if ($effectiveTaskId) {
+        $sessionId = if ($matchedAgent -and $matchedAgent.agent_session) { $matchedAgent.agent_session.value } else { $null }
+        $taskRecord = [ordered]@{
+            taskId            = $effectiveTaskId
+            worker            = $workerItem
+            workerPane        = $paneId
+            returnPane        = $ReturnPane
+            specPath          = $specPath
+            reportPath        = $Report
+            workspaceRoot     = $workspaceRoot
+            dispatchTimeIso   = [DateTime]::UtcNow.ToString("o")
+            status            = "dispatched"
+            sessionId         = $sessionId
+            completedTimeIso  = $null
+            notifiedTimeIso   = $null
+            notificationCount = 0
+            deliveryError     = $null
+        }
+        $taskJson = $taskRecord | ConvertTo-Json -Depth 5
+        $taskPath = "$tasksDir/$effectiveTaskId.json"
+
+        $taskStream = $null
+        try {
+            $taskStream = [System.IO.File]::Open($taskPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            $taskBytes = [System.Text.Encoding]::UTF8.GetBytes($taskJson)
+            $taskStream.Write($taskBytes, 0, $taskBytes.Length)
+        } catch [System.IO.IOException] {
+            Write-Error "Task ID '$effectiveTaskId' already exists at '$taskPath'. Refusing to overwrite existing task record."
+            exit 1
+        } finally {
+            if ($taskStream) {
+                $taskStream.Close()
+                $taskStream.Dispose()
+            }
+        }
+        Write-Host "Task registered: $effectiveTaskId (record: $tasksDir/$effectiveTaskId.json)" -ForegroundColor Cyan
+    }
+
+    # Prompt construction: append completion recipe if callback enabled
+    $prompt = $null
+    if ($effectiveTaskId) {
+        $completeCmd = "powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/scripts/complete-task.ps1 -TaskId $effectiveTaskId -Report `"$Report`""
+        if ($ReturnPane) {
+            $completeCmd += " -ReturnPane $ReturnPane"
+        }
+        if ($InstructionPrompt) {
+            $prompt = "$InstructionPrompt`n`nWhen finished and verified, invoke the completion helper:`n$completeCmd"
+        } else {
+            $prompt = "Please read $specPath and implement the task. When finished and verified, invoke the completion helper:`n$completeCmd"
+        }
+    } else {
+        $prompt = if ($InstructionPrompt) { $InstructionPrompt } else { "Please read $specPath and implement the task." }
+    }
 
     # Delivery. Two transports, chosen by payload size:
     #   - `herdr agent prompt` for short prompts: Herdr owns paste AND submit, and
@@ -422,6 +547,11 @@ foreach ($workerItem in $dispatchPlan.Keys) {
             Write-Host "  -> Delivery confirmed via ${deliveryPath}: '$workerItem' entered 'working'." -ForegroundColor Green
         } else {
             $deliveryFailures += $workerItem
+            if ($taskRecord -and $effectiveTaskId) {
+                $taskRecord.status = "dispatch_failed"
+                $taskRecord.deliveryError = "Prompt delivery was not confirmed (agent stayed idle after repeated Enter attempts)."
+                $taskRecord | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$tasksDir/$effectiveTaskId.json" -Encoding UTF8
+            }
             Write-Warning "Prompt delivery to '$workerItem' via ${deliveryPath} was NOT confirmed (agent stayed idle) after repeated Enter attempts. Pane: $paneId"
             if ($allowNudge) {
                 # Never send ctrl+c or Escape to clear a composer: in Codex CLI ctrl+c (twice in

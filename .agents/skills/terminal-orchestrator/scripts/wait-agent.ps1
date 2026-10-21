@@ -5,9 +5,9 @@ param(
     [string]$Mode = "All",
     [int]$TimeoutSeconds = 600,
     [int]$DebounceMilliseconds = 3600,
-    # Set by dispatch.ps1: refuse to treat an never-worked agent's first stable 'idle' as
-    # task completion. A pasted-but-unsubmitted prompt leaves the agent idle forever, and
-    # accepting that as 'finished' is how a stale turn ends up in a report.
+    # Set by dispatch.ps1: fail if an agent was never observed working.
+    # Note: Herdr working/idle statuses are diagnostic lifecycle hints, not proof of task completion.
+    # Delegated work should prefer explicit task completion callbacks (complete-task.ps1).
     [switch]$RequireActivity
 )
 
@@ -55,8 +55,8 @@ function Get-RemainingTimeoutMs {
 function Test-AgentStableIdle([string]$targetAgent) {
     if ($DebounceMilliseconds -le 0) { return $true }
 
-    # Multi-stage diff guard: require 2 consecutive quiet windows of at least 1800ms
-    # This guarantees that streaming stalls, TTFT network lag, or tool-to-thinking transitions cannot fool the watcher
+    # Multi-stage diff guard: check consecutive quiet windows to reduce false idle
+    # transitions during streaming pauses or tool switches (heuristic diagnostic).
     $stageDurationMs = [Math]::Max([int]($DebounceMilliseconds / 2), 1800)
 
     $currentSnap = herdr agent read $targetAgent --source visible 2>$null
@@ -148,10 +148,11 @@ if ($workerList.Count -eq 1) {
                 if ($status -eq "done" -or $status -eq "idle") {
                     if (Test-AgentStableIdle $target) {
                         if ($RequireActivity -and -not $activitySeen) {
-                            Write-Warning "'$target' reported completion without ever being observed 'working' -- this may be a stale idle state (prompt pasted but unsubmitted). Verify the pane before trusting the report."
+                            Write-Error "Worker '$target' was never observed entering 'working' or 'blocked' state after dispatch (prompt may be unsubmitted or absorbed in composer). Failing wait because -RequireActivity was requested."
+                            exit 1
                         }
-                        Write-Host "  -> Worker '$target' finished! (Status: $status, Pane: $pane)" -ForegroundColor Green
-                        Write-Output "TERMINAL_ORCHESTRATOR_TASK_COMPLETED: $target"
+                        Write-Host "  -> Worker '$target' reached idle state. (Status: $status, Pane: $pane)" -ForegroundColor Green
+                        Write-Output "TERMINAL_ORCHESTRATOR_LIFECYCLE_IDLE: $target"
                         exit 0
                     }
                     continue
@@ -211,9 +212,10 @@ if ($Mode -eq "All") {
                     if ($status -eq "done" -or $status -eq "idle") {
                         if (Test-AgentStableIdle $target) {
                             if ($RequireActivity -and -not $activitySeen) {
-                                Write-Warning "'$target' reported completion without ever being observed 'working' -- this may be a stale idle state (prompt pasted but unsubmitted). Verify the pane before trusting the report."
+                                Write-Error "Worker '$target' was never observed entering 'working' or 'blocked' state after dispatch (prompt may be unsubmitted or absorbed in composer). Failing wait because -RequireActivity was requested."
+                                exit 1
                             }
-                            Write-Host "  -> Worker '$target' finished! (Status: $status, Pane: $pane)" -ForegroundColor Green
+                            Write-Host "  -> Worker '$target' reached idle state. (Status: $status, Pane: $pane)" -ForegroundColor Green
                             $completed[$target] = $true
                             $pending.Remove($target)
                             break
@@ -230,12 +232,16 @@ if ($Mode -eq "All") {
 
     if ($pending.Count -eq 0) {
         $doneList = $completed.Keys -join ", "
-        Write-Output "TERMINAL_ORCHESTRATOR_TASK_COMPLETED: $doneList"
+        Write-Output "TERMINAL_ORCHESTRATOR_LIFECYCLE_IDLE: $doneList"
         exit 0
     }
 } else {
     # Mode: Any (First-responder wins)
-    # Rapid reactive polling with low-latency socket checks across candidates
+    $candidateActivity = @{}
+    foreach ($target in $workerList) {
+        $candidateActivity[$target] = Ensure-AgentStartedWorking $target
+    }
+
     while ((Get-RemainingTimeoutMs) -gt 100) {
         foreach ($target in $workerList) {
             $raw = herdr agent wait $target --timeout 250 2>$null
@@ -246,19 +252,42 @@ if ($Mode -eq "All") {
                     $status = $agent.agent_status
                     $pane = $agent.pane_id
 
+                    if ($status -eq "working" -or $status -eq "blocked") {
+                        $candidateActivity[$target] = $true
+                    }
+
                     if ($status -eq "blocked") {
                         Write-Warning "[BLOCKED] Worker '$target' is BLOCKED waiting on human input or approval at pane $pane!"
                     }
 
                     if ($status -eq "done" -or $status -eq "idle") {
                         if (Test-AgentStableIdle $target) {
-                            Write-Host "  -> Worker '$target' finished first! (Status: $status, Pane: $pane)" -ForegroundColor Green
-                            Write-Output "TERMINAL_ORCHESTRATOR_TASK_COMPLETED: $target"
+                            if ($RequireActivity -and -not $candidateActivity[$target]) {
+                                # Nudge Enter once to check if unsubmitted paste was absorbed
+                                herdr pane send-keys $target enter 2>$null
+                                if (Ensure-AgentStartedWorking $target) {
+                                    $candidateActivity[$target] = $true
+                                    continue
+                                }
+                                # Activity was never established; refuse to accept as finished
+                                continue
+                            }
+                            Write-Host "  -> Worker '$target' reached idle state first! (Status: $status, Pane: $pane)" -ForegroundColor Green
+                            Write-Output "TERMINAL_ORCHESTRATOR_LIFECYCLE_IDLE: $target"
                             exit 0
                         }
                     }
                 } catch {}
             }
+        }
+    }
+
+    if ($RequireActivity) {
+        $anyActivity = $false
+        foreach ($act in $candidateActivity.Values) { if ($act) { $anyActivity = $true } }
+        if (-not $anyActivity) {
+            Write-Error "None of the workers ($($workerList -join ', ')) exhibited activity after dispatch. Failing wait because -RequireActivity was requested."
+            exit 1
         }
     }
 }

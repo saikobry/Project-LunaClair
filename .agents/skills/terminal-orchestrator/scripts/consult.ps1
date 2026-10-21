@@ -14,8 +14,40 @@ param(
     [int]$TimeoutSeconds = 300,
     [int]$Limit = 3,
     [string]$InstructionPrompt = "",
-    [switch]$AllowTools
+    [switch]$AllowTools,
+    [string]$SessionId = "",
+    [string]$WorkspaceRoot = ""
 )
+
+function Resolve-OrchestratorWorkspaceRoot([string]$ExplicitRoot, [string]$ScriptDirectory) {
+    if ($ExplicitRoot) {
+        return [System.IO.Path]::GetFullPath($ExplicitRoot).Replace('\', '/')
+    }
+    $current = (Get-Item -LiteralPath ".").FullName
+    $candidate = $current
+    while ($candidate) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate ".orchestrator")) -or (Test-Path -LiteralPath (Join-Path $candidate ".git"))) {
+            return $candidate.Replace('\', '/')
+        }
+        $parent = [System.IO.Path]::GetDirectoryName($candidate)
+        if ($parent -eq $candidate -or -not $parent) { break }
+        $candidate = $parent
+    }
+    if ($ScriptDirectory) {
+        $candidate = [System.IO.Path]::GetFullPath($ScriptDirectory)
+        while ($candidate) {
+            if ((Test-Path -LiteralPath (Join-Path $candidate ".orchestrator")) -or (Test-Path -LiteralPath (Join-Path $candidate ".git"))) {
+                return $candidate.Replace('\', '/')
+            }
+            $parent = [System.IO.Path]::GetDirectoryName($candidate)
+            if ($parent -eq $candidate -or -not $parent) { break }
+            $candidate = $parent
+        }
+    }
+    return $current.Replace('\', '/')
+}
+
+$workspaceRoot = Resolve-OrchestratorWorkspaceRoot -ExplicitRoot $WorkspaceRoot -ScriptDirectory $PSScriptRoot
 
 function Format-DiffSection {
     param(
@@ -92,15 +124,18 @@ $specPath = $Spec
 if (-not $Worker) {
     Write-Error @"
 Usage:
-  consult.ps1 -Worker <agent|pane_id> [-Changes] [-Topic <title>]
-  consult.ps1 -Worker <agent|pane_id> -Spec <specPath> [-OutputFile <path>]
-  consult.ps1 -Worker <agent|pane_id> -Prompt <text> [-Topic <title>]
-  consult.ps1 -Worker <agent|pane_id> -StagedDiff [-Topic <title>]
+  consult.ps1 -Worker <agent|pane_id> [-SessionId <session_id>] [-Changes] [-Topic <title>]
+  consult.ps1 -Worker <agent|pane_id> [-SessionId <session_id>] -Spec <specPath> [-OutputFile <path>]
+  consult.ps1 -Worker <agent|pane_id> [-SessionId <session_id>] -Prompt <text> [-Topic <title>]
+  consult.ps1 -Worker <agent|pane_id> [-SessionId <session_id>] -StagedDiff [-Topic <title>]
 
 Examples:
   # Quick consultation on all current changes (staged + working tree):
   consult.ps1 opencode
   consult.ps1 codex -Changes -Topic "Review Current Changes"
+
+  # Consult with pinned session ID to ensure unambiguous transcript extraction:
+  consult.ps1 codex -SessionId codex:123 -Prompt "Review this implementation"
 
   # Consult with an existing spec:
   consult.ps1 codex .orchestrator/specs/review.md
@@ -115,14 +150,15 @@ Examples:
     exit 1
 }
 
-if (-not (Test-Path ".orchestrator/specs")) {
-    New-Item -ItemType Directory -Path ".orchestrator/specs" -Force | Out-Null
+$specsDir = Join-Path $workspaceRoot ".orchestrator/specs"
+if (-not (Test-Path -LiteralPath $specsDir)) {
+    New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 }
 
 if (-not $specPath) {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $cleanWorkerName = ($Worker -replace '[:\\]', '_')
-    $specPath = ".orchestrator/specs/consult-$cleanWorkerName-$timestamp.md"
+    $specPath = Join-Path $specsDir "consult-$cleanWorkerName-$timestamp.md"
 
     $isDiff = $StagedDiff -or $Changes -or (-not $specPath -and -not $Prompt)
 
@@ -190,23 +226,24 @@ if (-not $specPath) {
         $lines += ""
     }
 
-    Set-Content -Path $specPath -Value ($lines -join "`n") -Encoding utf8
+    Set-Content -LiteralPath $specPath -Value ($lines -join "`n") -Encoding utf8
     Write-Host "Generated consultation spec: $specPath" -ForegroundColor Cyan
 }
 
-if (-not (Test-Path $specPath)) {
+if (-not (Test-Path -LiteralPath $specPath)) {
     Write-Error "Specification file not found: $specPath"
     exit 1
 }
 
 # 2. Resolve output report path
+$reportsDir = Join-Path $workspaceRoot ".orchestrator/reports"
 if (-not $OutputFile) {
-    if (-not (Test-Path ".orchestrator/reports")) {
-        New-Item -ItemType Directory -Path ".orchestrator/reports" -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $reportsDir)) {
+        New-Item -ItemType Directory -Path $reportsDir -Force | Out-Null
     }
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($specPath)
     $cleanWorker = ($Worker -replace '[:\\]', '_')
-    $OutputFile = ".orchestrator/reports/$cleanWorker-$baseName.md"
+    $OutputFile = Join-Path $reportsDir "$cleanWorker-$baseName.md"
 }
 
 Write-Host "`n=== Starting Consultation with '$Worker' ===" -ForegroundColor Cyan
@@ -226,26 +263,55 @@ $promptToDispatch = if ($InstructionPrompt) { $InstructionPrompt } else { $defau
 # silently yields the worker's previous turn as this consultation's verdict.
 $dispatchSinceIso = [DateTime]::UtcNow.ToString("o")
 
-& "$PSScriptRoot/dispatch.ps1" -Worker $Worker -Spec $specPath -Wait -TimeoutSeconds $TimeoutSeconds -InstructionPrompt $promptToDispatch
+$dispatchParams = @{
+    Worker = $Worker
+    Spec = $specPath
+    Wait = $true
+    TimeoutSeconds = $TimeoutSeconds
+    InstructionPrompt = $promptToDispatch
+    WorkspaceRoot = $workspaceRoot
+}
+& "$PSScriptRoot/dispatch.ps1" @dispatchParams
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Dispatch failed or timed out for worker '$Worker'."
     exit $LASTEXITCODE
 }
 
 # 4. Extract structured report via AgentsView, bounded to turns newer than the dispatch
-& "$PSScriptRoot/get-report.ps1" -Workers $Worker -OutputFile $OutputFile -Limit $Limit -SinceIso $dispatchSinceIso
-if ($LASTEXITCODE -ne 0) {
-    Write-Warning "Report extraction had warnings or fallback to terminal buffer."
+$getReportParams = @{
+    Workers = $Worker
+    OutputFile = $OutputFile
+    Limit = $Limit
+    SinceIso = $dispatchSinceIso
+    WorkspaceRoot = $workspaceRoot
 }
+if ($SessionId) {
+    $getReportParams["SessionId"] = $SessionId
+}
+& "$PSScriptRoot/get-report.ps1" @getReportParams
+$getReportExit = $LASTEXITCODE
 
-# 5. A no-new-turn report means the consultation produced NO answer -- say so instead of
-# letting the caller read a previous turn as the verdict.
-if ((Test-Path $OutputFile) -and (Select-String -Path $OutputFile -Pattern 'TERMINAL_ORCHESTRATOR_NO_NEW_TURN' -Quiet)) {
-    Write-Warning "Worker '$Worker' produced no assistant turn after the dispatch timestamp ($dispatchSinceIso). The consultation has NO verdict -- check the pane (the prompt may be pasted but unsubmitted) or re-run once the turn is in flight."
+# 5. Check report outcome and distinguish failure causes
+$isRetrievalError = (Test-Path -LiteralPath $OutputFile) -and (Select-String -LiteralPath $OutputFile -Pattern 'TERMINAL_ORCHESTRATOR_RETRIEVAL_ERROR' -Quiet)
+$isUnverifiedSession = (Test-Path -LiteralPath $OutputFile) -and (Select-String -LiteralPath $OutputFile -Pattern 'TERMINAL_ORCHESTRATOR_SESSION_CORRESPONDENCE_' -Quiet)
+$hasNoNewTurn = (Test-Path -LiteralPath $OutputFile) -and (Select-String -LiteralPath $OutputFile -Pattern 'TERMINAL_ORCHESTRATOR_NO_NEW_TRANSCRIPT|TERMINAL_ORCHESTRATOR_NO_NEW_TURN' -Quiet)
+
+if ($getReportExit -ne 0 -or $hasNoNewTurn -or $isRetrievalError -or $isUnverifiedSession) {
+    if ($isRetrievalError) {
+        Write-Error "Consultation failed: AgentsView retrieval error for worker '$Worker'. Verify daemon and database status."
+    } elseif ($isUnverifiedSession) {
+        Write-Error "Consultation failed: could not verify workspace session correspondence for worker '$Worker'. Run with explicit -SessionId or -TaskId."
+    } elseif ($hasNoNewTurn) {
+        Write-Error "Consultation failed: worker '$Worker' produced no new assistant turn after dispatch ($dispatchSinceIso). Check pane composer or re-run once in flight."
+    } else {
+        Write-Error "Consultation failed for worker '$Worker' with exit code $getReportExit."
+    }
+    exit $(if ($getReportExit -ne 0) { $getReportExit } else { 2 })
 }
 
 # 6. Output completion summary
-if (Test-Path $OutputFile) {
+if (Test-Path -LiteralPath $OutputFile) {
     Write-Host "`n=== Consultation Complete ===" -ForegroundColor Green
     Write-Host "Report saved to: $OutputFile`n"
 }
+exit 0

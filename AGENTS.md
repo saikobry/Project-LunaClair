@@ -201,6 +201,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 - Screen layer structure (Sep 2026): every folder under `src/app/screens/` exposes exactly one route screen (`*Screen.tsx`) at its root; supporting files live in feature-style subfolders — `components/`, `modals/`, `hooks/`, `utils/`, `styles/` (`*.stylex.ts`) — with tests colocated in the matching `__tests__/` (ADR-012). Applied across `collection-workspace/`, `library/`, `home/`, `material-workspace/`, and `importer/`. See `src/app/screens/AGENTS.md` (Folder taxonomy).
 - Architecture chronicle: use `architecture-chronicle` skill (`.agents/skills/architecture-chronicle/SKILL.md`) — generates long-term engineering chronicles capturing architecture, data flows, migrations, and system evolution after a phase.
 - Community questions: use `community-question` skill (`.agents/skills/community-question/SKILL.md`) — drafts self-contained, paste-ready forum questions grounded in the actual codebase when the user wants outside opinions on a design or architecture decision.
+- Multi-worker orchestration: use 	erminal-orchestrator skill (.agents/skills/terminal-orchestrator/SKILL.md) for coordinating interactive terminal agents (Codex, Kilo, Cline, OpenCode, Antigravity CLI) in Herdr on Windows; follows the delegation policy in User Preferences.
 - No `prettier`, `eslint`, or `biome`. Do not add them without asking.
 
 ## Evidence Before Compatibility
@@ -215,6 +216,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 ## User Preferences
 
 - Agent should keep documentation lean and operational — prefer concise bullets over prose.
+- Multi-worker delegation: parent agents must yield after dispatch and wait for explicit worker completion callbacks without status polling or pane monitoring (exception: user-requested heuristic lifecycle waiting or no-tools consultation via consult.ps1).
 - When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
 
 ## Child DOX Index
@@ -243,4 +245,5 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 | `worker/AGENTS.md` | `worker/` | Cloudflare Worker API — ADR-016 layered architecture, D1 bridge, schema migrations, deploy workflow |
 | `scripts/AGENTS.md` | `scripts/` | Build & content tooling — publisher seeder CLI, pure `.lcpack` package builder |
 | `tests/e2e/AGENTS.md` | `tests/e2e/` | Playwright acceptance suite — share-clone seeding contract, helpers, committed fixtures |
+| `.agents/skills/terminal-orchestrator/AGENTS.md` | `.agents/skills/terminal-orchestrator/` | Terminal agent orchestrator skill contracts and script invariants |
 
