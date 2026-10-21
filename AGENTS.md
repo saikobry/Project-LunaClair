@@ -217,6 +217,7 @@ Strict flags: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noF
 
 - Agent should keep documentation lean and operational — prefer concise bullets over prose.
 - Multi-worker delegation: parent agents must yield after dispatch and wait for explicit worker completion callbacks without status polling or pane monitoring (exception: user-requested heuristic lifecycle waiting or no-tools consultation via consult.ps1).
+- Flash delegation profile: when orchestrating `agy` with a Flash model, see `.agents/skills/terminal-orchestrator/AGENTS.md` (Local Contracts).
 - When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
 
 ## Child DOX Index

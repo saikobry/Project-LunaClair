@@ -27,12 +27,18 @@ Coordinating interactive terminal AI agents (Codex, Kilo, Cline, OpenCode, Antig
 - **Transcript Mode vs Task Evidence.** Retrieval via `get-report.ps1` distinguishes completed task evidence (`-TaskId`) from unverified transcript evidence (`-Workers`, `-SessionId`). Heuristic transcript retrieval queries `agentsview session get <id> --json`; absence of `parent_session_id` does not prove main correspondence, so ambiguous lookups fail closed (`SESSION_CORRESPONDENCE_UNVERIFIED`). Explicit transcript extraction requires a pinned main `-SessionId` (supported via `consult.ps1 -SessionId`).
 - **Bounded External Retrieval.** External commands run with finite process timeouts and bounded stream drains (`[Task]::WaitAll`), returning retrieval errors rather than hanging on child-inherited pipe handles.
 - **Provider Namespace Alignment.** The Herdr agent label `agy` maps to the AgentsView provider namespace `antigravity-cli`.
+- **Flash Delegation Profile (`agy`).** When coordinating `agy` using a Flash model, delegate roughly ~80% of suitable substantive research and implementation to native `self` subagents (`TypeName: "self"`, `Model: "inherit"`). Purpose: keep the Flash coordinator's context lean, avoiding accumulation of exhaustive research, file contents, and debugging churn (lower token cost is the user's observed preference and working hypothesis, not a universal guarantee).
+- **Early Delegation & Execution Sequence.** For nontrivial tasks, the coordinator reads applicable contracts, conducts minimal scoping to set boundaries, and launches the `self` subagent early; do not pre-investigate the entire solution before delegating. Subagents do not recursively spawn child agents by default. Parallelize independent scopes with disjoint, non-overlapping file ownership, or sequence dependent edits across successive workers.
+- **Coordinator and Worker Role Boundaries.** The coordinator owns decomposition, briefing, integration decisions, verification of evidence/diffs, and final synthesis. Workers execute task discovery, edits, and verification, returning concise summaries (changed paths, rationale, checks run, unresolved issues) with concise evidence by default and targeted excerpts only when review requires them.
+- **Direct Execution Exception.** The coordinator may directly execute genuinely tiny edits, quick factual lookups, coordination/review, or work that cannot be usefully partitioned; direct execution exceptions stay small and brief.
+- **Hands-Off Execution.** Both parent-to-worker and coordinator-to-subagent workflows follow root [AGENTS.md](../../../AGENTS.md) (`User Preferences`): yield turns and wake on native completion notifications without status polling loops or timers.
 
 ## Work Guidance
 
 - Keep `.ps1` script sources ASCII-only to prevent encoding mismatches on Windows PowerShell 5.1.
 - Prompts exceeding the inline delivery budget must be stored in a spec file under `.orchestrator/specs/` instead of passed inline.
 - Never clear worker composers with `ctrl+c` or `Escape`.
+- Under the Flash delegation profile, supply precise briefs with explicit file scopes, task-specific verification commands, and instructions to return concise summaries.
 
 ## Verification
 

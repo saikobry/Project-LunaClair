@@ -76,6 +76,27 @@ powershell -ExecutionPolicy Bypass -File .agents/skills/terminal-orchestrator/sc
 
 ---
 
+## Flash Worker Profile (`agy`)
+
+When coordinating `agy` on a Flash model, delegate substantive research and implementation to native `self` subagents per [AGENTS.md](AGENTS.md) (`Local Contracts` -> `Flash Delegation Profile`).
+
+### Execution Recipe
+
+1. **Minimal Scoping**: Read applicable DOX contracts, define task boundaries, and avoid pre-investigating the full solution in coordinator context.
+2. **Early Subagent Dispatch**:
+   ```json
+   invoke_subagent({
+     "TypeName": "self",
+     "Model": "inherit",
+     "Role": "<2-5 word role>",
+     "Prompt": "<self-contained brief with target paths, constraints, and verification>"
+   })
+   ```
+3. **Subagent Execution & Return**: Subagent executes changes and reports back with changed paths, technical rationale, verification results, and concise evidence (targeted excerpts only when review requires them).
+4. **Synthesis & Callback**: Coordinator inspects the git diff, verifies against task-specific contracts, and sends the completion callback via `complete-task.ps1`.
+
+---
+
 ## Secondary Modes
 
 ### 1. One-Shot Consultation (`consult.ps1`)
