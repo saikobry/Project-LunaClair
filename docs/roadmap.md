@@ -175,7 +175,7 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 - ✅ **12M (v0.3.0 Production Release — Oct 6):** the Phase 12 line shipped. Production D1 migrations applied (legacy catalog tables dropped, ~163 dev-seed rows), `wrangler deploy` published the new Worker, and the `master` fast-forward deployed the v0.3.0 frontend to `project-lunaclair.pages.dev`. Verified through the live Pages proxy, not just the Worker directly: frontend serves `v0.3.0`, `/health` reports `database: connected`, `/api/shares` returns 7 seeded `lcpack` shares, `/api/sync/pull` returns a valid cursor payload, and the retired `/api/catalog` + `/api/quiz` now 404 as intended — the frontend/Worker pair moved together and no longer matches only because both were frozen. The release required back-to-back steps in one window (migrate → deploy Worker → merge), because the two deploy targets are independent and *either* ordering alone leaves the live site briefly broken.
 
-**Current metrics (as of `8be5fb4`):** 349 Vitest test files (329 under `src/`, 20 under `worker/`; the Playwright E2E suite is separate — 20 `*.spec.ts` under `tests/e2e/`), superseding the 12E milestone figure. 22 commits landed in the 12F–12K window (+16,088 / −4,104 across 198 files).
+**Historical metrics (as of `8be5fb4`):** 349 Vitest test files (329 under `src/`, 20 under `worker/`; the Playwright E2E suite is separate — 20 `*.spec.ts` under `tests/e2e/`), superseding the 12E milestone figure. 22 commits landed in the 12F–12K window (+16,088 / −4,104 across 198 files).
 
 - ✅ **Phase 13 (Cloudflare Developer Platform Modernization — Oct 2026):**
   - **Worker workspace decoupling (ADR-017):** isolated `worker/` into an npm workspace package (`worker/package.json`) with dedicated dependencies (`drizzle-orm`, `drizzle-kit`, `cf`, `@cloudflare/vite-plugin`), eliminating `@cloudflare/autoconfig` hijacking the client React Vite pipeline at repo root.
@@ -228,6 +228,18 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
     - Refactored `DexieSyncReconciler.reconcilePullBatch` to generic pure plugin dispatch with touched-tables scoping, 250-op transaction chunking, `bulkGet` prefetching, and poison op isolation into `heldOps`.
     - Added multi-tab HLC connection nonce (`<deviceId>.<tabNonce>`), cut repositories to scope-only `withOrigin`, and deleted `transactionalOutbox.ts` with single-outbox-row verification.
     - Purged 2,335 lines of legacy reconcilers, barrel `index.ts`, dead models (`SyncModels.ts`), obsolete comparators (`compareFlashcardReviews`), and temporary prototype sketches.
+  - **17F (Sync Stabilization, Outbox Conformance & Reactive Invalidation — Oct 18–21):**
+    - **Transaction-origin migration & vault serialization (`b70b33c`, `3aac5ab`):** Migrated remaining Dexie repositories and import services to `withOrigin` local scopes, delegating outbox capture entirely to synchronous `syncHooks`. Serialized anonymous vault resolution in `VaultRegistry` with duplicate retry recovery, memoized in-flight `bootstrapApplication` executions, aligned reload recovery E2E specs to dynamic `lc_vault_*` databases, and corrected `SYNC_POLICY.quizSessions` merge strategy to `'lww'`.
+    - **Outbox schema conformance & collision safety (`209071c`):** Aligned `syncHooks` outbox emissions with the canonical `SyncQueueItem` schema to ensure compound index retrieval in `DexieSyncQueueRepository.peekPending`, and switched writes from `add` to `put` to eliminate collision errors on identical clock ticks.
+    - **Idempotent hydration & bounded retries (`4bd04d6`):** Short-circuited Explore pointer reconciliation and background hydration for existing materials using deterministic share keys, preserving exponential backoff state across pulls and capping hydration retry attempts to drop failing shares.
+    - **Reactive query invalidation & cross-tab broadcast (`73553f9`):** Added `touchedEntities` to pull reconciliation results and introduced the `SyncEventSink` port, scheduling debounced TanStack Query invalidations outside Dexie transactions and broadcasting applied sync events across sibling tabs via `BroadcastChannel`.
+    - **Authoritative conflict resolution & single-draft invariant (`8afe72b`, `9296563`):** Atomized `keep_server` conflict resolution to apply server content locally with monotonic version advancement and outbox propagation; integrated `dexie-react-hooks` for reactive conflict counting in `useSyncStatus`; suppressed false conflicts on identical trimmed content across pull and push, and enforced a single conflict draft per document by updating existing drafts in place and purging duplicates on resolution.
+
+### Cross-Phase Maintenance (Oct 2026)
+
+- **Worker Platform Toolchain & Auth Configuration (`2725dde`, `869c85f`, `0c68624`):**
+  - Updated the isolated `worker/` workspace developer toolchain, aligning `cf` CLI and `@cloudflare/vite-plugin` dependencies to eliminate configuration skew across Miniflare and workerd runtimes (maintaining Phase 13 / ADR-017).
+  - Bound the public Google OAuth Client ID into Worker staging and production configurations (`worker/cloudflare.config.ts`), preventing unconfigured client ID errors during stateless OAuth token exchange and refresh flows (maintaining Phase 14 / ADR-018).
 
 ---
 
