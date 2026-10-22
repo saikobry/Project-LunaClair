@@ -126,6 +126,7 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       const response = await transport.push(credentials, pushRequest);
 
       expect(mockAuthService.getValidAccessToken).toHaveBeenCalledTimes(1);
+      expect(mockAuthService.getValidAccessToken).toHaveBeenCalledWith(false, credentials.userId);
       expect(mockDriveClient.uploadCompressedJson).toHaveBeenCalledTimes(1);
 
       const [name, payload, appProps, token, parents] = vi.mocked(
@@ -243,6 +244,57 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         )
       ).rejects.toThrow();
     });
+
+    it('throws DriveAuthError when credentials.userId does not match expectedSub in push', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        expectedSub: 'user-expected-sub',
+      });
+
+      await expect(
+        transport.push(
+          { userId: 'different-user', deviceId: 'dev-1', token: 'tok' },
+          {
+            deviceId: 'dev-1',
+            mutations: [
+              {
+                clientMutationId: 'm-1',
+                entityType: 'document',
+                entityId: 'doc-1',
+                operation: 'UPSERT',
+                clientTimestamp: '2026-10-15T12:00:00.000Z',
+                payload: {},
+              },
+            ],
+          }
+        )
+      ).rejects.toThrow('Account mismatch');
+    });
+
+    it('rejects push if transport is disposed', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+      transport.dispose();
+
+      await expect(
+        transport.push(credentials, {
+          deviceId: credentials.deviceId,
+          mutations: [
+            {
+              clientMutationId: 'm-1',
+              entityType: 'document',
+              entityId: 'doc-1',
+              operation: 'UPSERT',
+              clientTimestamp: '2026-10-15T12:00:00.000Z',
+              payload: {},
+            },
+          ],
+        })
+      ).rejects.toThrow('GoogleDriveSyncTransport is disposed');
+    });
   });
 
   describe('pull()', () => {
@@ -295,12 +347,18 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
       // Invariant: getStartPageToken at t0 MUST precede listFiles at t1
       expect(callOrder).toEqual(['getStartPageToken', 'listFiles']);
+      expect(mockAuthService.getValidAccessToken).toHaveBeenCalledWith(false, credentials.userId);
       expect(mockDriveClient.getStartPageToken).toHaveBeenCalledTimes(1);
-      expect(mockDriveClient.listFiles).toHaveBeenCalledWith('valid-access-token-999');
+      expect(mockDriveClient.listFiles).toHaveBeenCalledWith(
+        'valid-access-token-999',
+        undefined,
+        expect.objectContaining({ signal: expect.any(Object) })
+      );
       expect(mockDriveClient.listChanges).not.toHaveBeenCalled();
       expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
         'journal-file-peer-1',
-        'valid-access-token-999'
+        'valid-access-token-999',
+        expect.objectContaining({ signal: expect.any(Object) })
       );
 
       expect(pullResponse.newCursor).toBe(1);
@@ -326,6 +384,30 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       );
       // Applied files must register hydrated journal
       expect(transport.getAppliedFileIds().has('journal-file-peer-1')).toBe(true);
+    });
+
+    it('throws DriveAuthError when credentials.userId does not match expectedSub in pull', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+        expectedSub: 'user-expected-sub',
+      });
+
+      await expect(
+        transport.pull({ userId: 'different-user', deviceId: 'dev-1', token: 'tok' }, 0)
+      ).rejects.toThrow('Account mismatch');
+    });
+
+    it('rejects pull if transport is disposed', async () => {
+      const transport = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+      transport.dispose();
+
+      await expect(
+        transport.pull(credentials, 0)
+      ).rejects.toThrow('GoogleDriveSyncTransport is disposed');
     });
 
     it('does not commit candidateToken if hydration fails during journal download', async () => {
@@ -412,11 +494,13 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       expect(mockDriveClient.listFiles).not.toHaveBeenCalled();
       expect(mockDriveClient.listChanges).toHaveBeenCalledWith(
         'existing-cached-token',
-        'valid-access-token-999'
+        'valid-access-token-999',
+        expect.objectContaining({ signal: expect.any(Object) })
       );
       expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
         'journal-file-subsequent',
-        'valid-access-token-999'
+        'valid-access-token-999',
+        expect.objectContaining({ signal: expect.any(Object) })
       );
 
       expect(pullResponse.newCursor).toBe(6);
@@ -507,7 +591,7 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       expect(mockDriveClient.downloadFile).toHaveBeenCalledWith(
         'journal-file-raw',
         'valid-access-token-999',
-        { decompress: true }
+        expect.objectContaining({ decompress: true, signal: expect.any(Object) })
       );
       expect(pullResponse.changes).toHaveLength(1);
       expect(pullResponse.changes[0]?.operation).toBe('DELETE');
@@ -685,7 +769,8 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       expect(mockDriveClient.getStartPageToken).not.toHaveBeenCalled();
       expect(mockDriveClient.listChanges).toHaveBeenCalledWith(
         'start-token-100',
-        'valid-access-token-999'
+        'valid-access-token-999',
+        expect.objectContaining({ signal: expect.any(Object) })
       );
       expect(pull2.changes).toHaveLength(0);
       expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
@@ -784,8 +869,15 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
       // clearState clears in-memory structures safely
       transport.setPageToken(credentials.userId, credentials.deviceId, 'some-token');
+      transport.setDriveSeeded(true);
+      (transport as any).appliedFileIds.add('file-123');
+      (transport as any).peerWatermarks['dev-2'] = '2026-10-12T10:00:00.000Z';
+
       transport.clearState(credentials);
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
+      expect(transport.isDriveSeeded()).toBe(false);
+      expect(transport.getAppliedFileIds().size).toBe(0);
+      expect(Object.keys(transport.getPeerWatermarks())).toHaveLength(0);
     });
   });
 
@@ -906,7 +998,8 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       // Remote file was downloaded
       expect(mockDriveClient.downloadCompressedJson).toHaveBeenCalledWith(
         'remote-file-journal-1',
-        'valid-access-token-999'
+        'valid-access-token-999',
+        expect.objectContaining({ signal: expect.any(Object) })
       );
 
       // Local delta is newer, so emitted as journal_${hlc}_${deviceId}.json.gz

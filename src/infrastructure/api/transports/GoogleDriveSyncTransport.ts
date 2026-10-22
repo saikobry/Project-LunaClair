@@ -25,7 +25,7 @@ import type {
   Recover410Params,
   CursorRecoveryResult,
 } from '../../../domain/drive/models/drive.types';
-import { DriveHttpError } from '../../../domain/drive/models/drive.types';
+import { DriveHttpError, DriveAuthError } from '../../../domain/drive/models/drive.types';
 import type { GoogleAuthPort } from '../../../domain/auth/models/auth.types';
 import { googleDriveClient } from '../google/GoogleDriveClient';
 import { googleAuthService } from '../../auth/google/GoogleAuthService';
@@ -63,6 +63,7 @@ export interface GoogleDriveSyncTransportOptions {
   db?: LunaClairDatabase;
   onTokenExpired?: () => Promise<string>;
   hydrationManager?: HydrationManager;
+  expectedSub?: string;
 }
 
 export class GoogleDriveSyncTransport implements SyncTransport {
@@ -71,6 +72,10 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   private readonly stateRepo: SyncStateRepository;
   private readonly db: LunaClairDatabase;
   private hydrationManager?: HydrationManager;
+  private readonly expectedSub?: string;
+  private readonly abortController: AbortController;
+  private disposed: boolean;
+  private currentActiveUserId?: string;
   private readonly hlcs: Map<string, HybridLogicalClock>;
   private readonly pageTokens: Map<string, string>;
   private readonly appliedFileIds: Set<string>;
@@ -85,6 +90,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     this.stateRepo = options.stateRepo ?? dexieSyncStateRepository;
     this.db = options.db ?? getActiveVaultDatabase();
     this.hydrationManager = options.hydrationManager;
+    this.expectedSub = options.expectedSub;
+    this.abortController = new AbortController();
+    this.disposed = false;
     this.hlcs = new Map();
     if (options.hlc) {
       this.hlcs.set('default', options.hlc);
@@ -98,8 +106,12 @@ export class GoogleDriveSyncTransport implements SyncTransport {
 
     // Wire automatic token refresh callback on HTTP 401
     const refreshCallback = options.onTokenExpired ?? (async (): Promise<string> => {
-      if (typeof this.authService.refreshAccessToken === 'function') {
+      const targetSub = this.currentActiveUserId ?? this.expectedSub;
+      if (typeof this.authService.refreshAccessToken === 'function' && !targetSub) {
         return this.authService.refreshAccessToken();
+      }
+      if (targetSub !== undefined) {
+        return (this.authService as any).getValidAccessToken(true, targetSub);
       }
       return this.authService.getValidAccessToken(true);
     });
@@ -109,6 +121,32 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     } else if ('onTokenExpired' in this.driveClient) {
       this.driveClient.onTokenExpired = refreshCallback;
     }
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.abortController.abort();
+    this.clearState();
+  }
+
+  private getCombinedSignal(signal?: AbortSignal): AbortSignal {
+    if (!signal) {
+      return this.abortController.signal;
+    }
+    if (typeof AbortSignal.any === 'function') {
+      return AbortSignal.any([signal, this.abortController.signal]);
+    }
+    const controller = new AbortController();
+    const onAbort = () => {
+      controller.abort(signal.reason ?? this.abortController.signal.reason);
+    };
+    if (signal.aborted || this.abortController.signal.aborted) {
+      controller.abort(signal.reason ?? this.abortController.signal.reason);
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true });
+      this.abortController.signal.addEventListener('abort', onAbort, { once: true });
+    }
+    return controller.signal;
   }
 
   setHydrationManager(manager: HydrationManager): void {
@@ -124,7 +162,17 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     request: SyncPushRequest,
     signal?: AbortSignal
   ): Promise<SyncPushResponse> {
-    signal?.throwIfAborted();
+    if (this.disposed || this.abortController.signal.aborted) {
+      throw new Error('GoogleDriveSyncTransport is disposed');
+    }
+    if (this.expectedSub && credentials.userId !== this.expectedSub) {
+      throw new DriveAuthError(
+        `Account mismatch: expected ${this.expectedSub} but received ${credentials.userId}`
+      );
+    }
+
+    const effectiveSignal = this.getCombinedSignal(signal);
+    effectiveSignal.throwIfAborted();
 
     if (!request.mutations || request.mutations.length === 0) {
       return {
@@ -134,93 +182,105 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       };
     }
 
-    await this.loadStateForCredentials(credentials);
-    signal?.throwIfAborted();
+    this.currentActiveUserId = credentials.userId;
+    try {
+      await this.loadStateForCredentials(credentials);
+      effectiveSignal.throwIfAborted();
 
-    const accessToken = await this.authService.getValidAccessToken();
-    signal?.throwIfAborted();
+      const accessToken = await (this.authService as any).getValidAccessToken(false, credentials.userId);
+      effectiveSignal.throwIfAborted();
 
-    const hlc = this.getHlc(credentials.deviceId);
-    const currentHlc = hlc.now();
-    this.pushSequence += 1;
+      const hlc = this.getHlc(credentials.deviceId);
+      const currentHlc = hlc.now();
+      this.pushSequence += 1;
 
-    const mutationsToUpload = request.mutations.map((mutation) => {
-      const payload = mutation.payload as Record<string, unknown> | undefined;
-      if (
-        payload &&
-        typeof payload.originShareId === 'string' &&
-        (mutation.entityType === ('material' as any) || mutation.entityType === 'pointer')
-      ) {
-        return {
-          ...mutation,
-          entityType: 'pointer' as const,
-          entityId: payload.originShareId,
-          operation: 'UPSERT' as const,
-          payload: {
-            originShareId: payload.originShareId,
-            title: typeof payload.title === 'string' ? payload.title : '',
-            publishedAt: typeof payload.createdAt === 'string' ? payload.createdAt : mutation.clientTimestamp,
-            schemaVersion: typeof payload.schemaVersion === 'number' ? payload.schemaVersion : 1,
-          } satisfies SyncPointerPayload,
-        };
-      }
-      return mutation;
-    });
-
-    const fileName = `journal_${currentHlc}.json.gz`;
-    const journalPayload: JournalPayload = {
-      hlc: currentHlc,
-      deviceId: credentials.deviceId,
-      createdAt: new Date().toISOString(),
-      mutations: mutationsToUpload,
-    };
-
-    const appProperties: Record<string, string> = {
-      type: 'journal',
-      deviceId: credentials.deviceId,
-      hlc: currentHlc,
-      seq: String(this.pushSequence),
-      count: String(mutationsToUpload.length),
-    };
-
-    let uploadedFile: DriveFileMetadata;
-    if (typeof this.driveClient.uploadCompressedJson === 'function') {
-      uploadedFile = await this.driveClient.uploadCompressedJson(
-        fileName,
-        journalPayload,
-        appProperties,
-        accessToken,
-        ['appDataFolder']
-      );
-    } else {
-      uploadedFile = await this.driveClient.uploadFile({
-        name: fileName,
-        content: JSON.stringify(journalPayload),
-        compress: true,
-        parents: ['appDataFolder'],
-        appProperties,
-        accessToken,
+      const mutationsToUpload = request.mutations.map((mutation) => {
+        const payload = mutation.payload as Record<string, unknown> | undefined;
+        if (
+          payload &&
+          typeof payload.originShareId === 'string' &&
+          (mutation.entityType === ('material' as any) || mutation.entityType === 'pointer')
+        ) {
+          return {
+            ...mutation,
+            entityType: 'pointer' as const,
+            entityId: payload.originShareId,
+            operation: 'UPSERT' as const,
+            payload: {
+              originShareId: payload.originShareId,
+              title: typeof payload.title === 'string' ? payload.title : '',
+              publishedAt: typeof payload.createdAt === 'string' ? payload.createdAt : mutation.clientTimestamp,
+              schemaVersion: typeof payload.schemaVersion === 'number' ? payload.schemaVersion : 1,
+            } satisfies SyncPointerPayload,
+          };
+        }
+        return mutation;
       });
+
+      const fileName = `journal_${currentHlc}.json.gz`;
+      const journalPayload: JournalPayload = {
+        hlc: currentHlc,
+        deviceId: credentials.deviceId,
+        createdAt: new Date().toISOString(),
+        mutations: mutationsToUpload,
+      };
+
+      const appProperties: Record<string, string> = {
+        type: 'journal',
+        deviceId: credentials.deviceId,
+        hlc: currentHlc,
+        seq: String(this.pushSequence),
+        count: String(mutationsToUpload.length),
+      };
+
+      let uploadedFile: DriveFileMetadata;
+      if (typeof this.driveClient.uploadCompressedJson === 'function') {
+        uploadedFile = await this.driveClient.uploadCompressedJson(
+          fileName,
+          journalPayload,
+          appProperties,
+          accessToken,
+          ['appDataFolder'],
+          { signal: effectiveSignal }
+        );
+      } else {
+        uploadedFile = await this.driveClient.uploadFile({
+          name: fileName,
+          content: JSON.stringify(journalPayload),
+          compress: true,
+          parents: ['appDataFolder'],
+          appProperties,
+          accessToken,
+          signal: effectiveSignal,
+        });
+      }
+
+      effectiveSignal.throwIfAborted();
+      if (this.disposed || this.abortController.signal.aborted) {
+        throw new Error('GoogleDriveSyncTransport is disposed');
+      }
+
+      // Mark our uploaded file as applied to avoid re-ingesting our own journal on pull
+      if (uploadedFile?.id) {
+        this.markFileApplied(uploadedFile.id);
+        await this.saveStateForCredentials(credentials);
+      }
+
+      const accepted = request.mutations.map((mutation) => ({
+        clientMutationId: mutation.clientMutationId,
+        entityType: mutation.entityType,
+        entityId: mutation.entityId,
+        newVersion: (mutation.baseVersion ?? 0) + 1,
+      }));
+
+      return {
+        accepted,
+        conflicts: [],
+        rejected: [],
+      };
+    } finally {
+      this.currentActiveUserId = undefined;
     }
-
-    // Mark our uploaded file as applied to avoid re-ingesting our own journal on pull
-    if (uploadedFile?.id) {
-      this.markFileApplied(uploadedFile.id);
-      await this.saveStateForCredentials(credentials);
-    }
-
-    const accepted = request.mutations.map((mutation) => ({
-      clientMutationId: mutation.clientMutationId,
-      entityType: mutation.entityType,
-      entityId: mutation.entityId,
-      newVersion: (mutation.baseVersion ?? 0) + 1,
-    }));
-
-    return {
-      accepted,
-      conflicts: [],
-      rejected: [],
-    };
   }
 
   /**
@@ -233,221 +293,244 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     limit: number = 100,
     signal?: AbortSignal
   ): Promise<SyncPullResponse> {
-    signal?.throwIfAborted();
-
-    await this.loadStateForCredentials(credentials);
-    signal?.throwIfAborted();
-
-    const accessToken = await this.authService.getValidAccessToken();
-    signal?.throwIfAborted();
-
-    const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
-    let pageToken = this.pageTokens.get(tokenKey);
-
-    let changesResponse: DriveChangesResponse;
-    let recoveredMissingFiles: DriveFileMetadata[] = [];
-    let pendingTokenToCommit: string | undefined;
-
-    if (!pageToken) {
-      // Cursor-First Hydration Invariant:
-      // 1. Call candidateToken = await this.driveClient.getStartPageToken(accessToken) FIRST at t0.
-      const candidateToken = await this.driveClient.getStartPageToken(accessToken);
-      pendingTokenToCommit = candidateToken;
-
-      // 2. Call allFiles = await this.driveClient.listFiles(accessToken) at t1.
-      const allFiles = await this.driveClient.listFiles(accessToken);
-
-      // Baseline Seeding: Cold remote check when not yet driveSeeded
-      if (!this.driveSeeded) {
-        const syncFiles = allFiles.filter(
-          (file) => !file.trashed && this.isSyncFile(file)
-        );
-        if (syncFiles.length === 0) {
-          // Cold Remote: seed Dexie vault as baseline snapshot
-          await this.seedColdRemote(credentials, accessToken, signal);
-        }
-      }
-
-      // 3. Discover all existing unapplied sync files in appDataFolder to hydrate past journals/snapshots.
-      for (const file of allFiles) {
-        if (this.isSyncFile(file) && !this.appliedFileIds.has(file.id)) {
-          recoveredMissingFiles.push(file);
-        }
-      }
-
-      changesResponse = {
-        changes: [],
-        newStartPageToken: candidateToken,
-      };
-      // NOTE: candidateToken is NOT committed to this.pageTokens yet!
-      // Only after downloading and applying hydrated candidate journals is candidateToken committed.
-    } else {
-      try {
-        changesResponse = await this.driveClient.listChanges(pageToken, accessToken);
-        pendingTokenToCommit = changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
-      } catch (err) {
-        if (this.is410Error(err)) {
-          const recoveryParams: Recover410Params = {
-            accessToken,
-            appliedFileIds: this.appliedFileIds,
-            peerWatermarks: this.peerWatermarks,
-          };
-
-          const recoveryResult: CursorRecoveryResult =
-            typeof this.driveClient.recoverFromInvalidPageToken === 'function'
-              ? await this.driveClient.recoverFromInvalidPageToken(recoveryParams)
-              : await this.driveClient.recover410Cursor(recoveryParams);
-
-          pendingTokenToCommit = recoveryResult.newPageToken;
-          changesResponse = {
-            changes: [],
-            newStartPageToken: recoveryResult.newPageToken,
-          };
-          recoveredMissingFiles = recoveryResult.missingFiles;
-        } else {
-          throw err;
-        }
-      }
+    if (this.disposed || this.abortController.signal.aborted) {
+      throw new Error('GoogleDriveSyncTransport is disposed');
+    }
+    if (this.expectedSub && credentials.userId !== this.expectedSub) {
+      throw new DriveAuthError(
+        `Account mismatch: expected ${this.expectedSub} but received ${credentials.userId}`
+      );
     }
 
-    signal?.throwIfAborted();
+    const effectiveSignal = this.getCombinedSignal(signal);
+    effectiveSignal.throwIfAborted();
 
-    interface JournalCandidate {
-      fileId: string;
-      metadata: DriveFileMetadata;
-    }
+    this.currentActiveUserId = credentials.userId;
+    try {
+      await this.loadStateForCredentials(credentials);
+      effectiveSignal.throwIfAborted();
 
-    const candidates: JournalCandidate[] = [];
-    const seenCandidateFileIds = new Set<string>();
+      const accessToken = await (this.authService as any).getValidAccessToken(false, credentials.userId);
+      effectiveSignal.throwIfAborted();
 
-    for (const change of changesResponse.changes) {
-      if (change.removed) {
-        continue;
-      }
-      if (!change.file) {
-        continue;
-      }
-      if (
-        this.isJournalFile(change.file) &&
-        !this.appliedFileIds.has(change.file.id) &&
-        !seenCandidateFileIds.has(change.file.id)
-      ) {
-        seenCandidateFileIds.add(change.file.id);
-        candidates.push({ fileId: change.file.id, metadata: change.file });
-      }
-    }
+      const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
+      let pageToken = this.pageTokens.get(tokenKey);
 
-    for (const file of recoveredMissingFiles) {
-      if (
-        this.isSyncFile(file) &&
-        !this.appliedFileIds.has(file.id) &&
-        !seenCandidateFileIds.has(file.id)
-      ) {
-        seenCandidateFileIds.add(file.id);
-        candidates.push({ fileId: file.id, metadata: file });
-      }
-    }
+      let changesResponse: DriveChangesResponse;
+      let recoveredMissingFiles: DriveFileMetadata[] = [];
+      let pendingTokenToCommit: string | undefined;
 
-    // Sort candidates deterministically by HLC timestamp
-    candidates.sort((a, b) => {
-      const hlca = this.extractHlc(a.metadata);
-      const hlcb = this.extractHlc(b.metadata);
-      return compareHlc(hlca, hlcb);
-    });
+      if (!pageToken) {
+        // Cursor-First Hydration Invariant:
+        // 1. Call candidateToken = await this.driveClient.getStartPageToken(accessToken) FIRST at t0.
+        const candidateToken = await this.driveClient.getStartPageToken(accessToken, { signal: effectiveSignal });
+        pendingTokenToCommit = candidateToken;
 
-    const changes: SyncChangeItem[] = [];
-    const localHlc = this.getHlc(credentials.deviceId);
+        // 2. Call allFiles = await this.driveClient.listFiles(accessToken) at t1.
+        const allFiles = await this.driveClient.listFiles(accessToken, undefined, { signal: effectiveSignal });
 
-    for (const candidate of candidates) {
-      signal?.throwIfAborted();
-
-      let journal: JournalPayload;
-      try {
-        if (typeof this.driveClient.downloadCompressedJson === 'function') {
-          journal = await this.driveClient.downloadCompressedJson<JournalPayload>(
-            candidate.fileId,
-            accessToken
+        // Baseline Seeding: Cold remote check when not yet driveSeeded
+        if (!this.driveSeeded) {
+          const syncFiles = allFiles.filter(
+            (file) => !file.trashed && this.isSyncFile(file)
           );
-        } else {
-          const text = await this.driveClient.downloadFile(candidate.fileId, accessToken, {
-            decompress: true,
-          });
-          journal = JSON.parse(text) as JournalPayload;
+          if (syncFiles.length === 0) {
+            // Cold Remote: seed Dexie vault as baseline snapshot
+            await this.seedColdRemote(credentials, accessToken, effectiveSignal);
+          }
         }
-      } catch (err) {
-        if (this.isCorruptedFileError(err)) {
-          // Prevent repeated failures on corrupted file
-          this.markFileApplied(candidate.fileId);
+
+        // 3. Discover all existing unapplied sync files in appDataFolder to hydrate past journals/snapshots.
+        for (const file of allFiles) {
+          if (this.isSyncFile(file) && !this.appliedFileIds.has(file.id)) {
+            recoveredMissingFiles.push(file);
+          }
+        }
+
+        changesResponse = {
+          changes: [],
+          newStartPageToken: candidateToken,
+        };
+        // NOTE: candidateToken is NOT committed to this.pageTokens yet!
+        // Only after downloading and applying hydrated candidate journals is candidateToken committed.
+      } else {
+        try {
+          changesResponse = await this.driveClient.listChanges(pageToken, accessToken, { signal: effectiveSignal });
+          pendingTokenToCommit = changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
+        } catch (err) {
+          if (this.is410Error(err)) {
+            const recoveryParams: Recover410Params = {
+              accessToken,
+              appliedFileIds: this.appliedFileIds,
+              peerWatermarks: this.peerWatermarks,
+              signal: effectiveSignal,
+            };
+
+            const recoveryResult: CursorRecoveryResult =
+              typeof this.driveClient.recoverFromInvalidPageToken === 'function'
+                ? await this.driveClient.recoverFromInvalidPageToken(recoveryParams)
+                : await this.driveClient.recover410Cursor(recoveryParams);
+
+            pendingTokenToCommit = recoveryResult.newPageToken;
+            changesResponse = {
+              changes: [],
+              newStartPageToken: recoveryResult.newPageToken,
+            };
+            recoveredMissingFiles = recoveryResult.missingFiles;
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      effectiveSignal.throwIfAborted();
+
+      interface JournalCandidate {
+        fileId: string;
+        metadata: DriveFileMetadata;
+      }
+
+      const candidates: JournalCandidate[] = [];
+      const seenCandidateFileIds = new Set<string>();
+
+      for (const change of changesResponse.changes) {
+        if (change.removed) {
           continue;
         }
-        throw err;
-      }
-
-      this.markFileApplied(candidate.fileId);
-
-      const fileHlc = candidate.metadata.appProperties?.hlc ?? journal.hlc;
-      const fileDeviceId = candidate.metadata.appProperties?.deviceId ?? journal.deviceId;
-
-      if (fileHlc) {
-        localHlc.receive(fileHlc);
-      }
-
-      if (fileDeviceId && fileHlc) {
-        const currentWm = this.peerWatermarks[fileDeviceId];
-        if (!currentWm || compareHlc(fileHlc, currentWm) > 0) {
-          this.peerWatermarks[fileDeviceId] = fileHlc;
+        if (!change.file) {
+          continue;
+        }
+        if (
+          this.isJournalFile(change.file) &&
+          !this.appliedFileIds.has(change.file.id) &&
+          !seenCandidateFileIds.has(change.file.id)
+        ) {
+          seenCandidateFileIds.add(change.file.id);
+          candidates.push({ fileId: change.file.id, metadata: change.file });
         }
       }
 
-      if (Array.isArray(journal.mutations)) {
-        for (const mutation of journal.mutations) {
-          if (mutation.entityType === 'pointer' && mutation.payload) {
-            const pointerPayload = mutation.payload as SyncPointerPayload;
-            if (pointerPayload.originShareId) {
-              await this.enqueuePointerOperation(pointerPayload);
-            }
+      for (const file of recoveredMissingFiles) {
+        if (
+          this.isSyncFile(file) &&
+          !this.appliedFileIds.has(file.id) &&
+          !seenCandidateFileIds.has(file.id)
+        ) {
+          seenCandidateFileIds.add(file.id);
+          candidates.push({ fileId: file.id, metadata: file });
+        }
+      }
+
+      // Sort candidates deterministically by HLC timestamp
+      candidates.sort((a, b) => {
+        const hlca = this.extractHlc(a.metadata);
+        const hlcb = this.extractHlc(b.metadata);
+        return compareHlc(hlca, hlcb);
+      });
+
+      const changes: SyncChangeItem[] = [];
+      const localHlc = this.getHlc(credentials.deviceId);
+
+      for (const candidate of candidates) {
+        effectiveSignal.throwIfAborted();
+
+        let journal: JournalPayload;
+        try {
+          if (typeof this.driveClient.downloadCompressedJson === 'function') {
+            journal = await this.driveClient.downloadCompressedJson<JournalPayload>(
+              candidate.fileId,
+              accessToken,
+              { signal: effectiveSignal }
+            );
+          } else {
+            const text = await this.driveClient.downloadFile(candidate.fileId, accessToken, {
+              decompress: true,
+              signal: effectiveSignal,
+            });
+            journal = JSON.parse(text) as JournalPayload;
           }
-          this.currentSequence = Math.max(this.currentSequence, cursor) + 1;
-          changes.push({
-            sequence: this.currentSequence,
-            entityType: mutation.entityType,
-            entityId: mutation.entityId,
-            operation: mutation.operation,
-            version: mutation.baseVersion,
-            changedAt: mutation.clientTimestamp,
-            data: mutation.payload,
-          });
+        } catch (err) {
+          if (this.isCorruptedFileError(err)) {
+            // Prevent repeated failures on corrupted file
+            this.markFileApplied(candidate.fileId);
+            continue;
+          }
+          throw err;
+        }
+
+        effectiveSignal.throwIfAborted();
+        if (this.disposed || this.abortController.signal.aborted) {
+          throw new Error('GoogleDriveSyncTransport is disposed');
+        }
+
+        this.markFileApplied(candidate.fileId);
+
+        const fileHlc = candidate.metadata.appProperties?.hlc ?? journal.hlc;
+        const fileDeviceId = candidate.metadata.appProperties?.deviceId ?? journal.deviceId;
+
+        if (fileHlc) {
+          localHlc.receive(fileHlc);
+        }
+
+        if (fileDeviceId && fileHlc) {
+          const currentWm = this.peerWatermarks[fileDeviceId];
+          if (!currentWm || compareHlc(fileHlc, currentWm) > 0) {
+            this.peerWatermarks[fileDeviceId] = fileHlc;
+          }
+        }
+
+        if (Array.isArray(journal.mutations)) {
+          for (const mutation of journal.mutations) {
+            if (mutation.entityType === 'pointer' && mutation.payload) {
+              const pointerPayload = mutation.payload as SyncPointerPayload;
+              if (pointerPayload.originShareId) {
+                await this.enqueuePointerOperation(pointerPayload);
+              }
+            }
+            this.currentSequence = Math.max(this.currentSequence, cursor) + 1;
+            changes.push({
+              sequence: this.currentSequence,
+              entityType: mutation.entityType,
+              entityId: mutation.entityId,
+              operation: mutation.operation,
+              version: mutation.baseVersion,
+              changedAt: mutation.clientTimestamp,
+              data: mutation.payload,
+            });
+          }
         }
       }
+
+      // Baseline Seeding: Warm remote check when not yet driveSeeded
+      if (!this.driveSeeded) {
+        await this.seedWarmRemoteDeltas(credentials, changes, accessToken, effectiveSignal);
+        this.driveSeeded = true;
+      }
+
+      // Only after downloading and applying hydrated files, commit pageToken and persist transport state
+      const tokenToCommit =
+        pendingTokenToCommit ?? changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
+      if (tokenToCommit) {
+        this.pageTokens.set(tokenKey, tokenToCommit);
+      }
+
+      await this.saveStateForCredentials(credentials);
+
+      const returnedChanges =
+        typeof limit === 'number' && limit > 0 ? changes.slice(0, limit) : changes;
+      const hasMore =
+        Boolean(changesResponse.nextPageToken) ||
+        (typeof limit === 'number' && limit > 0 && changes.length > limit);
+      const newCursor = cursor + returnedChanges.length;
+
+      return {
+        newCursor,
+        hasMore,
+        changes: returnedChanges,
+      };
+    } finally {
+      this.currentActiveUserId = undefined;
     }
-
-    // Baseline Seeding: Warm remote check when not yet driveSeeded
-    if (!this.driveSeeded) {
-      await this.seedWarmRemoteDeltas(credentials, changes, accessToken, signal);
-      this.driveSeeded = true;
-    }
-
-    // Only after downloading and applying hydrated files, commit pageToken and persist transport state
-    const tokenToCommit =
-      pendingTokenToCommit ?? changesResponse.nextPageToken ?? changesResponse.newStartPageToken;
-    if (tokenToCommit) {
-      this.pageTokens.set(tokenKey, tokenToCommit);
-    }
-
-    await this.saveStateForCredentials(credentials);
-
-    const returnedChanges =
-      typeof limit === 'number' && limit > 0 ? changes.slice(0, limit) : changes;
-    const hasMore =
-      Boolean(changesResponse.nextPageToken) ||
-      (typeof limit === 'number' && limit > 0 && changes.length > limit);
-    const newCursor = cursor + returnedChanges.length;
-
-    return {
-      newCursor,
-      hasMore,
-      changes: returnedChanges,
-    };
   }
 
   /**
@@ -483,6 +566,12 @@ export class GoogleDriveSyncTransport implements SyncTransport {
    * Clears in-memory and persisted transport state (for testing / logout).
    */
   clearState(credentials?: SessionCredentials): void {
+    this.pageTokens.clear();
+    this.appliedFileIds.clear();
+    this.driveSeeded = false;
+    for (const key of Object.keys(this.peerWatermarks)) {
+      delete this.peerWatermarks[key];
+    }
     void this.clearStateAsync(credentials);
   }
 
@@ -733,7 +822,8 @@ export class GoogleDriveSyncTransport implements SyncTransport {
           snapshotPayload,
           appProperties,
           accessToken,
-          ['appDataFolder']
+          ['appDataFolder'],
+          { signal }
         );
       } else {
         uploadedFile = await this.driveClient.uploadFile({
@@ -744,7 +834,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
           parents: ['appDataFolder'],
           appProperties,
           accessToken,
+          signal,
         });
+      }
+
+      signal?.throwIfAborted();
+      if (this.disposed || this.abortController.signal.aborted) {
+        throw new Error('GoogleDriveSyncTransport is disposed');
       }
 
       if (uploadedFile?.id) {
@@ -805,7 +901,8 @@ export class GoogleDriveSyncTransport implements SyncTransport {
           journalPayload,
           appProperties,
           accessToken,
-          ['appDataFolder']
+          ['appDataFolder'],
+          { signal }
         );
       } else {
         uploadedFile = await this.driveClient.uploadFile({
@@ -815,7 +912,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
           parents: ['appDataFolder'],
           appProperties,
           accessToken,
+          signal,
         });
+      }
+
+      signal?.throwIfAborted();
+      if (this.disposed || this.abortController.signal.aborted) {
+        throw new Error('GoogleDriveSyncTransport is disposed');
       }
 
       if (uploadedFile?.id) {

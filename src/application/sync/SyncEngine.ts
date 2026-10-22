@@ -38,6 +38,8 @@ export class SyncEngine {
 
   private runningPromise: Promise<{ status: 'standby' | 'skipped_concurrent_tab' } | void> | null = null;
   private followUpRequested = false;
+  private disposed = false;
+  private readonly lifecycleController = new AbortController();
 
   constructor(dependencies: SyncEngineDependencies);
   constructor(
@@ -85,12 +87,22 @@ export class SyncEngine {
     this.syncEventSink = sink;
   }
 
+  dispose(): void {
+    this.disposed = true;
+    this.followUpRequested = false;
+    this.lifecycleController.abort();
+  }
+
   /**
    * Triggers a synchronization cycle with the single-flight mutex and multi-tab Web Lock.
    * If a cycle is currently running, flags a follow-up run and returns the current running promise.
    * If credentials are null or unauthenticated, immediately enters standby state without touching syncQueue.
    */
   sync(credentials?: SessionCredentials | null): Promise<{ status: 'standby' | 'skipped_concurrent_tab' } | void> {
+    if (this.disposed || this.lifecycleController.signal.aborted) {
+      return Promise.reject(new Error('SyncEngine is disposed'));
+    }
+
     const isUnauthenticated =
       !credentials ||
       !credentials.userId ||
@@ -120,7 +132,7 @@ export class SyncEngine {
         }
       } finally {
         this.runningPromise = null;
-        if (this.followUpRequested) {
+        if (this.followUpRequested && !this.disposed && !this.lifecycleController.signal.aborted) {
           this.followUpRequested = false;
           // Execute requested follow-up cycle
           await this.sync(credentials);
@@ -140,6 +152,20 @@ export class SyncEngine {
     signal?: AbortSignal,
     reportProgress?: () => void
   ): Promise<void> {
+    if (this.disposed || this.lifecycleController.signal.aborted) {
+      return;
+    }
+
+    const combinedSignal = signal
+      ? (typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([signal, this.lifecycleController.signal])
+          : signal)
+      : this.lifecycleController.signal;
+
+    if (combinedSignal.aborted) {
+      return;
+    }
+
     const isOffline =
       typeof navigator !== 'undefined' &&
       typeof navigator.onLine === 'boolean' &&
@@ -153,29 +179,41 @@ export class SyncEngine {
     this.statusStore.setState({ state: 'syncing', lastError: undefined });
 
     try {
-      if (signal?.aborted) {
-        throw signal.reason ?? new Error('Sync aborted');
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
       }
 
       const stateKey = createSyncStateKey(credentials.userId, credentials.deviceId);
 
       // Rehydrate pending count before cycle starts
       const initialPending = await this.queueRepo.countPending();
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
       this.statusStore.setState({ pendingCount: initialPending });
       reportProgress?.();
 
       // Step 1: Pull until caught up (Initial pull)
-      const pullResult = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
+      const pullResult = await this.pullUntilCaughtUp(credentials, stateKey, combinedSignal, reportProgress);
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
       let cursor = pullResult.cursor;
       let totalApplied = pullResult.appliedCount;
       const allTouchedEntities = new Set<string>(pullResult.touchedEntities);
 
       // Step 2: Push pending batches
-      const pushResult = await this.pushPendingBatches(credentials, signal, reportProgress);
+      const pushResult = await this.pushPendingBatches(credentials, combinedSignal, reportProgress);
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
 
       // Step 3: Pull again ONLY if mutations were pushed or remote changes were applied in step 1
       if (pushResult.pushedCount > 0 || pullResult.appliedChangesCount > 0) {
-        const secondPull = await this.pullUntilCaughtUp(credentials, stateKey, signal, reportProgress);
+        const secondPull = await this.pullUntilCaughtUp(credentials, stateKey, combinedSignal, reportProgress);
+        if (this.disposed || combinedSignal.aborted) {
+          throw combinedSignal.reason ?? new Error('Sync aborted');
+        }
         cursor = secondPull.cursor;
         totalApplied += secondPull.appliedCount;
         for (const entity of secondPull.touchedEntities) {
@@ -186,8 +224,14 @@ export class SyncEngine {
       // Step 4: Finalize and mark idle
       reportProgress?.();
       const finalPending = await this.queueRepo.countPending();
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
       const now = new Date().toISOString();
       const existingState = await this.stateRepo.getSyncState(stateKey);
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
 
       await this.stateRepo.saveSyncState({
         ...existingState,
@@ -197,6 +241,10 @@ export class SyncEngine {
         lastServerCursor: cursor,
         lastSyncedAt: now,
       });
+
+      if (this.disposed || combinedSignal.aborted) {
+        throw combinedSignal.reason ?? new Error('Sync aborted');
+      }
 
       this.statusStore.setState({
         state: 'idle',
@@ -213,6 +261,9 @@ export class SyncEngine {
         });
       }
     } catch (error) {
+      if (this.disposed || this.lifecycleController.signal.aborted || combinedSignal.aborted) {
+        return;
+      }
       const isNetworkFail =
         (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) ||
         error instanceof SyncNetworkError ||
@@ -252,14 +303,18 @@ export class SyncEngine {
     const touchedEntitiesSet = new Set<string>();
 
     while (hasMore) {
-      if (signal?.aborted) {
-        throw signal.reason ?? new Error('Sync aborted');
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
       }
 
       const pullResponse = signal
         ? await this.transport.pull(credentials, cursor, 100, signal)
         : await this.transport.pull(credentials, cursor, 100);
       reportProgress?.();
+
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
+      }
 
       const reconcileResult = await this.reconciler.reconcilePullBatch(
         credentials.userId,
@@ -268,6 +323,10 @@ export class SyncEngine {
         pullResponse
       );
       reportProgress?.();
+
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
+      }
       const currentApplied = reconcileResult?.appliedCount ?? 0;
       appliedCount += currentApplied;
       appliedChangesCount += currentApplied + (reconcileResult?.conflictCount ?? 0);
@@ -280,13 +339,14 @@ export class SyncEngine {
       cursor = pullResponse.newCursor;
       this.statusStore.setState({ lastServerCursor: cursor });
 
+      const freshState = await this.stateRepo.getSyncState(stateKey);
       await this.stateRepo.saveSyncState({
-        ...syncState,
+        ...freshState,
         key: stateKey,
         userId: credentials.userId,
         deviceId: credentials.deviceId,
         lastServerCursor: cursor,
-        lastSyncedAt: syncState?.lastSyncedAt,
+        lastSyncedAt: freshState?.lastSyncedAt,
       });
 
       hasMore = pullResponse.hasMore;
@@ -312,8 +372,8 @@ export class SyncEngine {
     const maxBatchesPerCycle = 10;
 
     for (let batch = 0; batch < maxBatchesPerCycle; batch++) {
-      if (signal?.aborted) {
-        throw signal.reason ?? new Error('Sync aborted');
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
       }
 
       const pending = await this.queueRepo.peekPending(50);
@@ -330,6 +390,11 @@ export class SyncEngine {
         ? await this.transport.push(credentials, pushRequest, signal)
         : await this.transport.push(credentials, pushRequest);
       reportProgress?.();
+
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
+      }
+
       pushedCount += pending.length;
 
       await this.reconciler.applyPushResult(
@@ -339,6 +404,10 @@ export class SyncEngine {
         pushResponse
       );
       reportProgress?.();
+
+      if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
+        throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
+      }
 
       const remaining = await this.queueRepo.countPending();
       this.statusStore.setState({ pendingCount: remaining });

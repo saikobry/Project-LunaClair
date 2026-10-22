@@ -10,7 +10,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
   - `schema/` — Database engine definition, schema history, lifecycle, and migrations:
     - `LunaClairDatabase.ts` → `LunaClairDatabase` (Dexie subclass with typed `Table` properties, singleton `db`, multi-vault factory `openVaultDatabase`, active database resolution `getActiveVaultDatabase`/`setActiveVaultDatabase`/`resetActiveVaultDatabase`, and instance caching via `clearVaultDatabaseCache`)
     - `schema.ts` → Version 1 through 16 schema definitions
-    - `DatabaseInitializer.ts` → Startup orchestrator (refuses a database a newer build owns → `db.open()` → `migrateIfNeeded()`, deliberately no seeding)
+    - `DatabaseInitializer.ts` → Startup orchestrator (per-database initialization tracking `initializedDatabases`, refuses a database a newer build owns → `db.open()` → `migrateIfNeeded()`, deliberately no seeding)
     - `databaseLifecycle.ts` → Reload-required vocabulary and detection (`DatabaseReloadReason`, `DatabaseReloadRequiredError`, `readStoredDatabaseVersion`, `isStoredDatabaseNewer`)
     - `DatabaseMigrator.ts` → One-time migration of legacy `localStorage` data into IndexedDB
   - `repositories/` — Concrete Dexie persistence adapters implementing domain repository ports:
@@ -41,13 +41,13 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `transactionContext.ts` → `originOf`, `withOrigin`, `SyncScopeError`, `OriginConflictError` (transaction origin tagging and inheritance)
     - `syncHooks.ts` → `installSyncHooks` (synchronous scope guards, local mutation capture and stamping into `SyncQueueItem` outbox records, echo loop suppression)
   - `registry/` — Master database pointer registry for BYOS local vault namespacing:
-    - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`, `quarantineVault`, `pruneStaleVaults`)
+    - `VaultRegistry.ts` → `VaultRegistryPort` implementation decoupling logical account identity (`ownerSub`) from physical IndexedDB names via `lunaclair_registry` database (`REGISTRY_DB_NAME`, `generatePhysicalDbName`, `RegistryDatabase`, `VaultRegistry`, `vaultRegistry`, `quarantineVault`, `pruneStaleVaults`); provisions preferred identity vaults without silent fallback to anonymous
 - `api/` — External REST API, Cloudflare Worker, and cloud storage boundary:
   - `transports/` — Network and cloud storage sync and share transports:
     - `WorkerShareTransport.ts` → `ShareTransport` (`/api/shares`, `/api/shares/:code`)
-    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (sole sync transport; Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, warm-mode delta diffing per `(record.id, record.hlc)` against remote entity map enabling interrupted seed resume, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence)
+    - `GoogleDriveSyncTransport.ts` → `SyncTransport` (sole sync transport; Google Drive `appDataFolder` BYOS lock-free sync via single-writer append-only journals `journal_{hlc}.json.gz`, cursor-first hydration discovery of historical journals via `listFiles`, warm-mode delta diffing per `(record.id, record.hlc)` against remote entity map enabling interrupted seed resume, and incremental changes feed consumption with LRU-capped Dexie vault `syncState` persistence; bound dynamically per active vault with in-memory `clearState` and abortive `dispose` on account switches, validating credentials against `expectedSub`)
   - `google/` — Google Drive API v3 client:
-    - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`)
+    - `GoogleDriveClient.ts` → `GoogleDrivePort` implementation (`GoogleDriveClient`, `googleDriveClient`, `gzipCompress`, `gzipDecompress`; enforces immediate signal abort checks before backoff and in retry loops)
     - `streamVaultChunksGzipped.ts` → Streaming vault baseline compression pipeline (`streamVaultChunksGzipped`, `collectVaultChunksGzipped`, `deriveEntityHlc`, `paginateTable`, `compressChunkGzip`)
 - `browser/` — Browser environment and runtime capability adapters:
   - `lifecycle/` — Browser event integrations:
@@ -77,10 +77,10 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
 - `auth/` — Authentication and third-party identity boundary:
   - `google/` — Google Identity Services (GIS) integration:
     - `loadGis.ts` → Idempotent dynamic loader for `https://accounts.google.com/gsi/client`
-    - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort`, and automated silent token refresh via Cloudflare Worker auth endpoints
+    - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort` guarded by immediate post-promotion session generation checks, automated silent token refresh via Cloudflare Worker auth endpoints, monotonic session generation tracking (`getSessionGeneration`), and stale refresh/login race prevention
     - `GoogleSessionCredentialsProvider.ts` → `SessionCredentialsProvider` implementation bridging Google OAuth identity into synchronization credentials
 - `sync/` — Cloud synchronization runtime adapters:
-  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, bypasses enqueueing and skips download if material already exists in `db.materials`, caps maximum attempts to drop broken shares, and handles 404/410 delisting with exponential backoff)
+  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, bypasses enqueueing and skips download if material already exists in `db.materials`, caps maximum attempts to drop broken shares, and handles 404/410 delisting with exponential backoff; supports explicit `dispose()` with internal AbortController to cleanly abort in-flight queues)
 
 ## Local Contracts
 

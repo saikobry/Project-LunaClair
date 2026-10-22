@@ -16,7 +16,7 @@ import {
  * mechanism — the official catalog was retired).
  *
  * It checks the version already stored *before* opening, and refuses to proceed when a newer build
-ows it (`DatabaseReloadRequiredError`) — the only correct recovery is a reload onto the current
+ * owns it (`DatabaseReloadRequiredError`) — the only correct recovery is a reload onto the current
  * build, which callers must surface rather than treat as a crash (`databaseLifecycle.ts`).
  *
  * **The check has to run before `db.open()`, because opening is not a safe way to find out.** A
@@ -29,10 +29,10 @@ ows it (`DatabaseReloadRequiredError`) — the only correct recovery is a reload
  * are real bugs and should stay loud.
  */
 export class DatabaseInitializer {
-    private static initialized = false;
+    private static initializedDatabases = new Set<string>();
 
     static async initialize(database: LunaClairDatabase = getActiveVaultDatabase()): Promise<void> {
-        if (DatabaseInitializer.initialized) return;
+        if (DatabaseInitializer.initializedDatabases.has(database.name)) return;
 
         const storedVersion = await readStoredDatabaseVersion(database.name);
         if (storedVersion !== null && isStoredDatabaseNewer(storedVersion, database.verno)) {
@@ -44,11 +44,11 @@ export class DatabaseInitializer {
         const migrator = new DatabaseMigrator(database);
         await migrator.migrateIfNeeded();
 
-        DatabaseInitializer.initialized = true;
+        DatabaseInitializer.initializedDatabases.add(database.name);
     }
 
     /** Reset initialization state for testing purposes. */
     static resetForTesting(): void {
-        DatabaseInitializer.initialized = false;
+        DatabaseInitializer.initializedDatabases.clear();
     }
 }

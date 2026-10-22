@@ -80,9 +80,21 @@ describe('VaultRegistry — Dexie adapter & lifecycle', () => {
       expect(vault.lastActiveAt).toBeGreaterThan(1000);
     });
 
-    it('falls back to active anonymous vault when preferredSub does not exist', async () => {
+    it('creates a new vault pointer for preferredSub when it does not exist', async () => {
       const anon = await registry.getActiveVault();
       const resolved = await registry.getActiveVault('non-existent-sub');
+
+      expect(resolved.ownerSub).toBe('non-existent-sub');
+      expect(resolved.physicalDbName).toMatch(/^lc_vault_[0-9a-f]{32}$/);
+      expect(resolved.physicalDbName).not.toBe(anon.physicalDbName);
+
+      const stored = await testDb.vaults.get('non-existent-sub');
+      expect(stored).toEqual(resolved);
+    });
+
+    it('falls back to active anonymous vault only when preferredSub is undefined', async () => {
+      const anon = await registry.getActiveVault();
+      const resolved = await registry.getActiveVault(undefined);
 
       expect(resolved.ownerSub).toBe(ANONYMOUS_OWNER_SUB);
       expect(resolved.physicalDbName).toBe(anon.physicalDbName);

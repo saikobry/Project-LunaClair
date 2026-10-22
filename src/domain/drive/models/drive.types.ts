@@ -49,6 +49,7 @@ export interface UploadFileParams {
   parents?: string[];
   compress?: boolean;
   accessToken: string;
+  signal?: AbortSignal;
 }
 
 /**
@@ -58,6 +59,7 @@ export interface Recover410Params {
   accessToken: string;
   appliedFileIds: Set<string> | string[];
   peerWatermarks: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 /**
@@ -75,7 +77,7 @@ export interface GoogleDrivePort {
   /**
    * Generates a unique file ID within appDataFolder ahead of creation.
    */
-  generateFileId(accessToken: string): Promise<string>;
+  generateFileId(accessToken: string, options?: { signal?: AbortSignal }): Promise<string>;
 
   /**
    * Uploads a file to appDataFolder using binary-safe multipart/related upload.
@@ -89,7 +91,7 @@ export interface GoogleDrivePort {
   downloadFile(
     fileId: string,
     accessToken: string,
-    options?: { decompress?: boolean }
+    options?: { decompress?: boolean; signal?: AbortSignal }
   ): Promise<string>;
 
   /**
@@ -98,28 +100,36 @@ export interface GoogleDrivePort {
   downloadBinary(
     fileId: string,
     accessToken: string,
-    options?: { decompress?: boolean }
+    options?: { decompress?: boolean; signal?: AbortSignal }
   ): Promise<Uint8Array>;
 
   /**
    * Deletes a file by ID from Google Drive.
    */
-  deleteFile(fileId: string, accessToken: string): Promise<void>;
+  deleteFile(fileId: string, accessToken: string, options?: { signal?: AbortSignal }): Promise<void>;
 
   /**
    * Lists files in appDataFolder, returning metadata.
    */
-  listFiles(accessToken: string, query?: string): Promise<DriveFileMetadata[]>;
+  listFiles(
+    accessToken: string,
+    query?: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<DriveFileMetadata[]>;
 
   /**
    * Retrieves a new startPageToken for changes tracking in appDataFolder.
    */
-  getStartPageToken(accessToken: string): Promise<string>;
+  getStartPageToken(accessToken: string, options?: { signal?: AbortSignal }): Promise<string>;
 
   /**
    * Consumes incremental changes starting from pageToken in appDataFolder.
    */
-  listChanges(pageToken: string, accessToken: string): Promise<DriveChangesResponse>;
+  listChanges(
+    pageToken: string,
+    accessToken: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<DriveChangesResponse>;
 
   /**
    * Executes the 4-step cursor recovery protocol when a 410 Gone / invalid page token occurs:
@@ -138,13 +148,18 @@ export interface GoogleDrivePort {
     data: unknown,
     appProperties: Record<string, string>,
     accessToken: string,
-    parents?: string[]
+    parents?: string[],
+    options?: { signal?: AbortSignal }
   ): Promise<DriveFileMetadata>;
 
   /**
    * Downloads and decompresses JSON file from Google Drive via alt=media.
    */
-  downloadCompressedJson?<T = unknown>(fileId: string, accessToken: string): Promise<T>;
+  downloadCompressedJson?<T = unknown>(
+    fileId: string,
+    accessToken: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<T>;
 
   /**
    * Alias for recover410Cursor.

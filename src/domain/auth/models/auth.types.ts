@@ -81,4 +81,10 @@ export interface GoogleAuthPort {
    * Subscribes to session state changes. Returns an unsubscribe callback.
    */
   subscribe(listener: (session: GoogleAuthSession | null) => void): () => void;
+
+  /**
+   * Returns monotonically increasing generation counter for active session epoch.
+   * Increments on logout and when establishing a newly authenticated session.
+   */
+  getSessionGeneration?(): number;
 }

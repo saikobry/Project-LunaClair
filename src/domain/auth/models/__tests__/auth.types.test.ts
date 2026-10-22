@@ -57,6 +57,7 @@ describe('Domain: auth.types contracts', () => {
       getSession: () => null,
       getStatus: () => 'unauthenticated',
       subscribe: () => () => {},
+      getSessionGeneration: () => 0,
     };
 
     expect(typeof dummyPort.login).toBe('function');
@@ -65,5 +66,6 @@ describe('Domain: auth.types contracts', () => {
     expect(typeof dummyPort.getSession).toBe('function');
     expect(typeof dummyPort.getStatus).toBe('function');
     expect(typeof dummyPort.subscribe).toBe('function');
+    expect(typeof dummyPort.getSessionGeneration).toBe('function');
   });
 });

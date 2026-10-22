@@ -66,6 +66,12 @@ interface TokenRefreshResponse {
   expiresIn: number;
 }
 
+interface ActiveRefreshEntry {
+  generation: number;
+  sub: string;
+  promise: Promise<string>;
+}
+
 /**
  * Concrete infrastructure adapter implementing GoogleAuthPort.
  */
@@ -81,9 +87,12 @@ export class GoogleAuthService implements GoogleAuthPort {
 
   private session: GoogleAuthSession | null;
   private status: AuthStatus;
+  private sessionGeneration: number;
   private readonly listeners: Set<(session: GoogleAuthSession | null) => void>;
   private loginPromise: Promise<GoogleAuthSession> | null;
-  private refreshPromise: Promise<string> | null;
+  private currentLoginRequestId: number;
+  private loginCancelFn: ((err: Error) => void) | null;
+  private activeRefresh: ActiveRefreshEntry | null;
   private lastPromotionResult: PromotionResult | null;
 
   constructor(options: GoogleAuthServiceOptions = {}) {
@@ -123,9 +132,12 @@ export class GoogleAuthService implements GoogleAuthPort {
     this.vaultRegistry = options.vaultRegistry ?? defaultVaultRegistry;
     this.lastPromotionResult = null;
 
+    this.sessionGeneration = 0;
     this.listeners = new Set();
     this.loginPromise = null;
-    this.refreshPromise = null;
+    this.loginCancelFn = null;
+    this.currentLoginRequestId = 0;
+    this.activeRefresh = null;
 
     this.session = this.readSessionFromStorage();
     this.status = this.session ? 'authenticated' : 'unauthenticated';
@@ -149,6 +161,14 @@ export class GoogleAuthService implements GoogleAuthPort {
   }
 
   /**
+   * Returns monotonically increasing session generation counter for active session epoch.
+   * Increments on logout and when establishing a newly authenticated session.
+   */
+  getSessionGeneration(): number {
+    return this.sessionGeneration;
+  }
+
+  /**
    * Returns the outcome of the most recent vault promotion, or null if none occurred.
    */
   getLastPromotionResult(): PromotionResult | null {
@@ -168,26 +188,39 @@ export class GoogleAuthService implements GoogleAuthPort {
   /**
    * Initiates Google OAuth popup and exchanges authorization code for tokens.
    */
-  async login(): Promise<GoogleAuthSession> {
+  login(): Promise<GoogleAuthSession> {
     if (this.loginPromise) {
       return this.loginPromise;
     }
 
-    this.loginPromise = this.executeLoginFlow();
-    try {
-      return await this.loginPromise;
-    } finally {
-      this.loginPromise = null;
-    }
+    const requestId = ++this.currentLoginRequestId;
+    const promise = this.executeLoginFlow();
+    const loginPromise = promise.finally(() => {
+      if (this.currentLoginRequestId === requestId) {
+        this.loginPromise = null;
+      }
+    });
+    this.loginPromise = loginPromise;
+    return loginPromise;
   }
 
   /**
    * Returns a valid access token. Automatically triggers silent refresh if expiring within 2 minutes
    * or if force is true.
+   * If expectedSub is provided, validates that the active session matches this user sub.
    */
-  async getValidAccessToken(force = false): Promise<string> {
+  async getValidAccessToken(force = false, expectedSub?: string): Promise<string> {
     if (!this.session) {
       this.session = this.readSessionFromStorage();
+    }
+
+    if (expectedSub && this.session?.user.sub !== expectedSub) {
+      throw new Error(
+        'Session mismatch: expected token for ' +
+          expectedSub +
+          ', but active session is ' +
+          (this.session?.user.sub ?? 'unauthenticated'),
+      );
     }
 
     if (!this.session) {
@@ -201,29 +234,54 @@ export class GoogleAuthService implements GoogleAuthPort {
       return this.session.tokens.accessToken;
     }
 
-    if (this.refreshPromise) {
-      return this.refreshPromise;
+    const currentGeneration = this.sessionGeneration;
+    const currentSub = this.session.user.sub;
+
+    if (
+      this.activeRefresh &&
+      this.activeRefresh.generation === currentGeneration &&
+      this.activeRefresh.sub === currentSub &&
+      (!expectedSub || expectedSub === currentSub)
+    ) {
+      return this.activeRefresh.promise;
     }
 
-    this.refreshPromise = this.performTokenRefresh();
+    const refreshPromise = this.performTokenRefresh();
+    this.activeRefresh = {
+      generation: currentGeneration,
+      sub: currentSub,
+      promise: refreshPromise,
+    };
+
     try {
-      return await this.refreshPromise;
+      return await refreshPromise;
     } finally {
-      this.refreshPromise = null;
+      if (this.activeRefresh?.promise === refreshPromise) {
+        this.activeRefresh = null;
+      }
     }
   }
 
   /**
    * Explicitly forces a token refresh, bypassing expiration threshold checks.
    */
-  async refreshAccessToken(): Promise<string> {
-    return this.getValidAccessToken(true);
+  async refreshAccessToken(expectedSub?: string): Promise<string> {
+    return this.getValidAccessToken(true, expectedSub);
   }
 
   /**
    * Logs out the user, clears session storage and sealed refresh token.
    */
   async logout(): Promise<void> {
+    this.sessionGeneration++;
+    this.currentLoginRequestId++;
+    this.activeRefresh = null;
+    if (this.loginCancelFn) {
+      this.loginCancelFn(new Error('Login cancelled: session logged out.'));
+      this.loginCancelFn = null;
+    }
+    this.loginPromise = null;
+
     const currentToken = this.session?.tokens.accessToken;
     this.session = null;
     this.status = 'unauthenticated';
@@ -243,23 +301,17 @@ export class GoogleAuthService implements GoogleAuthPort {
     }
   }
 
-  private async executeLoginFlow(): Promise<GoogleAuthSession> {
+  private executeLoginFlow(): Promise<GoogleAuthSession> {
     if (!this.clientId) {
-      throw new Error(
-        'Missing Google Client ID configuration. Provide clientId in options or set VITE_GOOGLE_CLIENT_ID.',
+      return Promise.reject(
+        new Error(
+          'Missing Google Client ID configuration. Provide clientId in options or set VITE_GOOGLE_CLIENT_ID.',
+        ),
       );
     }
 
-    const previousStatus = this.status;
+    const loginGeneration = this.sessionGeneration;
     this.status = 'authenticating';
-
-    let google: GoogleGlobal;
-    try {
-      google = await this.loadGisFn();
-    } catch (err) {
-      this.status = previousStatus;
-      throw err;
-    }
 
     return new Promise<GoogleAuthSession>((resolve, reject) => {
       let settled = false;
@@ -267,50 +319,81 @@ export class GoogleAuthService implements GoogleAuthPort {
       const cleanup = (error?: Error, session?: GoogleAuthSession) => {
         if (settled) return;
         settled = true;
+        this.loginCancelFn = null;
         if (error) {
-          this.status = this.session ? 'authenticated' : 'unauthenticated';
+          if (this.sessionGeneration === loginGeneration) {
+            this.status = this.session ? 'authenticated' : 'unauthenticated';
+          }
           reject(error);
         } else if (session) {
-          this.status = 'authenticated';
-          resolve(session);
+          if (this.session === session) {
+            this.status = 'authenticated';
+            resolve(session);
+          } else {
+            reject(new Error('Login cancelled: session logged out.'));
+          }
         }
       };
 
-      try {
-        const client = google.accounts.oauth2.initCodeClient({
-          client_id: this.clientId,
-          scope: this.scopes,
-          ux_mode: 'popup',
-          redirect_uri: 'postmessage',
-          callback: async (response: GisCodeResponse) => {
-            if (response.error) {
-              cleanup(new Error(response.error_description || response.error));
-              return;
-            }
-            if (!response.code) {
-              cleanup(new Error('No authorization code returned by Google Identity Services.'));
-              return;
-            }
-            try {
-              const session = await this.exchangeCodeForSession(response.code);
-              cleanup(undefined, session);
-            } catch (err) {
-              cleanup(err instanceof Error ? err : new Error(String(err)));
-            }
-          },
-          error_callback: (err: GisErrorResponse) => {
-            cleanup(new Error(err.message || `Google OAuth error: ${err.type}`));
-          },
-        });
+      this.loginCancelFn = (err: Error) => cleanup(err);
 
-        client.requestCode();
-      } catch (err) {
-        cleanup(err instanceof Error ? err : new Error(String(err)));
-      }
+      this.loadGisFn()
+        .then((google) => {
+          if (settled || this.sessionGeneration !== loginGeneration) {
+            cleanup(new Error('Login cancelled: session logged out.'));
+            return;
+          }
+
+          try {
+            const client = google.accounts.oauth2.initCodeClient({
+              client_id: this.clientId,
+              scope: this.scopes,
+              ux_mode: 'popup',
+              redirect_uri: 'postmessage',
+              callback: async (response: GisCodeResponse) => {
+                if (settled || this.sessionGeneration !== loginGeneration) {
+                  cleanup(new Error('Login cancelled: session logged out.'));
+                  return;
+                }
+                if (response.error) {
+                  cleanup(new Error(response.error_description || response.error));
+                  return;
+                }
+                if (!response.code) {
+                  cleanup(new Error('No authorization code returned by Google Identity Services.'));
+                  return;
+                }
+                try {
+                  const session = await this.exchangeCodeForSession(response.code, loginGeneration);
+                  cleanup(undefined, session);
+                } catch (err) {
+                  cleanup(err instanceof Error ? err : new Error(String(err)));
+                }
+              },
+              error_callback: (err: GisErrorResponse) => {
+                if (settled || this.sessionGeneration !== loginGeneration) {
+                  cleanup(new Error('Login cancelled: session logged out.'));
+                  return;
+                }
+                cleanup(new Error(err.message || `Google OAuth error: ${err.type}`));
+              },
+            });
+
+            client.requestCode();
+          } catch (err) {
+            cleanup(err instanceof Error ? err : new Error(String(err)));
+          }
+        })
+        .catch((err) => {
+          cleanup(err instanceof Error ? err : new Error(String(err)));
+        });
     });
   }
 
-  private async exchangeCodeForSession(code: string): Promise<GoogleAuthSession> {
+  private async exchangeCodeForSession(
+    code: string,
+    loginGeneration?: number,
+  ): Promise<GoogleAuthSession> {
     const url = `${this.apiBaseUrl}/api/auth/google/token`;
     const res = await this.fetchFn(url, {
       method: 'POST',
@@ -324,6 +407,10 @@ export class GoogleAuthService implements GoogleAuthPort {
       }),
     });
 
+    if (loginGeneration !== undefined && this.sessionGeneration !== loginGeneration) {
+      throw new Error('Login cancelled: session logged out.');
+    }
+
     if (!res.ok) {
       let message = 'Failed to exchange authorization code with Google';
       try {
@@ -336,6 +423,10 @@ export class GoogleAuthService implements GoogleAuthPort {
     }
 
     const data = (await res.json()) as TokenExchangeResponse;
+
+    if (loginGeneration !== undefined && this.sessionGeneration !== loginGeneration) {
+      throw new Error('Login cancelled: session logged out.');
+    }
 
     const expiresAt = Date.now() + (data.expiresIn ?? 3600) * 1000;
     const session: GoogleAuthSession = {
@@ -352,22 +443,28 @@ export class GoogleAuthService implements GoogleAuthPort {
       },
     };
 
-    try {
-      const promotionResult = await this.vaultRegistry.promoteAnonymousVault(session.user.sub);
-      this.lastPromotionResult = promotionResult;
-      if (promotionResult.collisionFromAnonDb) {
-        console.warn(
-          `[GoogleAuthService] Vault collision detected: user ${session.user.sub} already had a vault. Anonymous vault ${promotionResult.collisionFromAnonDb} retained for reconciliation.`,
-        );
-      }
-      if (promotionResult.pointer.physicalDbName !== getActiveVaultDatabase().name) {
-        const targetDb = openVaultDatabase(promotionResult.pointer.physicalDbName);
-        setActiveVaultDatabase(targetDb);
-      }
-    } catch (vaultErr) {
-      console.error('[GoogleAuthService] Failed to promote vault during login:', vaultErr);
+    if (loginGeneration !== undefined && this.sessionGeneration !== loginGeneration) {
+      throw new Error('Login cancelled: session logged out.');
     }
 
+    const promotionResult = await this.vaultRegistry.promoteAnonymousVault(session.user.sub);
+
+    if (loginGeneration !== undefined && this.sessionGeneration !== loginGeneration) {
+      throw new Error('Login cancelled: session logged out.');
+    }
+
+    this.lastPromotionResult = promotionResult;
+    if (promotionResult.collisionFromAnonDb) {
+      console.warn(
+        `[GoogleAuthService] Vault collision detected: user ${session.user.sub} already had a vault. Anonymous vault ${promotionResult.collisionFromAnonDb} retained for reconciliation.`,
+      );
+    }
+    if (promotionResult.pointer.physicalDbName !== getActiveVaultDatabase().name) {
+      const targetDb = openVaultDatabase(promotionResult.pointer.physicalDbName);
+      setActiveVaultDatabase(targetDb);
+    }
+
+    this.sessionGeneration++;
     this.session = session;
     this.status = 'authenticated';
     this.writeSessionToStorage(session);
@@ -381,6 +478,8 @@ export class GoogleAuthService implements GoogleAuthPort {
       throw new Error('Cannot refresh token: no active session.');
     }
 
+    const initialGeneration = this.sessionGeneration;
+    const initialSub = this.session.user.sub;
     const { user, tokens } = this.session;
     const url = `${this.apiBaseUrl}/api/auth/google/refresh`;
 
@@ -398,9 +497,15 @@ export class GoogleAuthService implements GoogleAuthPort {
         }),
       });
     } catch (netErr) {
-      const timeRemaining = tokens.expiresAt - Date.now();
-      if (timeRemaining > 0) {
-        return tokens.accessToken;
+      const isStale =
+        this.sessionGeneration !== initialGeneration ||
+        this.session?.user.sub !== initialSub;
+
+      if (!isStale) {
+        const timeRemaining = tokens.expiresAt - Date.now();
+        if (timeRemaining > 0) {
+          return tokens.accessToken;
+        }
       }
       throw netErr;
     }
@@ -416,20 +521,36 @@ export class GoogleAuthService implements GoogleAuthPort {
         // Non-JSON body
       }
 
+      const isCurrentSession =
+        this.sessionGeneration === initialGeneration &&
+        this.session?.user.sub === initialSub;
+
       if (res.status === 401 || errCode === 'invalid_grant') {
-        await this.logout();
+        if (isCurrentSession) {
+          await this.logout();
+        }
         throw new Error(`Authentication expired: ${errMessage}`);
       }
 
-      const timeRemaining = tokens.expiresAt - Date.now();
-      if (timeRemaining > 0) {
-        return tokens.accessToken;
+      if (isCurrentSession) {
+        const timeRemaining = tokens.expiresAt - Date.now();
+        if (timeRemaining > 0) {
+          return tokens.accessToken;
+        }
       }
 
       throw new Error(errMessage);
     }
 
     const data = (await res.json()) as TokenRefreshResponse;
+
+    const isStale =
+      this.sessionGeneration !== initialGeneration ||
+      this.session?.user.sub !== initialSub;
+
+    if (isStale) {
+      throw new Error('Token refresh aborted: session identity changed during refresh');
+    }
 
     const newExpiresAt = Date.now() + (data.expiresIn ?? 3600) * 1000;
     const updatedSession: GoogleAuthSession = {

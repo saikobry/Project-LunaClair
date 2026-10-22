@@ -1,3 +1,4 @@
+import { googleAuthService } from '../infrastructure/auth/google/GoogleAuthService';
 import { DatabaseInitializer } from '../infrastructure/database/schema/DatabaseInitializer';
 import { vaultRegistry } from '../infrastructure/database/registry/VaultRegistry';
 import {
@@ -11,10 +12,11 @@ import {
  */
 let bootstrapPromise: Promise<void> | null = null;
 
-export async function bootstrapApplication(): Promise<void> {
+export async function bootstrapApplication(preferredSub?: string): Promise<void> {
+  const targetSub = preferredSub ?? googleAuthService.getSession()?.user.sub;
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
-      const activeVault = await vaultRegistry.getActiveVault();
+      const activeVault = await vaultRegistry.getActiveVault(targetSub);
       const database = openVaultDatabase(activeVault.physicalDbName);
       setActiveVaultDatabase(database);
       await DatabaseInitializer.initialize(database);

@@ -212,6 +212,52 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     expect(statusStore.getState().lastServerCursor).toBe(200);
   });
 
+  it('Test 2b: pullUntilCaughtUp does not clobber fresh transport syncState fields', async () => {
+    const page: SyncPullResponse = {
+      newCursor: 50,
+      hasMore: false,
+      changes: [],
+    };
+
+    const stateKey = `${credentials.userId}:${credentials.deviceId}`;
+    await stateRepo.saveSyncState({
+      key: stateKey,
+      userId: credentials.userId,
+      deviceId: credentials.deviceId,
+      lastServerCursor: 0,
+      pageToken: 'initial-page-token',
+      appliedFileIds: ['file-1'],
+    });
+
+    vi.mocked(mockTransport.pull).mockImplementation(async () => {
+      // Transport pull updates pageToken and appliedFileIds mid-pull
+      await stateRepo.saveSyncState({
+        key: stateKey,
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        lastServerCursor: 0,
+        pageToken: 'updated-page-token-by-pull',
+        appliedFileIds: ['file-1', 'file-2'],
+      });
+      return page;
+    });
+
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+    });
+
+    await engine.sync(credentials);
+
+    const finalState = await stateRepo.getSyncState(stateKey);
+    expect(finalState?.lastServerCursor).toBe(50);
+    expect(finalState?.pageToken).toBe('updated-page-token-by-pull');
+    expect(finalState?.appliedFileIds).toEqual(['file-1', 'file-2']);
+  });
+
   it('Test 3: pushPendingBatches drains outbox in chunks', async () => {
     // Create 120 pending outbox items
     for (let i = 1; i <= 120; i++) {
@@ -638,5 +684,19 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
       appliedCount: 1,
       touchedEntities: ['document'],
     });
+  });
+
+  it('rejects sync after dispose() is called', async () => {
+    const engine = new SyncEngine({
+      transport: mockTransport,
+      reconciler,
+      queueRepo,
+      stateRepo,
+      statusStore,
+    });
+
+    engine.dispose();
+
+    await expect(engine.sync(credentials)).rejects.toThrow('SyncEngine is disposed');
   });
 });

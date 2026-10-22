@@ -20,6 +20,8 @@ export interface Application {
     repositories: Repositories;
     useCases: UseCases;
     infrastructure: Infrastructure;
+    isDisposed?: boolean;
+    dispose?: () => void;
 }
 
 /**
@@ -41,11 +43,25 @@ export function createApplication(
     syncEventSink?: SyncEventSink,
 ): Application {
     const infrastructure = createInfrastructure(invalidateAnalytics, database);
+    const useCases = createUseCases(infrastructure, invalidateAnalytics, syncEventSink);
+
+    let isDisposed = false;
+    const dispose = () => {
+        if (isDisposed) return;
+        isDisposed = true;
+        useCases.sync.syncEngine.dispose();
+        infrastructure.services.hydration.dispose();
+        infrastructure.dispose?.();
+    };
 
     return {
         repositories: infrastructure.repositories,
-        useCases: createUseCases(infrastructure, invalidateAnalytics, syncEventSink),
+        useCases,
         infrastructure,
+        get isDisposed() {
+            return isDisposed;
+        },
+        dispose,
     };
 }
 
@@ -60,10 +76,24 @@ export async function createApplicationAsync(
     syncEventSink?: SyncEventSink,
 ): Promise<Application> {
     const infrastructure = await createInfrastructureAsync(invalidateAnalytics, preferredSub);
+    const useCases = createUseCases(infrastructure, invalidateAnalytics, syncEventSink);
+
+    let isDisposed = false;
+    const dispose = () => {
+        if (isDisposed) return;
+        isDisposed = true;
+        useCases.sync.syncEngine.dispose();
+        infrastructure.services.hydration.dispose();
+        infrastructure.dispose?.();
+    };
 
     return {
         repositories: infrastructure.repositories,
-        useCases: createUseCases(infrastructure, invalidateAnalytics, syncEventSink),
+        useCases,
         infrastructure,
+        get isDisposed() {
+            return isDisposed;
+        },
+        dispose,
     };
 }

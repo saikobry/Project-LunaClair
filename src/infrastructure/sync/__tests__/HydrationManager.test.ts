@@ -85,11 +85,55 @@ describe('HydrationManager', () => {
     expect(mockCloneUseCase.execute).toHaveBeenCalledTimes(1);
     expect(mockCloneUseCase.execute).toHaveBeenCalledWith(
       { shareId: samplePointer.originShareId },
-      undefined
+      expect.any(AbortSignal)
     );
+    const signal = vi.mocked(mockCloneUseCase.execute).mock.calls[0]?.[1];
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
 
     const rowAfter = await db.pendingHydrations.get(samplePointer.originShareId);
     expect(rowAfter).toBeUndefined();
+  });
+
+  it('dispose aborts the supplied signal during in-flight clone and late completion cannot delete pending row', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let resolveClone!: () => void;
+    let notifyStarted!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    const clonePromise = new Promise<{ share: any; importResult: any }>((resolve) => {
+      resolveClone = () =>
+        resolve({
+          share: {} as any,
+          importResult: { materialIds: ['mat-1'], questionIds: [], quizIds: [] },
+        });
+    });
+
+    vi.mocked(mockCloneUseCase.execute).mockImplementation(async (_input, signal) => {
+      capturedSignal = signal;
+      notifyStarted();
+      return clonePromise;
+    });
+
+    await manager.enqueuePointer(samplePointer);
+
+    const processPromise = manager.processQueue();
+    await startedPromise;
+
+    expect(mockCloneUseCase.execute).toHaveBeenCalledTimes(1);
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+    expect(capturedSignal?.aborted).toBe(false);
+
+    manager.dispose();
+    expect(capturedSignal?.aborted).toBe(true);
+
+    resolveClone();
+    await processPromise;
+
+    const row = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(row).toBeDefined();
+    expect(row?.originShareId).toBe(samplePointer.originShareId);
   });
 
   it('removes permanently unavailable 404/410 shares from queue and marks as delisted without retrying', async () => {

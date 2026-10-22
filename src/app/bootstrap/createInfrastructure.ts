@@ -46,7 +46,8 @@ import { DexieConflictDraftRepository } from '../../infrastructure/database/repo
 import { DexieCollectionRepository } from '../../infrastructure/database/repositories/DexieCollectionRepository';
 import { DexieCollectionMaterialRepository } from '../../infrastructure/database/repositories/DexieCollectionMaterialRepository';
 import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyncReconciler';
-import { googleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
+import { GoogleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
+import { GoogleDriveClient } from '../../infrastructure/api/google/GoogleDriveClient';
 import { HydrationManager } from '../../infrastructure/sync/HydrationManager';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { GoogleSessionCredentialsProvider } from '../../infrastructure/auth/google/GoogleSessionCredentialsProvider';
@@ -62,7 +63,7 @@ import {
     type LunaClairDatabase,
 } from '../../infrastructure/database/schema/LunaClairDatabase';
 import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
-import type { VaultRegistryPort } from '../../domain/vault/models/vault.types';
+import { ANONYMOUS_OWNER_SUB, type VaultRegistryPort } from '../../domain/vault/models/vault.types';
 import type { WorkerShareTransport } from '../../infrastructure/api/transports/WorkerShareTransport';
 import type { AiService } from '../../domain/ai/services/AiService';
 import type { ImporterRegistry } from '../../domain/importer/services/ContentImporter';
@@ -126,6 +127,7 @@ export interface Infrastructure {
     };
     importerRegistry: ImporterRegistry;
     syncReconciler: DexieSyncReconciler;
+    dispose?(): void;
 }
 
 /**
@@ -193,24 +195,69 @@ export function createInfrastructure(
         collectionMaterial: collectionMaterialRepository,
     };
 
+    const session = googleAuthService.getSession();
+    const boundSub = session?.user.sub ?? ANONYMOUS_OWNER_SUB;
+    const boundGeneration = googleAuthService.getSessionGeneration?.() ?? 0;
+    const isAnonymousBound = boundSub === ANONYMOUS_OWNER_SUB || boundSub === 'anonymous' || boundSub === 'user_default';
+
+    const driveClient = new GoogleDriveClient();
+    const googleDriveSyncTransport = new GoogleDriveSyncTransport({
+        db: database,
+        stateRepo: new DexieSyncStateRepository(database),
+        driveClient,
+        expectedSub: boundSub,
+    });
+
+    const verifyRuntimeIdentity = (userId: string) => {
+        const isRequestAnon = !userId || userId === 'user_default' || userId === 'anonymous' || userId === ANONYMOUS_OWNER_SUB;
+        if (isAnonymousBound) {
+            if (!isRequestAnon) {
+                throw new Error(
+                    `Runtime identity mismatch: runtime bound to anonymous, cannot execute sync for ${userId}`,
+                );
+            }
+            return;
+        }
+
+        const currentSession = googleAuthService.getSession();
+        const currentSub = currentSession?.user.sub ?? ANONYMOUS_OWNER_SUB;
+        const currentGen = googleAuthService.getSessionGeneration?.() ?? 0;
+
+        if (
+            userId !== boundSub ||
+            currentSub !== boundSub ||
+            currentGen !== boundGeneration
+        ) {
+            throw new Error(
+                `Runtime identity mismatch: runtime bound to ${boundSub} (gen ${boundGeneration}), cannot execute sync for ${userId} (session ${currentSub}, gen ${currentGen})`,
+            );
+        }
+    };
+
     const standbySyncTransport: SyncTransport = {
-        async push() {
+        async push(credentials) {
+            verifyRuntimeIdentity(credentials.userId);
             return { accepted: [], conflicts: [], rejected: [] };
         },
-        async pull(_credentials, cursor) {
+        async pull(credentials, cursor) {
+            verifyRuntimeIdentity(credentials.userId);
             return { newCursor: cursor, hasMore: false, changes: [] };
         },
     };
 
     const dynamicSyncTransport: SyncTransport = {
         async push(credentials, request, signal) {
-            const transport = googleAuthService.getSession()
+            verifyRuntimeIdentity(credentials.userId);
+            const currentSession = googleAuthService.getSession();
+            const transport = currentSession && !isAnonymousBound
                 ? googleDriveSyncTransport
                 : standbySyncTransport;
             return transport.push(credentials, request, signal);
         },
         async pull(credentials, cursor, limit, signal) {
-            const transport = googleAuthService.getSession()
+            verifyRuntimeIdentity(credentials.userId);
+            const currentSession = googleAuthService.getSession();
+            const transport = currentSession && !isAnonymousBound
                 ? googleDriveSyncTransport
                 : standbySyncTransport;
             return transport.pull(credentials, cursor, limit, signal);
@@ -246,6 +293,10 @@ export function createInfrastructure(
         },
         importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
         syncReconciler: new DexieSyncReconciler(database),
+        dispose: () => {
+            googleDriveSyncTransport.dispose?.();
+            hydration.dispose();
+        },
     };
 }
 

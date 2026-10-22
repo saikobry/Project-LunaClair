@@ -20,6 +20,7 @@ export interface GoogleDriveClientOptions {
   baseDelayMs?: number;
   maxRetries?: number;
   fetch?: typeof fetch;
+  fetchFn?: typeof fetch;
   onTokenExpired?: () => Promise<string>;
 }
 
@@ -104,7 +105,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
   constructor(options: GoogleDriveClientOptions = {}) {
     this.baseDelayMs = options.baseDelayMs ?? 1000;
     this.maxRetries = options.maxRetries ?? 3;
-    this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.fetchFn = options.fetchFn ?? options.fetch ?? globalThis.fetch.bind(globalThis);
     this.onTokenExpired = options.onTokenExpired;
   }
 
@@ -118,13 +119,14 @@ export class GoogleDriveClient implements GoogleDrivePort {
   /**
    * Generates a unique file ID within appDataFolder ahead of creation.
    */
-  async generateFileId(accessToken: string): Promise<string> {
+  async generateFileId(accessToken: string, options?: { signal?: AbortSignal }): Promise<string> {
     const url = 'https://www.googleapis.com/drive/v3/files/generateIds?count=1&space=appDataFolder';
     const res = await this.fetchWithRetry(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
     const data = (await res.json()) as { ids?: string[] };
     const id = data?.ids?.[0];
@@ -138,7 +140,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
    * Uploads a file to appDataFolder using binary-safe multipart/related upload.
    * Compresses content using native CompressionStream('gzip') by default.
    */
-  async uploadFile(params: UploadFileParams): Promise<DriveFileMetadata> {
+  async uploadFile(params: UploadFileParams & { signal?: AbortSignal }): Promise<DriveFileMetadata> {
+    params.signal?.throwIfAborted();
     const boundary = `-------LunaClairBoundary${crypto.randomUUID().replace(/-/g, '')}`;
 
     const shouldCompress = params.compress !== false;
@@ -151,6 +154,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
           ? new TextEncoder().encode(params.content)
           : params.content;
     }
+
+    params.signal?.throwIfAborted();
 
     const mimeType = params.mimeType ?? 'application/gzip';
     const metadata: Record<string, unknown> = {
@@ -188,6 +193,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
         'Content-Type': `multipart/related; boundary=${boundary}`,
       },
       body: bodyBlob,
+      signal: params.signal,
     });
 
     const data = (await res.json()) as Record<string, unknown>;
@@ -207,7 +213,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
   async downloadFile(
     fileId: string,
     accessToken: string,
-    options?: { decompress?: boolean }
+    options?: { decompress?: boolean; signal?: AbortSignal }
   ): Promise<string> {
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
     const res = await this.fetchWithRetry(url, {
@@ -215,6 +221,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
 
     if (options?.decompress === false) {
@@ -232,7 +239,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
   async downloadBinary(
     fileId: string,
     accessToken: string,
-    options?: { decompress?: boolean }
+    options?: { decompress?: boolean; signal?: AbortSignal }
   ): Promise<Uint8Array> {
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
     const res = await this.fetchWithRetry(url, {
@@ -240,6 +247,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
 
     const buffer = await res.arrayBuffer();
@@ -253,24 +261,26 @@ export class GoogleDriveClient implements GoogleDrivePort {
   /**
    * Deletes a file by ID from Google Drive.
    */
-  async deleteFile(fileId: string, accessToken: string): Promise<void> {
+  async deleteFile(fileId: string, accessToken: string, options?: { signal?: AbortSignal }): Promise<void> {
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`;
     await this.fetchWithRetry(url, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
   }
 
   /**
    * Lists files in appDataFolder, returning metadata. Automatically pages through all results.
    */
-  async listFiles(accessToken: string, query?: string): Promise<DriveFileMetadata[]> {
+  async listFiles(accessToken: string, query?: string, options?: { signal?: AbortSignal }): Promise<DriveFileMetadata[]> {
     const allFiles: DriveFileMetadata[] = [];
     let pageToken: string | undefined;
 
     do {
+      options?.signal?.throwIfAborted();
       const url = new URL('https://www.googleapis.com/drive/v3/files');
       url.searchParams.set('spaces', 'appDataFolder');
       url.searchParams.set(
@@ -289,6 +299,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: options?.signal,
       });
 
       const data = (await res.json()) as { files?: DriveFileMetadata[]; nextPageToken?: string };
@@ -304,13 +315,14 @@ export class GoogleDriveClient implements GoogleDrivePort {
   /**
    * Retrieves a new startPageToken for changes tracking in appDataFolder.
    */
-  async getStartPageToken(accessToken: string): Promise<string> {
+  async getStartPageToken(accessToken: string, options?: { signal?: AbortSignal }): Promise<string> {
     const url = 'https://www.googleapis.com/drive/v3/changes/startPageToken?spaces=appDataFolder';
     const res = await this.fetchWithRetry(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
     const data = (await res.json()) as { startPageToken?: string };
     if (!data?.startPageToken) {
@@ -322,7 +334,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
   /**
    * Consumes incremental changes starting from pageToken in appDataFolder.
    */
-  async listChanges(pageToken: string, accessToken: string): Promise<DriveChangesResponse> {
+  async listChanges(pageToken: string, accessToken: string, options?: { signal?: AbortSignal }): Promise<DriveChangesResponse> {
     const url = new URL('https://www.googleapis.com/drive/v3/changes');
     url.searchParams.set('spaces', 'appDataFolder');
     url.searchParams.set('pageToken', pageToken);
@@ -336,6 +348,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: options?.signal,
     });
 
     const data = (await res.json()) as {
@@ -359,14 +372,14 @@ export class GoogleDriveClient implements GoogleDrivePort {
    *    and whose appProperties.hlc is newer than peerWatermarks[deviceId]
    * 4. Returns { newPageToken, missingFiles }
    */
-  async recover410Cursor(params: Recover410Params): Promise<CursorRecoveryResult> {
-    const { accessToken, appliedFileIds, peerWatermarks } = params;
+  async recover410Cursor(params: Recover410Params & { signal?: AbortSignal }): Promise<CursorRecoveryResult> {
+    const { accessToken, appliedFileIds, peerWatermarks, signal } = params;
 
     // Step 1: Fetch fresh getStartPageToken() FIRST to anchor future changes
-    const newPageToken = await this.getStartPageToken(accessToken);
+    const newPageToken = await this.getStartPageToken(accessToken, { signal });
 
     // Step 2: Fetch metadata-only file listing via files.list
-    const files = await this.listFiles(accessToken);
+    const files = await this.listFiles(accessToken, undefined, { signal });
 
     // Step 3: In-memory diff
     const appliedSet = appliedFileIds instanceof Set ? appliedFileIds : new Set(appliedFileIds);
@@ -399,7 +412,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
     data: unknown,
     appProperties: Record<string, string>,
     accessToken: string,
-    parents?: string[]
+    parents?: string[],
+    options?: { signal?: AbortSignal }
   ): Promise<DriveFileMetadata> {
     return this.uploadFile({
       name,
@@ -408,21 +422,26 @@ export class GoogleDriveClient implements GoogleDrivePort {
       appProperties,
       parents: parents ?? ['appDataFolder'],
       accessToken,
+      signal: options?.signal,
     });
   }
 
   /**
    * Downloads and decompresses JSON file from Google Drive via alt=media.
    */
-  async downloadCompressedJson<T = unknown>(fileId: string, accessToken: string): Promise<T> {
-    const text = await this.downloadFile(fileId, accessToken, { decompress: true });
+  async downloadCompressedJson<T = unknown>(
+    fileId: string,
+    accessToken: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<T> {
+    const text = await this.downloadFile(fileId, accessToken, { decompress: true, signal: options?.signal });
     return JSON.parse(text) as T;
   }
 
   /**
    * Alias for recover410Cursor.
    */
-  async recoverFromInvalidPageToken(params: Recover410Params): Promise<CursorRecoveryResult> {
+  async recoverFromInvalidPageToken(params: Recover410Params & { signal?: AbortSignal }): Promise<CursorRecoveryResult> {
     return this.recover410Cursor(params);
   }
 
@@ -436,12 +455,16 @@ export class GoogleDriveClient implements GoogleDrivePort {
     attempt = 0,
     hasRefreshedToken = false
   ): Promise<Response> {
+    init.signal?.throwIfAborted();
+
     let response: Response;
     try {
       response = await this.fetchFn(url, init);
     } catch (error) {
+      init.signal?.throwIfAborted();
       if (attempt < this.maxRetries) {
-        await this.backoff(attempt);
+        init.signal?.throwIfAborted();
+        await this.backoff(attempt, undefined, init.signal);
         return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
       throw new DriveHttpError(
@@ -461,6 +484,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
 
     // 401 Unauthorized -> attempt onTokenExpired once if configured, else throw DriveAuthError
     if (status === 401) {
+      init.signal?.throwIfAborted();
       if (this.onTokenExpired && !hasRefreshedToken) {
         let newToken: string;
         try {
@@ -473,6 +497,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
           );
         }
 
+        init.signal?.throwIfAborted();
         const newInit: RequestInit = {
           ...init,
           headers: updateAuthHeader(init.headers, newToken),
@@ -507,7 +532,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
         errors.some((e) => e.reason === 'rateLimitExceeded' || e.reason === 'userRateLimitExceeded');
       if (isRateLimit) {
         if (attempt < this.maxRetries) {
-          await this.backoff(attempt, response);
+          init.signal?.throwIfAborted();
+          await this.backoff(attempt, response, init.signal);
           return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
         }
         const retryAfter = this.parseRetryAfter(response);
@@ -526,7 +552,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
     // 429 Too Many Requests -> retry with backoff or throw DriveRateLimitError
     if (status === 429) {
       if (attempt < this.maxRetries) {
-        await this.backoff(attempt, response);
+        init.signal?.throwIfAborted();
+        await this.backoff(attempt, response, init.signal);
         return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
       const details = await this.parseJsonSafe(response);
@@ -540,7 +567,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
     // 5xx Server Error -> retry if transient
     if (status >= 500 && status < 600) {
       if (attempt < this.maxRetries) {
-        await this.backoff(attempt, response);
+        init.signal?.throwIfAborted();
+        await this.backoff(attempt, response, init.signal);
         return this.fetchWithRetry(url, init, attempt + 1, hasRefreshedToken);
       }
     }
@@ -553,7 +581,8 @@ export class GoogleDriveClient implements GoogleDrivePort {
     throw new DriveHttpError(message, status, statusText, details);
   }
 
-  private async backoff(attempt: number, response?: Response): Promise<void> {
+  private async backoff(attempt: number, response?: Response, signal?: AbortSignal | null): Promise<void> {
+    signal?.throwIfAborted();
     if (this.baseDelayMs === 0) {
       return;
     }
@@ -569,7 +598,28 @@ export class GoogleDriveClient implements GoogleDrivePort {
     }
 
     if (delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      signal?.throwIfAborted();
+      await new Promise<void>((resolve, reject) => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const onAbort = () => {
+          if (timer !== undefined) clearTimeout(timer);
+          signal?.removeEventListener('abort', onAbort);
+          reject(signal?.reason ?? new Error('Aborted'));
+        };
+        if (signal?.aborted) {
+          reject(signal.reason ?? new Error('Aborted'));
+          return;
+        }
+        if (signal) {
+          signal.addEventListener('abort', onAbort, { once: true });
+        }
+        timer = setTimeout(() => {
+          if (signal) {
+            signal.removeEventListener('abort', onAbort);
+          }
+          resolve();
+        }, delayMs);
+      });
     }
   }
 

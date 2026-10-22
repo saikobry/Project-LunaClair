@@ -35,6 +35,8 @@ export class HydrationManager {
   private readonly maxAttempts: number;
   private readonly delistedShareIds: Set<string>;
   private isProcessing: boolean;
+  private disposed: boolean;
+  private readonly abortController: AbortController;
 
   constructor(options: HydrationManagerOptions = {}) {
     this.db = options.db ?? getActiveVaultDatabase();
@@ -44,6 +46,14 @@ export class HydrationManager {
     this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_HYDRATION_ATTEMPTS;
     this.delistedShareIds = new Set<string>();
     this.isProcessing = false;
+    this.disposed = false;
+    this.abortController = new AbortController();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.isProcessing = false;
+    this.abortController.abort();
   }
 
   setCloneUseCase(cloneUseCase: ShareCloner): void {
@@ -96,18 +106,33 @@ export class HydrationManager {
   }
 
   notify(): void {
+    if (this.disposed || this.abortController.signal.aborted) return;
     if (!this.isProcessing && this.cloneUseCase) {
       void this.processQueue().catch((err: unknown) => {
+        if (this.disposed || this.abortController.signal.aborted) return;
         console.warn('[HydrationManager] Background processQueue failed:', err);
       });
     }
   }
 
   async processQueue(signal?: AbortSignal): Promise<ProcessQueueResult> {
+    if (this.disposed || this.abortController.signal.aborted) {
+      return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
+    }
     if (this.isProcessing) {
       return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
     }
     if (!this.cloneUseCase) {
+      return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
+    }
+
+    const effectiveSignal = signal
+      ? (typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([signal, this.abortController.signal])
+          : signal)
+      : this.abortController.signal;
+
+    if (effectiveSignal.aborted) {
       return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
     }
 
@@ -125,7 +150,7 @@ export class HydrationManager {
       const eligible = allPending.filter((item) => (item.nextAttemptAt ?? 0) <= now);
 
       for (const item of eligible) {
-        if (signal?.aborted) {
+        if (effectiveSignal.aborted || this.disposed) {
           break;
         }
 
@@ -144,11 +169,14 @@ export class HydrationManager {
         }
 
         try {
-          await this.cloneUseCase.execute({ shareId: item.originShareId }, signal);
+          await this.cloneUseCase.execute({ shareId: item.originShareId }, effectiveSignal);
+          if (effectiveSignal.aborted || this.disposed) {
+            break;
+          }
           await this.db.pendingHydrations.delete(item.originShareId);
           result.succeeded += 1;
         } catch (err: unknown) {
-          if (signal?.aborted) {
+          if (effectiveSignal.aborted || this.disposed) {
             break;
           }
 

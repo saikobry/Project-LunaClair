@@ -15,6 +15,7 @@ import {
   VaultRegistry,
   RegistryDatabase,
 } from '../../../infrastructure/database/registry/VaultRegistry';
+import { ANONYMOUS_OWNER_SUB } from '../../../domain/vault/models/vault.types';
 
 describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
   const REGISTRY_TEST_DB = 'test_registry_create_infra';
@@ -86,40 +87,75 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
 
   it('exposes googleAuthService on providers.auth and dynamically routes sync transport', async () => {
     const { googleAuthService } = await import('../../../infrastructure/auth/google/GoogleAuthService');
-    const { googleDriveSyncTransport } = await import('../../../infrastructure/api/transports/GoogleDriveSyncTransport');
+    const { GoogleDriveSyncTransport } = await import('../../../infrastructure/api/transports/GoogleDriveSyncTransport');
 
-    const infra = createInfrastructure();
-    expect(infra.providers.auth).toBe(googleAuthService);
-    expect(infra.providers.credentials).toBeDefined();
-    await expect(infra.providers.credentials.getCredentials()).resolves.toBeNull();
+    const getSessionSpy = vi.spyOn(googleAuthService, 'getSession');
+    getSessionSpy.mockReturnValue(null);
 
-    const drivePushSpy = vi.spyOn(googleDriveSyncTransport, 'push').mockResolvedValueOnce({
+    // 1. Anonymous runtime created while unauthenticated
+    const infraAnon = createInfrastructure();
+    expect(infraAnon.providers.auth).toBe(googleAuthService);
+    expect(infraAnon.providers.credentials).toBeDefined();
+    await expect(infraAnon.providers.credentials.getCredentials()).resolves.toBeNull();
+
+    const drivePushSpy = vi.spyOn(GoogleDriveSyncTransport.prototype, 'push').mockResolvedValue({
       accepted: [],
       conflicts: [],
       rejected: [],
     });
 
-    const getSessionSpy = vi.spyOn(googleAuthService, 'getSession');
-
-    // Case 1: unauthenticated -> standbySyncTransport (no calls to drive)
-    getSessionSpy.mockReturnValueOnce(null);
-    const pushResult = await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
+    // Old anonymous runtime remains standby for anonymous credentials
+    const pushResult = await infraAnon.transports.sync.push(
+      { userId: ANONYMOUS_OWNER_SUB, deviceId: 'dev-1' } as any,
+      { deviceId: 'dev-1', mutations: [] }
+    );
     expect(pushResult).toEqual({ accepted: [], conflicts: [], rejected: [] });
     expect(drivePushSpy).not.toHaveBeenCalled();
 
-    getSessionSpy.mockReturnValueOnce(null);
-    const pullResult = await infra.transports.sync.pull({ deviceId: 'dev-1' } as any, 10);
+    const pullResult = await infraAnon.transports.sync.pull(
+      { userId: ANONYMOUS_OWNER_SUB, deviceId: 'dev-1' } as any,
+      10
+    );
     expect(pullResult).toEqual({ newCursor: 10, hasMore: false, changes: [] });
     expect(drivePushSpy).not.toHaveBeenCalled();
 
-    // Case 2: authenticated -> googleDriveSyncTransport
-    getSessionSpy.mockReturnValueOnce({
+    // Anonymous runtime rejects authenticated credentials
+    await expect(
+      infraAnon.transports.sync.push(
+        { userId: 'sub-1', deviceId: 'dev-1' } as any,
+        { deviceId: 'dev-1', mutations: [] }
+      )
+    ).rejects.toThrow(/Runtime identity mismatch/i);
+    expect(drivePushSpy).not.toHaveBeenCalled();
+
+    // 2. Create a FRESH runtime while authenticated with matching userId
+    const authSession = {
       user: { sub: 'sub-1', email: 'a@b.com', name: 'User' },
       tokens: { accessToken: 'token', expiresAt: 9999999999, sealedRefreshToken: 'sealed' },
-    });
-    await infra.transports.sync.push({ deviceId: 'dev-1' } as any, { deviceId: 'dev-1', mutations: [] });
+    };
+    getSessionSpy.mockReturnValue(authSession);
+
+    const infraAuth = createInfrastructure();
+
+    // Matching userId routes to GoogleDriveSyncTransport
+    await infraAuth.transports.sync.push(
+      { userId: 'sub-1', deviceId: 'dev-1' } as any,
+      { deviceId: 'dev-1', mutations: [] }
+    );
     expect(drivePushSpy).toHaveBeenCalledTimes(1);
 
+    // Wrong userId rejects without calling Drive
+    await expect(
+      infraAuth.transports.sync.push(
+        { userId: 'sub-wrong', deviceId: 'dev-1' } as any,
+        { deviceId: 'dev-1', mutations: [] }
+      )
+    ).rejects.toThrow(/Runtime identity mismatch/i);
+    expect(drivePushSpy).toHaveBeenCalledTimes(1);
+
+    // Restore mocks and dispose runtimes
+    infraAnon.dispose?.();
+    infraAuth.dispose?.();
     getSessionSpy.mockRestore();
     drivePushSpy.mockRestore();
   });

@@ -55,20 +55,36 @@ export class VaultRegistry implements VaultRegistryPort {
 
   /**
    * Resolves the active vault pointer.
-   * If `preferredSub` is given and exists, returns that user's vault.
+   * If `preferredSub` is given, returns that user's vault (creating one if it does not exist yet).
    * Otherwise returns the active 'ANONYMOUS' vault, creating it if no vault exists yet.
    */
   async getActiveVault(preferredSub?: string): Promise<VaultPointer> {
     return await this.db.transaction('rw', this.db.vaults, async () => {
+      const now = Date.now();
       if (preferredSub) {
         const preferred = await this.db.vaults.get(preferredSub);
         if (preferred) {
           const updated: VaultPointer = {
             ...preferred,
-            lastActiveAt: Date.now(),
+            lastActiveAt: now,
           };
           await this.db.vaults.put(updated);
           return updated;
+        }
+
+        const newPreferred: VaultPointer = {
+          ownerSub: preferredSub,
+          physicalDbName: generatePhysicalDbName(),
+          createdAt: now,
+          lastActiveAt: now,
+        };
+        try {
+          await this.db.vaults.add(newPreferred);
+          return newPreferred;
+        } catch {
+          const existing = await this.db.vaults.get(preferredSub);
+          if (existing) return existing;
+          throw new Error('Failed to acquire or initialize active vault');
         }
       }
 
@@ -76,13 +92,12 @@ export class VaultRegistry implements VaultRegistryPort {
       if (anon) {
         const updated: VaultPointer = {
           ...anon,
-          lastActiveAt: Date.now(),
+          lastActiveAt: now,
         };
         await this.db.vaults.put(updated);
         return updated;
       }
 
-      const now = Date.now();
       const newAnon: VaultPointer = {
         ownerSub: ANONYMOUS_OWNER_SUB,
         physicalDbName: generatePhysicalDbName(),
