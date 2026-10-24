@@ -243,6 +243,61 @@ Sub-phases 12A–12E above are the phase as recorded at its last update (`b4ed6c
 
 ---
 
+## Synchronization Reliability & Vault Architecture
+
+Private synchronization is backed exclusively by Google Drive (BYOS in user-owned `appDataFolder`); Cloudflare D1 serves strictly as the public study package sharing and content distribution layer (`/api/shares`), persisting zero private user data on the server.
+
+Following the independent review of Google Drive synchronization and vault lifecycle, sync reliability work is organized into the descriptive sub-milestones below. Verified isolation foundations, active user experience controls, and planned algorithmic convergence repairs are strictly distinguished.
+
+### Account and vault isolation (Verified — Oct 2026)
+
+Foundational multi-account isolation and bootstrap binding fixes (addressing findings R1–R4 from the independent review, audited and verified in post-Phase 17 closeout acceptance):
+- ✅ **Authenticated cold-start resolution (R1):** Bootstrap resolves the restored authenticated subject's vault via `VaultRegistry.getActiveVault(preferredSub)`, provisioning missing account vaults on demand rather than falling back to creating an unlinked anonymous database on reload.
+- ✅ **Dynamic transport and state database binding (R2):** Factory composition dynamically binds `GoogleDriveSyncTransport`, `DexieSyncStateRepository`, `HydrationManager`, and runtime identity to the selected physical vault rather than capturing fallback `lunaclair-db` at module import.
+- ✅ **Fenced account transition and cache retirement (R3):** Switching accounts retires the active sync graph, fences asynchronous completions, clears query caches, and rebinds the target vault so Account A's queued mutations cannot upload under Account B's credentials.
+- ✅ **Session generation guards and token refresh fencing (R4):** Token refresh and authentication lifecycle are guarded by monotonic session generation counters; pending or late token refreshes from a previous account reject safely and cannot overwrite a newly authenticated account's session.
+*(Verification boundary: verified in automated test suites with fake IndexedDB, simulated auth/Drive ports, and React lifecycle tests; does not claim live Google sign-in or production Cloudflare/Drive deployments.)*
+
+### Library identity and sync controls (Verified — Oct 2026)
+
+User experience controls clarifying storage boundaries, independent sync state, and non-destructive library access:
+- ✅ **Visible library identity:** Surface explicit library status in Settings and persistent sync affordances, clearly distinguishing local-only and account-connected libraries while clarifying all libraries reside locally in IndexedDB and account libraries remain fully functional offline.
+- ✅ **Independent sync pause and resume:** Provide pause/resume controls that halt automatic, manual, and background sync and hydration without signing out or switching libraries; preserves the physical database, mounted drafts, and queued outbox writes intact. Resume validates matching authenticated owner before syncing.
+- ✅ **Non-destructive Drive disconnect:** Disconnecting Google Drive terminates cloud sync and auth sessions while keeping the current local library open, usable for local writes, and persistent across reloads; reconnecting to the same account re-links to the retained vault.
+- ✅ **Explicit library switching:** Offer dedicated user actions to switch between local-only and account libraries rather than using disconnect as a hidden switch; provides gated transitions, protects against dirty editor draft loss, ensures credentials match the active vault, and restores the chosen library on boot.
+- ✅ **First-login connection choices and safe pruning:** Present clear guidance when first-login promotion occurs versus when an account vault already exists alongside local data (avoiding automatic unvetted merges); remove ambiguous "Prune Unlinked Vaults" actions from general settings to eliminate risk of accidental library deletion.
+
+### Durable pull and restart recovery (Planned Algorithmic Reliability)
+
+Robust pagination, chunk streaming, and failure-atomic reconciliation across network interruptions and application restarts:
+- 📋 **Batch truncation recovery (R5):** Resolve Google Drive transport truncation where pull responses yielding >100 mutations (e.g. during initial baseline seeding or multi-journal deltas) discard remaining changes past the engine limit while committing the Drive changes token, stranding unpulled records permanently on the remote peer.
+- 📋 **Durable reconciliation before cursor commit (R6):** Decouple Drive transport candidate marking and page token progression from pre-reconciliation state, committing sequence cursors and applied file IDs atomically with local Dexie entity transactions so mid-cycle restarts, tab closures, or network aborts recover and re-pull incomplete payloads without skipping remote files.
+
+### Causal ordering and conflict convergence (Planned Algorithmic Reliability)
+
+Deterministic multi-device convergence, clock consistency, and lossless mutation propagation:
+- 📋 **Clock representation normalization and timestamp parsing (R7):** Reconcile numeric epoch-millisecond HLCs from local hooks with ISO-8601 HLC wire representations in `LwwPlugin` lexical comparisons, and fix `deriveEntityHlc` double-parsing failures that collapse valid timestamped HLC strings to `1970-01-01T00:00:00.000Z` (epoch floor).
+- 📋 **Document ancestry and revision propagation (R8):** Propagate `baseRevision`, parent ancestry, mutation HLC, and origin device identity through `syncHooks`, the outbox queue, wire schemas, and `DexieSyncReconciler`, enabling `CasDraftPlugin` to recognize legitimate fast-forward sequential edits instead of emitting spurious conflict drafts.
+- 📋 **Live document deletion flag predicate (R9):** Correct the `deletedAt !== undefined` check in `DexieSyncReconciler` to distinguish `deletedAt: null` on live cloned or resurrected documents from genuine soft-deletion timestamps, preventing live incoming documents from being converted into tombstones.
+- 📋 **Flashcard review contract and table alignment (R10):** Align live `flashcardReviews` repository outbox emissions with `SYNC_POLICY` authoritative mapping (resolving the `flashcardReview` vs `reviewLog` table mismatch), eliminating unknown-entity drops into `heldOps` and ensuring SM-2 progress and reset tombstones converge across peers.
+- 📋 **Push acknowledgement tombstone scope compliance (R11):** Ensure `applyPushResult` executes within a properly scoped transaction context that includes tombstones when updating `documentContents.version` upon push acceptance, preventing `SyncScopeError` rollbacks and subsequent infinite re-upload loops of already accepted mutations.
+
+### Material restoration and selective sync (Planned Algorithmic Reliability)
+
+Safe course material lifecycle, background asset recovery, and category re-enablement:
+- 📋 **Material deletion tombstone enforcement for Explore pointers (R12):** Verify incoming Explore pointer payloads against local `material:<id>` deletion tombstones and timestamps in `DexieSyncReconciler` and `HydrationManager`, preventing unconsumed pointers or peer sync from resurrecting deliberately removed materials.
+- 📋 **Hydration backoff timer recovery and startup drain (R13):** Implement autonomous timer rescheduling and a cold-start queue drain in `HydrationManager` for pending hydrations in `nextAttemptAt` backoff state, ensuring transient network or share fetch failures recover automatically without waiting for accidental pointer arrivals.
+- 📋 **Category filter replay on re-enable (R14):** Introduce an operation holding / replay mechanism for remote changes filtered out while a sync category (e.g., Annotations, Spaced Repetition, Quiz History, Custom Materials) is toggled off, so re-enabling the category re-applies or re-pulls omitted changes instead of permanently advancing the cursor over them.
+
+### Compaction and quota recovery (Planned Algorithmic Reliability)
+
+Lossless remote history compaction and self-healing storage quota management:
+- 📋 **Safe snapshot compaction and journal folding (R15):** Repair the latent `DriveCompactor` implementation to fully download and fold covered journal mutations and baseline snapshots before declaring coverage and deleting remote files, preventing data loss upon compaction.
+- 📋 **Runtime quota recovery integration:** Wire compaction threshold evaluation (>40 journals or >5 MB total) and the 1 MB `reserve_slot.bin` emergency cushion into the active sync runtime to resolve out-of-quota deadlocks safely.
+
+
+---
+
 ## Planned Phases
 
 - **Future Roadmap & Next Milestones:**

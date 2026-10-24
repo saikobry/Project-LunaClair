@@ -54,6 +54,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `BrowserSyncLifecycle.ts` → Window `online`, `visibilitychange`, and periodic interval triggers
   - `storage/` — LocalStorage-backed providers:
     - `deviceId.ts` → `getOrCreateDeviceId()`
+    - `BrowserSyncControlAdapter.ts` → `BrowserSyncControlAdapter` implementing `SyncControlPort` (persists and retrieves sync pause state via `localStorage` with in-memory fallback on storage refusal, scoped by vault owner identity)
 - `importer/` — Document extraction and parsing boundary:
   - `registry/` — Format registry and extractor factory:
     - `DefaultImporterRegistry.ts` → `ImporterRegistry`
@@ -80,7 +81,7 @@ Persistence, external APIs, extraction engines, and runtime adapters: IndexedDB/
     - `GoogleAuthService.ts` → `GoogleAuthPort` implementation managing GIS code client flow, session persistence, zero-copy anonymous vault promotion via `VaultRegistryPort` guarded by immediate post-promotion session generation checks, automated silent token refresh via Cloudflare Worker auth endpoints, monotonic session generation tracking (`getSessionGeneration`), and stale refresh/login race prevention
     - `GoogleSessionCredentialsProvider.ts` → `SessionCredentialsProvider` implementation bridging Google OAuth identity into synchronization credentials
 - `sync/` — Cloud synchronization runtime adapters:
-  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, bypasses enqueueing and skips download if material already exists in `db.materials`, caps maximum attempts to drop broken shares, and handles 404/410 delisting with exponential backoff; supports explicit `dispose()` with internal AbortController to cleanly abort in-flight queues)
+  - `HydrationManager.ts` → `HydrationManager` (resolves `pendingHydrations` queue in Dexie via `ClonePublishedShareUseCase`, bypasses enqueueing and skips download if material already exists in `db.materials`, caps maximum attempts to drop broken shares, and handles 404/410 delisting with exponential backoff; supports explicit `pause()`/`resume()`/`isPaused()` suspension controls and `dispose()` with internal AbortController to cleanly abort in-flight queues)
 
 ## Local Contracts
 

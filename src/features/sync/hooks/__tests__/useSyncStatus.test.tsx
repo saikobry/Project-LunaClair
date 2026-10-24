@@ -9,6 +9,7 @@ describe('useSyncStatus', () => {
   let mockStore: SyncStatusStore;
   let mockGetConflictDrafts: { execute: ReturnType<typeof vi.fn> };
   let mockTriggerSync: { execute: ReturnType<typeof vi.fn> };
+  let mockSyncEngine: any;
   let mockAuth: any;
   let mockContext: any;
 
@@ -27,10 +28,16 @@ describe('useSyncStatus', () => {
       execute: vi.fn().mockResolvedValue(undefined),
     };
 
+    mockSyncEngine = {
+      pause: vi.fn(),
+      resume: vi.fn().mockResolvedValue(undefined),
+      isPaused: vi.fn().mockReturnValue(false),
+    };
+
     mockAuth = {
       login: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),
-      getSession: vi.fn().mockReturnValue(null),
+      getSession: vi.fn().mockReturnValue({ user: { sub: 'test-user-sub' } }),
       getStatus: vi.fn().mockReturnValue('authenticated'),
       subscribe: vi.fn().mockReturnValue(() => {}),
       getValidAccessToken: vi.fn().mockResolvedValue('token'),
@@ -40,6 +47,7 @@ describe('useSyncStatus', () => {
       useCases: {
         sync: {
           syncStatusStore: mockStore,
+          syncEngine: mockSyncEngine,
           getConflictDrafts: mockGetConflictDrafts,
           triggerSync: mockTriggerSync,
         },
@@ -47,6 +55,9 @@ describe('useSyncStatus', () => {
       infrastructure: {
         providers: {
           auth: mockAuth,
+          credentials: {
+            getCredentials: vi.fn().mockResolvedValue({ userId: 'test-user-sub', deviceId: 'dev' }),
+          },
         },
       },
     };
@@ -172,5 +183,47 @@ describe('useSyncStatus', () => {
 
     expect(result.current.state).toBe('standby');
     expect(result.current.pendingCount).toBe(0);
+  });
+
+  it('resolves to "paused" and retains pendingCount when state is paused', () => {
+    mockSyncEngine.isPaused.mockReturnValue(true);
+    mockStore.setState({ state: 'paused', pendingCount: 4 });
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    expect(result.current.state).toBe('paused');
+    expect(result.current.status).toBe('paused');
+    expect(result.current.isPaused).toBe(true);
+    expect(result.current.pendingCount).toBe(4);
+  });
+
+  it('reports isPaused false when syncEngine is not paused for active owner even if store state is paused', () => {
+    mockSyncEngine.isPaused.mockReturnValue(false);
+    mockStore.setState({ state: 'paused', pendingCount: 4 });
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    expect(result.current.isPaused).toBe(false);
+  });
+
+  it('calls syncEngine.pause when pauseSync is invoked', async () => {
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    await act(async () => {
+      await result.current.pauseSync();
+    });
+
+    expect(mockSyncEngine.pause).toHaveBeenCalledWith('test-user-sub');
+  });
+
+  it('calls syncEngine.resume when resumeSync is invoked', async () => {
+    const { result } = renderHook(() => useSyncStatus(), { wrapper });
+
+    await act(async () => {
+      await result.current.resumeSync();
+    });
+
+    expect(mockSyncEngine.resume).toHaveBeenCalledWith(
+      { userId: 'test-user-sub', deviceId: 'dev' },
+      'test-user-sub'
+    );
   });
 });

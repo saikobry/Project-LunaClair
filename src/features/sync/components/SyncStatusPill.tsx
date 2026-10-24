@@ -10,8 +10,8 @@ import {
   CloudOff,
 } from 'lucide-react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
-import { formatSyncTime } from '../utils/formatSyncTime';
 import { ConflictDraftsModal } from './ConflictDraftsModal';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 
 export interface SyncStatusPillProps {
   className?: string;
@@ -151,17 +151,20 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
   const {
     state,
     conflictCount,
-    lastSyncedAt,
     lastError,
     triggerSync,
     reconnectAuth,
+    resumeSync,
     authStatus,
+    libraryLabel = 'Local-only Library',
   } = useSyncStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConnectConfirmOpen, setIsConnectConfirmOpen] = useState(false);
 
   // If conflict drafts exist, highest priority is conflict indicator
   const hasConflicts = conflictCount > 0;
   const isUnauthenticated = authStatus === 'unauthenticated';
+  const isLocalOnly = libraryLabel === 'Local-only Library';
 
   const handleClick = () => {
     if (onClick) {
@@ -171,33 +174,38 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
 
     if (hasConflicts) {
       setIsModalOpen(true);
-    } else if (state === 'standby') {
-      void reconnectAuth?.();
+    } else if (state === 'paused') {
+      void resumeSync();
+    } else if (state === 'standby' || isUnauthenticated) {
+      setIsConnectConfirmOpen(true);
     } else if (state === 'idle' || state === 'error') {
       void triggerSync();
     }
   };
 
   const getTooltip = (): string => {
+    let statusText = '';
     if (hasConflicts) {
-      return `${conflictCount} conflict${conflictCount > 1 ? 's' : ''} detected. Click to resolve.`;
-    }
-    if (state === 'standby') {
-      if (isUnauthenticated) {
-        return 'Sync offline - connect Google Drive in Settings';
+      statusText = `${conflictCount} conflict${conflictCount > 1 ? 's' : ''} detected. Click to resolve.`;
+    } else if (state === 'paused') {
+      statusText = 'Cloud sync paused — tap to resume';
+    } else if (state === 'standby') {
+      if (isUnauthenticated || isLocalOnly) {
+        statusText = isLocalOnly ? 'Local storage' : 'Sync offline - connect Google Drive in Settings';
+      } else {
+        statusText = 'Cloud sync paused — tap to reconnect';
       }
-      return 'Cloud sync paused — tap to reconnect';
+    } else if (state === 'syncing') {
+      statusText = 'Syncing changes with cloud...';
+    } else if (state === 'offline') {
+      statusText = 'Offline — edits will sync automatically when back online';
+    } else if (state === 'error') {
+      statusText = lastError ? `Sync error: ${lastError} (Click to retry)` : 'Sync error (Click to retry)';
+    } else {
+      statusText = isLocalOnly ? 'Local storage' : 'Synced';
     }
-    if (state === 'syncing') {
-      return 'Syncing changes with cloud...';
-    }
-    if (state === 'offline') {
-      return 'Offline — edits will sync automatically when back online';
-    }
-    if (state === 'error') {
-      return lastError ? `Sync error: ${lastError} (Click to retry)` : 'Sync error (Click to retry)';
-    }
-    return `${formatSyncTime(lastSyncedAt)} (Click to sync)`;
+
+    return `${libraryLabel} • ${statusText}`;
   };
 
   const renderContent = () => {
@@ -216,6 +224,16 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
     }
 
     switch (state) {
+      case 'paused':
+        return (
+          <>
+            <PauseCircle size={14} color="var(--color-warning)" />
+            <span {...stylex.props(styles.label, isCompact && styles.labelCompact)}>
+              Paused
+            </span>
+          </>
+        );
+
       case 'standby':
         if (isUnauthenticated) {
           return (
@@ -286,6 +304,8 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
     switch (state) {
       case 'syncing':
         return styles.syncing;
+      case 'paused':
+        return styles.standby;
       case 'standby':
         return isUnauthenticated ? styles.resting : styles.standby;
       case 'offline':
@@ -314,6 +334,26 @@ export function SyncStatusPill({ isCompact, onClick }: SyncStatusPillProps) {
         <ConflictDraftsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+        />
+      )}
+
+      {isConnectConfirmOpen && (
+        <ConfirmationDialog
+          isOpen={isConnectConfirmOpen}
+          title="Connect Google Drive"
+          message="Connecting Google Drive links your local library to your Google account for private cloud backup. If an account library already exists on this device, connecting will open your account library while keeping your local-only library intact and switchable. Libraries are not merged. Please save any unsaved work in the editor before proceeding."
+          confirmLabel="Connect Google Drive"
+          cancelLabel="Cancel"
+          intent="warning"
+          onConfirm={async () => {
+            setIsConnectConfirmOpen(false);
+            if (reconnectAuth) {
+              await reconnectAuth();
+            } else {
+              await triggerSync();
+            }
+          }}
+          onCancel={() => setIsConnectConfirmOpen(false)}
         />
       )}
     </>

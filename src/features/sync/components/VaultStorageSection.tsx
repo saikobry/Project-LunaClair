@@ -1,14 +1,16 @@
 import { useState, useEffect, useContext, useCallback, useSyncExternalStore } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { Database, ShieldCheck } from 'lucide-react';
+import { Database, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Card } from '../../../shared/ui/Card/Card';
 import { Button } from '../../../shared/ui/Button/Button';
+import { ConfirmationDialog } from '../../../shared/ui/Dialog/ConfirmationDialog';
 import { ApplicationContext } from '../../../app/providers/ApplicationContext';
 import {
   ANONYMOUS_OWNER_SUB,
   type VaultRegistryPort,
   type VaultPointer,
 } from '../../../domain/vault/models/vault.types';
+import type { GoogleAuthPort } from '../../../domain/auth/models/auth.types';
 import { vaultStorageStyles } from './vaultStorage.stylex';
 
 export interface StorageEstimateResult {
@@ -39,6 +41,8 @@ export interface VaultStorageSectionProps {
     fn: (tx: any) => Promise<any>,
   ) => Promise<any>;
   activeOwnerSub?: string;
+  showPruneAction?: boolean;
+  authService?: GoogleAuthPort;
 }
 
 /**
@@ -54,11 +58,13 @@ export function VaultStorageSection({
   onPruneUnlinkedVaults: propOnPruneUnlinkedVaults,
   withOrigin: propWithOrigin,
   activeOwnerSub: propActiveOwnerSub,
+  showPruneAction = false,
+  authService: propAuthService,
 }: VaultStorageSectionProps) {
   const context = useContext(ApplicationContext);
   const db = propDatabase ?? context?.infrastructure?.db;
   const registry = propVaultRegistry ?? (context?.infrastructure as any)?.vaultRegistry;
-  const auth = context?.infrastructure?.providers?.auth;
+  const auth = propAuthService ?? context?.infrastructure?.providers?.auth;
 
   const session = useSyncExternalStore(
     (notify) => auth?.subscribe(notify) ?? (() => {}),
@@ -66,10 +72,11 @@ export function VaultStorageSection({
     () => auth?.getSession() ?? null,
   );
 
-  const currentSub = propActiveOwnerSub ?? session?.user?.sub ?? ANONYMOUS_OWNER_SUB;
-  const isLinked = currentSub !== ANONYMOUS_OWNER_SUB;
+  const expectedSub = propActiveOwnerSub ?? (context?.infrastructure as any)?.expectedSub;
 
   const [activeVault, setActiveVault] = useState<VaultPointer | null>(null);
+  const [allVaults, setAllVaults] = useState<VaultPointer[]>([]);
+  const [switchingTarget, setSwitchingTarget] = useState<string | null>(null);
   const [counts, setCounts] = useState<VaultTableCounts>({
     materials: 0,
     documentContents: 0,
@@ -85,11 +92,29 @@ export function VaultStorageSection({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const findActivePointer = useCallback(
+    (list: VaultPointer[]) => {
+      const activeDbName = db?.name;
+      if (activeDbName) {
+        const match = list.find((v) => v.physicalDbName === activeDbName);
+        if (match) return match;
+      }
+      if (expectedSub) {
+        const match = list.find((v) => v.ownerSub === expectedSub);
+        if (match) return match;
+      }
+      return null;
+    },
+    [db?.name, expectedSub],
+  );
+
   const loadData = useCallback(async () => {
     try {
       if (registry) {
-        const pointer = await registry.getActiveVault(currentSub);
+        const list = await registry.listVaults();
+        const pointer = findActivePointer(list);
         setActiveVault(pointer);
+        setAllVaults(list);
       }
 
       if (propStorageEstimate) {
@@ -136,15 +161,17 @@ export function VaultStorageSection({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to inspect local vault storage.');
     }
-  }, [db, registry, currentSub, propStorageEstimate]);
+  }, [db, registry, findActivePointer, propStorageEstimate]);
 
   useEffect(() => {
     let cancelled = false;
     async function init() {
       try {
         let pointer: VaultPointer | null = null;
+        let list: VaultPointer[] = [];
         if (registry) {
-          pointer = await registry.getActiveVault(currentSub);
+          list = await registry.listVaults();
+          pointer = findActivePointer(list);
         }
 
         let est: StorageEstimateResult = { usage: 0, quota: 0 };
@@ -200,6 +227,7 @@ export function VaultStorageSection({
 
         if (!cancelled) {
           if (pointer) setActiveVault(pointer);
+          setAllVaults(list);
           setEstimate(est);
           setCounts(nextCounts);
         }
@@ -214,7 +242,23 @@ export function VaultStorageSection({
     return () => {
       cancelled = true;
     };
-  }, [db, registry, currentSub, propStorageEstimate]);
+  }, [db, registry, findActivePointer, propStorageEstimate]);
+
+  const activePointer = activeVault ?? (allVaults.length > 0 ? findActivePointer(allVaults) : null);
+  const activeOwnerSub = activePointer?.ownerSub ?? expectedSub ?? ANONYMOUS_OWNER_SUB;
+  const isLocalOnly = !activeOwnerSub || activeOwnerSub === ANONYMOUS_OWNER_SUB || activeOwnerSub === 'anonymous';
+
+  const isAuthWithActiveOwner = Boolean(
+    session?.user?.sub &&
+    session.user.sub === activeOwnerSub
+  );
+
+  const isLinked = !isLocalOnly && isAuthWithActiveOwner;
+  const isRetained = !isLocalOnly && !isAuthWithActiveOwner;
+
+  const accountIdentifier = isLinked
+    ? (session?.user?.email ?? session?.user?.name ?? activeOwnerSub)
+    : activeOwnerSub;
 
   const handleClearMediaCache = useCallback(async () => {
     setIsClearing(true);
@@ -248,22 +292,22 @@ export function VaultStorageSection({
     try {
       let pruned = 0;
       if (propOnPruneUnlinkedVaults) {
-        const res = await propOnPruneUnlinkedVaults(currentSub);
+        const res = await propOnPruneUnlinkedVaults(activeOwnerSub);
         pruned = res.prunedCount;
       } else if (context?.useCases?.sync && 'pruneUnlinkedVaults' in context.useCases.sync) {
-        const res = await (context.useCases.sync as any).pruneUnlinkedVaults.execute(currentSub);
+        const res = await (context.useCases.sync as any).pruneUnlinkedVaults.execute(activeOwnerSub);
         pruned = res.prunedCount;
       } else if (registry) {
         const activeDbName = activeVault?.physicalDbName ?? db?.name ?? '';
         if (typeof registry.pruneStaleVaults === 'function') {
-          const res = await registry.pruneStaleVaults(activeDbName, currentSub, 0);
+          const res = await registry.pruneStaleVaults(activeDbName, activeOwnerSub, 0);
           pruned = res.deleted.length + res.quarantined.length;
         } else {
           const allVaults = await registry.listVaults();
           const now = Date.now();
           for (const v of allVaults) {
             if (v.physicalDbName === activeDbName) continue;
-            if (currentSub && v.ownerSub === currentSub && currentSub !== ANONYMOUS_OWNER_SUB) continue;
+            if (activeOwnerSub && v.ownerSub === activeOwnerSub && activeOwnerSub !== ANONYMOUS_OWNER_SUB) continue;
             if (v.pendingDeleteAt && v.pendingDeleteAt <= now) {
               await registry.deleteVault(v.ownerSub);
               pruned++;
@@ -288,7 +332,7 @@ export function VaultStorageSection({
     } finally {
       setIsPruning(false);
     }
-  }, [propOnPruneUnlinkedVaults, context, registry, activeVault, db, currentSub, loadData]);
+  }, [propOnPruneUnlinkedVaults, context, registry, activeVault, db, activeOwnerSub, loadData]);
 
   const activeDbName = activeVault?.physicalDbName ?? db?.name ?? 'Unknown';
   const usageMB = ((estimate.usage ?? 0) / (1024 * 1024)).toFixed(1);
@@ -329,34 +373,110 @@ export function VaultStorageSection({
 
           <div {...stylex.props(vaultStorageStyles.identityRow)}>
             <div {...stylex.props(vaultStorageStyles.vaultMeta)}>
-              <span {...stylex.props(vaultStorageStyles.vaultIdLabel)}>Active Vault Database</span>
-              <span
-                {...stylex.props(vaultStorageStyles.vaultIdValue)}
-                data-testid="active-vault-name"
-              >
-                {activeDbName}
+              <span {...stylex.props(vaultStorageStyles.vaultIdLabel)}>Current Active Library</span>
+              <span {...stylex.props(vaultStorageStyles.vaultTitle)}>
+                {isLinked
+                  ? `Account Library (${accountIdentifier})`
+                  : isRetained
+                    ? `Retained Account Library (${accountIdentifier})`
+                    : 'Local-only Library (On this device)'}
+              </span>
+              <span {...stylex.props(vaultStorageStyles.vaultSubtext)}>
+                {isRetained
+                  ? 'Offline / Disconnected. Google Drive sync is unavailable, but your local library remains intact and fully functional offline.'
+                  : 'All library data is stored locally on this device in IndexedDB. Fully accessible offline.'}
+              </span>
+              <span {...stylex.props(vaultStorageStyles.vaultDbRow)}>
+                Storage database: <span data-testid="active-vault-name">{activeDbName}</span>
               </span>
             </div>
 
             <span
               {...stylex.props(
                 vaultStorageStyles.badge,
-                isLinked ? vaultStorageStyles.badgeLinked : vaultStorageStyles.badgeAnonymous,
+                isLinked
+                  ? vaultStorageStyles.badgeLinked
+                  : isRetained
+                    ? vaultStorageStyles.badgeRetained
+                    : vaultStorageStyles.badgeAnonymous,
               )}
               data-testid="account-linkage"
             >
               {isLinked ? (
                 <>
                   <ShieldCheck size={14} />
-                  <span>Linked ({session?.user?.email ?? currentSub})</span>
+                  <span>Connected to Google Drive</span>
+                </>
+              ) : isRetained ? (
+                <>
+                  <AlertCircle size={14} />
+                  <span>Offline / Disconnected</span>
                 </>
               ) : (
                 <>
                   <Database size={14} />
-                  <span>Local (Anonymous)</span>
+                  <span>Local-only (On this device)</span>
                 </>
               )}
             </span>
+          </div>
+
+          <div {...stylex.props(vaultStorageStyles.switchingSection)}>
+            <span {...stylex.props(vaultStorageStyles.switchingTitle)}>
+              Library Switching
+            </span>
+            <div {...stylex.props(vaultStorageStyles.switchingButtonsRow)}>
+              {!isLocalOnly ? (
+                <Button
+                  label="Switch to Local-only Library"
+                  variant="secondary"
+                  onClick={() => setSwitchingTarget(ANONYMOUS_OWNER_SUB)}
+                  data-testid="switch-to-local-library-button"
+                >
+                  Switch to Local-only Library
+                </Button>
+              ) : (
+                allVaults
+                  .filter((v) => v.ownerSub !== ANONYMOUS_OWNER_SUB && v.ownerSub !== 'anonymous')
+                  .map((v) => {
+                    const isConnectedUser = session?.user?.sub === v.ownerSub;
+                    const accountLabel = isConnectedUser
+                      ? (session.user.email ?? session.user.name ?? v.ownerSub)
+                      : (v.ownerSub.length > 8 ? `...${v.ownerSub.slice(-4)}` : v.ownerSub);
+                    return (
+                      <Button
+                        key={v.ownerSub}
+                        label={`Switch to Account Library (${accountLabel})`}
+                        variant="secondary"
+                        onClick={() => setSwitchingTarget(v.ownerSub)}
+                        data-testid={`switch-to-account-${v.ownerSub}-button`}
+                      >
+                        Switch to Account Library ({accountLabel})
+                      </Button>
+                    );
+                  })
+              )}
+            </div>
+
+            {switchingTarget !== null && (
+              <ConfirmationDialog
+                isOpen={true}
+                title="Switch Active Library?"
+                message="Switching libraries changes the active local database. Any unsaved drafts in the editor will be discarded."
+                confirmLabel="Confirm Switch"
+                cancelLabel="Cancel"
+                intent="warning"
+                onConfirm={async () => {
+                  const target = switchingTarget;
+                  setSwitchingTarget(null);
+                  if (target && context?.switchActiveLibrary) {
+                    await context.switchActiveLibrary(target);
+                  }
+                  await loadData();
+                }}
+                onCancel={() => setSwitchingTarget(null)}
+              />
+            )}
           </div>
 
           <div {...stylex.props(vaultStorageStyles.gaugeContainer)}>
@@ -441,16 +561,18 @@ export function VaultStorageSection({
             >
               Clear Media Cache
             </Button>
-            <Button
-              label="Prune Unlinked Vaults"
-              variant="secondary"
-              isLoading={isPruning}
-              isDisabled={isPruning}
-              onClick={handlePruneUnlinkedVaults}
-              data-testid="prune-unlinked-vaults-button"
-            >
-              Prune Unlinked Vaults
-            </Button>
+            {showPruneAction && (
+              <Button
+                label="Prune Unlinked Vaults"
+                variant="secondary"
+                isLoading={isPruning}
+                isDisabled={isPruning}
+                onClick={handlePruneUnlinkedVaults}
+                data-testid="prune-unlinked-vaults-button"
+              >
+                Prune Unlinked Vaults
+              </Button>
+            )}
           </div>
         </div>
       </Card>

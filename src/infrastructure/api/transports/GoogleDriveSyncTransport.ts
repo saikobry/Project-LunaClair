@@ -74,6 +74,8 @@ export class GoogleDriveSyncTransport implements SyncTransport {
   private hydrationManager?: HydrationManager;
   private readonly expectedSub?: string;
   private readonly abortController: AbortController;
+  private readonly activeControllers = new Set<AbortController>();
+  private authUnsubscribe?: () => void;
   private disposed: boolean;
   private currentActiveUserId?: string;
   private readonly hlcs: Map<string, HybridLogicalClock>;
@@ -123,30 +125,45 @@ export class GoogleDriveSyncTransport implements SyncTransport {
     }
   }
 
+  abortActiveTransports(reason: Error = new Error('Transport operation aborted')): void {
+    for (const ctrl of this.activeControllers) {
+      try {
+        ctrl.abort(reason);
+      } catch {
+        // Ignore
+      }
+    }
+    this.activeControllers.clear();
+  }
+
   dispose(): void {
     this.disposed = true;
+    this.authUnsubscribe?.();
+    this.abortActiveTransports(new Error('GoogleDriveSyncTransport is disposed'));
     this.abortController.abort();
     this.clearState();
   }
 
-  private getCombinedSignal(signal?: AbortSignal): AbortSignal {
-    if (!signal) {
-      return this.abortController.signal;
-    }
-    if (typeof AbortSignal.any === 'function') {
-      return AbortSignal.any([signal, this.abortController.signal]);
-    }
+  private combineSignals(signals: AbortSignal[]): AbortSignal {
     const controller = new AbortController();
-    const onAbort = () => {
-      controller.abort(signal.reason ?? this.abortController.signal.reason);
-    };
-    if (signal.aborted || this.abortController.signal.aborted) {
-      controller.abort(signal.reason ?? this.abortController.signal.reason);
-    } else {
-      signal.addEventListener('abort', onAbort, { once: true });
-      this.abortController.signal.addEventListener('abort', onAbort, { once: true });
+    for (const s of signals) {
+      if (s.aborted) {
+        controller.abort(s.reason);
+        return controller.signal;
+      }
+      s.addEventListener('abort', () => controller.abort(s.reason), { once: true });
     }
     return controller.signal;
+  }
+
+  private getCombinedSignal(signal?: AbortSignal, additionalSignal?: AbortSignal): AbortSignal {
+    const signals: AbortSignal[] = [this.abortController.signal];
+    if (signal) signals.push(signal);
+    if (additionalSignal) signals.push(additionalSignal);
+    if (typeof AbortSignal.any === 'function') {
+      return AbortSignal.any(signals);
+    }
+    return this.combineSignals(signals);
   }
 
   setHydrationManager(manager: HydrationManager): void {
@@ -171,10 +188,13 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       );
     }
 
-    const effectiveSignal = this.getCombinedSignal(signal);
+    const requestController = new AbortController();
+    this.activeControllers.add(requestController);
+    const effectiveSignal = this.getCombinedSignal(signal, requestController.signal);
     effectiveSignal.throwIfAborted();
 
     if (!request.mutations || request.mutations.length === 0) {
+      this.activeControllers.delete(requestController);
       return {
         accepted: [],
         conflicts: [],
@@ -279,6 +299,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         rejected: [],
       };
     } finally {
+      this.activeControllers.delete(requestController);
       this.currentActiveUserId = undefined;
     }
   }
@@ -302,7 +323,9 @@ export class GoogleDriveSyncTransport implements SyncTransport {
       );
     }
 
-    const effectiveSignal = this.getCombinedSignal(signal);
+    const requestController = new AbortController();
+    this.activeControllers.add(requestController);
+    const effectiveSignal = this.getCombinedSignal(signal, requestController.signal);
     effectiveSignal.throwIfAborted();
 
     this.currentActiveUserId = credentials.userId;
@@ -529,6 +552,7 @@ export class GoogleDriveSyncTransport implements SyncTransport {
         changes: returnedChanges,
       };
     } finally {
+      this.activeControllers.delete(requestController);
       this.currentActiveUserId = undefined;
     }
   }

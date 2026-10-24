@@ -49,6 +49,8 @@ import { DexieSyncReconciler } from '../../infrastructure/database/sync/DexieSyn
 import { GoogleDriveSyncTransport } from '../../infrastructure/api/transports/GoogleDriveSyncTransport';
 import { GoogleDriveClient } from '../../infrastructure/api/google/GoogleDriveClient';
 import { HydrationManager } from '../../infrastructure/sync/HydrationManager';
+import { browserSyncControlAdapter } from '../../infrastructure/browser/storage/BrowserSyncControlAdapter';
+import type { SyncControlPort } from '../../domain/sync/services/SyncControlPort';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { GoogleSessionCredentialsProvider } from '../../infrastructure/auth/google/GoogleSessionCredentialsProvider';
 import { getOrCreateDeviceId } from '../../infrastructure/browser/storage/deviceId';
@@ -127,6 +129,9 @@ export interface Infrastructure {
     };
     importerRegistry: ImporterRegistry;
     syncReconciler: DexieSyncReconciler;
+    expectedSub?: string;
+    rebindCloudRuntime?(generation: number): void;
+    retireCloudWork?(): void;
     dispose?(): void;
 }
 
@@ -147,6 +152,8 @@ export function createInfrastructure(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     database: LunaClairDatabase = getActiveVaultDatabase(),
     registry: VaultRegistryPort = vaultRegistry,
+    activeOwnerSub?: string,
+    syncControlAdapter: SyncControlPort = browserSyncControlAdapter,
 ): Infrastructure {
     const documentContentRepository = new DexieDocumentContentRepository(database);
     const documentRepository = new HybridDocumentRepository(documentContentRepository);
@@ -196,17 +203,37 @@ export function createInfrastructure(
     };
 
     const session = googleAuthService.getSession();
-    const boundSub = session?.user.sub ?? ANONYMOUS_OWNER_SUB;
-    const boundGeneration = googleAuthService.getSessionGeneration?.() ?? 0;
-    const isAnonymousBound = boundSub === ANONYMOUS_OWNER_SUB || boundSub === 'anonymous' || boundSub === 'user_default';
+    const isExplicitAnonymous = activeOwnerSub === ANONYMOUS_OWNER_SUB || activeOwnerSub === 'anonymous';
+    const boundSub = activeOwnerSub !== undefined
+        ? activeOwnerSub
+        : (session?.user.sub ?? ANONYMOUS_OWNER_SUB);
+    let boundGeneration = googleAuthService.getSessionGeneration?.() ?? 0;
+    const isAnonymousBound = isExplicitAnonymous || boundSub === ANONYMOUS_OWNER_SUB || boundSub === 'anonymous' || boundSub === 'user_default';
 
     const driveClient = new GoogleDriveClient();
+    const isPausedInitially = syncControlAdapter.isPaused(boundSub);
+    const hydration = new HydrationManager({ db: database, isSuspended: isPausedInitially });
+
     const googleDriveSyncTransport = new GoogleDriveSyncTransport({
         db: database,
         stateRepo: new DexieSyncStateRepository(database),
         driveClient,
         expectedSub: boundSub,
+        hydrationManager: hydration,
     });
+    googleDriveSyncTransport.setHydrationManager(hydration);
+
+    const rebindCloudRuntime = (newGeneration: number) => {
+        boundGeneration = newGeneration;
+        if (!isAnonymousBound && !syncControlAdapter.isPaused(boundSub)) {
+            hydration.resume();
+        }
+    };
+
+    const retireCloudWork = () => {
+        googleDriveSyncTransport.abortActiveTransports?.();
+        hydration.pause();
+    };
 
     const verifyRuntimeIdentity = (userId: string) => {
         const isRequestAnon = !userId || userId === 'user_default' || userId === 'anonymous' || userId === ANONYMOUS_OWNER_SUB;
@@ -269,9 +296,6 @@ export function createInfrastructure(
         getOrCreateDeviceId(),
     );
 
-    const hydration = new HydrationManager({ db: database });
-    googleDriveSyncTransport.setHydrationManager(hydration);
-
     return {
         db: database,
         vaultRegistry: registry,
@@ -293,6 +317,9 @@ export function createInfrastructure(
         },
         importerRegistry: createDefaultImporterRegistry(aiVisionExtractor),
         syncReconciler: new DexieSyncReconciler(database),
+        expectedSub: boundSub,
+        rebindCloudRuntime,
+        retireCloudWork,
         dispose: () => {
             googleDriveSyncTransport.dispose?.();
             hydration.dispose();
@@ -308,9 +335,10 @@ export async function createInfrastructureAsync(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     preferredSub?: string,
     registry: VaultRegistryPort = vaultRegistry,
+    syncControlAdapter: SyncControlPort = browserSyncControlAdapter,
 ): Promise<Infrastructure> {
     const activeVault = await registry.getActiveVault(preferredSub);
     const database = openVaultDatabase(activeVault.physicalDbName);
     setActiveVaultDatabase(database);
-    return createInfrastructure(invalidateAnalytics, database, registry);
+    return createInfrastructure(invalidateAnalytics, database, registry, preferredSub ?? activeVault.ownerSub, syncControlAdapter);
 }

@@ -75,6 +75,45 @@ export const vaultStorageStyles = stylex.create({
     backgroundColor: 'var(--color-background-muted)',
     borderColor: 'var(--color-border)',
   },
+  badgeRetained: {
+    color: 'var(--color-warning)',
+    backgroundColor: 'var(--color-warning-muted)',
+    borderColor: 'color-mix(in srgb, var(--color-warning) 35%, transparent)',
+  },
+  vaultTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: 'var(--color-text-primary)',
+  },
+  vaultSubtext: {
+    fontSize: 12,
+    color: 'var(--color-text-secondary)',
+    marginTop: 2,
+    lineHeight: 1.4,
+  },
+  vaultDbRow: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: 'var(--color-text-secondary)',
+    marginTop: 4,
+  },
+  switchingSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    paddingTop: 4,
+  },
+  switchingTitle: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
+  },
+  switchingButtonsRow: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
   gaugeContainer: {
     display: 'flex',
     flexDirection: 'column',

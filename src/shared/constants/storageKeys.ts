@@ -26,10 +26,14 @@ export const STORAGE_KEYS = {
   auth: {
     googleSession: 'lunaclair.auth.google_session',
   },
+  vault: {
+    activeOwnerSub: 'lunaclair.vault.active_owner_sub',
+  },
   sync: {
     deviceId: 'lunaclair.device_id',
     sessionCredentials: 'lunaclair.session_credentials',
     categoryPreferences: 'lunaclair.sync.category_preferences',
+    paused: 'lunaclair.sync.paused',
   },
   session: {
     visitMarked: 'lunaclair.session.visit_marked',

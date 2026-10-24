@@ -4,15 +4,18 @@ import { bootstrapApplication, resetBootstrapForTesting } from '../bootstrap';
 import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
 import { DatabaseInitializer } from '../../infrastructure/database/schema/DatabaseInitializer';
+import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
 
 describe('bootstrapApplication cold start resolution', () => {
   beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.vault.activeOwnerSub);
     resetBootstrapForTesting();
     DatabaseInitializer.resetForTesting();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.vault.activeOwnerSub);
     resetBootstrapForTesting();
     DatabaseInitializer.resetForTesting();
     vi.restoreAllMocks();

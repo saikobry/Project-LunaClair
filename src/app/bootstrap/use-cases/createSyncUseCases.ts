@@ -13,6 +13,7 @@ import {
     syncCategoryPreferences,
     type SyncCategoryKey,
 } from '../../../domain/sync/preferences/SyncCategoryPreferences';
+import { browserSyncControlAdapter } from '../../../infrastructure/browser/storage/BrowserSyncControlAdapter';
 
 export interface SyncUseCasesDependencies {
     syncEngine: SyncEngine;
@@ -34,6 +35,9 @@ export function createSyncUseCases(
             stateRepo: repositories.syncState,
             statusStore: syncStatusStore,
             syncEventSink,
+            expectedOwnerSub: infrastructureOrDeps.expectedSub,
+            syncControlPort: browserSyncControlAdapter,
+            hydrationManager: infrastructureOrDeps.services.hydration,
         });
 
         const getSyncStatus = new GetSyncStatusUseCase(syncStatusStore);
@@ -96,6 +100,7 @@ export function createSyncUseCases(
             toggleCategory,
             clearMediaCache,
             pruneUnlinkedVaults,
+            switchActiveLibrary: undefined as ((targetSub: string) => Promise<void>) | undefined,
         };
     }
 
@@ -128,5 +133,6 @@ export function createSyncUseCases(
                 unlinkedVaults: [],
             }),
         },
+        switchActiveLibrary: undefined as ((targetSub: string) => Promise<void>) | undefined,
     };
 }

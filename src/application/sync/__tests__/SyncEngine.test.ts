@@ -7,6 +7,7 @@ import { DexieSyncReconciler } from '../../../infrastructure/database/sync/Dexie
 import { DexieSyncQueueRepository } from '../../../infrastructure/database/repositories/DexieSyncQueueRepository';
 import { DexieSyncStateRepository } from '../../../infrastructure/database/repositories/DexieSyncStateRepository';
 import { DexieConflictDraftRepository } from '../../../infrastructure/database/repositories/DexieConflictDraftRepository';
+import { BrowserSyncControlAdapter } from '../../../infrastructure/browser/storage/BrowserSyncControlAdapter';
 import { SyncEngine } from '../SyncEngine';
 import { SyncStatusStore } from '../SyncStatusStore';
 import { VaultSyncLockCoordinator } from '../locks/VaultSyncLockCoordinator';
@@ -14,6 +15,7 @@ import type { SyncEventSink } from '../SyncEventSink';
 import { SyncNetworkError } from '../../../domain/sync/errors/SyncErrors';
 import { type SessionCredentials, type SyncPullResponse, type SyncPushResponse, type SyncQueueItem } from '../../../domain/sync/models/sync.types';
 import { type SyncTransport } from '../../../domain/sync/services/SyncTransport';
+import { STORAGE_KEYS } from '../../../shared/constants/storageKeys';
 
 describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
   let testDb: LunaClairDatabase;
@@ -31,6 +33,7 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
   };
 
   beforeEach(async () => {
+    localStorage.clear();
     await Dexie.delete(DB_NAME);
     testDb = new LunaClairDatabase();
     await testDb.open();
@@ -56,6 +59,7 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
   });
 
   afterEach(async () => {
+    localStorage.clear();
     testDb.close();
     await Dexie.delete(DB_NAME);
     vi.restoreAllMocks();
@@ -698,5 +702,179 @@ describe('SyncEngine (Orchestrator, Mutex & Convergence Cycle)', () => {
     engine.dispose();
 
     await expect(engine.sync(credentials)).rejects.toThrow('SyncEngine is disposed');
+  });
+
+  describe('Sync Runtime Pause and Resume Semantics', () => {
+    it('pausing aborts an in-flight sync cycle safely without throwing and leaves engine usable', async () => {
+      let pullSignal: AbortSignal | undefined;
+      const pullStarted = new Promise<void>((resolve) => {
+        vi.mocked(mockTransport.pull).mockImplementation(async (_creds, _cursor, _limit, signal) => {
+          pullSignal = signal;
+          resolve();
+          return new Promise<SyncPullResponse>((_, reject) => {
+            if (signal?.aborted) {
+              reject(signal.reason ?? new Error('Aborted'));
+              return;
+            }
+            signal?.addEventListener('abort', () => {
+              reject(signal.reason ?? new Error('Aborted'));
+            });
+          });
+        });
+      });
+
+      const engine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore,
+      });
+
+      const syncPromise = engine.sync(credentials);
+      await pullStarted;
+      expect(pullSignal).toBeDefined();
+      expect(pullSignal!.aborted).toBe(false);
+
+      // Pause while pull is in-flight
+      engine.pause('user-sync-test');
+
+      // The cycle signal is aborted
+      expect(pullSignal!.aborted).toBe(true);
+
+      // The sync promise completes cleanly
+      await expect(syncPromise).resolves.toBeUndefined();
+
+      // Status reflects honest paused state, not error
+      expect(statusStore.getState().state).toBe('paused');
+      expect(statusStore.getState().lastError).toBeUndefined();
+
+      // Engine is not disposed, calling isPaused reports true
+      expect(engine.isPaused('user-sync-test')).toBe(true);
+    });
+
+    it('outbox remains intact when paused and is not touched', async () => {
+      const item: SyncQueueItem = {
+        id: 'q-item-paused',
+        clientMutationId: 'mut-paused',
+        entityType: 'highlight',
+        entityId: 'hl-paused',
+        operation: 'UPSERT',
+        clientTimestamp: '2026-10-22T10:00:00.000Z',
+        payload: { text: 'Queued while paused', documentId: 'doc-1' },
+        status: 'pending',
+        createdAt: '2026-10-22T10:00:00.000Z',
+        retryCount: 0,
+      };
+      await queueRepo.enqueue(item);
+
+      const engine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore,
+      });
+
+      engine.pause('user-sync-test');
+
+      // Outbox remains completely intact
+      const pendingCount = await queueRepo.countPending();
+      expect(pendingCount).toBe(1);
+
+      // Sync attempt returns paused immediately
+      const result = await engine.sync(credentials);
+      expect(result).toEqual({ status: 'paused' });
+
+      // Transport was not called, queue remains untouched
+      expect(mockTransport.pull).not.toHaveBeenCalled();
+      expect(mockTransport.push).not.toHaveBeenCalled();
+      expect(await queueRepo.countPending()).toBe(1);
+    });
+
+    it('calling sync() while paused returns { status: "paused" } and suppresses sync cycles', async () => {
+      const engine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore,
+      });
+
+      engine.pause();
+
+      const result = await engine.sync(credentials);
+      expect(result).toEqual({ status: 'paused' });
+      expect(mockTransport.pull).not.toHaveBeenCalled();
+      expect(mockTransport.push).not.toHaveBeenCalled();
+      expect(statusStore.getState().state).toBe('paused');
+    });
+
+    it('resuming with matching owner resumes sync; resuming with mismatched owner does not', async () => {
+      const engine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore,
+      });
+
+      engine.pause('user-sync-test');
+      expect(engine.isPaused('user-sync-test')).toBe(true);
+
+      // 1. Resume with missing credentials -> no resume
+      await engine.resume(null, 'user-sync-test');
+      expect(engine.isPaused('user-sync-test')).toBe(true);
+      expect(mockTransport.pull).not.toHaveBeenCalled();
+
+      // 2. Resume with mismatched owner -> no resume
+      const wrongCredentials: SessionCredentials = {
+        userId: 'other-user',
+        deviceId: 'other-dev',
+      };
+      await engine.resume(wrongCredentials, 'user-sync-test');
+      expect(engine.isPaused('user-sync-test')).toBe(true);
+      expect(mockTransport.pull).not.toHaveBeenCalled();
+
+      // 3. Resume with matching owner -> resumes sync
+      await engine.resume(credentials, 'user-sync-test');
+      expect(engine.isPaused('user-sync-test')).toBe(false);
+      expect(mockTransport.pull).toHaveBeenCalledTimes(1);
+      expect(statusStore.getState().state).toBe('idle');
+    });
+
+    it('pause state survives reload via localStorage and respects owner scope', async () => {
+      const syncControlPort = new BrowserSyncControlAdapter();
+      const engine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore,
+        syncControlPort,
+      });
+
+      engine.pause('user-sync-test');
+      expect(localStorage.getItem(`${STORAGE_KEYS.sync.paused}.user-sync-test`)).toBe('true');
+
+      // Simulate application reload with a fresh store and engine
+      const freshStatusStore = new SyncStatusStore();
+      const reloadedEngine = new SyncEngine({
+        transport: mockTransport,
+        reconciler,
+        queueRepo,
+        stateRepo,
+        statusStore: freshStatusStore,
+        syncControlPort,
+      });
+
+      expect(reloadedEngine.isPaused('user-sync-test')).toBe(true);
+      expect(reloadedEngine.isPaused('another-user')).toBe(false);
+      expect(freshStatusStore.getState().state).toBe('paused');
+
+      // Calling sync for the paused user short-circuits
+      const res = await reloadedEngine.sync(credentials);
+      expect(res).toEqual({ status: 'paused' });
+    });
   });
 });

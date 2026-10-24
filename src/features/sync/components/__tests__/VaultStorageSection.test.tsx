@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { VaultStorageSection } from '../VaultStorageSection';
+import { ApplicationContext } from '../../../../app/providers/ApplicationContext';
 import { LunaClairDatabase } from '../../../../infrastructure/database/schema/LunaClairDatabase';
 import {
   VaultRegistry,
@@ -12,6 +13,7 @@ import { withOrigin } from '../../../../infrastructure/database/sync/transaction
 import { installSyncHooks } from '../../../../infrastructure/database/sync/syncHooks';
 import { createClock } from '../../../../domain/sync/reconcilers/plugins/MergePlugin';
 import { ANONYMOUS_OWNER_SUB } from '../../../../domain/vault/models/vault.types';
+import type { GoogleAuthPort } from '../../../../domain/auth/models/auth.types';
 
 describe('VaultStorageSection', () => {
   let testDbName: string;
@@ -67,7 +69,8 @@ describe('VaultStorageSection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('active-vault-name').textContent).toBe(testDbName);
-      expect(screen.getByTestId('account-linkage').textContent).toContain('Local (Anonymous)');
+      expect(screen.getByTestId('account-linkage').textContent).toContain('Local-only (On this device)');
+      expect(screen.getByText('Local-only Library (On this device)')).toBeDefined();
       const gauge = screen.getByTestId('storage-gauge');
       expect(gauge.textContent).toContain('25.0 MB');
       expect(gauge.textContent).toContain('100 MB');
@@ -76,6 +79,44 @@ describe('VaultStorageSection', () => {
   });
 
   it('displays authenticated account linkage when user is linked', async () => {
+    const userSub = 'user-google-12345';
+    await registryDb.vaults.add({
+      ownerSub: userSub,
+      physicalDbName: testDbName,
+      createdAt: 1000,
+      lastActiveAt: 1000,
+    });
+
+    const mockAuthService: GoogleAuthPort = {
+      login: vi.fn(),
+      logout: vi.fn(),
+      getSession: vi.fn().mockReturnValue({
+        user: { sub: userSub, email: 'researcher@lunaclair.dev', name: 'Luna Researcher' },
+        tokens: { accessToken: 'token', expiresAt: Date.now() + 3600000, sealedRefreshToken: 'sealed' },
+      }),
+      getStatus: vi.fn().mockReturnValue('authenticated'),
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      getValidAccessToken: vi.fn(),
+    };
+
+    render(
+      <VaultStorageSection
+        database={db}
+        vaultRegistry={registry}
+        activeOwnerSub={userSub}
+        withOrigin={withOrigin}
+        authService={mockAuthService}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('active-vault-name').textContent).toBe(testDbName);
+      expect(screen.getByTestId('account-linkage').textContent).toContain('Connected to Google Drive');
+      expect(screen.getByText('Account Library (researcher@lunaclair.dev)')).toBeDefined();
+    });
+  });
+
+  it('displays retained account library when disconnected from account', async () => {
     const userSub = 'user-google-12345';
     await registryDb.vaults.add({
       ownerSub: userSub,
@@ -95,8 +136,34 @@ describe('VaultStorageSection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('active-vault-name').textContent).toBe(testDbName);
-      expect(screen.getByTestId('account-linkage').textContent).toContain(`Linked (${userSub})`);
+      expect(screen.getByTestId('account-linkage').textContent).toContain('Offline / Disconnected');
+      expect(screen.getByText(`Retained Account Library (${userSub})`)).toBeDefined();
     });
+  });
+
+  it('never mutates registry with getActiveVault during inspection', async () => {
+    const getActiveVaultSpy = vi.spyOn(registry, 'getActiveVault');
+    await registryDb.vaults.add({
+      ownerSub: ANONYMOUS_OWNER_SUB,
+      physicalDbName: testDbName,
+      createdAt: 1000,
+      lastActiveAt: 1000,
+    });
+
+    render(
+      <VaultStorageSection
+        database={db}
+        vaultRegistry={registry}
+        activeOwnerSub={ANONYMOUS_OWNER_SUB}
+        withOrigin={withOrigin}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('active-vault-name').textContent).toBe(testDbName);
+    });
+
+    expect(getActiveVaultSpy).not.toHaveBeenCalled();
   });
 
   it('displays accurate record breakdown counts across tables', async () => {
@@ -265,6 +332,7 @@ describe('VaultStorageSection', () => {
         vaultRegistry={registry}
         activeOwnerSub={activeSub}
         withOrigin={withOrigin}
+        showPruneAction={true}
       />
     );
 
@@ -288,5 +356,77 @@ describe('VaultStorageSection', () => {
     // 2. Stale expired vault is deleted
     const staleVault = await registryDb.vaults.get(staleSub);
     expect(staleVault).toBeUndefined();
+  });
+
+  it('omits ambiguous prune button from normal settings UI (Requirement 6)', async () => {
+    render(
+      <VaultStorageSection
+        database={db}
+        vaultRegistry={registry}
+        activeOwnerSub="some-account"
+        withOrigin={withOrigin}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('active-vault-name')).toBeDefined();
+    });
+
+    expect(screen.queryByTestId('prune-unlinked-vaults-button')).toBeNull();
+  });
+
+  it('renders explicit library switching controls with save confirmation (Requirement 4)', async () => {
+    const activeSub = 'account-alice';
+    const mockSwitch = vi.fn().mockResolvedValue(undefined);
+
+    await registryDb.vaults.put({
+      ownerSub: activeSub,
+      physicalDbName: testDbName,
+      createdAt: 1000,
+      lastActiveAt: 2000,
+    });
+
+    render(
+      <ApplicationContext.Provider value={{ switchActiveLibrary: mockSwitch } as any}>
+        <VaultStorageSection
+          database={db}
+          vaultRegistry={registry}
+          activeOwnerSub={activeSub}
+          withOrigin={withOrigin}
+        />
+      </ApplicationContext.Provider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('switch-to-local-library-button')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('switch-to-local-library-button'));
+
+    expect(screen.getByText('Switch Active Library?')).toBeDefined();
+    expect(
+      screen.getByText(
+        'Switching libraries changes the active local database. Any unsaved drafts in the editor will be discarded.'
+      )
+    ).toBeDefined();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm Switch' });
+    expect(cancelBtn).toBeDefined();
+    expect(confirmBtn).toBeDefined();
+
+    // Cancel dismissal
+    fireEvent.click(cancelBtn);
+    await waitFor(() => {
+      expect(screen.queryByText('Switch Active Library?')).toBeNull();
+    });
+    expect(mockSwitch).not.toHaveBeenCalled();
+
+    // Re-open and confirm
+    fireEvent.click(screen.getByTestId('switch-to-local-library-button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Switch' }));
+    await waitFor(() => {
+      expect(mockSwitch).toHaveBeenCalledWith(ANONYMOUS_OWNER_SUB);
+    });
   });
 });

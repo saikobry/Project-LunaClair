@@ -318,4 +318,68 @@ describe('HydrationManager', () => {
     const rowFinal = await db.pendingHydrations.get(samplePointer.originShareId);
     expect(rowFinal).toBeUndefined();
   });
+
+  it('pauses and resumes queue processing, aborting in-flight queue work on pause', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let notifyStarted!: () => void;
+    const startedPromise = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    let resolveClone!: () => void;
+    const clonePromise = new Promise<{ share: any; importResult: any }>((resolve) => {
+      resolveClone = () =>
+        resolve({
+          share: {} as any,
+          importResult: { materialIds: ['mat-1'], questionIds: [], quizIds: [] },
+        });
+    });
+
+    vi.mocked(mockCloneUseCase.execute).mockImplementation(async (_input, signal) => {
+      capturedSignal = signal;
+      notifyStarted();
+      return clonePromise;
+    });
+
+    expect(manager.isPaused()).toBe(false);
+
+    await manager.enqueuePointer(samplePointer);
+    const processPromise = manager.processQueue();
+    await startedPromise;
+
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Pause suspends processing and aborts the in-flight controller
+    manager.pause();
+    expect(manager.isPaused()).toBe(true);
+    expect(capturedSignal?.aborted).toBe(true);
+
+    resolveClone();
+    await processPromise;
+
+    // While paused, queue drain does not execute
+    const pausedResult = await manager.processQueue();
+    expect(pausedResult.processed).toBe(0);
+
+    // Pending hydration row is preserved in database
+    const row = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(row).toBeDefined();
+
+    // Resume lifts suspension and triggers background queue processing via notify()
+    vi.mocked(mockCloneUseCase.execute).mockResolvedValueOnce({
+      share: {} as any,
+      importResult: { materialIds: ['mat-1'], questionIds: [], quizIds: [] } as any,
+    });
+
+    manager.resume();
+    expect(manager.isPaused()).toBe(false);
+
+    // Allow background notify() / processQueue() to settle
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockCloneUseCase.execute).toHaveBeenCalledTimes(2);
+
+    const rowAfter = await db.pendingHydrations.get(samplePointer.originShareId);
+    expect(rowAfter).toBeUndefined();
+  });
 });

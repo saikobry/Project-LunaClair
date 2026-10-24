@@ -9,6 +9,7 @@ import type {
   GoogleAuthSession,
   AuthStatus,
 } from '../../../../domain/auth/models/auth.types';
+import type { VaultRegistryPort } from '../../../../domain/vault/models/vault.types';
 
 describe('SyncSettingsSection', () => {
   let mockStore: SyncStatusStore;
@@ -77,6 +78,7 @@ describe('SyncSettingsSection', () => {
     };
 
     mockContext = {
+      switchActiveLibrary: vi.fn().mockResolvedValue(undefined),
       useCases: {
         sync: {
           syncStatusStore: mockStore,
@@ -123,6 +125,12 @@ describe('SyncSettingsSection', () => {
     const syncNowBtn = screen.getByRole('button', { name: 'Sync Now' });
     fireEvent.click(syncNowBtn);
 
+    // Displays preflight confirmation dialog (Requirement 3)
+    expect(screen.getByText('Connect Google Drive', { selector: 'h2, [role="heading"]' })).toBeInTheDocument();
+    const connectButtons = screen.getAllByRole('button', { name: 'Connect Google Drive' });
+    const dialogConfirmBtn = connectButtons[connectButtons.length - 1];
+    fireEvent.click(dialogConfirmBtn);
+
     expect(mockAuthService.login).toHaveBeenCalledTimes(1);
   });
 
@@ -131,6 +139,11 @@ describe('SyncSettingsSection', () => {
 
     const connectBtn = screen.getByRole('button', { name: 'Connect Google Drive' });
     fireEvent.click(connectBtn);
+
+    // Displays preflight confirmation dialog (Requirement 3)
+    const connectButtons = screen.getAllByRole('button', { name: 'Connect Google Drive' });
+    const dialogConfirmBtn = connectButtons[connectButtons.length - 1];
+    fireEvent.click(dialogConfirmBtn);
 
     expect(mockAuthService.login).toHaveBeenCalledTimes(1);
 
@@ -323,6 +336,284 @@ describe('SyncSettingsSection', () => {
       expect(screen.getByRole('switch', { name: 'Spaced Repetition' })).toBeChecked();
       expect(screen.getByRole('switch', { name: 'Quiz History & Scores' })).not.toBeChecked();
       expect(screen.getByRole('switch', { name: 'Custom Materials' })).toBeChecked();
+    });
+  });
+
+  describe('First-Connect Notice & Library Switch Confirmation', () => {
+    it('displays first-connect explanation and coexisting library notice when unauthenticated (Requirement 3)', () => {
+      renderSection();
+
+      expect(
+        screen.getByText(
+          'Connecting Google Drive links your local library to your Google account for private cloud backup. If this account already has an existing library on this device, connecting will open your account library while keeping your local-only library intact and switchable at any time.'
+        )
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText(
+          'Libraries are not automatically merged. All data remains stored locally on this device.'
+        )
+      ).toBeInTheDocument();
+    });
+
+    it('requires confirmation before switching to local-only library in retained account state (Requirement 2)', async () => {
+      mockContext.infrastructure.expectedSub = 'retained-account-user';
+      renderSection();
+
+      const switchBtn = screen.getByRole('button', { name: 'Switch to Local-only Library' });
+      expect(switchBtn).toBeInTheDocument();
+
+      // Click switch — should open confirmation dialog, NOT switch immediately
+      fireEvent.click(switchBtn);
+
+      expect(screen.getByText('Switch Active Library?')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Switching libraries changes the active local database. Any unsaved drafts in the editor will be discarded.'
+        )
+      ).toBeInTheDocument();
+      expect(mockContext.switchActiveLibrary).not.toHaveBeenCalled();
+
+      // Cancel dismissal
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Switch Active Library?')).not.toBeInTheDocument();
+      });
+      expect(mockContext.switchActiveLibrary).not.toHaveBeenCalled();
+
+      // Re-open and confirm
+      fireEvent.click(switchBtn);
+      const confirmBtn = screen.getByRole('button', { name: 'Confirm Switch' });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(mockContext.switchActiveLibrary).toHaveBeenCalledWith('ANONYMOUS');
+      });
+    });
+
+    it('requires confirmation before switching to local-only library in authenticated state (Requirement 2)', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      renderSection();
+
+      const switchBtn = screen.getByRole('button', { name: 'Switch to Local-only Library' });
+      expect(switchBtn).toBeInTheDocument();
+
+      fireEvent.click(switchBtn);
+
+      expect(screen.getByText('Switch Active Library?')).toBeInTheDocument();
+      expect(mockContext.switchActiveLibrary).not.toHaveBeenCalled();
+
+      const confirmBtn = screen.getByRole('button', { name: 'Confirm Switch' });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(mockContext.switchActiveLibrary).toHaveBeenCalledWith('ANONYMOUS');
+      });
+    });
+
+    it('identifies selected local-only library truthfully while Google remains connected (Requirement 1)', () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      mockContext.infrastructure.expectedSub = 'ANONYMOUS';
+      renderSection();
+
+      expect(screen.getByText('Local-only Library', { exact: true })).toBeInTheDocument();
+      expect(screen.getByText('All study materials, cards, and quiz history are stored locally on this device in IndexedDB. Fully accessible offline.')).toBeInTheDocument();
+      expect(screen.queryByText('Connected account library. All data is stored locally on this device and works offline. Edits sync automatically with your personal Google Drive.')).not.toBeInTheDocument();
+      expect(screen.getByText('Switch to Account Library (researcher@lunaclair.dev)')).toBeInTheDocument();
+      expect(screen.getByTestId('sync-status-badge')).toHaveTextContent('Local only');
+    });
+
+  const createMockRegistry = (
+    vaults: Array<{ ownerSub: string; physicalDbName: string }> = []
+  ): VaultRegistryPort => ({
+    listVaults: vi.fn().mockResolvedValue(
+      vaults.map((v) => ({
+        ownerSub: v.ownerSub,
+        physicalDbName: v.physicalDbName,
+        createdAt: 0,
+        lastActiveAt: 0,
+      }))
+    ),
+    getActiveVault: vi.fn().mockRejectedValue(new Error('getActiveVault should not be called')),
+    promoteAnonymousVault: vi.fn().mockRejectedValue(new Error('promoteAnonymousVault should not be called')),
+    switchActiveVault: vi.fn().mockRejectedValue(new Error('switchActiveVault should not be called')),
+    deleteVault: vi.fn().mockRejectedValue(new Error('deleteVault should not be called')),
+  });
+
+    it('displays informational collision notice with no duplicate button, exactly one standard switch button, and switches to ANONYMOUS after confirmation', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([
+        { ownerSub: 'ANONYMOUS', physicalDbName: 'lc_vault_anon' },
+      ]);
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      const collisionNotice = await screen.findByTestId('collision-notice');
+      expect(collisionNotice).toBeInTheDocument();
+      expect(collisionNotice).toHaveTextContent(
+        'Your prior local-only library remains separate on this device. Use the "Switch to Local-only Library" action below to open it at any time.'
+      );
+
+      // Alert has NO button (switch-to-preserved-local-button does not exist)
+      expect(screen.queryByTestId('switch-to-preserved-local-button')).not.toBeInTheDocument();
+
+      // Exactly one standard switch button exists
+      const localSwitchButtons = screen.getAllByTestId('switch-to-local-library-button');
+      expect(localSwitchButtons).toHaveLength(1);
+      const switchBtn = localSwitchButtons[0];
+
+      // Clicking opens confirmation dialog and switches only after confirmation
+      fireEvent.click(switchBtn);
+
+      expect(screen.getByText('Switch Active Library?')).toBeInTheDocument();
+      expect(mockContext.switchActiveLibrary).not.toHaveBeenCalled();
+
+      const confirmBtn = screen.getByRole('button', { name: 'Confirm Switch' });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(mockContext.switchActiveLibrary).toHaveBeenCalledWith('ANONYMOUS');
+      });
+
+      // Prove read-only inspection
+      expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+      expect(mockVaultRegistry.promoteAnonymousVault).not.toHaveBeenCalled();
+      expect(mockVaultRegistry.switchActiveVault).not.toHaveBeenCalled();
+      expect(mockVaultRegistry.deleteVault).not.toHaveBeenCalled();
+    });
+
+    it('omits collision notice when anonymous pointer does not match collisionDbName', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([
+        { ownerSub: 'ANONYMOUS', physicalDbName: 'lc_vault_other_db' },
+      ]);
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      await waitFor(() => {
+        expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByTestId('collision-notice')).not.toBeInTheDocument();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('omits collision notice when matching db belongs to another owner rather than ANONYMOUS', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([
+        { ownerSub: 'different-user-sub', physicalDbName: 'lc_vault_anon' },
+      ]);
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      await waitFor(() => {
+        expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByTestId('collision-notice')).not.toBeInTheDocument();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('omits collision notice when listVaults returns an empty list', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([]);
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      await waitFor(() => {
+        expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByTestId('collision-notice')).not.toBeInTheDocument();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('omits collision notice when listVaults rejects', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry();
+      mockVaultRegistry.listVaults = vi.fn().mockRejectedValue(new Error('Registry read failure'));
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      await waitFor(() => {
+        expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByTestId('collision-notice')).not.toBeInTheDocument();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('omits collision notice and does not query registry when collisionFromAnonDb is missing', () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([
+        { ownerSub: 'ANONYMOUS', physicalDbName: 'lc_vault_anon' },
+      ]);
+
+      renderSection(undefined, {
+        lastPromotionResult: {},
+        vaultRegistry: mockVaultRegistry,
+      });
+
+      expect(screen.queryByTestId('collision-notice')).not.toBeInTheDocument();
+      expect(mockVaultRegistry.listVaults).not.toHaveBeenCalled();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('resolves vaultRegistry from application context when not provided via props', async () => {
+      currentSession = sampleSession;
+      currentStatus = 'authenticated';
+      const mockVaultRegistry = createMockRegistry([
+        { ownerSub: 'ANONYMOUS', physicalDbName: 'lc_vault_anon' },
+      ]);
+      mockContext.infrastructure.vaultRegistry = mockVaultRegistry;
+
+      renderSection(undefined, {
+        lastPromotionResult: { collisionFromAnonDb: 'lc_vault_anon' },
+      });
+
+      const collisionNotice = await screen.findByTestId('collision-notice');
+      expect(collisionNotice).toBeInTheDocument();
+      expect(mockVaultRegistry.listVaults).toHaveBeenCalled();
+      expect(mockVaultRegistry.getActiveVault).not.toHaveBeenCalled();
+    });
+
+    it('cancelling connect preflight dialog does not invoke login (Requirement 3)', () => {
+      renderSection();
+
+      const connectBtn = screen.getByRole('button', { name: 'Connect Google Drive' });
+      fireEvent.click(connectBtn);
+
+      expect(screen.getByText('Connect Google Drive', { selector: 'h2, [role="heading"]' })).toBeInTheDocument();
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      fireEvent.click(cancelBtn);
+
+      expect(mockAuthService.login).not.toHaveBeenCalled();
     });
   });
 });

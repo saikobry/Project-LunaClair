@@ -22,6 +22,7 @@ export interface HydrationManagerOptions {
   initialBackoffMs?: number;
   maxBackoffMs?: number;
   maxAttempts?: number;
+  isSuspended?: boolean;
 }
 
 /**
@@ -36,7 +37,9 @@ export class HydrationManager {
   private readonly delistedShareIds: Set<string>;
   private isProcessing: boolean;
   private disposed: boolean;
+  private isSuspended: boolean;
   private readonly abortController: AbortController;
+  private activeQueueController: AbortController | null;
 
   constructor(options: HydrationManagerOptions = {}) {
     this.db = options.db ?? getActiveVaultDatabase();
@@ -47,13 +50,33 @@ export class HydrationManager {
     this.delistedShareIds = new Set<string>();
     this.isProcessing = false;
     this.disposed = false;
+    this.isSuspended = options.isSuspended ?? false;
     this.abortController = new AbortController();
+    this.activeQueueController = null;
   }
 
   dispose(): void {
     this.disposed = true;
     this.isProcessing = false;
+    this.pause();
     this.abortController.abort();
+  }
+
+  pause(): void {
+    this.isSuspended = true;
+    if (this.activeQueueController) {
+      this.activeQueueController.abort(new Error('Hydration paused'));
+      this.activeQueueController = null;
+    }
+  }
+
+  resume(): void {
+    this.isSuspended = false;
+    this.notify();
+  }
+
+  isPaused(): boolean {
+    return this.isSuspended;
   }
 
   setCloneUseCase(cloneUseCase: ShareCloner): void {
@@ -106,17 +129,17 @@ export class HydrationManager {
   }
 
   notify(): void {
-    if (this.disposed || this.abortController.signal.aborted) return;
+    if (this.disposed || this.abortController.signal.aborted || this.isSuspended) return;
     if (!this.isProcessing && this.cloneUseCase) {
       void this.processQueue().catch((err: unknown) => {
-        if (this.disposed || this.abortController.signal.aborted) return;
+        if (this.disposed || this.abortController.signal.aborted || this.isSuspended) return;
         console.warn('[HydrationManager] Background processQueue failed:', err);
       });
     }
   }
 
   async processQueue(signal?: AbortSignal): Promise<ProcessQueueResult> {
-    if (this.disposed || this.abortController.signal.aborted) {
+    if (this.disposed || this.abortController.signal.aborted || this.isSuspended) {
       return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
     }
     if (this.isProcessing) {
@@ -126,13 +149,21 @@ export class HydrationManager {
       return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
     }
 
-    const effectiveSignal = signal
-      ? (typeof AbortSignal.any === 'function'
-          ? AbortSignal.any([signal, this.abortController.signal])
-          : signal)
-      : this.abortController.signal;
+    const queueController = new AbortController();
+    this.activeQueueController = queueController;
+
+    const signals: AbortSignal[] = [this.abortController.signal, queueController.signal];
+    if (signal) {
+      signals.push(signal);
+    }
+
+    const effectiveSignal =
+      typeof AbortSignal.any === 'function'
+        ? AbortSignal.any(signals)
+        : this.combineSignals(signals);
 
     if (effectiveSignal.aborted) {
+      this.activeQueueController = null;
       return { processed: 0, succeeded: 0, delisted: 0, failed: 0 };
     }
 
@@ -209,7 +240,20 @@ export class HydrationManager {
       return result;
     } finally {
       this.isProcessing = false;
+      this.activeQueueController = null;
     }
+  }
+
+  private combineSignals(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+    for (const s of signals) {
+      if (s.aborted) {
+        controller.abort(s.reason);
+        return controller.signal;
+      }
+      s.addEventListener('abort', () => controller.abort(s.reason), { once: true });
+    }
+    return controller.signal;
   }
 
   private isPermanentlyUnavailable(err: unknown): boolean {

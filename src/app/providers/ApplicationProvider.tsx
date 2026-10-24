@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ApplicationContext, type ApplicationContextValue } from './ApplicationContext';
 import { createApplication } from '../bootstrap/createApplication';
@@ -12,6 +12,9 @@ import {
 } from '../bootstrap/syncInvalidation';
 import { vaultRegistry } from '../../infrastructure/database/registry/VaultRegistry';
 import { DatabaseInitializer } from '../../infrastructure/database/schema/DatabaseInitializer';
+import { STORAGE_KEYS } from '../../shared/constants/storageKeys';
+import { ANONYMOUS_OWNER_SUB } from '../../domain/vault/models/vault.types';
+import { googleAuthService } from '../../infrastructure/auth/google/GoogleAuthService';
 import {
   openVaultDatabase,
   setActiveVaultDatabase,
@@ -52,6 +55,7 @@ function broadcastSyncApplied(event: SyncAppliedEvent): void {
 function buildContainerState(
   queryClient: QueryClient,
   database?: LunaClairDatabase,
+  activeOwnerSub?: string,
 ): ApplicationContainerState {
   const invalidator = createDebouncedSyncInvalidator((queryKey) => {
     void queryClient.invalidateQueries({ queryKey });
@@ -70,6 +74,7 @@ function buildContainerState(
     },
     database,
     syncEventSink,
+    activeOwnerSub,
   );
 
   return { value, invalidator };
@@ -89,10 +94,10 @@ function buildContainerState(
  */
 type TransitionStatus =
   | { state: 'idle' }
-  | { state: 'transitioning'; targetSub: string | null }
+  | { state: 'transitioning'; targetSub: string }
   | {
       state: 'error';
-      targetSub: string | null;
+      targetSub: string;
       error: unknown;
       reloadReason?: DatabaseReloadReason;
       retry: () => void;
@@ -100,9 +105,18 @@ type TransitionStatus =
 
 export function ApplicationProvider({ children }: ApplicationProviderProps) {
   const queryClient = useQueryClient();
+  const executeTransitionRef = useRef<(targetSub: string, seq: number) => Promise<void>>(() => Promise.resolve());
+
+  const persistedSub =
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem(STORAGE_KEYS.vault.activeOwnerSub)
+      : null;
+
+  const initialSub =
+    persistedSub ?? (googleAuthService.getSession()?.user.sub ?? ANONYMOUS_OWNER_SUB);
 
   const [containerState, setContainerState] = useState<ApplicationContainerState>(() =>
-    buildContainerState(queryClient),
+    buildContainerState(queryClient, undefined, initialSub),
   );
   const [transitionStatus, setTransitionStatus] = useState<TransitionStatus>({ state: 'idle' });
 
@@ -116,13 +130,24 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
     transitionStatusRef.current = transitionStatus;
   });
 
-  // Track current user sub (null if unauthenticated)
-  const initialSub = value.infrastructure.providers.auth.getSession()?.user.sub ?? null;
-  const currentSubRef = useRef<string | null>(initialSub);
-  const targetSubRef = useRef<string | null>(initialSub);
+  // Track current active library sub (defaults to ANONYMOUS_OWNER_SUB, never null or undefined)
+  const currentSubRef = useRef<string>(initialSub);
+  const targetSubRef = useRef<string>(initialSub);
+  const lastAuthSubRef = useRef<string | null>(googleAuthService.getSession()?.user.sub ?? null);
+  const lastAuthGenRef = useRef<number>(googleAuthService.getSessionGeneration?.() ?? 0);
   const switchSeqRef = useRef<number>(0);
 
   const isMountedRef = useRef(false);
+  const contextDisposerRef = useRef<(() => void) | undefined>(undefined);
+
+  // Persist initial active owner if not already stored
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined' && currentSubRef.current) {
+      if (!localStorage.getItem(STORAGE_KEYS.vault.activeOwnerSub)) {
+        localStorage.setItem(STORAGE_KEYS.vault.activeOwnerSub, currentSubRef.current);
+      }
+    }
+  }, []);
 
   // Dispose active application graph upon real unmount (protecting against StrictMode effect replay)
   useEffect(() => {
@@ -131,6 +156,7 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
       isMountedRef.current = false;
       queueMicrotask(() => {
         if (!isMountedRef.current) {
+          contextDisposerRef.current?.();
           containerStateRef.current.value.dispose?.();
           containerStateRef.current.invalidator.cancel();
         }
@@ -161,21 +187,21 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
     };
   }, [value.infrastructure.db]);
 
-  useEffect(() => {
-    const auth = value.infrastructure.providers.auth;
-    let cancelled = false;
-
-    const executeTransition = async (targetSub: string | null, transitionSeq: number) => {
+  const executeTransition = useCallback(
+    async (targetSub: string, transitionSeq: number) => {
       let targetUnsubscribe: (() => void) | undefined;
       try {
         // 1. Resolve active vault for new identity
-        const activeVault = await vaultRegistry.getActiveVault(targetSub ?? undefined);
-        if (cancelled || transitionSeq !== switchSeqRef.current) return;
+        const activeVault = await vaultRegistry.getActiveVault(targetSub);
+        if (!isMountedRef.current || transitionSeq !== switchSeqRef.current) {
+          targetUnsubscribe?.();
+          return;
+        }
 
         // 2. Open and initialize database
         const database = openVaultDatabase(activeVault.physicalDbName);
         targetUnsubscribe = database.onReloadRequired((reason) => {
-          if (!cancelled && transitionSeq === switchSeqRef.current) {
+          if (isMountedRef.current && transitionSeq === switchSeqRef.current) {
             setTransitionStatus({
               state: 'error',
               targetSub,
@@ -189,7 +215,7 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
         });
 
         await DatabaseInitializer.initialize(database);
-        if (cancelled || transitionSeq !== switchSeqRef.current) {
+        if (!isMountedRef.current || transitionSeq !== switchSeqRef.current) {
           targetUnsubscribe?.();
           return;
         }
@@ -203,11 +229,17 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
         currentSubRef.current = targetSub;
 
         // 5. Build new container state bound to the new database
-        setContainerState(buildContainerState(queryClient, database));
+        setContainerState(
+          buildContainerState(
+            queryClient,
+            database,
+            targetSub,
+          ),
+        );
         setTransitionStatus({ state: 'idle' });
       } catch (error) {
         targetUnsubscribe?.();
-        if (cancelled || transitionSeq !== switchSeqRef.current) return;
+        if (!isMountedRef.current || transitionSeq !== switchSeqRef.current) return;
         console.error('Failed to transition vault on auth change', error);
         const reloadReason = error instanceof DatabaseReloadRequiredError ? error.reason : undefined;
         setTransitionStatus({
@@ -218,20 +250,104 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
           retry: () => {
             const retrySeq = ++switchSeqRef.current;
             setTransitionStatus({ state: 'transitioning', targetSub });
-            void executeTransition(targetSub, retrySeq);
+            void executeTransitionRef.current(targetSub, retrySeq);
           },
         });
       }
+    },
+    [queryClient],
+  );
+
+  useEffect(() => {
+    executeTransitionRef.current = executeTransition;
+  }, [executeTransition]);
+
+  const switchLibrary = useCallback(
+    async (targetSub: string) => {
+      if (targetSub === currentSubRef.current && transitionStatusRef.current.state === 'idle') {
+        return;
+      }
+      targetSubRef.current = targetSub;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.vault.activeOwnerSub, targetSub);
+      }
+      const seq = ++switchSeqRef.current;
+
+      containerStateRef.current.value.dispose?.();
+      containerStateRef.current.invalidator.cancel();
+
+      setTransitionStatus({ state: 'transitioning', targetSub });
+      await executeTransition(targetSub, seq);
+    },
+    [executeTransition],
+  );
+
+  const contextValue = useMemo<ApplicationContextValue>(() => {
+    return {
+      ...value,
+      dispose: () => {
+        value.dispose?.();
+      },
+      switchActiveLibrary: switchLibrary,
+      useCases: {
+        ...value.useCases,
+        sync: {
+          ...value.useCases.sync,
+          switchActiveLibrary: switchLibrary,
+        },
+      },
     };
+  }, [value, switchLibrary]);
+
+  useEffect(() => {
+    contextDisposerRef.current = () => {
+      contextValue.dispose?.();
+    };
+  });
+
+  useEffect(() => {
+    const auth = value.infrastructure.providers.auth;
 
     const unsubscribe = auth.subscribe((session) => {
       const newSub = session?.user.sub ?? null;
-      // When session update is a same-account token refresh (session?.user.sub unchanged),
-      // DO NOT re-create the container state or clear cache!
-      if (newSub === targetSubRef.current && transitionStatusRef.current.state === 'idle') {
+      const prevAuthSub = lastAuthSubRef.current;
+      const currentGen = auth.getSessionGeneration?.() ?? 0;
+      const prevAuthGen = lastAuthGenRef.current;
+      lastAuthSubRef.current = newSub;
+      lastAuthGenRef.current = currentGen;
+
+      if (newSub === null) {
+        // Disconnect Drive ends authentication and sync but keeps current local library open!
+        if (typeof localStorage !== 'undefined' && currentSubRef.current) {
+          localStorage.setItem(STORAGE_KEYS.vault.activeOwnerSub, currentSubRef.current);
+        }
+        containerStateRef.current.value.infrastructure.retireCloudWork?.();
         return;
       }
+
+      // Check if this is an ordinary same-session token refresh
+      if (
+        prevAuthSub === newSub &&
+        currentGen === prevAuthGen &&
+        transitionStatusRef.current.state === 'idle'
+      ) {
+        return;
+      }
+
+      // Check if user re-connected with the same account that is currently active:
+      if (
+        newSub === currentSubRef.current &&
+        targetSubRef.current === currentSubRef.current &&
+        transitionStatusRef.current.state === 'idle'
+      ) {
+        containerStateRef.current.value.infrastructure.rebindCloudRuntime?.(currentGen);
+        return;
+      }
+
       targetSubRef.current = newSub;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.vault.activeOwnerSub, newSub);
+      }
       const seq = ++switchSeqRef.current;
 
       // Retire previous runtime immediately at identity boundary
@@ -243,10 +359,9 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
     });
 
     return () => {
-      cancelled = true;
       unsubscribe();
     };
-  }, [value.infrastructure.providers.auth, queryClient]);
+  }, [value.infrastructure.providers.auth, executeTransition]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
@@ -270,7 +385,7 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
   const isError = transitionStatus.state === 'error';
 
   return (
-    <ApplicationContext.Provider key={value.infrastructure.db.name} value={value}>
+    <ApplicationContext.Provider key={value.infrastructure.db.name} value={contextValue}>
       {isTransitioning && (
         <div
           data-testid="vault-transition-gate"
@@ -328,6 +443,7 @@ export function ApplicationProvider({ children }: ApplicationProviderProps) {
         )
       )}
       <div
+        key={value.infrastructure.db.name}
         style={{ display: isTransitioning || isError ? 'none' : undefined }}
         inert={isTransitioning || isError ? true : undefined}
         aria-hidden={isTransitioning || isError ? 'true' : undefined}

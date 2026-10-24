@@ -16,6 +16,7 @@ import {
   RegistryDatabase,
 } from '../../../infrastructure/database/registry/VaultRegistry';
 import { ANONYMOUS_OWNER_SUB } from '../../../domain/vault/models/vault.types';
+import type { SyncControlPort } from '../../../domain/sync/services/SyncControlPort';
 
 describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
   const REGISTRY_TEST_DB = 'test_registry_create_infra';
@@ -158,5 +159,67 @@ describe('Bootstrap: createInfrastructure dynamic vault integration', () => {
     infraAuth.dispose?.();
     getSessionSpy.mockRestore();
     drivePushSpy.mockRestore();
+  });
+
+  it('same-owner reconnect releases hydration suspension when vault is not paused by user', () => {
+    const customDb = openVaultDatabase('test_vault_one');
+    const mockControl: SyncControlPort = {
+      isPaused: vi.fn().mockReturnValue(false),
+      pause: vi.fn(),
+      resume: vi.fn(),
+    };
+    const infra = createInfrastructure(undefined, customDb, testRegistry, 'user-sub-1', mockControl);
+
+    expect(infra.services.hydration.isPaused()).toBe(false);
+
+    // Disconnect pauses hydration
+    infra.retireCloudWork?.();
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    // Rebind releases suspension because vault is unpaused and authenticated
+    infra.rebindCloudRuntime?.(2);
+    expect(infra.services.hydration.isPaused()).toBe(false);
+
+    infra.dispose?.();
+  });
+
+  it('same-owner reconnect preserves hydration suspension when deliberately paused by user', () => {
+    const customDb = openVaultDatabase('test_vault_one');
+    const mockControl: SyncControlPort = {
+      isPaused: vi.fn().mockReturnValue(true),
+      pause: vi.fn(),
+      resume: vi.fn(),
+    };
+    const infra = createInfrastructure(undefined, customDb, testRegistry, 'user-sub-1', mockControl);
+
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    infra.retireCloudWork?.();
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    // Rebind does not resume because user deliberately paused this vault
+    infra.rebindCloudRuntime?.(2);
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    infra.dispose?.();
+  });
+
+  it('rebindCloudRuntime on anonymous vault never resumes hydration suspension', () => {
+    const customDb = openVaultDatabase('test_vault_one');
+    const mockControl: SyncControlPort = {
+      isPaused: vi.fn().mockReturnValue(false),
+      pause: vi.fn(),
+      resume: vi.fn(),
+    };
+    const infra = createInfrastructure(undefined, customDb, testRegistry, ANONYMOUS_OWNER_SUB, mockControl);
+
+    infra.retireCloudWork?.();
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    // Rebind does not resume on anonymous vault
+    infra.rebindCloudRuntime?.(2);
+    expect(infra.services.hydration.isPaused()).toBe(true);
+
+    infra.dispose?.();
   });
 });

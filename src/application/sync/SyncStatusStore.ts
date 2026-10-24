@@ -1,8 +1,11 @@
 import type { SyncQueueRepository } from '../../domain/sync/repositories/SyncQueueRepository';
 import type { SyncStateRepository } from '../../domain/sync/repositories/SyncStateRepository';
+import type { SyncControlPort } from '../../domain/sync/services/SyncControlPort';
+
+export type SyncStatusState = 'idle' | 'syncing' | 'offline' | 'error' | 'standby' | 'paused';
 
 export interface SyncStatus {
-  state: 'idle' | 'syncing' | 'offline' | 'error' | 'standby';
+  state: SyncStatusState;
   pendingCount: number;
   lastSyncedAt?: string;
   lastError?: string;
@@ -24,15 +27,21 @@ const DEFAULT_SYNC_STATUS: SyncStatus = {
 export class SyncStatusStore {
   private currentStatus: SyncStatus;
   private readonly listeners = new Set<(status: SyncStatus) => void>();
+  private syncControlPort?: SyncControlPort;
 
-  constructor(initialStatus: Partial<SyncStatus> = {}) {
+  constructor(initialStatus: Partial<SyncStatus> = {}, syncControlPort?: SyncControlPort) {
     this.currentStatus = {
       ...DEFAULT_SYNC_STATUS,
       ...initialStatus,
     };
+    this.syncControlPort = syncControlPort;
     this.getState = this.getState.bind(this);
     this.setState = this.setState.bind(this);
     this.subscribe = this.subscribe.bind(this);
+  }
+
+  setSyncControlPort(port?: SyncControlPort): void {
+    this.syncControlPort = port;
   }
 
   /**
@@ -73,12 +82,13 @@ export class SyncStatusStore {
   }
 
   /**
-   * Rehydrates store state from local storage repositories on application startup or session switch.
+   * Rehydrates store state from repositories and sync control port on application startup or session switch.
    */
   async rehydrateFromStorage(
     syncStateRepo: SyncStateRepository,
     syncQueueRepo: SyncQueueRepository,
-    stateKey: string
+    stateKey: string,
+    syncControlPort?: SyncControlPort
   ): Promise<void> {
     const [syncState, pendingCount] = await Promise.all([
       syncStateRepo.getSyncState(stateKey),
@@ -90,11 +100,19 @@ export class SyncStatusStore {
       typeof navigator.onLine === 'boolean' &&
       !navigator.onLine;
 
-    const nextState: SyncStatus['state'] = isOffline
-      ? 'offline'
-      : this.currentStatus.state === 'offline'
-        ? 'idle'
-        : this.currentStatus.state;
+    const userSub = stateKey ? stateKey.split(':')[0] : undefined;
+    const port = syncControlPort ?? this.syncControlPort;
+    const isStoredPaused = port?.isPaused(userSub) ?? false;
+
+    const isPaused = isStoredPaused || this.currentStatus.state === 'paused';
+
+    const nextState: SyncStatusState = isPaused
+      ? 'paused'
+      : isOffline
+        ? 'offline'
+        : this.currentStatus.state === 'offline'
+          ? 'idle'
+          : this.currentStatus.state;
 
     this.setState({
       pendingCount,

@@ -17,6 +17,7 @@ describe('ApplicationProvider runtime transition on account switch', () => {
   let currentSession: GoogleAuthSession | null = null;
 
   beforeEach(async () => {
+    localStorage.clear();
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -40,6 +41,7 @@ describe('ApplicationProvider runtime transition on account switch', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     queryClient.clear();
+    localStorage.clear();
     DatabaseInitializer.resetForTesting();
     LunaClairDbModule.resetActiveVaultDatabase();
     LunaClairDbModule.clearVaultDatabaseCache();
@@ -228,7 +230,7 @@ describe('ApplicationProvider runtime transition on account switch', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('transitions to anonymous vault when user logs out', async () => {
+  it('retains active library on disconnect and rebinds on same-owner reconnect without database remount', async () => {
     currentSession = {
       user: { sub: 'user-sub-1', email: 'u1@test.com', name: 'User 1' },
       tokens: { accessToken: 'token-1', expiresAt: Date.now() + 10000, sealedRefreshToken: 'sealed' },
@@ -247,19 +249,36 @@ describe('ApplicationProvider runtime transition on account switch', () => {
     );
 
     const initialValue = captured;
+    expect(initialValue).toBeDefined();
+    const initialDbName = initialValue.infrastructure.db.name;
 
-    // Logout: session becomes null
+    // Disconnect: session becomes null
     currentSession = null;
 
     await act(async () => {
       authListener?.(null);
     });
 
-    await waitFor(() => {
-      expect(getActiveVaultSpy).toHaveBeenCalledWith(undefined);
-      expect(queryClearSpy).toHaveBeenCalled();
-      expect(captured).not.toBe(initialValue);
+    // Vault remains open, cache is NOT cleared, same application graph
+    expect(getActiveVaultSpy).not.toHaveBeenCalled();
+    expect(queryClearSpy).not.toHaveBeenCalled();
+    expect(captured.infrastructure.db.name).toBe(initialDbName);
+
+    // Reconnect same user
+    const reconnectedSession: GoogleAuthSession = {
+      user: { sub: 'user-sub-1', email: 'u1@test.com', name: 'User 1' },
+      tokens: { accessToken: 'token-reconnected', expiresAt: Date.now() + 10000, sealedRefreshToken: 'sealed' },
+    };
+    currentSession = reconnectedSession;
+
+    await act(async () => {
+      authListener?.(reconnectedSession);
     });
+
+    // Still same database without remount
+    expect(getActiveVaultSpy).not.toHaveBeenCalled();
+    expect(queryClearSpy).not.toHaveBeenCalled();
+    expect(captured.infrastructure.db.name).toBe(initialDbName);
   });
 
   it('cancels listener and invalidator when unmounted', () => {

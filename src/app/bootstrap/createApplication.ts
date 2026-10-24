@@ -22,6 +22,7 @@ export interface Application {
     infrastructure: Infrastructure;
     isDisposed?: boolean;
     dispose?: () => void;
+    switchActiveLibrary?: (targetSub: string) => Promise<void>;
 }
 
 /**
@@ -41,8 +42,9 @@ export function createApplication(
     invalidateAnalytics: AnalyticsCacheInvalidator = noopAnalyticsCacheInvalidator,
     database?: LunaClairDatabase,
     syncEventSink?: SyncEventSink,
+    activeOwnerSub?: string,
 ): Application {
-    const infrastructure = createInfrastructure(invalidateAnalytics, database);
+    const infrastructure = createInfrastructure(invalidateAnalytics, database, undefined, activeOwnerSub);
     const useCases = createUseCases(infrastructure, invalidateAnalytics, syncEventSink);
 
     let isDisposed = false;

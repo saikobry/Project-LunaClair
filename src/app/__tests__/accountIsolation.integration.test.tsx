@@ -227,9 +227,17 @@ describe('Account & Vault Isolation Integration Suite (Group 1)', () => {
       expect(inDbA).toBeDefined();
       expect(inDbA?.title).toBe('User A Secret Notebook');
 
-      // Step 2: User A disconnects (logout)
+      // Step 2: User A disconnects (logout) - under Requirement 3, local library remains open
       const anonVault = await vaultRegistry.getActiveVault();
       await googleAuthService.logout();
+
+      expect(screen.getByTestId('db-name')).toHaveTextContent(vaultA.physicalDbName);
+      expect(contextRef.current?.infrastructure.db.name).toBe(vaultA.physicalDbName);
+
+      // Under Requirement 4: Explicit action to switch to separate local-only library
+      await act(async () => {
+        await (contextRef.current as any).switchActiveLibrary(ANONYMOUS_OWNER_SUB);
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('db-name')).toHaveTextContent(anonVault.physicalDbName);

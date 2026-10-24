@@ -9,6 +9,7 @@ describe('SyncStatusPill', () => {
   let mockGetConflictDrafts: { execute: ReturnType<typeof vi.fn> };
   let mockTriggerSync: { execute: ReturnType<typeof vi.fn> };
   let mockResolveConflictDraft: { execute: ReturnType<typeof vi.fn> };
+  let mockSyncEngine: any;
   let mockAuth: any;
   let mockContext: any;
 
@@ -31,10 +32,16 @@ describe('SyncStatusPill', () => {
       execute: vi.fn().mockResolvedValue(undefined),
     };
 
+    mockSyncEngine = {
+      pause: vi.fn(),
+      resume: vi.fn().mockResolvedValue(undefined),
+      isPaused: vi.fn().mockReturnValue(false),
+    };
+
     mockAuth = {
       login: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),
-      getSession: vi.fn().mockReturnValue(null),
+      getSession: vi.fn().mockReturnValue({ user: { sub: 'test-user-sub' } }),
       getStatus: vi.fn().mockReturnValue('authenticated'),
       subscribe: vi.fn().mockReturnValue(() => {}),
       getValidAccessToken: vi.fn().mockResolvedValue('token'),
@@ -44,6 +51,7 @@ describe('SyncStatusPill', () => {
       useCases: {
         sync: {
           syncStatusStore: mockStore,
+          syncEngine: mockSyncEngine,
           getConflictDrafts: mockGetConflictDrafts,
           triggerSync: mockTriggerSync,
           resolveConflictDraft: mockResolveConflictDraft,
@@ -52,6 +60,9 @@ describe('SyncStatusPill', () => {
       infrastructure: {
         providers: {
           auth: mockAuth,
+          credentials: {
+            getCredentials: vi.fn().mockResolvedValue({ userId: 'test-user-sub', deviceId: 'dev' }),
+          },
         },
       },
     };
@@ -174,14 +185,23 @@ describe('SyncStatusPill', () => {
     mockStore.setState({ state: 'standby' });
     renderComponent();
     expect(screen.getByText('Paused')).toBeInTheDocument();
-    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Cloud sync paused — tap to reconnect');
+    expect(screen.getByRole('button')).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Cloud sync paused — tap to reconnect')
+    );
   });
 
-  it('triggers re-auth login when clicked in standby state', async () => {
+  it('triggers re-auth login via preflight dialog when clicked in standby state', async () => {
     mockStore.setState({ state: 'standby' });
     renderComponent();
 
     fireEvent.click(screen.getByRole('button'));
+
+    expect(mockAuth.login).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connect Google Drive' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Google Drive' }));
 
     expect(mockAuth.login).toHaveBeenCalledTimes(1);
     expect(mockTriggerSync.execute).not.toHaveBeenCalled();
@@ -193,17 +213,35 @@ describe('SyncStatusPill', () => {
     expect(screen.getByText('Standby')).toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute(
       'aria-label',
-      'Sync offline - connect Google Drive in Settings'
+      expect.stringContaining('Local storage')
     );
   });
 
-  it('triggers auth login when clicked in unauthenticated state', async () => {
+  it('triggers auth login via preflight dialog when clicked in unauthenticated state', async () => {
     mockAuth.getStatus.mockReturnValue('unauthenticated');
     renderComponent();
 
     fireEvent.click(screen.getByRole('button'));
 
+    expect(mockAuth.login).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connect Google Drive' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Google Drive' }));
+
     expect(mockAuth.login).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels connect preflight without invoking auth login when canceled', async () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(mockAuth.login).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('does not display error state or pending badge when unauthenticated even if store has errors', () => {
@@ -215,5 +253,43 @@ describe('SyncStatusPill', () => {
     expect(screen.getByText('Standby')).toBeInTheDocument();
     expect(screen.queryByText('Sync error')).not.toBeInTheDocument();
     expect(screen.queryByText('5')).not.toBeInTheDocument();
+  });
+
+  it('renders "Paused" state when paused with tap-to-resume tooltip', () => {
+    mockStore.setState({ state: 'paused' });
+    renderComponent();
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Cloud sync paused — tap to resume')
+    );
+  });
+
+  it('exposes selected-library identity in the tooltip / accessible label (Requirement 2)', () => {
+    renderComponent();
+    expect(screen.getByRole('button')).toHaveAttribute(
+      'aria-label',
+      'Account Library (test-user-sub) • Synced'
+    );
+  });
+
+  it('exposes Local-only Library • Local storage in tooltip when local-only', () => {
+    mockAuth.getStatus.mockReturnValue('unauthenticated');
+    renderComponent();
+    expect(screen.getByRole('button')).toHaveAttribute(
+      'aria-label',
+      'Local-only Library • Local storage'
+    );
+  });
+
+  it('triggers resume when clicked in paused state', async () => {
+    mockStore.setState({ state: 'paused' });
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(() => {
+      expect(mockSyncEngine.resume).toHaveBeenCalled();
+    });
   });
 });
