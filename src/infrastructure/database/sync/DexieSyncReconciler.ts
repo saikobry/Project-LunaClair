@@ -329,18 +329,73 @@ export class DexieSyncReconciler implements SyncReconciler {
           const localRow = currentLocal.row;
           const tombstoneHlc = currentLocal.tombstoneHlc;
 
-          const isDelete =
-            change.operation === 'DELETE' ||
-            !change.data ||
-            (change.data as { deletedAt?: string } | null)?.deletedAt !== undefined;
-
           const hlc = (change as any).hlc ?? deriveEntityHlc(change.changedAt, deviceId);
-          const queueItem = pendingQueueMap.get(`${change.entityType}:${change.entityId}`);
-
           let baseRevision: string | undefined = (change as any).baseRevision;
           if (!baseRevision && change.version !== undefined) {
             baseRevision = `v${change.version}`;
           }
+
+          if (
+            change.operation !== 'DELETE' &&
+            (!change.data || typeof change.data !== 'object' || Array.isArray(change.data))
+          ) {
+            const op: JournalOp = {
+              entity: change.entityType,
+              key: change.entityId,
+              hlc,
+              deviceId: (change as any).deviceId ?? deviceId,
+              schemaVersion: policy.schemaVersion ?? change.version ?? 1,
+              op: 'put',
+              value: change.data,
+              baseRevision,
+            };
+            await db.heldOps.put({
+              id: `${op.entity}:${op.key}:${op.hlc}`,
+              op,
+              reason: 'malformed-payload',
+              error: `Missing or invalid data payload for ${change.operation} operation on ${change.entityType}:${change.entityId}`,
+              heldAt: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          let isDelete = change.operation === 'DELETE';
+          if (!isDelete) {
+            const rawDeletedAt = (change.data as { deletedAt?: unknown } | null | undefined)?.deletedAt;
+            if (rawDeletedAt !== undefined && rawDeletedAt !== null) {
+              const isString = typeof rawDeletedAt === 'string';
+              const trimmed = isString ? rawDeletedAt.trim() : '';
+              const isValidTimestamp =
+                isString &&
+                trimmed.length > 0 &&
+                Number.isFinite(Date.parse(trimmed));
+
+              if (isValidTimestamp) {
+                isDelete = true;
+              } else {
+                const op: JournalOp = {
+                  entity: change.entityType,
+                  key: change.entityId,
+                  hlc,
+                  deviceId: (change as any).deviceId ?? deviceId,
+                  schemaVersion: policy.schemaVersion ?? change.version ?? 1,
+                  op: 'put',
+                  value: change.data,
+                  baseRevision,
+                };
+                await db.heldOps.put({
+                  id: `${op.entity}:${op.key}:${op.hlc}`,
+                  op,
+                  reason: 'malformed-marker',
+                  error: `Invalid deletedAt marker for UPSERT operation on ${change.entityType}:${change.entityId}`,
+                  heldAt: new Date().toISOString(),
+                });
+                continue;
+              }
+            }
+          }
+
+          const queueItem = pendingQueueMap.get(`${change.entityType}:${change.entityId}`);
 
           let stateRow = localRow;
           if (localRow && policy.mergeStrategy === 'casDraft' && !localRow._rev) {
