@@ -267,11 +267,12 @@ User experience controls clarifying storage boundaries, independent sync state, 
 - ✅ **Explicit library switching:** Offer dedicated user actions to switch between local-only and account libraries rather than using disconnect as a hidden switch; provides gated transitions, protects against dirty editor draft loss, ensures credentials match the active vault, and restores the chosen library on boot.
 - ✅ **First-login connection choices and safe pruning:** Present clear guidance when first-login promotion occurs versus when an account vault already exists alongside local data (avoiding automatic unvetted merges); remove ambiguous "Prune Unlinked Vaults" actions from general settings to eliminate risk of accidental library deletion.
 
-### Durable pull and restart recovery (Planned Algorithmic Reliability)
+### Durable pull and restart recovery (Verified — Oct 2026)
 
 Robust pagination, chunk streaming, and failure-atomic reconciliation across network interruptions and application restarts:
-- 📋 **Batch truncation recovery (R5):** Resolve Google Drive transport truncation where pull responses yielding >100 mutations (e.g. during initial baseline seeding or multi-journal deltas) discard remaining changes past the engine limit while committing the Drive changes token, stranding unpulled records permanently on the remote peer.
-- 📋 **Durable reconciliation before cursor commit (R6):** Decouple Drive transport candidate marking and page token progression from pre-reconciliation state, committing sequence cursors and applied file IDs atomically with local Dexie entity transactions so mid-cycle restarts, tab closures, or network aborts recover and re-pull incomplete payloads without skipping remote files.
+- ✅ **Lossless bounded pull batching (R5):** Google Drive transport slices pull batches honoring the engine limit (100 items) across single-journal (>100 ops, e.g. 160 or 194 ops) and multi-journal payloads without discarding mutation tails. Partial journals maintain deterministic progress offsets (`pendingFileProgress: { fileId, offset }`) across consecutive cycles and process restarts until all mutations are delivered.
+- ✅ **Atomic reconciliation and checkpoint decoupling (R6):** Decoupled Drive transport candidate marking and page token progression from pre-reconciliation state. Implemented explicit `PullReceipt` and `acknowledgePull` protocol: `DexieSyncReconciler.reconcilePullBatch` atomically commits applied file IDs, pending file progress, page token, and peer watermarks into Dexie `syncState` in the exact same transaction that persists entities. Interrupted cycles, tab closures, network aborts, or transaction rollbacks leave unconsumed remote files recoverable on subsequent sync cycles.
+*(Verification boundary: automated Vitest suites exercise the R5/R6 failure paths using actual production modules with mock Drive/auth ports and isolated Dexie databases. These fixes do not retroactively replay historically applied checkpoints or repair pre-fix user databases; other synchronization findings below remain pending.)*
 
 ### Causal ordering and conflict convergence (Planned Algorithmic Reliability)
 

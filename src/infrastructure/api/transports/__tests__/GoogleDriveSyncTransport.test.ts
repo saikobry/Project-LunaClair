@@ -374,16 +374,96 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         data: { title: 'Peer Shared Note' },
       });
 
-      // Peer watermark must be updated
-      expect(transport.getPeerWatermarks()['peer-dev']).toBe(
+      // Pull returns receipt conveying pending changes, watermarks, and next page token
+      expect(pullResponse.receipt).toBeDefined();
+      expect(pullResponse.receipt?.pageToken).toBe('start-token-100');
+      expect(pullResponse.receipt?.appliedFileIds).toContain('journal-file-peer-1');
+      expect(pullResponse.receipt?.peerWatermarks?.['peer-dev']).toBe(
         '2026-10-15T12:05:00.000Z_0000_peer-dev'
       );
-      // Cached pageToken must advance to newStartPageToken only after successful download
-      expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'start-token-100'
-      );
-      // Applied files must register hydrated journal
-      expect(transport.getAppliedFileIds().has('journal-file-peer-1')).toBe(true);
+
+      // Prior to reconciliation and commit, transport does NOT mark files applied or advance page token
+      expect(transport.getAppliedFileIds().has('journal-file-peer-1')).toBe(false);
+      expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBeUndefined();
+    });
+
+    it('omitted-db construction leaves no applied file in DB on interrupted pull, and restarted transport re-delivers the original change', async () => {
+      const activeDb = getActiveVaultDatabase();
+      if (!activeDb.isOpen()) {
+        await activeDb.open();
+      }
+      const tokenKey = `${credentials.userId}:${credentials.deviceId}`;
+      await activeDb.syncState.put({
+        key: tokenKey,
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        lastServerCursor: 0,
+        checkpointRevision: 0,
+        driveSeeded: true,
+        appliedFileIds: [],
+      });
+
+      const interruptedFileId = 'journal-interrupted-1';
+      const interruptedFileMeta: DriveFileMetadata = {
+        id: interruptedFileId,
+        name: 'journal_2026-10-25T10:00:00.000Z_0000_peer-dev.json.gz',
+        appProperties: {
+          type: 'journal',
+          deviceId: 'peer-dev',
+          hlc: '2026-10-25T10:00:00.000Z_0000_peer-dev',
+          count: '1',
+        },
+      };
+
+      vi.mocked(mockDriveClient.listFiles).mockResolvedValue([interruptedFileMeta]);
+      vi.mocked(mockDriveClient.downloadCompressedJson!).mockResolvedValue({
+        hlc: '2026-10-25T10:00:00.000Z_0000_peer-dev',
+        deviceId: 'peer-dev',
+        createdAt: '2026-10-25T10:00:00.000Z',
+        mutations: [
+          {
+            clientMutationId: 'mut-interrupted-1',
+            entityType: 'document',
+            entityId: 'doc-interrupted',
+            operation: 'UPSERT',
+            baseVersion: 1,
+            clientTimestamp: '2026-10-25T10:00:00.000Z',
+            payload: { title: 'Interrupted Document' },
+          },
+        ],
+      });
+
+      // Construct transport with omitted db (uses default active DB wiring)
+      const transport1 = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+
+      // Pull returns successfully with change and receipt
+      const pull1 = await transport1.pull(credentials, 0);
+      expect(pull1.changes).toHaveLength(1);
+      expect(pull1.changes[0]?.entityId).toBe('doc-interrupted');
+      expect(pull1.receipt).toBeDefined();
+      expect(pull1.receipt?.appliedFileIds).toContain(interruptedFileId);
+
+      // Interrupted pull: no reconciler commit or acknowledgePull occurred
+      const stateInDb = await activeDb.syncState.get(tokenKey);
+      expect(stateInDb?.appliedFileIds ?? []).not.toContain(interruptedFileId);
+      expect(transport1.getAppliedFileIds().has(interruptedFileId)).toBe(false);
+
+      // Restart transport instance (simulating app reload or engine restart)
+      const transport2 = new GoogleDriveSyncTransport({
+        driveClient: mockDriveClient,
+        authService: mockAuthService,
+      });
+
+      // Pull again on fresh instance from cursor 0
+      const pull2 = await transport2.pull(credentials, 0);
+
+      // Verify the original change is re-delivered!
+      expect(pull2.changes).toHaveLength(1);
+      expect(pull2.changes[0]?.entityId).toBe('doc-interrupted');
+      expect(pull2.receipt?.appliedFileIds).toContain(interruptedFileId);
     });
 
     it('throws DriveAuthError when credentials.userId does not match expectedSub in pull', async () => {
@@ -505,9 +585,16 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
 
       expect(pullResponse.newCursor).toBe(6);
       expect(pullResponse.changes).toHaveLength(1);
+      // Receipt contains the new page token to commit
+      expect(pullResponse.receipt).toBeDefined();
+      expect(pullResponse.receipt?.pageToken).toBe('token-after-subsequent-pull');
+      expect(pullResponse.receipt?.appliedFileIds).toContain('journal-file-subsequent');
+
+      // Transport pageToken remains the existing token until receipt is committed
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'token-after-subsequent-pull'
+        'existing-cached-token'
       );
+      expect(transport.getAppliedFileIds().has('journal-file-subsequent')).toBe(false);
     });
 
     it('skips already applied files and ignores removed or non-journal files', async () => {
@@ -652,8 +739,14 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
       const response = await transport.pull(credentials, 15);
 
       expect(mockDriveClient.recoverFromInvalidPageToken).toHaveBeenCalledTimes(1);
+      // Receipt contains the recovered page token to commit
+      expect(response.receipt).toBeDefined();
+      expect(response.receipt?.pageToken).toBe('fresh-recovery-token-777');
+      expect(response.receipt?.appliedFileIds).toContain('missing-journal-1');
+
+      // Transport pageToken remains the stale token until receipt is committed
       expect(transport.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'fresh-recovery-token-777'
+        'stale-token-410'
       );
 
       expect(response.changes).toHaveLength(1);
@@ -731,11 +824,31 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         mutations: [],
       });
 
-      await transport1.pull(credentials, 0);
+      const pullResult = await transport1.pull(credentials, 0);
 
-      // Verify state was saved to SyncStateRepository
+      // Verify pull returned the receipt
+      expect(pullResult.receipt).toBeDefined();
+
+      // Commit receipt into SyncStateRepository (simulating DexieSyncReconciler commit)
       const stateKey = `${credentials.userId}:${credentials.deviceId}`;
       expect(inMemorySyncStore.has(stateKey)).toBe(true);
+      const existingState = inMemorySyncStore.get(stateKey)!;
+      const committedState: SyncState = {
+        ...existingState,
+        pageToken: pullResult.receipt?.pageToken ?? existingState.pageToken,
+        appliedFileIds: [
+          ...(existingState.appliedFileIds ?? []),
+          ...(pullResult.receipt?.appliedFileIds ?? []),
+        ],
+        peerWatermarks: {
+          ...(existingState.peerWatermarks ?? {}),
+          ...(pullResult.receipt?.peerWatermarks ?? {}),
+        },
+        checkpointRevision: (existingState.checkpointRevision ?? 0) + 1,
+      };
+      await mockStateRepo.saveSyncState(committedState);
+      await transport1.acknowledgePull(credentials, pullResult.receipt);
+
       const savedState = inMemorySyncStore.get(stateKey)!;
       expect(savedState.pageToken).toBe('start-token-100');
       expect(savedState.appliedFileIds).toContain('uploaded-journal-id-1');
@@ -773,8 +886,9 @@ describe('Infrastructure: GoogleDriveSyncTransport', () => {
         expect.objectContaining({ signal: expect.any(Object) })
       );
       expect(pull2.changes).toHaveLength(0);
+      expect(pull2.receipt?.pageToken).toBe('token-after-reload-pull');
       expect(transport2.getPageToken(credentials.userId, credentials.deviceId)).toBe(
-        'token-after-reload-pull'
+        'start-token-100'
       );
       expect(transport2.getAppliedFileIds().has('uploaded-journal-id-1')).toBe(true);
       expect(transport2.getAppliedFileIds().has('remote-journal-persist')).toBe(true);

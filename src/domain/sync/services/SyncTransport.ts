@@ -4,9 +4,10 @@ import type {
   SyncPushRequest,
   SyncPushResponse,
   SyncPullResponse,
+  PullReceipt,
 } from '../models/sync.types';
 
-export type { SyncPushRequest, SyncPushResponse, SyncPullResponse };
+export type { SyncPushRequest, SyncPushResponse, SyncPullResponse, PullReceipt };
 
 export interface SyncTransport {
   push(
@@ -21,4 +22,10 @@ export interface SyncTransport {
     limit?: number,
     signal?: AbortSignal
   ): Promise<SyncPullResponse>;
+
+  acknowledgePull?(
+    credentials: SessionCredentials,
+    receipt: PullReceipt,
+    signal?: AbortSignal
+  ): Promise<void>;
 }

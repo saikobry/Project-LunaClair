@@ -373,7 +373,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
    * 4. Returns { newPageToken, missingFiles }
    */
   async recover410Cursor(params: Recover410Params & { signal?: AbortSignal }): Promise<CursorRecoveryResult> {
-    const { accessToken, appliedFileIds, peerWatermarks, signal } = params;
+    const { accessToken, appliedFileIds, signal } = params;
 
     // Step 1: Fetch fresh getStartPageToken() FIRST to anchor future changes
     const newPageToken = await this.getStartPageToken(accessToken, { signal });
@@ -388,13 +388,7 @@ export class GoogleDriveClient implements GoogleDrivePort {
       if (appliedSet.has(file.id)) {
         return false;
       }
-      const deviceId = file.appProperties?.deviceId;
-      const watermark = deviceId ? peerWatermarks[deviceId] : undefined;
-      if (!watermark) {
-        return true;
-      }
-      const hlc = file.appProperties?.hlc;
-      return Boolean(hlc && hlc > watermark);
+      return true;
     });
 
     // Step 4: Return { newPageToken, missingFiles }

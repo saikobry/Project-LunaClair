@@ -1445,4 +1445,218 @@ describe('DexieSyncReconciler (Transactional Pull & Push Reconciler)', () => {
       expect(queueItem).toBeDefined();
     });
   });
+
+  describe('Checkpoint Revision & Empty Batch Freshness (R5/R6 Failure Fence)', () => {
+    it('increments checkpointRevision on every successful pull receipt even with 0 ops / empty changes', async () => {
+      const stateKey = `${userId}:${deviceId}`;
+      await testDb.syncState.put({
+        key: stateKey,
+        userId,
+        deviceId,
+        lastServerCursor: 0,
+        checkpointRevision: 0,
+        pageToken: 'TOKEN_INIT',
+      });
+
+      const emptyPull1: SyncPullResponse = {
+        newCursor: 0,
+        hasMore: false,
+        changes: [],
+        receipt: {
+          receiptId: 'rcpt-empty-1',
+          userId,
+          deviceId,
+          baseCursor: 0,
+          baseRevision: 0,
+          pageToken: 'TOKEN_HEAD_1',
+          appliedFileIds: [],
+        },
+      };
+
+      const result1 = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 0, emptyPull1);
+      expect(result1.isStale).toBeFalsy();
+      expect(result1.appliedCount).toBe(0);
+
+      const state1 = await testDb.syncState.get(stateKey);
+      expect(state1?.checkpointRevision).toBe(1);
+      expect(state1?.pageToken).toBe('TOKEN_HEAD_1');
+
+      // Second empty batch building on revision 1
+      const emptyPull2: SyncPullResponse = {
+        newCursor: 0,
+        hasMore: false,
+        changes: [],
+        receipt: {
+          receiptId: 'rcpt-empty-2',
+          userId,
+          deviceId,
+          baseCursor: 0,
+          baseRevision: 1,
+          pageToken: 'TOKEN_HEAD_2',
+          appliedFileIds: [],
+        },
+      };
+
+      const result2 = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 0, emptyPull2);
+      expect(result2.isStale).toBeFalsy();
+      expect(result2.appliedCount).toBe(0);
+
+      const state2 = await testDb.syncState.get(stateKey);
+      expect(state2?.checkpointRevision).toBe(2);
+      expect(state2?.pageToken).toBe('TOKEN_HEAD_2');
+    });
+
+    it('fences stale empty batch when baseRevision does not match stored revision (EMPTY_BATCH_FRESHNESS probe)', async () => {
+      const stateKey = `${userId}:${deviceId}`;
+      await testDb.syncState.put({
+        key: stateKey,
+        userId,
+        deviceId,
+        lastServerCursor: 0,
+        checkpointRevision: 0,
+        pageToken: 'TOKEN_INIT',
+      });
+
+      // Older batch fetched with baseRevision 0 and token HEAD1
+      const olderBatch: SyncPullResponse = {
+        newCursor: 0,
+        hasMore: false,
+        changes: [],
+        receipt: {
+          receiptId: 'rcpt-older',
+          userId,
+          deviceId,
+          baseCursor: 0,
+          baseRevision: 0,
+          pageToken: 'HEAD1',
+          appliedFileIds: [],
+        },
+      };
+
+      // Newer batch fetched with baseRevision 0 and token HEAD2
+      const newerBatch: SyncPullResponse = {
+        newCursor: 0,
+        hasMore: false,
+        changes: [],
+        receipt: {
+          receiptId: 'rcpt-newer',
+          userId,
+          deviceId,
+          baseCursor: 0,
+          baseRevision: 0,
+          pageToken: 'HEAD2',
+          appliedFileIds: [],
+        },
+      };
+
+      // Newer batch commits first: advances stored revision to 1 and pageToken to HEAD2
+      const newerResult = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 0, newerBatch);
+      expect(newerResult.isStale).toBeFalsy();
+
+      const stateAfterNewer = await testDb.syncState.get(stateKey);
+      expect(stateAfterNewer?.checkpointRevision).toBe(1);
+      expect(stateAfterNewer?.pageToken).toBe('HEAD2');
+
+      // Older batch (which had baseRevision 0) now attempts to reconcile
+      const olderResult = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 0, olderBatch);
+
+      // Invariant: older batch MUST be rejected as stale because baseRevision (0) !== stored revision (1)
+      expect(olderResult.isStale).toBe(true);
+      expect(olderResult.appliedCount).toBe(0);
+
+      // Invariant: pageToken in stored syncState must remain HEAD2 (not regressed to HEAD1)
+      const stateAfterOlder = await testDb.syncState.get(stateKey);
+      expect(stateAfterOlder?.pageToken).toBe('HEAD2');
+      expect(stateAfterOlder?.checkpointRevision).toBe(1);
+      expect(stateAfterOlder?.lastServerCursor).toBe(0);
+    });
+
+    it('defaults absent checkpointRevision on existing syncState rows to 0 and advances to 1 on commit', async () => {
+      const stateKey = `${userId}:${deviceId}`;
+      // Pre-existing state row without checkpointRevision field
+      await testDb.syncState.put({
+        key: stateKey,
+        userId,
+        deviceId,
+        lastServerCursor: 5,
+        pageToken: 'TOKEN_EXISTING',
+      });
+
+      const batch: SyncPullResponse = {
+        newCursor: 5,
+        hasMore: false,
+        changes: [],
+        receipt: {
+          receiptId: 'rcpt-absent-test',
+          userId,
+          deviceId,
+          baseCursor: 5,
+          baseRevision: 0,
+          pageToken: 'TOKEN_FRESH',
+          appliedFileIds: [],
+        },
+      };
+
+      const result = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 5, batch);
+      expect(result.isStale).toBeFalsy();
+
+      const state = await testDb.syncState.get(stateKey);
+      expect(state?.checkpointRevision).toBe(1);
+      expect(state?.pageToken).toBe('TOKEN_FRESH');
+    });
+
+    it('rejects batch with mutations when baseRevision does not match stored revision', async () => {
+      const stateKey = `${userId}:${deviceId}`;
+      await testDb.syncState.put({
+        key: stateKey,
+        userId,
+        deviceId,
+        lastServerCursor: 10,
+        checkpointRevision: 3,
+        pageToken: 'TOKEN_REV3',
+      });
+
+      const staleMutationBatch: SyncPullResponse = {
+        newCursor: 11,
+        hasMore: false,
+        changes: [
+          {
+            sequence: 11,
+            entityType: 'drawing',
+            entityId: 'draw-stale-rev',
+            operation: 'UPSERT',
+            changedAt: '2026-10-25T12:00:00.000Z',
+            data: {
+              id: 'draw-stale-rev',
+              documentId: 'doc-1',
+              color: '#ff0000',
+              thickness: 1,
+              points: [],
+              createdAt: '2026-10-25T12:00:00.000Z',
+            },
+          },
+        ],
+        receipt: {
+          receiptId: 'rcpt-stale-rev',
+          userId,
+          deviceId,
+          baseCursor: 10,
+          baseRevision: 2, // Stale! Stored is 3
+          appliedFileIds: ['file-stale'],
+        },
+      };
+
+      const result = await reconciler.reconcilePullBatch(testDb, userId, deviceId, 10, staleMutationBatch);
+      expect(result.isStale).toBe(true);
+      expect(result.appliedCount).toBe(0);
+
+      // Verify drawing was not persisted
+      expect(await testDb.drawings.get('draw-stale-rev')).toBeUndefined();
+
+      // State remains at revision 3
+      const state = await testDb.syncState.get(stateKey);
+      expect(state?.checkpointRevision).toBe(3);
+      expect(state?.lastServerCursor).toBe(10);
+    });
+  });
 });

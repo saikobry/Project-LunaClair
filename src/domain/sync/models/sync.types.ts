@@ -69,12 +69,22 @@ export interface SyncState {
   userId: string;
   deviceId: string;
   lastServerCursor: SyncCursor;
+  checkpointRevision?: number;
   lastSyncedAt?: string;
   /** Google Drive BYOS transport state */
   pageToken?: string;
   appliedFileIds?: string[];
+  pendingFileProgress?: PullFileProgress;
+  pendingDiscovery?: PendingDiscoveryState;
   peerWatermarks?: Record<string, string>;
   driveSeeded?: boolean;
+}
+
+export interface PendingDiscoveryState {
+  candidateFileIds: string[];
+  completedFileIds: string[];
+  pendingTokenToCommit?: string;
+  hasMorePages?: boolean;
 }
 
 /**
@@ -160,6 +170,25 @@ export interface SyncChangeItem<T = unknown> {
   data: T;
 }
 
+export interface PullFileProgress {
+  fileId: string;
+  offset: number;
+  totalMutations?: number;
+}
+
+export interface PullReceipt {
+  receiptId: string;
+  userId: string;
+  deviceId: string;
+  baseCursor?: number;
+  baseRevision?: number;
+  appliedFileIds: string[];
+  pendingFileProgress?: PullFileProgress;
+  pendingDiscovery?: PendingDiscoveryState;
+  pageToken?: string;
+  peerWatermarks?: Record<string, string>;
+}
+
 /**
  * Response payload for sync transport pull.
  */
@@ -167,6 +196,7 @@ export interface SyncPullResponse {
   newCursor: number;
   hasMore: boolean;
   changes: SyncChangeItem[];
+  receipt?: PullReceipt;
 }
 
 export interface HeldOp {

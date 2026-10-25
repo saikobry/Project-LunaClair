@@ -20,6 +20,18 @@ export class DexieSyncStateRepository implements SyncStateRepository {
     async saveSyncState(state: SyncState): Promise<void> {
         await this.db.syncState.put(state);
     }
+
+    async updateSyncState(
+        key: string,
+        updater: (current: SyncState | null) => SyncState
+    ): Promise<SyncState> {
+        return await this.db.transaction('rw', this.db.syncState, async () => {
+            const existing = (await this.db.syncState.get(key)) ?? null;
+            const updated = updater(existing);
+            await this.db.syncState.put(updated);
+            return updated;
+        });
+    }
 }
 
 /** Singleton instance of DexieSyncStateRepository */

@@ -252,7 +252,7 @@ describe('Infrastructure: GoogleDriveClient', () => {
   });
 
   describe('4-Step 410 Cursor Recovery Protocol', () => {
-    it('executes 4-step recovery: anchors startPageToken first, lists metadata, and diffs watermarks', async () => {
+    it('executes 4-step recovery: anchors startPageToken first, lists metadata, and retains all unapplied files regardless of peer watermarks', async () => {
       const callLog: string[] = [];
 
       const mockFetch = vi.fn(async (url: string | URL | Request) => {
@@ -318,11 +318,11 @@ describe('Infrastructure: GoogleDriveClient', () => {
 
       // Step 3 check: Filter results
       // - file-applied: excluded because in appliedFileIds
-      // - file-older: excluded because hlc <= peerWatermark for dev1
-      // - file-newer: INCLUDED because hlc > peerWatermark for dev1
-      // - file-new-device: INCLUDED because dev2 has no existing watermark
-      expect(recovery.missingFiles).toHaveLength(2);
-      expect(recovery.missingFiles.map((f) => f.id)).toEqual(['file-newer', 'file-new-device']);
+      // - file-older: INCLUDED because all unknown file IDs remain eligible regardless of peer watermark (to prevent dropping unseen older journals)
+      // - file-newer: INCLUDED because not in appliedFileIds
+      // - file-new-device: INCLUDED because not in appliedFileIds
+      expect(recovery.missingFiles).toHaveLength(3);
+      expect(recovery.missingFiles.map((f) => f.id)).toEqual(['file-older', 'file-newer', 'file-new-device']);
     });
   });
 

@@ -4,7 +4,9 @@ export interface ReconcilePullResult {
   appliedCount: number;
   conflictCount: number;
   newCursor: number;
+  newRevision?: number;
   touchedEntities?: readonly string[];
+  isStale?: boolean;
 }
 
 export interface ApplyPushResult {

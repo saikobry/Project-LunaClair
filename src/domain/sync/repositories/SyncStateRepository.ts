@@ -10,4 +10,12 @@ export interface SyncStateRepository {
    * Saves or updates the sync state checkpoint.
    */
   saveSyncState(state: SyncState): Promise<void>;
+
+  /**
+   * Atomically updates the sync state checkpoint within a transaction.
+   */
+  updateSyncState?(
+    key: string,
+    updater: (current: SyncState | null) => SyncState
+  ): Promise<SyncState>;
 }

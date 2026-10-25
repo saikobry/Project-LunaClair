@@ -122,9 +122,12 @@ export class SyncEngine {
    * If credentials are null or unauthenticated, immediately enters standby state without touching syncQueue.
    * If paused, immediately enters paused state and returns { status: 'paused' }.
    */
-  sync(credentials?: SessionCredentials | null): Promise<{ status: 'standby' | 'skipped_concurrent_tab' | 'paused' } | void> {
-    if (this.disposed || this.lifecycleController.signal.aborted) {
-      return Promise.reject(new Error('SyncEngine is disposed'));
+  sync(
+    credentials?: SessionCredentials | null,
+    options?: { signal?: AbortSignal }
+  ): Promise<{ status: 'standby' | 'skipped_concurrent_tab' | 'paused' } | void> {
+    if (this.disposed || this.lifecycleController.signal.aborted || options?.signal?.aborted) {
+      return Promise.reject(options?.signal?.reason ?? new Error('SyncEngine is disposed'));
     }
 
     if (credentials?.userId && credentials.userId !== 'user_default') {
@@ -163,7 +166,19 @@ export class SyncEngine {
     }
 
     const currentRun = (async () => {
-      this.currentCycleController = new AbortController();
+      const cycleController = new AbortController();
+      this.currentCycleController = cycleController;
+      let abortHandler: (() => void) | undefined;
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          cycleController.abort(options.signal.reason);
+        } else {
+          abortHandler = () => {
+            cycleController.abort(options.signal?.reason);
+          };
+          options.signal.addEventListener('abort', abortHandler);
+        }
+      }
       try {
         const lockResult = await this.lockCoordinator.runExclusiveSync(
           credentials.userId,
@@ -171,7 +186,12 @@ export class SyncEngine {
             if (this.isPaused(credentials.userId)) {
               return;
             }
-            await this.executeCycle(credentials, signal, reportProgress);
+            const combinedSignal = options?.signal
+              ? (typeof AbortSignal.any === 'function'
+                  ? AbortSignal.any([signal, options.signal, cycleController.signal])
+                  : signal)
+              : signal;
+            await this.executeCycle(credentials, combinedSignal, reportProgress);
           }
         );
 
@@ -179,7 +199,12 @@ export class SyncEngine {
           return { status: 'skipped_concurrent_tab' } as const;
         }
       } finally {
-        this.currentCycleController = null;
+        if (options?.signal && abortHandler) {
+          options.signal.removeEventListener('abort', abortHandler);
+        }
+        if (this.currentCycleController === cycleController) {
+          this.currentCycleController = null;
+        }
         this.runningPromise = null;
         if (this.followUpRequested && !this.disposed && !this.lifecycleController.signal.aborted && !this.isPaused(credentials.userId)) {
           this.followUpRequested = false;
@@ -387,19 +412,42 @@ export class SyncEngine {
         throw combinedSignal.reason ?? new Error('Sync aborted');
       }
       const now = new Date().toISOString();
-      const existingState = await this.stateRepo.getSyncState(stateKey);
       if (this.disposed || combinedSignal.aborted || this.isPaused(credentials.userId)) {
         throw combinedSignal.reason ?? new Error('Sync aborted');
       }
 
-      await this.stateRepo.saveSyncState({
-        ...existingState,
-        key: stateKey,
-        userId: credentials.userId,
-        deviceId: credentials.deviceId,
-        lastServerCursor: cursor,
-        lastSyncedAt: now,
-      });
+      let finalCursor = cursor;
+      if (typeof this.stateRepo.updateSyncState === 'function') {
+        const updated = await this.stateRepo.updateSyncState(stateKey, (existing) => {
+          const effectiveCursor = Math.max(existing?.lastServerCursor ?? 0, cursor);
+          finalCursor = effectiveCursor;
+          return {
+            ...(existing ?? {
+              key: stateKey,
+              userId: credentials.userId,
+              deviceId: credentials.deviceId,
+              lastServerCursor: effectiveCursor,
+            }),
+            lastServerCursor: effectiveCursor,
+            lastSyncedAt: now,
+          };
+        });
+        if (updated?.lastServerCursor !== undefined) {
+          finalCursor = updated.lastServerCursor;
+        }
+      } else {
+        const existingState = await this.stateRepo.getSyncState(stateKey);
+        const effectiveCursor = Math.max(existingState?.lastServerCursor ?? 0, cursor);
+        finalCursor = effectiveCursor;
+        await this.stateRepo.saveSyncState({
+          ...existingState,
+          key: stateKey,
+          userId: credentials.userId,
+          deviceId: credentials.deviceId,
+          lastServerCursor: effectiveCursor,
+          lastSyncedAt: now,
+        });
+      }
 
       if (this.disposed || combinedSignal.aborted || this.isPaused(credentials.userId)) {
         throw combinedSignal.reason ?? new Error('Sync aborted');
@@ -409,7 +457,7 @@ export class SyncEngine {
         state: 'idle',
         pendingCount: finalPending,
         lastSyncedAt: now,
-        lastServerCursor: cursor,
+        lastServerCursor: finalCursor,
         lastError: undefined,
       });
 
@@ -486,6 +534,21 @@ export class SyncEngine {
       if (this.disposed || this.lifecycleController.signal.aborted || signal?.aborted) {
         throw signal?.reason ?? this.lifecycleController.signal.reason ?? new Error('Sync aborted');
       }
+
+      if (
+        reconcileResult?.isStale ||
+        (pullResponse.changes.length > 0 && reconcileResult?.newCursor !== pullResponse.newCursor)
+      ) {
+        const freshState = await this.stateRepo.getSyncState(stateKey);
+        cursor = freshState?.lastServerCursor ?? 0;
+        this.statusStore.setState({ lastServerCursor: cursor });
+        break;
+      }
+
+      if (this.transport.acknowledgePull && pullResponse.receipt) {
+        await this.transport.acknowledgePull(credentials, pullResponse.receipt, signal);
+      }
+
       const currentApplied = reconcileResult?.appliedCount ?? 0;
       appliedCount += currentApplied;
       appliedChangesCount += currentApplied + (reconcileResult?.conflictCount ?? 0);
@@ -497,16 +560,6 @@ export class SyncEngine {
 
       cursor = pullResponse.newCursor;
       this.statusStore.setState({ lastServerCursor: cursor });
-
-      const freshState = await this.stateRepo.getSyncState(stateKey);
-      await this.stateRepo.saveSyncState({
-        ...freshState,
-        key: stateKey,
-        userId: credentials.userId,
-        deviceId: credentials.deviceId,
-        lastServerCursor: cursor,
-        lastSyncedAt: freshState?.lastSyncedAt,
-      });
 
       hasMore = pullResponse.hasMore;
     }

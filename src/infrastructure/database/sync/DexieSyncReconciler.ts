@@ -1,7 +1,8 @@
 import type { Table } from 'dexie';
 import { getActiveVaultDatabase, type LunaClairDatabase } from '../schema/LunaClairDatabase';
 import { createSyncStateKey } from '../../../domain/sync/utils/syncIdentity';
-import type { ConflictDraft, SyncPushRequest, SyncPushResponse, SyncPullResponse, SyncQueueItem } from '../../../domain/sync/models/sync.types';
+import { compareHlc } from '../../../domain/sync/utils/hlc';
+import type { ConflictDraft, SyncPushRequest, SyncPushResponse, SyncPullResponse, SyncQueueItem, SyncState } from '../../../domain/sync/models/sync.types';
 import type { SyncReconciler, ReconcilePullResult, ApplyPushResult } from '../../../domain/sync/services/SyncReconciler';
 import { isSyncCategoryEnabled } from '../../../domain/sync/preferences/SyncCategoryPreferences';
 import type { StudyMaterial } from '../../../domain/library/models/StudyMaterial';
@@ -86,18 +87,44 @@ export class DexieSyncReconciler implements SyncReconciler {
     let db: LunaClairDatabase;
     let userId: string;
     let deviceId: string;
+    let currentCursor: number | undefined;
     let pullResponse: SyncPullResponse;
 
     if (typeof dbOrUserId === 'string') {
       db = this.db;
       userId = dbOrUserId;
       deviceId = userIdOrDeviceId!;
-      pullResponse = currentCursorOrPullResponse as SyncPullResponse;
+      if (typeof deviceIdOrCurrentCursor === 'number') {
+        currentCursor = deviceIdOrCurrentCursor;
+        pullResponse = currentCursorOrPullResponse as SyncPullResponse;
+      } else {
+        pullResponse = currentCursorOrPullResponse as SyncPullResponse;
+        currentCursor = pullResponse.receipt?.baseCursor;
+      }
     } else {
       db = dbOrUserId;
       userId = userIdOrDeviceId!;
       deviceId = deviceIdOrCurrentCursor as string;
-      pullResponse = maybePullResponse!;
+      if (typeof currentCursorOrPullResponse === 'number') {
+        currentCursor = currentCursorOrPullResponse;
+        pullResponse = maybePullResponse!;
+      } else {
+        pullResponse = currentCursorOrPullResponse as SyncPullResponse;
+        currentCursor = pullResponse.receipt?.baseCursor;
+      }
+    }
+
+    if (pullResponse.receipt) {
+      if (pullResponse.receipt.userId && pullResponse.receipt.userId !== userId) {
+        throw new Error(
+          `Receipt user mismatch: receipt ${pullResponse.receipt.userId} but expected ${userId}`
+        );
+      }
+      if (pullResponse.receipt.deviceId && pullResponse.receipt.deviceId !== deviceId) {
+        throw new Error(
+          `Receipt device mismatch: receipt ${pullResponse.receipt.deviceId} but expected ${deviceId}`
+        );
+      }
     }
 
     const changes = pullResponse.changes ?? [];
@@ -111,8 +138,12 @@ export class DexieSyncReconciler implements SyncReconciler {
     let appliedCount = 0;
     let conflictCount = 0;
     const touchedEntities = new Set<string>();
+    let isStaleBatch = false;
+    let staleNewCursor = 0;
+    let lastCommittedRevision: number | undefined;
 
-    for (const chunk of chunks) {
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex];
       const touchedTablesSet = new Set<Table>();
       if (db.syncState) touchedTablesSet.add(db.syncState);
       if (db.syncQueue) touchedTablesSet.add(db.syncQueue);
@@ -135,6 +166,46 @@ export class DexieSyncReconciler implements SyncReconciler {
       const touchedTables = Array.from(touchedTablesSet);
 
       await withOrigin(db, 'remote', touchedTables, async () => {
+        const stateKey = createSyncStateKey(userId, deviceId);
+        const existingState = await db.syncState.get(stateKey);
+        const storedRevision = existingState?.checkpointRevision ?? 0;
+        const storedCursor = existingState?.lastServerCursor;
+
+        // Pre-Write check: inside the transaction BEFORE any entity mutations or checkpoint writes
+        if (chunkIndex === 0 && existingState) {
+
+          // Check base revision: if receipt has baseRevision and it doesn't match storedRevision, fence
+          if (
+            pullResponse.receipt?.baseRevision !== undefined &&
+            pullResponse.receipt.baseRevision !== storedRevision
+          ) {
+            isStaleBatch = true;
+            staleNewCursor = storedCursor ?? 0;
+            return;
+          }
+
+          // Check base cursor: if storedCursor is recorded and does not match, fence
+          if (typeof storedCursor === 'number') {
+            if (typeof currentCursor === 'number' && currentCursor !== storedCursor) {
+              isStaleBatch = true;
+              staleNewCursor = storedCursor;
+              return;
+            }
+            if (
+              pullResponse.receipt?.baseCursor !== undefined &&
+              pullResponse.receipt.baseCursor !== storedCursor
+            ) {
+              isStaleBatch = true;
+              staleNewCursor = storedCursor;
+              return;
+            }
+            if (pullResponse.newCursor < storedCursor) {
+              isStaleBatch = true;
+              staleNewCursor = storedCursor;
+              return;
+            }
+          }
+        }
         const keysByTable = new Map<TableName, Set<string>>();
         const entitiesByTable = new Map<TableName, string>();
 
@@ -419,24 +490,119 @@ export class DexieSyncReconciler implements SyncReconciler {
           }
         }
 
-        const now = new Date().toISOString();
-        const stateKey = createSyncStateKey(userId, deviceId);
-        const existingState = await db.syncState.get(stateKey);
-        await db.syncState.put({
-          ...(existingState ?? {}),
-          key: stateKey,
-          userId,
-          deviceId,
-          lastServerCursor: pullResponse.newCursor,
-          lastSyncedAt: now,
-        });
+        if (chunkIndex === chunks.length - 1) {
+          const now = new Date().toISOString();
+          const stateKey = createSyncStateKey(userId, deviceId);
+          const existingState = await db.syncState.get(stateKey);
+
+          let updatedAppliedFileIds = existingState?.appliedFileIds ?? [];
+          let updatedPendingFileProgress = existingState?.pendingFileProgress;
+          let updatedPageToken = existingState?.pageToken;
+          let updatedPeerWatermarks = existingState?.peerWatermarks
+            ? { ...existingState.peerWatermarks }
+            : {};
+
+          if (pullResponse.receipt) {
+            const receipt = pullResponse.receipt;
+            if (Array.isArray(receipt.appliedFileIds) && receipt.appliedFileIds.length > 0) {
+              const fileIdSet = new Set(updatedAppliedFileIds);
+              for (const fid of receipt.appliedFileIds) {
+                fileIdSet.delete(fid);
+                fileIdSet.add(fid);
+              }
+              updatedAppliedFileIds = Array.from(fileIdSet);
+              if (updatedAppliedFileIds.length > 1000) {
+                updatedAppliedFileIds = updatedAppliedFileIds.slice(-1000);
+              }
+            }
+
+            if (receipt.pendingFileProgress) {
+              const pending = receipt.pendingFileProgress;
+              const alreadyApplied = updatedAppliedFileIds.includes(pending.fileId);
+              const isSamePendingFile = existingState?.pendingFileProgress?.fileId === pending.fileId;
+              const isRegressingOffset =
+                isSamePendingFile &&
+                typeof existingState?.pendingFileProgress?.offset === 'number' &&
+                existingState.pendingFileProgress.offset >= pending.offset;
+
+              if (!alreadyApplied && !isRegressingOffset) {
+                updatedPendingFileProgress = pending;
+              } else {
+                updatedPendingFileProgress = existingState?.pendingFileProgress;
+              }
+            } else {
+              if (
+                existingState?.pendingFileProgress &&
+                receipt.appliedFileIds?.includes(existingState.pendingFileProgress.fileId)
+              ) {
+                updatedPendingFileProgress = undefined;
+              } else if (!existingState?.pendingFileProgress) {
+                updatedPendingFileProgress = undefined;
+              }
+            }
+
+            if (receipt.pageToken) {
+              updatedPageToken = receipt.pageToken;
+            }
+
+            if (receipt.peerWatermarks) {
+              for (const [pDeviceId, pHlc] of Object.entries(receipt.peerWatermarks)) {
+                const currentHlc = updatedPeerWatermarks[pDeviceId];
+                if (!currentHlc || compareHlc(pHlc, currentHlc) > 0) {
+                  updatedPeerWatermarks[pDeviceId] = pHlc;
+                }
+              }
+            }
+          }
+
+          const updatedRevision = (existingState?.checkpointRevision ?? storedRevision) + 1;
+          lastCommittedRevision = updatedRevision;
+
+          const newState: SyncState = {
+            ...(existingState ?? {}),
+            key: stateKey,
+            userId,
+            deviceId,
+            lastServerCursor: pullResponse.newCursor,
+            checkpointRevision: updatedRevision,
+            lastSyncedAt: now,
+            appliedFileIds: updatedAppliedFileIds,
+            pendingFileProgress: updatedPendingFileProgress,
+            pendingDiscovery: pullResponse.receipt?.pendingDiscovery,
+            pageToken: updatedPageToken,
+            peerWatermarks: updatedPeerWatermarks,
+          };
+          if (!updatedPendingFileProgress) {
+            delete (newState as any).pendingFileProgress;
+          }
+          if (!newState.pendingDiscovery) {
+            delete (newState as any).pendingDiscovery;
+          }
+
+          await db.syncState.put(newState);
+        }
       });
+
+      if (isStaleBatch) {
+        break;
+      }
+    }
+
+    if (isStaleBatch) {
+      return {
+        appliedCount: 0,
+        conflictCount: 0,
+        newCursor: staleNewCursor,
+        isStale: true,
+        touchedEntities: [],
+      };
     }
 
     return {
       appliedCount,
       conflictCount,
       newCursor: pullResponse.newCursor,
+      newRevision: lastCommittedRevision,
       touchedEntities: Array.from(touchedEntities),
     };
   }

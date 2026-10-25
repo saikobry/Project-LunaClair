@@ -59,6 +59,7 @@ export interface Recover410Params {
   accessToken: string;
   appliedFileIds: Set<string> | string[];
   peerWatermarks: Record<string, string>;
+  pendingFileId?: string;
   signal?: AbortSignal;
 }
 
